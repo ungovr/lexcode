@@ -1,6 +1,7 @@
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { isAbsolute, join, resolve } from 'node:path';
+import { trackTempDir } from '../cleanup.js';
 import { matchComponents } from '../components/match.js';
 import { readLexlintYml } from '../declaration/lexlint-yml.js';
 import { ToolError } from '../errors.js';
@@ -17,6 +18,7 @@ import { toSarif } from '../record/sarif.js';
 import { loadRuleSet, writeMergedConfig } from '../rules/load.js';
 import { extractScripts } from '../scope/extract.js';
 import { listFiles } from '../scope/files.js';
+import { hasLongLine, MAX_LINE_CHARS } from '../scope/longlines.js';
 import { loadSidecar } from '../config/sidecar.js';
 import type { Dependency, EngineMatch, Evidence, EvidenceRecord, RuleSet, ScopeSpec, Sidecar } from '../types.js';
 import { defaultIo, flag, parseFlags, str, strList, type Io } from './args.js';
@@ -116,9 +118,22 @@ export async function scan(o: ScanOptions): Promise<EvidenceRecord> {
 
   // Source rules: what the code performs.
   const tmp = await mkdtemp(join(tmpdir(), 'lexcode-scan-'));
+  const release = trackTempDir(tmp);
   try {
     const pairs = rs.rules.length > 0 ? extractScripts(root, files, join(tmp, 'scripts')) : [];
-    const countedFiles = [...files, ...pairs.map((p) => p.tempPath)];
+    let countedFiles = [...files, ...pairs.map((p) => p.tempPath)];
+    if (rs.rules.length > 0) {
+      // A file with a line over 100,000 characters is generated code, and the engine can spend ten
+      // minutes on one such line: it is not handed over, and not counted as read.
+      const wanted = engineTargets(rs.rules, countedFiles);
+      const long = new Set(wanted.filter((f) => hasLongLine(isAbsolute(f) ? f : join(root, ...f.split('/')))));
+      if (long.size > 0) {
+        countedFiles = countedFiles.filter((f) => !long.has(f));
+        notices.push(
+          `skipped ${long.size.toLocaleString('en-US')} ${long.size === 1 ? 'file' : 'files'} with a line over ${MAX_LINE_CHARS.toLocaleString('en-US')} characters (generated or minified code); the engine did not read ${long.size === 1 ? 'it' : 'them'}`,
+        );
+      }
+    }
     const rulesRun = countRulesRun(rs, rs.rules, countedFiles, ecosystemsFound(files));
 
     let matches: EngineMatch[] = [];
@@ -157,7 +172,7 @@ export async function scan(o: ScanOptions): Promise<EvidenceRecord> {
       notices,
     });
   } finally {
-    await rm(tmp, { recursive: true, force: true });
+    await release();
   }
 }
 

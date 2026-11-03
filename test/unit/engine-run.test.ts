@@ -1,10 +1,11 @@
-import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, rm, stat } from 'node:fs/promises';
 import { availableParallelism, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { ToolError } from '../../src/errors.js';
-import { CHUNK_CHARS_OTHER, chunkTargets, runEngine } from '../../src/engine/run.js';
+import { CHUNK_CHARS_OTHER, chunkTargets, engineDeadlineMs, runEngine, type RunEngineOptions } from '../../src/engine/run.js';
+import { windowsKillCommand } from '../../src/cleanup.js';
 
 const STUB = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'stubs', 'fake-opengrep.mjs');
 const skipStub = process.platform === 'win32';
@@ -37,6 +38,8 @@ describe('chunkTargets', () => {
 describe.skipIf(skipStub)('runEngine with the fake engine', () => {
   let dir: string;
   let log: string;
+  let dirs: { tempRoot: string; cacheRoot: string };
+  const run = (o: Omit<RunEngineOptions, 'dirs'>): ReturnType<typeof runEngine> => runEngine({ dirs, ...o });
   const saved: Record<string, string | undefined> = {};
   const setEnv = (k: string, v: string | undefined): void => {
     if (!(k in saved)) saved[k] = process.env[k];
@@ -47,6 +50,8 @@ describe.skipIf(skipStub)('runEngine with the fake engine', () => {
   beforeEach(async () => {
     dir = await mkdtemp(join(tmpdir(), 'lexcode-run-'));
     log = join(dir, 'argv.log');
+    // Beside the scanned directory, not inside it: the engine must run outside the repository.
+    dirs = { tempRoot: await mkdtemp(join(tmpdir(), 'lexcode-run-t-')), cacheRoot: await mkdtemp(join(tmpdir(), 'lexcode-run-c-')) };
     setEnv('FAKE_OPENGREP_ARGV_LOG', log);
     setEnv('FAKE_OPENGREP_MODE', undefined);
     setEnv('FAKE_OPENGREP_RESULTS', undefined);
@@ -58,6 +63,8 @@ describe.skipIf(skipStub)('runEngine with the fake engine', () => {
       else process.env[k] = v;
     }
     await rm(dir, { recursive: true, force: true });
+    await rm(dirs.tempRoot, { recursive: true, force: true });
+    await rm(dirs.cacheRoot, { recursive: true, force: true });
   });
 
   const calls = async (): Promise<Array<{ rootLink?: string; argv: string[]; options: Record<string, string>; flags: string[]; targets: string[]; cwd: string; env: Record<string, string | undefined> }>> =>
@@ -67,7 +74,7 @@ describe.skipIf(skipStub)('runEngine with the fake engine', () => {
       .map((l) => JSON.parse(l));
 
   it('passes the pinned flags, config, json output and targets, in the given cwd', async () => {
-    const r = await runEngine({ engine: STUB, configFile: '/tmp/cfg.yml', targets: ['a.py', 'sub/b.js'], root: dir, jobs: 3 });
+    const r = await run({ engine: STUB, configFile: '/tmp/cfg.yml', targets: ['a.py', 'sub/b.js'], root: dir, jobs: 3 });
     const [c] = await calls();
     expect(c).toBeDefined();
     expect(c!.argv[0]).toBe('scan');
@@ -86,7 +93,7 @@ describe.skipIf(skipStub)('runEngine with the fake engine', () => {
   });
 
   it('puts -- before the targets so a file name that starts with a dash is not read as an option', async () => {
-    await runEngine({ engine: STUB, configFile: 'c.yml', targets: ['-weird.py', 'ok.py'], root: dir });
+    await run({ engine: STUB, configFile: 'c.yml', targets: ['-weird.py', 'ok.py'], root: dir });
     const [c] = await calls();
     const at = c!.argv.indexOf('--');
     expect(at).toBeGreaterThan(0);
@@ -95,7 +102,7 @@ describe.skipIf(skipStub)('runEngine with the fake engine', () => {
   });
 
   it('runs the engine in a directory of lexcode\'s own, reaching the repository only through a link', async () => {
-    await runEngine({ engine: STUB, configFile: 'c.yml', targets: ['a.py'], root: dir });
+    await run({ engine: STUB, configFile: 'c.yml', targets: ['a.py'], root: dir });
     const [c] = await calls();
     const here = await realpathOf(c!.cwd).catch(() => c!.cwd);
     const root = await realpathOf(dir);
@@ -107,14 +114,14 @@ describe.skipIf(skipStub)('runEngine with the fake engine', () => {
 
   it('leaves an absolute target (an extracted script copy) as it is and reports its path unchanged', async () => {
     const abs = join(dir, 'scripts', 'x.vue.lexcode.ts');
-    const r = await runEngine({ engine: STUB, configFile: 'c.yml', targets: [abs, 'a.py'], root: dir });
+    const r = await run({ engine: STUB, configFile: 'c.yml', targets: [abs, 'a.py'], root: dir });
     const [c] = await calls();
     expect(c!.targets).toEqual([abs, 'scan-root/a.py']);
     expect(r.matches.map((m) => m.path)).toEqual([abs, 'a.py']);
   });
 
   it('defaults --jobs to the available parallelism, at most 16', async () => {
-    await runEngine({ engine: STUB, configFile: 'c.yml', targets: ['a.py'], root: dir });
+    await run({ engine: STUB, configFile: 'c.yml', targets: ['a.py'], root: dir });
     const [c] = await calls();
     const jobs = Number(c!.options['--jobs']);
     expect(jobs).toBe(Math.min(availableParallelism(), 16));
@@ -143,7 +150,7 @@ describe.skipIf(skipStub)('runEngine with the fake engine', () => {
         { check_id: 'lexcode.other', path: 'b.ts', start: { line: 1 }, extra: { lines: 'x' } },
       ]),
     );
-    const r = await runEngine({ engine: STUB, configFile: 'c.yml', targets: ['x'], root: dir });
+    const r = await run({ engine: STUB, configFile: 'c.yml', targets: ['x'], root: dir });
     expect(r.matches).toEqual([
       { ruleId: 'lexcode.crawl.http', path: 'src/deep/a.py', line: 12, metavars: { $URL: '"https://example.com"', $F: 'get' }, lines: '    requests.get(url)' },
       { ruleId: 'lexcode.other', path: 'b.ts', line: 1, metavars: {}, lines: 'x' },
@@ -152,21 +159,21 @@ describe.skipIf(skipStub)('runEngine with the fake engine', () => {
 
   it('counts per-file errors in fileErrors without throwing', async () => {
     setEnv('FAKE_OPENGREP_MODE', 'errors');
-    const r = await runEngine({ engine: STUB, configFile: 'c.yml', targets: ['a.py'], root: dir });
+    const r = await run({ engine: STUB, configFile: 'c.yml', targets: ['a.py'], root: dir });
     expect(r.fileErrors).toBe(2);
     expect(r.matches).toHaveLength(1);
   });
 
   it('throws a ToolError carrying the engine message for a fatal rule error', async () => {
     setEnv('FAKE_OPENGREP_MODE', 'fatal');
-    const err = await runEngine({ engine: STUB, configFile: 'c.yml', targets: ['a.py'], root: dir }).catch((e: unknown) => e);
+    const err = await run({ engine: STUB, configFile: 'c.yml', targets: ['a.py'], root: dir }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ToolError);
     expect((err as Error).message).toContain('rule is broken');
   });
 
   it('throws a ToolError with the last stderr line when the engine exits non-zero', async () => {
     setEnv('FAKE_OPENGREP_MODE', 'exit2');
-    const err = await runEngine({ engine: STUB, configFile: 'c.yml', targets: ['a.py'], root: dir }).catch((e: unknown) => e);
+    const err = await run({ engine: STUB, configFile: 'c.yml', targets: ['a.py'], root: dir }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ToolError);
     expect((err as Error).message).toContain('last stderr line');
     expect((err as Error).message).toContain('config exploded');
@@ -174,16 +181,16 @@ describe.skipIf(skipStub)('runEngine with the fake engine', () => {
 
   it('throws a ToolError when the output file is not JSON', async () => {
     setEnv('FAKE_OPENGREP_MODE', 'badjson');
-    await expect(runEngine({ engine: STUB, configFile: 'c.yml', targets: ['a.py'], root: dir })).rejects.toBeInstanceOf(ToolError);
+    await expect(run({ engine: STUB, configFile: 'c.yml', targets: ['a.py'], root: dir })).rejects.toBeInstanceOf(ToolError);
   });
 
   it('throws a ToolError when the engine writes no output file', async () => {
     setEnv('FAKE_OPENGREP_MODE', 'nooutput');
-    await expect(runEngine({ engine: STUB, configFile: 'c.yml', targets: ['a.py'], root: dir })).rejects.toBeInstanceOf(ToolError);
+    await expect(run({ engine: STUB, configFile: 'c.yml', targets: ['a.py'], root: dir })).rejects.toBeInstanceOf(ToolError);
   });
 
   it('throws a ToolError naming the engine when it cannot be started', async () => {
-    const err = await runEngine({ engine: join(dir, 'no-such-engine'), configFile: 'c.yml', targets: ['a.py'], root: dir }).catch((e: unknown) => e);
+    const err = await run({ engine: join(dir, 'no-such-engine'), configFile: 'c.yml', targets: ['a.py'], root: dir }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ToolError);
     expect((err as Error).message).toContain('no-such-engine');
   });
@@ -191,7 +198,7 @@ describe.skipIf(skipStub)('runEngine with the fake engine', () => {
   it('runs once per chunk and concatenates matches and fileErrors', async () => {
     setEnv('FAKE_OPENGREP_MODE', 'errors');
     const targets = ['aaaa.py', 'bbbb.py', 'cccc.py', 'dddd.py', 'eeee.py'];
-    const r = await runEngine({ engine: STUB, configFile: 'c.yml', targets, root: dir, chunkChars: 26 });
+    const r = await run({ engine: STUB, configFile: 'c.yml', targets, root: dir, chunkChars: 26 });
     const cs = await calls();
     expect(cs.length).toBeGreaterThan(1);
     expect(cs.flatMap((c) => c.targets)).toEqual(targets.map((t) => `scan-root/${t}`));
@@ -201,31 +208,105 @@ describe.skipIf(skipStub)('runEngine with the fake engine', () => {
   });
 
   it('does not run the engine at all for an empty target list', async () => {
-    const r = await runEngine({ engine: STUB, configFile: 'c.yml', targets: [], root: dir });
+    const r = await run({ engine: STUB, configFile: 'c.yml', targets: [], root: dir });
     expect(r.matches).toEqual([]);
     expect(r.fileErrors).toBe(0);
     expect(await calls()).toEqual([]);
   });
 
-  it('removes its temporary output directory, on success and on failure', async () => {
-    const before = await tmpEntries();
-    await runEngine({ engine: STUB, configFile: 'c.yml', targets: ['a.py'], root: dir });
+  it('removes its temporary directory, on success and on failure, and leaves nothing else in the temporary root', async () => {
+    await run({ engine: STUB, configFile: 'c.yml', targets: ['a.py'], root: dir });
     setEnv('FAKE_OPENGREP_MODE', 'exit2');
-    await runEngine({ engine: STUB, configFile: 'c.yml', targets: ['a.py'], root: dir }).catch(() => {});
-    expect(await tmpEntries()).toEqual(before);
+    await run({ engine: STUB, configFile: 'c.yml', targets: ['a.py'], root: dir }).catch(() => {});
+    expect(await readdir(dirs.tempRoot)).toEqual([]);
   });
+
+  it('points the engine\'s scratch files, log and extraction cache at lexcode\'s own directories', async () => {
+    await run({ engine: STUB, configFile: 'c.yml', targets: ['a.py'], root: dir });
+    const [c] = await calls();
+    const e = c!.env;
+    expect(e.TMPDIR).toBeDefined();
+    expect(e.TMPDIR!.startsWith(join(dirs.tempRoot, 'lexcode-engine-'))).toBe(true);
+    expect(e.TMP).toBe(e.TMPDIR);
+    expect(e.TEMP).toBe(e.TMPDIR);
+    expect(e.SEMGREP_LOG_FILE!.startsWith(`${e.TMPDIR}/`)).toBe(true);
+    expect(e.XDG_CACHE_HOME).toBe(join(dirs.cacheRoot, 'engine-home'));
+    expect(((await stat(e.XDG_CACHE_HOME!)).mode & 0o022)).toBe(0);
+  });
+
+  it('stops an engine that outlives its deadline, with its workers, and reports the deadline as a tool error', async () => {
+    const pidFile = join(dir, 'engine.pid');
+    const workerFile = join(dir, 'worker.pid');
+    setEnv('FAKE_OPENGREP_MODE', 'sleep');
+    setEnv('FAKE_OPENGREP_PID_FILE', pidFile);
+    setEnv('FAKE_OPENGREP_GRANDCHILD_PID_FILE', workerFile);
+    const t0 = Date.now();
+    const err = await run({ engine: STUB, configFile: 'c.yml', targets: ['a.py'], root: dir, deadlineMs: 1500 }).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ToolError);
+    expect((err as Error).message).toMatch(/did not finish within 1\.5 seconds/);
+    expect((err as Error).message).toContain('LEXCODE_ENGINE_DEADLINE');
+    expect(Date.now() - t0).toBeLessThan(15_000);
+    const engine = Number(await readFile(pidFile, 'utf8'));
+    const worker = Number(await readFile(workerFile, 'utf8'));
+    await waitDead(engine);
+    await waitDead(worker);
+    expect(await readdir(dirs.tempRoot)).toEqual([]);
+  });
+
+  it('kills with SIGKILL an engine that ignores SIGTERM, after the grace period', async () => {
+    const pidFile = join(dir, 'engine.pid');
+    setEnv('FAKE_OPENGREP_MODE', 'sleep-ignore-term');
+    setEnv('FAKE_OPENGREP_PID_FILE', pidFile);
+    const t0 = Date.now();
+    const err = await run({ engine: STUB, configFile: 'c.yml', targets: ['a.py'], root: dir, deadlineMs: 800 }).catch((e: unknown) => e);
+    expect((err as Error).message).toMatch(/did not finish/);
+    expect(Date.now() - t0).toBeGreaterThanOrEqual(2500);
+    await waitDead(Number(await readFile(pidFile, 'utf8')));
+  }, 30_000);
 
   it('reads the version from --version once per engine path', async () => {
     setEnv('FAKE_OPENGREP_VERSION', '1.33.1');
-    const a = await runEngine({ engine: STUB, configFile: 'c.yml', targets: ['a.py'], root: dir });
+    const a = await run({ engine: STUB, configFile: 'c.yml', targets: ['a.py'], root: dir });
     expect(a.version).toBe('1.33.1');
   });
 });
 
-async function tmpEntries(): Promise<string[]> {
-  return (await readdir(tmpdir())).filter((n) => n.startsWith('lexcode-engine-')).sort();
+async function waitDead(pid: number): Promise<void> {
+  for (let i = 0; i < 100; i += 1) {
+    try {
+      process.kill(pid, 0);
+    } catch {
+      return;
+    }
+    await new Promise((r) => setTimeout(r, 50));
+  }
+  throw new Error(`process ${pid} is still running`);
 }
 async function realpathOf(p: string): Promise<string> {
   const { realpath } = await import('node:fs/promises');
   return realpath(p);
 }
+
+describe('the engine deadline', () => {
+  it('is 15 minutes by default and LEXCODE_ENGINE_DEADLINE seconds otherwise', () => {
+    expect(engineDeadlineMs({})).toBe(900_000);
+    expect(engineDeadlineMs({ LEXCODE_ENGINE_DEADLINE: '' })).toBe(900_000);
+    expect(engineDeadlineMs({ LEXCODE_ENGINE_DEADLINE: '120' })).toBe(120_000);
+    expect(engineDeadlineMs({ LEXCODE_ENGINE_DEADLINE: '0.5' })).toBe(500);
+  });
+
+  it('rejects a value that is not a positive number of seconds', () => {
+    for (const bad of ['0', '-5', 'soon', 'NaN']) {
+      expect(() => engineDeadlineMs({ LEXCODE_ENGINE_DEADLINE: bad }), bad).toThrow(/LEXCODE_ENGINE_DEADLINE must be a positive number of seconds/);
+    }
+  });
+});
+
+describe('stopping an engine on Windows', () => {
+  it('uses taskkill on the whole tree and nothing else', () => {
+    const cmd = windowsKillCommand(4242, 'win32');
+    expect(cmd?.file.toLowerCase()).toContain('taskkill.exe');
+    expect(cmd?.args).toEqual(['/T', '/F', '/PID', '4242']);
+    expect(windowsKillCommand(4242, 'linux')).toBeUndefined();
+  });
+});

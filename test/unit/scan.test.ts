@@ -83,6 +83,25 @@ describe('scan with a stand-in engine', () => {
     expect(runs[0]!.cwd.startsWith(root)).toBe(false);
   });
 
+  it('does not hand the engine a file with a line over 100,000 characters, and counts it in a notice', async () => {
+    const root = tree({
+      'src/a.py': 'x = 1\n',
+      'gen/long.py': `x = "${'a'.repeat(100_001)}"\n`,
+      'gen/limit.py': `${'a'.repeat(100_000)}\n`,
+      'gen/multibyte.py': `# ${'\u00e9'.repeat(60_000)}\n`,
+      'web/gen.vue': `<script lang="ts">const s = "${'b'.repeat(100_001)}"</script>\n`,
+    });
+    const rec = await scan({ root, rulesDirs: [], rs: stubRuleSet(), enginePath: STUB, includeTests: false, snippets: false });
+    const runs = readFileSync(argvLog, 'utf8').trim().split('\n').map((l) => JSON.parse(l) as { targets: string[] });
+    const targets = runs.flatMap((r) => r.targets);
+    expect(targets).toContain('scan-root/src/a.py');
+    expect(targets).toContain('scan-root/gen/limit.py');
+    expect(targets).toContain('scan-root/gen/multibyte.py'); // 60,000 characters, 120,000 bytes
+    expect(targets).not.toContain('scan-root/gen/long.py');
+    expect(targets.some((t) => t.includes('gen.vue'))).toBe(false);
+    expect(rec.notices).toContain('skipped 2 files with a line over 100,000 characters (generated or minified code); the engine did not read them');
+  });
+
   it('reports the engine version the engine reports', async () => {
     const root = tree({ 'src/a.py': 'x = 1\n' });
     process.env.FAKE_OPENGREP_VERSION = '1.40.0';

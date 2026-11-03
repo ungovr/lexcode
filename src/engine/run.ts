@@ -1,11 +1,14 @@
-import { execFile, spawn } from 'node:child_process';
+import { execFile, spawn, type ChildProcess } from 'node:child_process';
 import { mkdirSync, symlinkSync } from 'node:fs';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile } from 'node:fs/promises';
 import { availableParallelism, tmpdir } from 'node:os';
 import { isAbsolute, join } from 'node:path';
+import { terminateGroup, trackChild, trackTempDir } from '../cleanup.js';
 import { ToolError } from '../errors.js';
 import { childEnv } from '../proc.js';
 import type { EngineMatch } from '../types.js';
+import { cacheDir } from './cache.js';
+import { checkEngineDir } from './dirs.js';
 
 /**
  * Characters of target paths per engine invocation. Windows caps a command
@@ -15,7 +18,7 @@ import type { EngineMatch } from '../types.js';
  * so outside Windows a repository of several thousand files is one run.
  */
 export const CHUNK_CHARS_WINDOWS = 24_000;
-export const CHUNK_CHARS_OTHER = 900_000;
+export const CHUNK_CHARS_OTHER = 600_000;
 /** Engine worker processes: parsing is most of a scan's cost and scales with them. */
 export const MAX_JOBS = 16;
 
@@ -32,20 +35,83 @@ export const ROOT_LINK = 'scan-root';
 
 const versionCache = new Map<string, string>();
 
+/** Where lexcode puts what it makes while it runs; the system temporary directory unless a test says otherwise. */
+export interface EngineDirs {
+  /** Parent of the per-run `lexcode-engine-*` directory. */
+  tempRoot?: string;
+  /** lexcode's cache directory, under which the engine's self-extracted copy lives. */
+  cacheRoot?: string;
+}
+
+/**
+ * The engine's environment. Everything it would write outside lexcode's own directories is pointed
+ * inside them: its scratch files (a copy of the rule set per run, target copies) go to `scratch`,
+ * which is removed with the scan; its log, which names the scanned paths, goes to a file in `scratch`;
+ * and its self-extracted copy goes to `extractCache`, a directory of lexcode's own cache that only
+ * the user can write to. HOME is untouched, and after a scan nothing of the engine's is left there.
+ */
+export function engineEnv(scratch: string, extractCache: string): NodeJS.ProcessEnv {
+  return childEnv({
+    SEMGREP_SEND_METRICS: 'off',
+    OPENGREP_ENABLE_VERSION_CHECK: '0',
+    TMPDIR: scratch,
+    TMP: scratch,
+    TEMP: scratch,
+    SEMGREP_LOG_FILE: join(scratch, 'engine.log'),
+    XDG_CACHE_HOME: extractCache,
+  });
+}
+
+/**
+ * Make the scratch directory inside `tmp` and choose the extraction cache: `<cache>/engine-home` when
+ * that directory can be made and is ours alone, else a directory inside `tmp` (slower, since the engine
+ * extracts itself again, but still private and still removed).
+ */
+async function engineSpace(tmp: string, d: EngineDirs): Promise<{ scratch: string; extractCache: string }> {
+  const scratch = join(tmp, 'tmp');
+  mkdirSync(scratch, { mode: 0o700 });
+  const home = join(d.cacheRoot ?? cacheDir(), 'engine-home');
+  try {
+    mkdirSync(home, { recursive: true, mode: 0o700 });
+  } catch {
+    const own = join(tmp, 'xdg');
+    mkdirSync(own, { mode: 0o700 });
+    return { scratch, extractCache: own };
+  }
+  await checkEngineDir(home);
+  return { scratch, extractCache: home };
+}
+
 /** What `<engine> --version` prints, read once per engine path. */
-export async function engineVersion(engine: string): Promise<string> {
+export async function engineVersion(engine: string, d: EngineDirs = {}): Promise<string> {
   const cached = versionCache.get(engine);
   if (cached) return cached;
-  const text = await new Promise<string>((resolve, reject) => {
-    execFile(engine, ['--version'], { timeout: 30_000, killSignal: 'SIGKILL', windowsHide: true, cwd: tmpdir(), env: engineEnv() }, (err, stdout) => {
-      if (err) reject(err);
-      else resolve(stdout);
+  const tmp = await mkdtemp(join(d.tempRoot ?? tmpdir(), 'lexcode-engine-'));
+  const release = trackTempDir(tmp);
+  let text: string;
+  try {
+    const space = await engineSpace(tmp, d);
+    text = await new Promise<string>((resolve, reject) => {
+      const child = execFile(
+        engine,
+        ['--version'],
+        { timeout: 30_000, killSignal: 'SIGKILL', windowsHide: true, cwd: tmp, env: engineEnv(space.scratch, space.extractCache), detached: process.platform !== 'win32' } as Parameters<typeof execFile>[2],
+        (err, stdout) => {
+          untrack();
+          if (err) reject(err);
+          else resolve(String(stdout));
+        },
+      );
+      const untrack = trackChild(child);
+    }).catch((err: unknown) => {
+      if (err instanceof ToolError) throw err;
+      throw new ToolError(
+        `cannot run the engine at ${engine} (${err instanceof Error ? err.message.split('\n')[0] : String(err)}). Check the path, or run \`lexcode engine fetch\` to install the pinned engine.`,
+      );
     });
-  }).catch((err: unknown) => {
-    throw new ToolError(
-      `cannot run the engine at ${engine} (${err instanceof Error ? err.message.split('\n')[0] : String(err)}). Check the path, or run \`lexcode engine fetch\` to install the pinned engine.`,
-    );
-  });
+  } finally {
+    await release();
+  }
   const match = /\d+\.\d+\.\d+\S*/.exec(text);
   const version = match?.[0] ?? text.trim().split('\n')[0] ?? '';
   if (!version) {
@@ -55,8 +121,17 @@ export async function engineVersion(engine: string): Promise<string> {
   return version;
 }
 
-function engineEnv(): NodeJS.ProcessEnv {
-  return childEnv({ SEMGREP_SEND_METRICS: 'off', OPENGREP_ENABLE_VERSION_CHECK: '0' });
+/** The longest an engine run may take, in seconds, unless LEXCODE_ENGINE_DEADLINE says otherwise. */
+export const DEFAULT_ENGINE_DEADLINE_SECONDS = 900;
+
+export function engineDeadlineMs(env: Record<string, string | undefined> = process.env): number {
+  const raw = env.LEXCODE_ENGINE_DEADLINE;
+  if (raw === undefined || raw.trim() === '') return DEFAULT_ENGINE_DEADLINE_SECONDS * 1000;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n <= 0) {
+    throw new ToolError(`LEXCODE_ENGINE_DEADLINE must be a positive number of seconds, not "${raw}".`);
+  }
+  return Math.round(n * 1000);
 }
 
 /** Split paths into groups whose joined length, with one separator between paths, stays at or under maxChars. */
@@ -88,6 +163,10 @@ export interface RunEngineOptions {
   jobs?: number;
   /** Override the per-run target budget (tests). */
   chunkChars?: number;
+  /** The whole run, all chunks, must finish within this many milliseconds; LEXCODE_ENGINE_DEADLINE (seconds), default 15 minutes. */
+  deadlineMs?: number;
+  /** Where lexcode's temporary and cache directories go; tests inject these. */
+  dirs?: EngineDirs;
 }
 
 export interface RunEngineResult {
@@ -187,21 +266,57 @@ function lastLines(text: string, n: number): string {
     .join('\n');
 }
 
-async function spawnEngine(engine: string, args: string[], cwd: string): Promise<{ code: number | null; signal: string | null; stderr: string }> {
+interface Spawned {
+  code: number | null;
+  signal: string | null;
+  stderr: string;
+  timedOut: boolean;
+}
+
+/**
+ * Run the engine in its own process group, so a stop or a deadline takes its workers with it. The
+ * child is registered with the cleanup module for the duration, which kills the group when lexcode
+ * itself is interrupted.
+ */
+async function spawnEngine(engine: string, args: string[], cwd: string, env: NodeJS.ProcessEnv, deadlineAt: number): Promise<Spawned> {
   return new Promise((resolve, reject) => {
-    const child = spawn(engine, args, { cwd, env: engineEnv(), stdio: ['ignore', 'ignore', 'pipe'], windowsHide: true });
+    const child: ChildProcess = spawn(engine, args, {
+      cwd,
+      env,
+      stdio: ['ignore', 'ignore', 'pipe'],
+      windowsHide: true,
+      detached: process.platform !== 'win32',
+    });
+    const untrack = trackChild(child);
     let stderr = '';
-    child.stderr.setEncoding('utf8');
-    child.stderr.on('data', (d: string) => {
+    let timedOut = false;
+    child.stderr?.setEncoding('utf8');
+    child.stderr?.on('data', (d: string) => {
       stderr = (stderr + d).slice(-16_000);
     });
-    child.on('error', reject);
-    child.on('close', (code, signal) => resolve({ code, signal, stderr }));
+    const timer = setTimeout(() => {
+      timedOut = true;
+      void terminateGroup(child);
+    }, Math.max(0, deadlineAt - Date.now()));
+    child.on('error', (err) => {
+      clearTimeout(timer);
+      untrack();
+      reject(err);
+    });
+    child.on('close', (code, signal) => {
+      clearTimeout(timer);
+      // The engine's workers can outlive it; the group goes with it.
+      void terminateGroup(child).finally(() => {
+        untrack();
+        resolve({ code, signal, stderr, timedOut });
+      });
+    });
   });
 }
 
 export async function runEngine(o: RunEngineOptions): Promise<RunEngineResult> {
-  const cliVersion = await engineVersion(o.engine);
+  const dirs = o.dirs ?? {};
+  const cliVersion = await engineVersion(o.engine, dirs);
   const given = o.targets.map((t) => (isAbsolute(t) ? t : `${ROOT_LINK}/${t}`));
   const chunks = chunkTargets(given, o.chunkChars ?? (process.platform === 'win32' ? CHUNK_CHARS_WINDOWS : CHUNK_CHARS_OTHER));
   const jobs = o.jobs ?? Math.min(availableParallelism(), MAX_JOBS);
@@ -210,11 +325,16 @@ export async function runEngine(o: RunEngineOptions): Promise<RunEngineResult> {
   let version = cliVersion;
   if (chunks.length === 0) return { matches, fileErrors, version };
 
-  const tmp = await mkdtemp(join(tmpdir(), 'lexcode-engine-'));
+  const deadlineMs = o.deadlineMs ?? engineDeadlineMs();
+  const deadlineAt = Date.now() + deadlineMs;
+  const tmp = await mkdtemp(join(dirs.tempRoot ?? tmpdir(), 'lexcode-engine-'));
+  const release = trackTempDir(tmp);
   try {
     const cwd = join(tmp, 'cwd');
     mkdirSync(cwd);
     symlinkSync(o.root, join(cwd, ROOT_LINK), 'junction');
+    const space = await engineSpace(tmp, dirs);
+    const env = engineEnv(space.scratch, space.extractCache);
     for (const [i, chunk] of chunks.entries()) {
       const outFile = join(tmp, `out-${i}.json`);
       const args = [
@@ -234,11 +354,17 @@ export async function runEngine(o: RunEngineOptions): Promise<RunEngineResult> {
         '--',
         ...chunk,
       ];
-      const run = await spawnEngine(o.engine, args, cwd).catch((err: unknown) => {
+      const run = await spawnEngine(o.engine, args, cwd, env, deadlineAt).catch((err: unknown) => {
         throw new ToolError(
           `cannot start the engine at ${o.engine} (${err instanceof Error ? err.message : String(err)}). Run \`lexcode engine fetch\` or pass --engine <path>.`,
         );
       });
+      if (run.timedOut) {
+        throw new ToolError(
+          `the engine did not finish within ${(deadlineMs / 1000).toLocaleString('en-US')} seconds (the LEXCODE_ENGINE_DEADLINE limit, 900 by default) and was stopped. ` +
+            'A generated or very large file can keep it busy; exclude it in the sidecar (exclude:) or raise LEXCODE_ENGINE_DEADLINE.',
+        );
+      }
       if (run.code !== 0) {
         const tail = lastLines(run.stderr, 5);
         const how = run.signal ? `was stopped by ${run.signal}` : `exited with code ${String(run.code)}`;
@@ -268,7 +394,7 @@ export async function runEngine(o: RunEngineOptions): Promise<RunEngineResult> {
       if (typeof doc.version === 'string' && doc.version) version = doc.version;
     }
   } finally {
-    await rm(tmp, { recursive: true, force: true });
+    await release();
   }
   return { matches, fileErrors, version };
 }

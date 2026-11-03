@@ -1,9 +1,13 @@
 #!/usr/bin/env node
 // A stand-in for the Opengrep binary, driven by environment variables.
-//   FAKE_OPENGREP_MODE      ok | exit2 | badjson | errors | fatal | nooutput
+//   FAKE_OPENGREP_MODE      ok | exit2 | badjson | errors | fatal | nooutput | sleep | sleep-ignore-term
+//                           sleep: keep running for two minutes (a hung engine); sleep-ignore-term also ignores SIGTERM
+//   FAKE_OPENGREP_PID_FILE  write this process id there at the start of a scan run
+//   FAKE_OPENGREP_GRANDCHILD_PID_FILE  in the sleep modes, start a worker process and write its id there
 //   FAKE_OPENGREP_ARGV_LOG  append one JSON line {argv, cwd, env} per scan run
 //   FAKE_OPENGREP_RESULTS   JSON array that replaces the default results (ok and errors modes)
 //   FAKE_OPENGREP_VERSION   the version to print and report (default 1.33.1)
+import { spawn } from 'node:child_process';
 import { appendFileSync, readlinkSync, realpathSync, writeFileSync } from 'node:fs';
 
 const argv = process.argv.slice(2);
@@ -55,9 +59,27 @@ if (process.env.FAKE_OPENGREP_ARGV_LOG) {
       env: {
         SEMGREP_SEND_METRICS: process.env.SEMGREP_SEND_METRICS,
         OPENGREP_ENABLE_VERSION_CHECK: process.env.OPENGREP_ENABLE_VERSION_CHECK,
+        TMPDIR: process.env.TMPDIR,
+        TMP: process.env.TMP,
+        TEMP: process.env.TEMP,
+        SEMGREP_LOG_FILE: process.env.SEMGREP_LOG_FILE,
+        XDG_CACHE_HOME: process.env.XDG_CACHE_HOME,
+        NoDefaultCurrentDirectoryInExePath: process.env.NoDefaultCurrentDirectoryInExePath,
       },
     })}\n`,
   );
+}
+
+if (process.env.FAKE_OPENGREP_PID_FILE) writeFileSync(process.env.FAKE_OPENGREP_PID_FILE, String(process.pid));
+
+if (mode === 'sleep' || mode === 'sleep-ignore-term') {
+  if (mode === 'sleep-ignore-term') process.on('SIGTERM', () => {});
+  if (process.env.FAKE_OPENGREP_GRANDCHILD_PID_FILE) {
+    const worker = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' });
+    writeFileSync(process.env.FAKE_OPENGREP_GRANDCHILD_PID_FILE, String(worker.pid));
+  }
+  setInterval(() => {}, 1000);
+  await new Promise(() => {});
 }
 
 if (mode === 'exit2') {
