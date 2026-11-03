@@ -63,7 +63,9 @@ export function renderHuman(res: CheckResult, ctx: ReportContext): string {
   if (!ctx.quiet) {
     const rec = ctx.record;
     lines.push(`lexcode check against ${ctx.declarationFile}`);
-    lines.push(`${rec.scope.files} files read; rules ${rec.rules.version}; engine ${rec.engine.name} ${rec.engine.version}`);
+    lines.push(
+      `${rec.scope.files.toLocaleString('en-US')} files read; rules ${rec.rules.version}; engine ${rec.engine.name} ${rec.engine.version}; registry ${rec.registry_version}`,
+    );
     lines.push('');
   }
 
