@@ -1,0 +1,27 @@
+rules:
+  - id: lexcode.crawl.crawl-service
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Asks a scraping service to crawl, map or batch-fetch pages of other sites, which is crawling the web (crawls_web).
+    mode: taint
+    pattern-sources:
+      - pattern: new FirecrawlApp(...)
+      - pattern: new Firecrawl(...)
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: $F.crawlUrl(...)
+              - pattern: $F.asyncCrawlUrl(...)
+              - pattern: $F.crawl(...)
+              - pattern: $F.mapUrl(...)
+              - pattern: $F.map(...)
+              - pattern: $F.batchScrapeUrls(...)
+              - pattern: $F.batchScrape(...)
+              - pattern: $F.asyncBatchScrapeUrls(...)
+          - focus-metavariable: $F
+    metadata:
+      activity: crawls_web
+      mentioned: performs
+      definition: https://lexlint.io/activities/crawls-web
+      provenance: ungovr-original
+      license: MIT

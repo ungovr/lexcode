@@ -1,0 +1,27 @@
+rules:
+  - id: lexcode.crawl.crawl-service-py
+    languages: [python]
+    severity: INFO
+    message: Asks a scraping service or crawler library to crawl, map or batch-fetch pages of other sites, which is crawling the web (crawls_web).
+    mode: taint
+    pattern-sources:
+      - pattern: FirecrawlApp(...)
+      - pattern: Firecrawl(...)
+      - pattern: AsyncWebCrawler(...)
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: $F.crawl_url(...)
+              - pattern: $F.async_crawl_url(...)
+              - pattern: $F.crawl(...)
+              - pattern: $F.map_url(...)
+              - pattern: $F.batch_scrape_urls(...)
+              - pattern: $F.batch_scrape(...)
+              - pattern: $F.arun_many(...)
+          - focus-metavariable: $F
+    metadata:
+      activity: crawls_web
+      mentioned: performs
+      definition: https://lexlint.io/activities/crawls-web
+      provenance: ungovr-original
+      license: MIT

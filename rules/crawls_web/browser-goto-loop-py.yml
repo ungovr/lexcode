@@ -1,0 +1,50 @@
+rules:
+  - id: lexcode.crawl.browser-goto-loop-py
+    languages: [python]
+    severity: INFO
+    message: Drives a headless browser to open page after page in a loop, which is crawling the web (crawls_web).
+    mode: taint
+    pattern-sources:
+      - pattern: $P.chromium.launch(...)
+      - pattern: $P.firefox.launch(...)
+      - pattern: $P.webkit.launch(...)
+      - pattern: $B.new_page(...)
+      - pattern: $B.new_context(...)
+      - pattern: webdriver.Chrome(...)
+      - pattern: webdriver.Firefox(...)
+      - pattern: webdriver.Edge(...)
+      - pattern: webdriver.Remote(...)
+      - pattern: uc.Chrome(...)
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  for $X in $Y:
+                      ...
+              - pattern-inside: |
+                  while $COND:
+                      ...
+              - pattern-inside: |
+                  async for $X in $Y:
+                      ...
+          - pattern-either:
+              - patterns:
+                  - pattern-either:
+                      - pattern: $P.goto($URL, ...)
+                      - pattern: await $P.goto($URL, ...)
+              - patterns:
+                  - pattern: $P.get($URL)
+                  - metavariable-regex:
+                      metavariable: $P
+                      regex: ^(self\.)?(driver|browser|wd|web_driver|webdriver|chrome|firefox)$
+          - metavariable-regex:
+              metavariable: $URL
+              regex: '(?s)^(?!f?["'']https?://(localhost|127\.|0\.0\.0\.0|\[::1\])).*$'
+          - focus-metavariable: $P
+    metadata:
+      activity: crawls_web
+      mentioned: performs
+      definition: https://lexlint.io/activities/crawls-web
+      provenance: ungovr-original
+      license: MIT
+      host_metavar: $URL

@@ -1,0 +1,39 @@
+rules:
+  - id: lexcode.crawl.fetch-loop-over-urls
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Fetches each URL in a list held in a variable, which may be crawling sites the operator does not run (crawls_web).
+    patterns:
+      - pattern-either:
+          - pattern-inside: |
+              for (const $URL of $L) {
+                ...
+              }
+          - pattern-inside: |
+              for (let $URL of $L) {
+                ...
+              }
+          - pattern-inside: |
+              $L.map(($URL) => $BODY)
+          - pattern-inside: |
+              $L.map(async ($URL) => $BODY)
+          - pattern-inside: |
+              $L.map(function ($URL) { ... })
+          - pattern-inside: |
+              $L.forEach(($URL) => { ... })
+          - pattern-inside: |
+              $L.forEach(async ($URL) => { ... })
+          - pattern-inside: |
+              $L.flatMap(($URL) => $BODY)
+      - pattern: $F($URL, ...)
+      - metavariable-regex:
+          metavariable: $F
+          regex: ^(fetch|\$fetch|axios|axios\.(get|head|request)|got|got\.(get|stream)|ky|ky\.get|needle|needle\.get|superagent\.get|request|undici\.(fetch|request)|https?\.(get|request)|\w*[cC]lient\.(get|request)|\w*[sS]ession\.get|\w*[aA]pi\.get|\w*[hH]ttp\.get)$
+    metadata:
+      activity: crawls_web
+      mentioned: performs
+      definition: https://lexlint.io/activities/crawls-web
+      provenance: ungovr-original
+      license: MIT
+      strength: signal
+      host_metavar: $URL

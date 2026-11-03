@@ -1,0 +1,31 @@
+rules:
+  - id: lexcode.crawl.fetch-loop-over-urls-py
+    languages: [python]
+    severity: INFO
+    message: Fetches each URL in a list held in a variable, which may be crawling sites the operator does not run (crawls_web).
+    patterns:
+      - pattern-either:
+          - pattern-inside: |
+              for $URL in $L:
+                  ...
+          - pattern-inside: |
+              async for $URL in $L:
+                  ...
+          - pattern-inside: |
+              [$E for $URL in $L]
+          - pattern-inside: |
+              [$E for $URL in $L if $COND]
+          - pattern-inside: |
+              {$E for $URL in $L}
+      - pattern: $F($URL, ...)
+      - metavariable-regex:
+          metavariable: $F
+          regex: ^(requests\.(get|head|request)|httpx\.(get|head|request|stream)|urllib\.request\.urlopen|urlopen|urllib3\.request|pycurl|(\w+\.)*(\w*[sS]ession|\w*[cC]lient|http|\w*[hH]ttp\w*)\.(get|head|request|fetch))$
+    metadata:
+      activity: crawls_web
+      mentioned: performs
+      definition: https://lexlint.io/activities/crawls-web
+      provenance: ungovr-original
+      license: MIT
+      strength: signal
+      host_metavar: $URL

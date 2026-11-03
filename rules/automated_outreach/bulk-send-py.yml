@@ -1,0 +1,22 @@
+rules:
+  - id: lexcode.outreach.bulk-send-py
+    languages: [python]
+    severity: INFO
+    message: Sends one message to many recipients in a single batch call or push multicast, which is sending automated outreach (automated_outreach).
+    pattern-either:
+      - pattern: send_mass_mail(...)
+      - pattern: $X.send_bulk_templated_email(...)
+      - pattern: $C.emails.send_batch(...)
+      - pattern: resend.Batch.send(...)
+      - pattern: $X.publish_multiple(...)
+      - patterns:
+          - pattern: messaging.$METHOD(...)
+          - metavariable-regex:
+              metavariable: $METHOD
+              regex: ^(send_each|send_each_for_multicast|send_multicast|send_all)$
+    metadata:
+      activity: automated_outreach
+      mentioned: performs
+      definition: https://lexlint.io/activities/automated-outreach
+      provenance: ungovr-original
+      license: MIT

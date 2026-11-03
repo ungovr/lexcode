@@ -1,0 +1,15 @@
+rules:
+  - id: lexcode.aggregate.news-api-call-py
+    languages: [python]
+    severity: INFO
+    message: Pulls headlines and article snippets from a third-party news API, which is reusing other publishers' content (aggregates_content).
+    pattern-either:
+      - pattern-regex: '["'']https?://(newsapi\.org/v2|newsdata\.io/api|gnews\.io/api|api\.nytimes\.com/svc/(topstories|mostpopular|search|news)|content\.guardianapis\.com|api\.mediastack\.com|api\.thenewsapi\.com|newsapi\.ai/api|api\.worldnewsapi\.com|api\.bing\.microsoft\.com/v7\.0/news)'
+      - pattern: $N.get_top_headlines(...)
+      - pattern: $N.get_everything(...)
+    metadata:
+      activity: aggregates_content
+      mentioned: performs
+      definition: https://lexlint.io/activities/aggregates-content
+      provenance: ungovr-original
+      license: MIT

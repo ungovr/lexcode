@@ -1,0 +1,28 @@
+rules:
+  - id: lexcode.crawl.crawlee-run
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Runs a Crawlee crawler that fetches the pages it is given and follows, which is crawling the web (crawls_web).
+    mode: taint
+    pattern-sources:
+      - pattern: new CheerioCrawler(...)
+      - pattern: new PlaywrightCrawler(...)
+      - pattern: new PuppeteerCrawler(...)
+      - pattern: new JSDOMCrawler(...)
+      - pattern: new HttpCrawler(...)
+      - pattern: new BasicCrawler(...)
+      - pattern: new AdaptivePlaywrightCrawler(...)
+      - pattern: await AdaptivePlaywrightCrawler.create(...)
+    pattern-sinks:
+      - patterns:
+          - pattern: $C.run(...)
+          - focus-metavariable: $C
+      - patterns:
+          - pattern: $C.addRequests(...)
+          - focus-metavariable: $C
+    metadata:
+      activity: crawls_web
+      mentioned: performs
+      definition: https://lexlint.io/activities/crawls-web
+      provenance: ungovr-original
+      license: MIT

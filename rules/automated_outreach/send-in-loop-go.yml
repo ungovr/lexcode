@@ -1,0 +1,41 @@
+rules:
+  - id: lexcode.outreach.send-in-loop-go
+    languages: [go]
+    severity: INFO
+    message: Sends an email or text once per recipient in a loop, which is sending automated outreach (automated_outreach).
+    patterns:
+      - pattern-either:
+          - pattern-inside: |
+              for _, $LV := range $LY {
+                  ...
+              }
+          - pattern-inside: |
+              for $LI, $LV := range $LY {
+                  ...
+              }
+      - metavariable-regex:
+          metavariable: $LY
+          regex: '(?is)^(?!.*(relay|host|server|retr|attempt|backoff|endpoint|smtp|fallback|provider|transport|mirror|failover|\bports?\b)).*$'
+      - metavariable-regex:
+          metavariable: $LV
+          regex: '(?is)^(?!.*(relay|host|server|retr|attempt|backoff|endpoint|smtp|fallback|provider|transport|mirror|failover|\bports?\b)).*$'
+      - pattern-either:
+          - pattern: smtp.SendMail(...)
+          - pattern: $D.DialAndSend(...)
+          - pattern: $A.Api.CreateMessage(...)
+          - pattern: $A.Api.CreateCall(...)
+          - pattern: $A.SendEmail(...)
+          - pattern: $A.SendRawEmail(...)
+          - pattern: $A.SendTemplatedEmail(...)
+          - pattern: $A.Emails.Send(...)
+          - patterns:
+              - pattern: $A.Send(...)
+              - metavariable-regex:
+                  metavariable: $A
+                  regex: (?i)^(\w*sendgrid\w*|sg|mg|\w*mailgun\w*|\w*mailer|\w*dialer|d)$
+    metadata:
+      activity: automated_outreach
+      mentioned: performs
+      definition: https://lexlint.io/activities/automated-outreach
+      provenance: ungovr-original
+      license: MIT

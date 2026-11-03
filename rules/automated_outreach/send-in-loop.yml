@@ -1,0 +1,78 @@
+rules:
+  - id: lexcode.outreach.send-in-loop
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Sends an email, text, call or push notification once per recipient in a loop, which is sending automated outreach (automated_outreach).
+    patterns:
+      - pattern-either:
+          - patterns:
+              - pattern-inside: |
+                    for ($K in $O) { ... }
+              - metavariable-regex:
+                  metavariable: $O
+                  regex: '(?is)^(?!.*(relay|host|server|retr|attempt|backoff|endpoint|smtp|fallback|provider|transport|mirror|failover|\bports?\b)).*$'
+          - patterns:
+              - pattern-inside: |
+                    for (...; $I < $L.length; ...) { ... }
+              - metavariable-regex:
+                  metavariable: $L
+                  regex: '(?is)^(?!.*(relay|host|server|retr|attempt|backoff|endpoint|smtp|fallback|provider|transport|mirror|failover|\bports?\b)).*$'
+          - patterns:
+              - pattern-inside: |
+                    $L.forEach(...)
+              - metavariable-regex:
+                  metavariable: $L
+                  regex: '(?is)^(?!.*(relay|host|server|retr|attempt|backoff|endpoint|smtp|fallback|provider|transport|mirror|failover|\bports?\b)).*$'
+          - patterns:
+              - pattern-inside: |
+                    $L.map(...)
+              - metavariable-regex:
+                  metavariable: $L
+                  regex: '(?is)^(?!.*(relay|host|server|retr|attempt|backoff|endpoint|smtp|fallback|provider|transport|mirror|failover|\bports?\b)).*$'
+          - patterns:
+              - pattern-inside: |
+                    $L.flatMap(...)
+              - metavariable-regex:
+                  metavariable: $L
+                  regex: '(?is)^(?!.*(relay|host|server|retr|attempt|backoff|endpoint|smtp|fallback|provider|transport|mirror|failover|\bports?\b)).*$'
+      - pattern-either:
+          - pattern: $T.sendMail(...)
+          - pattern: $R.emails.send(...)
+          - pattern: $P.sendEmail(...)
+          - pattern: $P.sendEmailWithTemplate(...)
+          - pattern: $S.sendTemplatedEmail(...)
+          - pattern: $S.sendRawEmail(...)
+          - pattern: $S.send(new SendEmailCommand(...))
+          - pattern: $S.send(new SendTemplatedEmailCommand(...))
+          - pattern: $S.send(new SendRawEmailCommand(...))
+          - patterns:
+              - pattern: $SG.send(...)
+              - metavariable-regex:
+                  metavariable: $SG
+                  regex: ^(sgMail|sendgrid|sendGrid|sg)$
+          - pattern: '$C.messages.create({..., to: $TO, ...})'
+          - pattern: '$C.calls.create({..., to: $TO, ...})'
+          - pattern: $W.sendNotification(...)
+          - pattern: $M.messaging().send(...)
+          - pattern: getMessaging(...).send(...)
+          - pattern: messaging().send(...)
+          - pattern: $X.sendSms(...)
+          - pattern: $X.sendSMS(...)
+          - patterns:
+              - pattern: $F(...)
+              - metavariable-regex:
+                  metavariable: $F
+                  regex: ^send(Email|Mail|SMS|Sms|Text|Push|PushNotification|Notification)s?$
+          - patterns:
+              - pattern-either:
+                  - pattern: fetch($URL, ...)
+                  - pattern: axios.post($URL, ...)
+              - metavariable-regex:
+                  metavariable: $URL
+                  regex: (?is).*(api\.resend\.com/emails|api\.sendgrid\.com/v3/mail/send|api\.postmarkapp\.com/email|api\.mailgun\.net/v3|mandrillapp\.com/api|api\.brevo\.com/v3/smtp/email|api\.twilio\.com/.*/Messages).*
+    metadata:
+      activity: automated_outreach
+      mentioned: performs
+      definition: https://lexlint.io/activities/automated-outreach
+      provenance: ungovr-original
+      license: MIT
