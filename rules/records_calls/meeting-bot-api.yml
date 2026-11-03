@@ -1,0 +1,13 @@
+rules:
+  - id: lexcode.calls.meeting-bot-api
+    languages: [javascript, typescript, python, go]
+    severity: INFO
+    message: Calls a meeting-bot API that sends a notetaker bot into video meetings to record them, which is recording a call (records_calls).
+    pattern-regex: |-
+      ["'`][^"'`\s]*(\brecall\.ai/api/v\d+|\bapi\.meetingbaas\.com/bots|\bapp\.attendee\.dev/api/v\d+/bots)
+    metadata:
+      activity: records_calls
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-calls
+      provenance: ungovr-original
+      license: MIT

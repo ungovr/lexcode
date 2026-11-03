@@ -1,0 +1,28 @@
+rules:
+  - id: lexcode.calls.webrtc-remote-recorder
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Records the stream that arrives from the other side of a WebRTC call with MediaRecorder, which is recording a call (records_calls).
+    patterns:
+      - pattern: new MediaRecorder(...)
+      - pattern-either:
+          - pattern-inside: |
+              $PC.ontrack = ($E) => {...}
+          - pattern-inside: |
+              $PC.ontrack = function ($E) {...}
+          - pattern-inside: |
+              $PC.addEventListener("track", ($E) => {...})
+          - pattern-inside: |
+              $PC.addEventListener("track", function ($E) {...})
+          - pattern-inside: |
+              $PEER.on("stream", ($S) => {...})
+          - pattern-inside: |
+              $PEER.on("stream", function ($S) {...})
+          - pattern-inside: |
+              $PEER.on("track", ($T, $S) => {...})
+    metadata:
+      activity: records_calls
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-calls
+      provenance: ungovr-original
+      license: MIT

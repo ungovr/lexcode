@@ -1,0 +1,16 @@
+rules:
+  - id: lexcode.calls.livekit-egress-py
+    languages: [python]
+    severity: INFO
+    message: Starts a LiveKit egress that records the people in a room or call, which is recording a call (records_calls).
+    pattern-either:
+      - pattern: $X.egress.start_room_composite_egress(...)
+      - pattern: $X.egress.start_participant_egress(...)
+      - pattern: $X.egress.start_track_composite_egress(...)
+      - pattern: $X.egress.start_track_egress(...)
+    metadata:
+      activity: records_calls
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-calls
+      provenance: ungovr-original
+      license: MIT

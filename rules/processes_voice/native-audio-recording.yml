@@ -1,0 +1,17 @@
+rules:
+  - id: lexcode.voice.native-audio-recording
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Records the phone's microphone from an Expo or React Native app, which is recording a human voice (processes_voice).
+    pattern-either:
+      - pattern: Audio.Recording.createAsync(...)
+      - pattern: new Audio.Recording()
+      - pattern: useAudioRecorder(...)
+      - pattern: $P.startRecorder(...)
+      - pattern: LiveAudioStream.start()
+    metadata:
+      activity: processes_voice
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-voice
+      provenance: ungovr-original
+      license: MIT

@@ -1,0 +1,27 @@
+rules:
+  - id: lexcode.calls.aiortc-track-recorder
+    languages: [python]
+    severity: INFO
+    message: Writes a remote WebRTC participant's track to a file with an aiortc recorder, which is recording a call (records_calls).
+    mode: taint
+    pattern-sources:
+      - pattern: MediaRecorder(...)
+    pattern-sinks:
+      - patterns:
+          - pattern: $R.addTrack(...)
+          - pattern-either:
+              - pattern-inside: |
+                  @$PC.on("track")
+                  def $F($TRACK):
+                      ...
+              - pattern-inside: |
+                  @$PC.on("track")
+                  async def $F($TRACK):
+                      ...
+          - focus-metavariable: $R
+    metadata:
+      activity: records_calls
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-calls
+      provenance: ungovr-original
+      license: MIT

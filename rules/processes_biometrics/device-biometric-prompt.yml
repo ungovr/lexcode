@@ -1,0 +1,18 @@
+rules:
+  - id: lexcode.biometric.device-biometric-prompt
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Asks the phone to confirm the user with a fingerprint or face, which may be using biometric data (processes_biometrics).
+    pattern-either:
+      - pattern: LocalAuthentication.authenticateAsync(...)
+      - pattern: $R.simplePrompt(...)
+      - pattern: $R.createSignature(...)
+      - pattern: TouchID.authenticate(...)
+      - pattern: FingerprintScanner.authenticate(...)
+    metadata:
+      activity: processes_biometrics
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/processes-biometrics
+      provenance: ungovr-original
+      license: MIT

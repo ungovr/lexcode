@@ -1,0 +1,21 @@
+rules:
+  - id: lexcode.chat.session-replay
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Starts a session-replay tool, which can capture what users type as they type it (records_text_chat).
+    pattern-either:
+      - pattern: LogRocket.init(...)
+      - pattern: FullStory.init(...)
+      - pattern: Hotjar.init(...)
+      - pattern: hotjar.initialize(...)
+      - pattern: Clarity.init(...)
+      - pattern: clarity.init(...)
+      - pattern: smartlook.init(...)
+      - pattern: Smartlook.init(...)
+    metadata:
+      activity: records_text_chat
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/records-text-chat
+      provenance: ungovr-original
+      license: MIT

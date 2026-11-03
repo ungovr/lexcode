@@ -1,0 +1,29 @@
+rules:
+  - id: lexcode.chat.live-chat-script-tag
+    languages: [regex]
+    severity: INFO
+    message: Loads a live-chat or help-desk widget from the vendor's host, so the vendor receives what visitors type to support, which is a text chat that is kept (records_text_chat).
+    paths:
+      include:
+        - "*.html"
+        - "*.htm"
+        - "*.jinja"
+        - "*.jinja2"
+        - "*.j2"
+        - "*.njk"
+        - "*.ejs"
+        - "*.erb"
+        - "*.hbs"
+        - "*.liquid"
+        - "*.php"
+        - "*.vue"
+        - "*.svelte"
+        - "*.astro"
+    pattern-regex: |-
+      \bsrc\s*=\s*["']?(https?:)?//(embed\.tawk\.to|widget\.intercom\.io|client\.crisp\.chat|static\.zdassets\.com|js\.driftt\.com|code\.tidio\.co|cdn\.livechatinc\.com|wchat\.freshchat\.com|js\.usemessages\.com)/
+    metadata:
+      activity: records_text_chat
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-text-chat
+      provenance: ungovr-original
+      license: MIT

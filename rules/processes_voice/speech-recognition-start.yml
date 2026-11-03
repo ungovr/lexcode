@@ -1,0 +1,26 @@
+rules:
+  - id: lexcode.voice.speech-recognition-start
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Starts the browser's speech recognizer, which listens to a person speaking and turns it into text (processes_voice).
+    mode: taint
+    pattern-sources:
+      - pattern: new SpeechRecognition(...)
+      - pattern: new webkitSpeechRecognition(...)
+      - pattern: new window.SpeechRecognition(...)
+      - pattern: new window.webkitSpeechRecognition(...)
+      - patterns:
+          - pattern: new $C(...)
+          - pattern-inside: |
+              $C = $W.SpeechRecognition || $W.webkitSpeechRecognition;
+              ...
+    pattern-sinks:
+      - patterns:
+          - pattern: $R.start(...)
+          - focus-metavariable: $R
+    metadata:
+      activity: processes_voice
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-voice
+      provenance: ungovr-original
+      license: MIT

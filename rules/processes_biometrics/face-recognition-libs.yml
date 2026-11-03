@@ -1,0 +1,26 @@
+rules:
+  - id: lexcode.biometric.face-recognition-libs
+    languages: [python]
+    severity: INFO
+    message: Computes or compares face embeddings with a face recognition library, which is recognizing people from face geometry (processes_biometrics).
+    pattern-either:
+      - pattern: face_recognition.face_encodings(...)
+      - pattern: face_recognition.compare_faces(...)
+      - pattern: face_recognition.face_distance(...)
+      - pattern: DeepFace.verify(...)
+      - pattern: DeepFace.find(...)
+      - pattern: DeepFace.represent(...)
+      - pattern: DeepFace.stream(...)
+      - pattern: cv2.face.LBPHFaceRecognizer_create(...)
+      - pattern: cv2.face.EigenFaceRecognizer_create(...)
+      - pattern: cv2.face.FisherFaceRecognizer_create(...)
+      - pattern: cv2.FaceRecognizerSF.create(...)
+      - pattern: cv2.FaceRecognizerSF_create(...)
+      - pattern: InceptionResnetV1(...)
+      - pattern: dlib.face_recognition_model_v1(...)
+    metadata:
+      activity: processes_biometrics
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-biometrics
+      provenance: ungovr-original
+      license: MIT

@@ -1,0 +1,20 @@
+rules:
+  - id: lexcode.biometric.rekognition-faces
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Matches or indexes faces with Amazon Rekognition, which is recognizing people from face geometry (processes_biometrics).
+    pattern-either:
+      - pattern: new CompareFacesCommand(...)
+      - pattern: new SearchFacesByImageCommand(...)
+      - pattern: new SearchFacesCommand(...)
+      - pattern: new SearchUsersByImageCommand(...)
+      - pattern: new IndexFacesCommand(...)
+      - pattern: $R.compareFaces(...)
+      - pattern: $R.searchFacesByImage(...)
+      - pattern: $R.indexFaces(...)
+    metadata:
+      activity: processes_biometrics
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-biometrics
+      provenance: ungovr-original
+      license: MIT

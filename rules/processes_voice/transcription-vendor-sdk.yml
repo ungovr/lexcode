@@ -1,0 +1,31 @@
+rules:
+  - id: lexcode.voice.transcription-vendor-sdk
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Sends speech to Deepgram or AssemblyAI for transcription, which is processing human voices (processes_voice).
+    mode: taint
+    pattern-sources:
+      - pattern: createClient(...)
+      - pattern: new DeepgramClient(...)
+      - pattern: new AssemblyAI(...)
+      - pattern: new AssemblyAIClient(...)
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: $C.listen.prerecorded.transcribeFile(...)
+              - pattern: $C.listen.prerecorded.transcribeUrl(...)
+              - pattern: $C.listen.live(...)
+              - pattern: $C.listen.v1.media.transcribeFile(...)
+              - pattern: $C.listen.v1.media.transcribeUrl(...)
+              - pattern: $C.listen.v1.connect(...)
+              - pattern: $C.transcripts.transcribe(...)
+              - pattern: $C.transcripts.submit(...)
+              - pattern: $C.streaming.transcriber(...)
+              - pattern: $C.realtime.transcriber(...)
+          - focus-metavariable: $C
+    metadata:
+      activity: processes_voice
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-voice
+      provenance: ungovr-original
+      license: MIT

@@ -1,0 +1,12 @@
+rules:
+  - id: lexcode.calls.twilio-record-call-go
+    languages: [go]
+    severity: INFO
+    message: Places a Twilio call with recording turned on, which is recording a call (records_calls).
+    pattern: $P.SetRecord(true)
+    metadata:
+      activity: records_calls
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-calls
+      provenance: ungovr-original
+      license: MIT

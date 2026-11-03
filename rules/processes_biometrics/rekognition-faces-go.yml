@@ -1,0 +1,17 @@
+rules:
+  - id: lexcode.biometric.rekognition-faces-go
+    languages: [go]
+    severity: INFO
+    message: Matches or indexes faces with Amazon Rekognition, which is recognizing people from face geometry (processes_biometrics).
+    pattern-either:
+      - pattern: $C.CompareFaces(...)
+      - pattern: $C.SearchFacesByImage(...)
+      - pattern: $C.SearchFaces(...)
+      - pattern: $C.SearchUsersByImage(...)
+      - pattern: $C.IndexFaces(...)
+    metadata:
+      activity: processes_biometrics
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-biometrics
+      provenance: ungovr-original
+      license: MIT
