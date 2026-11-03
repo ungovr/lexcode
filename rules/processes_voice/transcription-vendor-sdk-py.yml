@@ -1,0 +1,32 @@
+rules:
+  - id: lexcode.voice.transcription-vendor-sdk-py
+    languages: [python]
+    severity: INFO
+    message: Sends speech to Deepgram, AssemblyAI or Google Cloud for transcription, which is processing human voices (processes_voice).
+    mode: taint
+    pattern-sources:
+      - pattern: DeepgramClient(...)
+      - pattern: aai.Transcriber(...)
+      - pattern: assemblyai.Transcriber(...)
+      - pattern: speech.SpeechClient(...)
+      - pattern: speech_v1.SpeechClient(...)
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: $C.listen.rest.v("1").transcribe_file(...)
+              - pattern: $C.listen.rest.v("1").transcribe_url(...)
+              - pattern: $C.listen.prerecorded.v("1").transcribe_file(...)
+              - pattern: $C.listen.prerecorded.v("1").transcribe_url(...)
+              - pattern: $C.listen.live.v("1")
+              - pattern: $C.listen.websocket.v("1")
+              - pattern: $C.transcribe(...)
+              - pattern: $C.recognize(...)
+              - pattern: $C.long_running_recognize(...)
+              - pattern: $C.streaming_recognize(...)
+          - focus-metavariable: $C
+    metadata:
+      activity: processes_voice
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-voice
+      provenance: ungovr-original
+      license: MIT

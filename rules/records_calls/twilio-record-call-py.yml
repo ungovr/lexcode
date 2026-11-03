@@ -1,0 +1,19 @@
+rules:
+  - id: lexcode.calls.twilio-record-call-py
+    languages: [python]
+    severity: INFO
+    message: Places a Twilio call with recording turned on, or starts recording a live call, which is recording a call (records_calls).
+    patterns:
+      - pattern-either:
+          - patterns:
+              - pattern: $C.calls.create(..., record=$V, ...)
+              - metavariable-regex:
+                  metavariable: $V
+                  regex: ^(?!\s*(False|None)\s*$)
+          - pattern: $C.calls($SID).recordings.create(...)
+    metadata:
+      activity: records_calls
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-calls
+      provenance: ungovr-original
+      license: MIT

@@ -1,0 +1,30 @@
+rules:
+  - id: lexcode.voice.mediarecorder-microphone
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Records microphone audio in the browser with MediaRecorder, which is recording a human voice (processes_voice).
+    mode: taint
+    pattern-sources:
+      - patterns:
+          - pattern: |
+              $N.mediaDevices.getUserMedia({..., audio: $A, ...})
+          - metavariable-regex:
+              metavariable: $A
+              regex: ^(?!\s*false\s*$)
+      - patterns:
+          - pattern: $S
+          - pattern-inside: |
+              $N.mediaDevices.getUserMedia({..., audio: $A, ...}).then(($S) => {...})
+          - metavariable-regex:
+              metavariable: $A
+              regex: ^(?!\s*false\s*$)
+    pattern-sinks:
+      - patterns:
+          - pattern: new MediaRecorder($STREAM, ...)
+          - focus-metavariable: $STREAM
+    metadata:
+      activity: processes_voice
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-voice
+      provenance: ungovr-original
+      license: MIT

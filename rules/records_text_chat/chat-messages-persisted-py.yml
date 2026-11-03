@@ -1,0 +1,43 @@
+rules:
+  - id: lexcode.chat.chat-messages-persisted-py
+    languages: [python]
+    severity: INFO
+    message: Writes the messages of a chat request to a database, which is keeping a text chat (records_text_chat).
+    mode: taint
+    pattern-sources:
+      - patterns:
+          - pattern: $B.messages
+          - metavariable-regex:
+              metavariable: $B
+              regex: ^(body|payload|request|req|data|params|chat|chat_request|chat_req|chat_body|chat_payload|request_body)$
+      - pattern: $REQ.json["messages"]
+      - pattern: $REQ.get_json()["messages"]
+      - pattern: $P["messages"]
+      - pattern: $REQ.POST["messages"]
+    pattern-sanitizers:
+      # A count or a total made from the messages is a usage figure, not the conversation.
+      - pattern: len(...)
+      - pattern: sum(...)
+      - pattern: min(...)
+      - pattern: max(...)
+      - pattern: bool(...)
+    pattern-sinks:
+      # The sinks are spelled out rather than matched on a bare method name such as add or
+      # execute: those calls are everywhere, and each one costs a data-flow pass on a big repository.
+      - pattern: session.add(...)
+      - pattern: session.add_all(...)
+      - pattern: $C.insert_one(...)
+      - pattern: $C.insert_many(...)
+      - pattern: $M.objects.create(...)
+      - pattern: $M.objects.bulk_create(...)
+      - patterns:
+          - pattern: $F(...)
+          - metavariable-regex:
+              metavariable: $F
+              regex: ^(save|store|persist|insert|append)_(chat|chats|messages|conversation|conversations|transcript|transcripts|chat_history)$
+    metadata:
+      activity: records_text_chat
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-text-chat
+      provenance: ungovr-original
+      license: MIT

@@ -1,0 +1,18 @@
+rules:
+  - id: lexcode.voice.getusermedia-audio
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Opens the browser microphone with getUserMedia, which may capture a human voice (processes_voice).
+    patterns:
+      - pattern: |
+          $N.mediaDevices.getUserMedia({..., audio: $A, ...})
+      - metavariable-regex:
+          metavariable: $A
+          regex: ^(?!\s*false\s*$)
+    metadata:
+      activity: processes_voice
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/processes-voice
+      provenance: ungovr-original
+      license: MIT

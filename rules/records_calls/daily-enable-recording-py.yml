@@ -1,0 +1,15 @@
+rules:
+  - id: lexcode.calls.daily-enable-recording-py
+    languages: [python]
+    severity: INFO
+    message: Creates a Daily room or meeting token with recording enabled, which is recording a call (records_calls).
+    # A regular expression, not a dict pattern: matching a dict with an ellipsis against every
+    # dict literal in a large Python repository costs far more than this one string test.
+    pattern-regex: |-
+      ["']enable_recording["']\s*:\s*["'](cloud|local|raw-tracks|cloud-audio-only|rtp-tracks)["']
+    metadata:
+      activity: records_calls
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-calls
+      provenance: ungovr-original
+      license: MIT

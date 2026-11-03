@@ -1,0 +1,26 @@
+rules:
+  - id: lexcode.chat.live-chat-widget
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Boots a live-chat or help-desk widget, so the vendor receives what visitors type to support, which is a text chat that is kept (records_text_chat).
+    patterns:
+      - pattern-either:
+          - pattern: Intercom("boot", ...)
+          - pattern: window.Intercom("boot", ...)
+          - pattern: window.CRISP_WEBSITE_ID = $ID
+          - pattern: Crisp.configure(...)
+          - pattern: zE("messenger", ...)
+          - pattern: zE("webWidget", ...)
+          - pattern: window.zE("messenger", ...)
+          - pattern: window.zE("webWidget", ...)
+          - pattern: fcWidget.init(...)
+          - pattern: window.fcWidget.init(...)
+          - pattern: window.drift.load(...)
+          - pattern: HubSpotConversations.widget.load(...)
+          - pattern: window.HubSpotConversations.widget.load(...)
+    metadata:
+      activity: records_text_chat
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-text-chat
+      provenance: ungovr-original
+      license: MIT

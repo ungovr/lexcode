@@ -1,0 +1,19 @@
+rules:
+  - id: lexcode.biometric.face-descriptor
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Computes or compares face descriptors with face-api.js, which is recognizing people from face geometry (processes_biometrics).
+    pattern-either:
+      - pattern: $X.withFaceDescriptors(...)
+      - pattern: $X.withFaceDescriptor(...)
+      - pattern: $F.computeFaceDescriptor(...)
+      - pattern: new $F.FaceMatcher(...)
+      - pattern: new FaceMatcher(...)
+      - pattern: $F.nets.faceRecognitionNet.$LOAD(...)
+      - pattern: $F.loadFaceRecognitionModel(...)
+    metadata:
+      activity: processes_biometrics
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-biometrics
+      provenance: ungovr-original
+      license: MIT

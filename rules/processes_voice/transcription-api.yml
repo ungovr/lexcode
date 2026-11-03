@@ -1,0 +1,25 @@
+rules:
+  - id: lexcode.voice.transcription-api
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Sends recorded speech to a speech-to-text service or model, which is transcribing human voices (processes_voice).
+    pattern-either:
+      - pattern: $C.audio.transcriptions.create(...)
+      - pattern: $C.audio.translations.create(...)
+      - pattern: new StartTranscriptionJobCommand(...)
+      - pattern: new StartStreamTranscriptionCommand(...)
+      - pattern: experimental_transcribe(...)
+      - patterns:
+          - pattern: $T(...)
+          - pattern-inside: |
+              import { experimental_transcribe as $T } from "ai";
+              ...
+      - pattern: pipeline("automatic-speech-recognition", ...)
+      - pattern: $H.automaticSpeechRecognition(...)
+      - pattern: $E.speechToText.convert(...)
+    metadata:
+      activity: processes_voice
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-voice
+      provenance: ungovr-original
+      license: MIT

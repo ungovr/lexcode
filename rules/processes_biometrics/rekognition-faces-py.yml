@@ -1,0 +1,24 @@
+rules:
+  - id: lexcode.biometric.rekognition-faces-py
+    languages: [python]
+    severity: INFO
+    message: Matches or indexes faces with Amazon Rekognition, which is recognizing people from face geometry (processes_biometrics).
+    mode: taint
+    pattern-sources:
+      - pattern: boto3.client("rekognition", ...)
+      - pattern: $S.client("rekognition", ...)
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: $C.compare_faces(...)
+              - pattern: $C.search_faces_by_image(...)
+              - pattern: $C.search_faces(...)
+              - pattern: $C.search_users_by_image(...)
+              - pattern: $C.index_faces(...)
+          - focus-metavariable: $C
+    metadata:
+      activity: processes_biometrics
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-biometrics
+      provenance: ungovr-original
+      license: MIT

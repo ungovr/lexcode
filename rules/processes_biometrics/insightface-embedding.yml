@@ -1,0 +1,23 @@
+rules:
+  - id: lexcode.biometric.insightface-embedding
+    languages: [python]
+    severity: INFO
+    message: Reads face embeddings from InsightFace's recognition model, which is recognizing people from face geometry (processes_biometrics).
+    mode: taint
+    pattern-sources:
+      - patterns:
+          - pattern-either:
+              - pattern: FaceAnalysis(...)
+              - pattern: insightface.app.FaceAnalysis(...)
+          - pattern-not: FaceAnalysis(..., allowed_modules=["detection"], ...)
+          - pattern-not: insightface.app.FaceAnalysis(..., allowed_modules=["detection"], ...)
+    pattern-sinks:
+      - patterns:
+          - pattern: $A.get(...)
+          - focus-metavariable: $A
+    metadata:
+      activity: processes_biometrics
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-biometrics
+      provenance: ungovr-original
+      license: MIT

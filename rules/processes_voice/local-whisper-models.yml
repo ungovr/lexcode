@@ -1,0 +1,24 @@
+rules:
+  - id: lexcode.voice.local-whisper-models
+    languages: [python]
+    severity: INFO
+    message: Transcribes recorded speech with a local faster-whisper, WhisperX or stable-ts model, which is processing human voices (processes_voice).
+    mode: taint
+    pattern-sources:
+      - pattern: WhisperModel(...)
+      - pattern: faster_whisper.WhisperModel(...)
+      - pattern: BatchedInferencePipeline(...)
+      - pattern: whisperx.load_model(...)
+      - pattern: stable_whisper.load_model(...)
+      - pattern: stable_whisper.load_faster_whisper(...)
+      - pattern: whisper_timestamped.load_model(...)
+    pattern-sinks:
+      - patterns:
+          - pattern: $M.transcribe(...)
+          - focus-metavariable: $M
+    metadata:
+      activity: processes_voice
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-voice
+      provenance: ungovr-original
+      license: MIT

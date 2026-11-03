@@ -1,0 +1,21 @@
+<!-- lexcode-expect: 0 -->
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Contact</title>
+    <script src="/static/app.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/htmx.org@1.9.12/dist/htmx.min.js" defer></script>
+  </head>
+  <body>
+    <h1>Contact the clerk</h1>
+    <p>We read every message. Email us, or leave a note below.</p>
+    <form method="post" action="/contact">
+      <label>Your email <input type="email" name="email" required /></label>
+      <label>Message <textarea name="message" required></textarea></label>
+      <button type="submit">Send</button>
+    </form>
+    <p>Our support desk uses https://static.zdassets.com/ekr/snippet.js on the help site only; this page has no chat.</p>
+    <a href="https://embed.tawk.to/">Tawk</a>
+  </body>
+</html>

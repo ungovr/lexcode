@@ -1,0 +1,69 @@
+rules:
+  - id: lexcode.chat.chat-messages-persisted
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Writes the messages of a chat request to a database, which is keeping a text chat (records_text_chat).
+    mode: taint
+    pattern-sources:
+      - patterns:
+          - pattern: $B.messages
+          - pattern-either:
+              - pattern-inside: |
+                  $B = await $REQ.json()
+                  ...
+              - pattern-inside: |
+                  $B = $REQ.body
+                  ...
+      - patterns:
+          - pattern: messages
+          - pattern-either:
+              - pattern-inside: |
+                  const {..., messages, ...} = await $REQ.json()
+                  ...
+              - pattern-inside: |
+                  const {..., messages, ...} = $REQ.body
+                  ...
+      - pattern: $REQ.body.messages
+      - pattern: (await $REQ.json()).messages
+    pattern-sanitizers:
+      # A count made from the messages is a usage figure, not the conversation.
+      - pattern: $X.length
+      - pattern: Boolean(...)
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: $DB.insert(...)
+              - pattern: $Q.values(...)
+              - pattern: $COLL.insertOne(...)
+              - pattern: $COLL.insertMany(...)
+              - patterns:
+                  - pattern: $P.$MODEL.create(...)
+                  - metavariable-regex:
+                      metavariable: $P
+                      regex: ^(this\.)?(prisma|db|tx|trx|database|client)$
+              - patterns:
+                  - pattern: $P.$MODEL.createMany(...)
+                  - metavariable-regex:
+                      metavariable: $P
+                      regex: ^(this\.)?(prisma|db|tx|trx|database|client)$
+              - patterns:
+                  - pattern: $P.$MODEL.upsert(...)
+                  - metavariable-regex:
+                      metavariable: $P
+                      regex: ^(this\.)?(prisma|db|tx|trx|database|client)$
+              - patterns:
+                  - pattern: $M.create(...)
+                  - metavariable-regex:
+                      metavariable: $M
+                      regex: ^[A-Z][A-Za-z0-9_]*$
+              - patterns:
+                  - pattern: $F(...)
+                  - metavariable-regex:
+                      metavariable: $F
+                      regex: ^(save|store|persist|insert|append)(Chat|Chats|Messages|Conversation|Conversations|Transcript|Transcripts|ChatHistory)$
+    metadata:
+      activity: records_text_chat
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-text-chat
+      provenance: ungovr-original
+      license: MIT

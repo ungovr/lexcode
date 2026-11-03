@@ -1,0 +1,13 @@
+rules:
+  - id: lexcode.calls.zoom-recordings-api
+    languages: [javascript, typescript, python, go]
+    severity: INFO
+    message: Reads recorded Zoom meetings through the cloud-recording API, which is handling recorded calls (records_calls).
+    pattern-regex: |-
+      ["'`][^"'`\s]*\bapi\.zoom\.us/v2/(meetings|users|accounts)/[^"'`\s]*recordings
+    metadata:
+      activity: records_calls
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-calls
+      provenance: ungovr-original
+      license: MIT

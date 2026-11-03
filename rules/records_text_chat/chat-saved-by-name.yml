@@ -1,0 +1,23 @@
+rules:
+  - id: lexcode.chat.chat-saved-by-name
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Passes a chat request to a function that saves the chat or its messages, which is keeping a text chat (records_text_chat).
+    mode: taint
+    pattern-sources:
+      - pattern: await $REQ.json()
+      - pattern: $REQ.body
+    pattern-sanitizers:
+      - pattern: $X.length
+    pattern-sinks:
+      - patterns:
+          - pattern: $F(...)
+          - metavariable-regex:
+              metavariable: $F
+              regex: ^(save|store|persist|insert|append)(Chat|Chats|Messages|Conversation|Conversations|Transcript|Transcripts|ChatHistory)$
+    metadata:
+      activity: records_text_chat
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-text-chat
+      provenance: ungovr-original
+      license: MIT

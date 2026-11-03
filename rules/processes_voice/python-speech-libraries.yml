@@ -1,0 +1,20 @@
+rules:
+  - id: lexcode.voice.python-speech-libraries
+    languages: [python]
+    severity: INFO
+    message: Recognizes recorded or live speech with a speech recognition library or model, which is processing human voices (processes_voice).
+    patterns:
+      - pattern-either:
+          - patterns:
+              - pattern: $R.$M(...)
+              - metavariable-regex:
+                  metavariable: $M
+                  regex: ^(recognize_(google|google_cloud|sphinx|whisper|whisper_api|vosk|azure|bing|houndify|ibm|wit|openai)|AcceptWaveform)$
+          - pattern: pipeline("automatic-speech-recognition", ...)
+          - pattern: mlx_whisper.transcribe(...)
+    metadata:
+      activity: processes_voice
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-voice
+      provenance: ungovr-original
+      license: MIT

@@ -1,0 +1,26 @@
+rules:
+  - id: lexcode.biometric.speaker-embedding
+    languages: [python]
+    severity: INFO
+    message: Builds a speaker embedding, a voiceprint, with a speaker recognition model, which is processing biometric data (processes_biometrics).
+    patterns:
+      - pattern-either:
+          - pattern: Inference("pyannote/embedding", ...)
+          - pattern: $M.from_pretrained("pyannote/embedding", ...)
+          - pattern: PretrainedSpeakerEmbedding(...)
+          - pattern: SpeakerRecognition.from_hparams(...)
+          - patterns:
+              - pattern: EncoderClassifier.from_hparams(...)
+              - pattern-inside: |
+                  from speechbrain.inference.speaker import $X
+                  ...
+          - pattern: EncoderClassifier.from_hparams(source="=~/.*spkrec.*/", ...)
+          - pattern: VoiceEncoder(...)
+          - pattern: EncDecSpeakerLabelModel.from_pretrained(...)
+          - pattern: wespeaker.load_model(...)
+    metadata:
+      activity: processes_biometrics
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-biometrics
+      provenance: ungovr-original
+      license: MIT

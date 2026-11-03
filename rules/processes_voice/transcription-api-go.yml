@@ -1,0 +1,19 @@
+rules:
+  - id: lexcode.voice.transcription-api-go
+    languages: [go]
+    severity: INFO
+    message: Sends recorded speech to a speech-to-text service from Go, which is transcribing human voices (processes_voice).
+    pattern-either:
+      - pattern: $C.Audio.Transcriptions.New(...)
+      - pattern: $C.CreateTranscription(...)
+      - pattern: $C.StartTranscriptionJob(...)
+      - pattern: $C.StartStreamTranscription(...)
+      - pattern: speechpb.RecognizeRequest{...}
+      - pattern: speechpb.LongRunningRecognizeRequest{...}
+      - pattern: speechpb.StreamingRecognizeRequest{...}
+    metadata:
+      activity: processes_voice
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-voice
+      provenance: ungovr-original
+      license: MIT

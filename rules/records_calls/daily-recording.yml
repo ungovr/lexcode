@@ -1,0 +1,21 @@
+rules:
+  - id: lexcode.calls.daily-recording
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Starts recording a Daily video call, which is recording a call (records_calls).
+    mode: taint
+    pattern-sources:
+      - pattern: Daily.createCallObject(...)
+      - pattern: DailyIframe.createCallObject(...)
+      - pattern: Daily.createFrame(...)
+      - pattern: DailyIframe.createFrame(...)
+    pattern-sinks:
+      - patterns:
+          - pattern: $C.startRecording(...)
+          - focus-metavariable: $C
+    metadata:
+      activity: records_calls
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-calls
+      provenance: ungovr-original
+      license: MIT
