@@ -1,13 +1,21 @@
-import { mkdtempSync, readFileSync, readdirSync, symlinkSync, writeFileSync, mkdirSync, lstatSync } from 'node:fs';
+import { mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync, mkdirSync, lstatSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { writeOutput } from '../../src/commands/fsutil.js';
 import { ToolError } from '../../src/errors.js';
 
+const made: string[] = [];
+
 function dir(): string {
-  return mkdtempSync(join(tmpdir(), 'lexcode-fsutil-'));
+  const d = mkdtempSync(join(tmpdir(), 'lexcode-fsutil-'));
+  made.push(d);
+  return d;
 }
+
+afterEach(() => {
+  while (made.length) rmSync(made.pop() as string, { recursive: true, force: true });
+});
 
 describe('writeOutput', () => {
   it('writes a new file and leaves no temporary file behind', async () => {

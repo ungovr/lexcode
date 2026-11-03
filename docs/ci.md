@@ -13,6 +13,13 @@ The step fails (exit 1) when the code performs an activity the declaration
 does not carry, or says it does not do. A dependency that only enables an
 activity warns, and fails only under `--fail-on-enables`.
 
+In CI, pin the major version (`lexcode@1`, as above) and run it from the
+workspace root only for a repository you trust. To scan code you do not trust
+(a pull request from a fork, an unpacked archive), run it from outside that
+code: `cd ~ && npx lexcode@1 scan /path/to/repo`. npm honors a project's
+`.npmrc` `registry=` line and a local `lexcode` dependency, so `npx lexcode`
+run inside an untrusted repository may run something other than this package.
+
 ## No declaration is a failure
 
 A repository with neither `ACTIVITIES.md` nor `lexlint.yml` exits 3. A team
