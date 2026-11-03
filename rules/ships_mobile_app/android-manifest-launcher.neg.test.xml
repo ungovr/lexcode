@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- lexcode-expect: 0 -->
+<!-- A library module: it declares a package and an empty application, and no launcher activity. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="org.example.fieldnotes.sync">
+
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <application>
+        <service
+            android:name=".SyncService"
+            android:exported="false" />
+        <receiver
+            android:name=".BootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>

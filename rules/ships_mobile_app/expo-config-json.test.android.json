@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "name": "Trail Log",
+    "slug": "trail-log",
+    "version": "1.0.3",
+    "android": {
+      "package": "org.example.traillog",
+      "versionCode": 7,
+      "permissions": ["ACCESS_FINE_LOCATION"]
+    }
+  }
+}

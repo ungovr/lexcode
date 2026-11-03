@@ -1,0 +1,20 @@
+rules:
+  - id: lexcode.distribute.package-json-publish-config
+    languages: [json]
+    severity: INFO
+    message: Sets publish settings for a package that is not marked private, which is a library or tool made available through a package registry (distributes_software_product).
+    patterns:
+      - pattern: |
+          {..., "name": $NAME, ..., "publishConfig": $CONFIG, ...}
+      - pattern-not: |
+          {..., "private": true, ...}
+    paths:
+      include:
+        - "package.json"
+        - "package-json-publish-config.*"
+    metadata:
+      activity: distributes_software_product
+      mentioned: performs
+      definition: https://lexlint.io/activities/distributes-software-product
+      provenance: ungovr-original
+      license: MIT

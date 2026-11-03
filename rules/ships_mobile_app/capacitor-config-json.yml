@@ -1,0 +1,24 @@
+rules:
+  - id: lexcode.mobile.capacitor-config-json
+    languages: [json]
+    severity: INFO
+    message: Configures a Capacitor app with an application identifier and name, which wraps a web app as an installable phone app (ships_mobile_app).
+    pattern: |
+      {..., "appId": $ID, ..., "appName": $NAME, ...}
+    paths:
+      include:
+        - "capacitor.config.json"
+        - "capacitor-config-json.*"
+      exclude:
+        - "**/example/**"
+        - "**/examples/**"
+        - "**/sample/**"
+        - "**/samples/**"
+        - "**/demo/**"
+        - "**/demos/**"
+    metadata:
+      activity: ships_mobile_app
+      mentioned: performs
+      definition: https://lexlint.io/activities/ships-mobile-app
+      provenance: ungovr-original
+      license: MIT

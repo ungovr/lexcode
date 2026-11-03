@@ -1,0 +1,18 @@
+rules:
+  - id: lexcode.distribute.electron-builder-yaml
+    languages: [yaml]
+    severity: INFO
+    message: Configures installers for a desktop application, which is packaged software others download and run (distributes_software_product).
+    pattern: |
+      appId: $ID
+    paths:
+      include:
+        - "electron-builder.yml"
+        - "electron-builder.yaml"
+        - "electron-builder-yaml.*"
+    metadata:
+      activity: distributes_software_product
+      mentioned: performs
+      definition: https://lexlint.io/activities/distributes-software-product
+      provenance: ungovr-original
+      license: MIT

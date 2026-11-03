@@ -1,0 +1,15 @@
+{
+  "name": "@example/geo-utils",
+  "version": "2.0.1",
+  "license": "MIT",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": ["dist"],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --dts"
+  }
+}

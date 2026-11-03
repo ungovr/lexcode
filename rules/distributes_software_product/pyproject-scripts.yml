@@ -1,0 +1,22 @@
+rules:
+  - id: lexcode.distribute.pyproject-scripts
+    languages: [generic]
+    severity: INFO
+    message: Declares a command-line entry point in a Python package, which is a program made available for others to install (distributes_software_product).
+    pattern-either:
+      - pattern: |
+          [project.scripts]
+      - pattern: |
+          [project.gui-scripts]
+      - pattern: |
+          [tool.poetry.scripts]
+    paths:
+      include:
+        - "pyproject.toml"
+        - "pyproject-scripts.*"
+    metadata:
+      activity: distributes_software_product
+      mentioned: performs
+      definition: https://lexlint.io/activities/distributes-software-product
+      provenance: ungovr-original
+      license: MIT

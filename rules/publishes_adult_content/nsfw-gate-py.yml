@@ -1,0 +1,48 @@
+rules:
+  - id: lexcode.adult.nsfw-gate-py
+    languages: [python]
+    severity: INFO
+    message: Branches or filters on a flag that marks content as explicit, which gates what is shown on a service that hosts adult material (publishes_adult_content).
+    pattern-either:
+      - pattern: |
+            if <... $O.nsfw ...>:
+                ...
+      - pattern: |
+            $Q.filter(..., nsfw=$V, ...)
+      - pattern: |
+            $Q.exclude(..., nsfw=$V, ...)
+      - pattern: |
+            if <... $O.is_nsfw ...>:
+                ...
+      - pattern: |
+            $Q.filter(..., is_nsfw=$V, ...)
+      - pattern: |
+            $Q.exclude(..., is_nsfw=$V, ...)
+      - pattern: |
+            if <... $O.explicit_content ...>:
+                ...
+      - pattern: |
+            $Q.filter(..., explicit_content=$V, ...)
+      - pattern: |
+            $Q.exclude(..., explicit_content=$V, ...)
+      - pattern: |
+            if <... $O.adult_content ...>:
+                ...
+      - pattern: |
+            $Q.filter(..., adult_content=$V, ...)
+      - pattern: |
+            $Q.exclude(..., adult_content=$V, ...)
+      - pattern: |
+            if <... $O.mature_content ...>:
+                ...
+      - pattern: |
+            $Q.filter(..., mature_content=$V, ...)
+      - pattern: |
+            $Q.exclude(..., mature_content=$V, ...)
+    metadata:
+      activity: publishes_adult_content
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/publishes-adult-content
+      provenance: ungovr-original
+      license: MIT

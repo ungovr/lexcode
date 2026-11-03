@@ -1,0 +1,39 @@
+rules:
+  - id: lexcode.social.follow-relation-js
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Stores a follow relation between two user accounts, which is how people connect on a social platform (operates_social_platform).
+    patterns:
+      - pattern-either:
+          - pattern: |
+                {..., followingId: $Y, ...}
+          - pattern: |
+                {..., following_id: $Y, ...}
+          - pattern: |
+                {..., following: $Y, ...}
+          - pattern: |
+                {..., followeeId: $Y, ...}
+          - pattern: |
+                {..., followee_id: $Y, ...}
+          - pattern: |
+                {..., followee: $Y, ...}
+          - pattern: |
+                {..., followedId: $Y, ...}
+          - pattern: |
+                {..., followed_id: $Y, ...}
+          - pattern: |
+                {..., followed: $Y, ...}
+      - pattern-either:
+          - pattern-inside: |
+                {..., followerId: $X, ...}
+          - pattern-inside: |
+                {..., follower_id: $X, ...}
+          - pattern-inside: |
+                {..., follower: $X, ...}
+    metadata:
+      activity: operates_social_platform
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/operates-social-platform
+      provenance: ungovr-original
+      license: MIT

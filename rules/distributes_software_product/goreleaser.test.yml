@@ -1,0 +1,16 @@
+# lexcode-expect: 1
+version: 2
+project_name: feedlint
+before:
+  hooks:
+    - go mod tidy
+builds:
+  - main: ./cmd/feedlint
+    env:
+      - CGO_ENABLED=0
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+archives:
+  - formats: [tar.gz]
+checksum:
+  name_template: checksums.txt

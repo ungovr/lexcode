@@ -1,0 +1,24 @@
+rules:
+  - id: lexcode.distribute.electron-builder-json
+    languages: [json]
+    severity: INFO
+    message: Configures installers for a desktop application with electron-builder, which is packaged software others download and run (distributes_software_product).
+    pattern-either:
+      - pattern: |
+          {..., "build": {..., "appId": $ID, ...}, ...}
+      - patterns:
+          - pattern: |
+              {..., "appId": $ID, ..., "productName": $NAME, ...}
+          - pattern-not-inside: |
+              {..., "build": {...}, ...}
+    paths:
+      include:
+        - "package.json"
+        - "electron-builder.json"
+        - "electron-builder-json.*"
+    metadata:
+      activity: distributes_software_product
+      mentioned: performs
+      definition: https://lexlint.io/activities/distributes-software-product
+      provenance: ungovr-original
+      license: MIT

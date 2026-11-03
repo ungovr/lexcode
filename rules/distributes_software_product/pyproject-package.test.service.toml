@@ -1,0 +1,17 @@
+# lexcode-expect: 1
+[project]
+name = "billing-service"
+version = "0.3.0"
+description = ""
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.110",
+    "sqlmodel>=0.0.16",
+]
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

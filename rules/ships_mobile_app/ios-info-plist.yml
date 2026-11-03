@@ -1,0 +1,46 @@
+rules:
+  - id: lexcode.mobile.ios-info-plist
+    languages: [xml]
+    severity: INFO
+    message: Declares an iOS application bundle identifier beside the keys only an iPhone or iPad app carries, an app installed from Apple's App Store or directly (ships_mobile_app).
+    patterns:
+      - pattern: |
+          <key>CFBundleIdentifier</key>
+      - pattern-either:
+          - pattern-inside: |
+              <dict>
+                ...
+                <key>LSRequiresIPhoneOS</key>
+                ...
+              </dict>
+          - pattern-inside: |
+              <dict>
+                ...
+                <key>UILaunchStoryboardName</key>
+                ...
+              </dict>
+          - pattern-inside: |
+              <dict>
+                ...
+                <key>UIApplicationSceneManifest</key>
+                ...
+              </dict>
+    paths:
+      include:
+        - "Info.plist"
+        - "ios-info-plist.*"
+      exclude:
+        - "**/example/**"
+        - "**/examples/**"
+        - "**/sample/**"
+        - "**/samples/**"
+        - "**/demo/**"
+        - "**/demos/**"
+        - "**/Tests/**"
+        - "**/UITests/**"
+    metadata:
+      activity: ships_mobile_app
+      mentioned: performs
+      definition: https://lexlint.io/activities/ships-mobile-app
+      provenance: ungovr-original
+      license: MIT

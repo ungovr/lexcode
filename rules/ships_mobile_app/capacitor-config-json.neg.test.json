@@ -1,0 +1,7 @@
+{
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {}
+}

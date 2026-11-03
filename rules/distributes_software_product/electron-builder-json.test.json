@@ -1,0 +1,19 @@
+{
+  "name": "field-notes-desktop",
+  "version": "3.1.0",
+  "main": "dist/main.js",
+  "scripts": {
+    "dist": "electron-builder"
+  },
+  "build": {
+    "appId": "org.example.notes",
+    "productName": "Field Notes",
+    "files": ["dist/**/*"],
+    "mac": { "category": "public.app-category.productivity" },
+    "win": { "target": "nsis" }
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  }
+}

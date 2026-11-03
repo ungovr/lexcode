@@ -1,0 +1,19 @@
+rules:
+  - id: lexcode.distribute.electron-forge-config
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Configures installers for a desktop application with Electron Forge, which is packaged software others download and run (distributes_software_product).
+    pattern: |
+      {..., packagerConfig: $PACKAGER, ..., makers: [...], ...}
+    paths:
+      include:
+        - "forge.config.js"
+        - "forge.config.ts"
+        - "forge.config.cjs"
+        - "electron-forge-config.*"
+    metadata:
+      activity: distributes_software_product
+      mentioned: performs
+      definition: https://lexlint.io/activities/distributes-software-product
+      provenance: ungovr-original
+      license: MIT

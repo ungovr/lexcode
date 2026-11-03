@@ -1,0 +1,38 @@
+rules:
+  - id: lexcode.adult.nsfw-gate-js
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Branches or filters on a flag that marks content as explicit, which gates what is shown on a service that hosts adult material (publishes_adult_content).
+    pattern-either:
+      - pattern: '$O.isNsfw ? $A : $B'
+      - pattern: $O.isNsfw && $A
+      - pattern: |
+            if ($O.isNsfw) { ... }
+      - pattern: '{..., isNsfw: false, ...}'
+      - pattern: '$O.nsfw ? $A : $B'
+      - pattern: $O.nsfw && $A
+      - pattern: |
+            if ($O.nsfw) { ... }
+      - pattern: '{..., nsfw: false, ...}'
+      - pattern: '$O.explicitContent ? $A : $B'
+      - pattern: $O.explicitContent && $A
+      - pattern: |
+            if ($O.explicitContent) { ... }
+      - pattern: '{..., explicitContent: false, ...}'
+      - pattern: '$O.adultContent ? $A : $B'
+      - pattern: $O.adultContent && $A
+      - pattern: |
+            if ($O.adultContent) { ... }
+      - pattern: '{..., adultContent: false, ...}'
+      - pattern: '$O.matureContent ? $A : $B'
+      - pattern: $O.matureContent && $A
+      - pattern: |
+            if ($O.matureContent) { ... }
+      - pattern: '{..., matureContent: false, ...}'
+    metadata:
+      activity: publishes_adult_content
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/publishes-adult-content
+      provenance: ungovr-original
+      license: MIT

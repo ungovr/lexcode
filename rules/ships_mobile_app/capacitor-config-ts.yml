@@ -1,0 +1,25 @@
+rules:
+  - id: lexcode.mobile.capacitor-config-ts
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Configures a Capacitor app with an application identifier and name, which wraps a web app as an installable phone app (ships_mobile_app).
+    pattern: |
+      {..., appId: $ID, ..., appName: $NAME, ...}
+    paths:
+      include:
+        - "capacitor.config.ts"
+        - "capacitor.config.js"
+        - "capacitor-config-ts.*"
+      exclude:
+        - "**/example/**"
+        - "**/examples/**"
+        - "**/sample/**"
+        - "**/samples/**"
+        - "**/demo/**"
+        - "**/demos/**"
+    metadata:
+      activity: ships_mobile_app
+      mentioned: performs
+      definition: https://lexlint.io/activities/ships-mobile-app
+      provenance: ungovr-original
+      license: MIT

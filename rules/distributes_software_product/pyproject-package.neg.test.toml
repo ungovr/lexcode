@@ -1,0 +1,9 @@
+# lexcode-expect: 0
+[tool.ruff]
+line-length = 100
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[dependency-groups]
+dev = ["pytest>=8", "ruff>=0.5"]

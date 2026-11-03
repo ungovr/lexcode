@@ -1,0 +1,29 @@
+rules:
+  - id: lexcode.distribute.workflow-publish-npm
+    languages: [yaml]
+    severity: INFO
+    message: Runs a workflow step that publishes a package to the npm registry, which makes software available for others to install (distributes_software_product).
+    pattern-either:
+      - patterns:
+          - pattern: "run: $CMD"
+          - metavariable-regex:
+              metavariable: $CMD
+              regex: '^(?![\s\S]*--dry-run)[\s\S]*\b(npm|pnpm|yarn)\s+(npm\s+)?publish\b'
+      - patterns:
+          - pattern: "uses: $ACTION"
+          - metavariable-regex:
+              metavariable: $ACTION
+              regex: '^JS-DevTools/npm-publish(@.*)?$'
+    paths:
+      include:
+        - ".github/workflows/*.yml"
+        - ".github/workflows/*.yaml"
+        - "**/.github/workflows/*.yml"
+        - "**/.github/workflows/*.yaml"
+        - "workflow-publish-npm.*"
+    metadata:
+      activity: distributes_software_product
+      mentioned: performs
+      definition: https://lexlint.io/activities/distributes-software-product
+      provenance: ungovr-original
+      license: MIT

@@ -1,0 +1,13 @@
+{
+  "appId": "org.example.fieldnotes",
+  "appName": "Field Notes",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 0
+    }
+  }
+}

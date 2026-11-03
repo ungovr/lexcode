@@ -1,0 +1,12 @@
+# lexcode-expect: 1
+[tool.poetry]
+name = "field-sync"
+version = "0.9.0"
+description = "Syncs field notes between devices"
+
+[tool.poetry.scripts]
+field-sync = "field_sync.cli:run"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

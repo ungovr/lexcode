@@ -1,0 +1,37 @@
+rules:
+  - id: lexcode.distribute.workflow-release-other
+    languages: [yaml]
+    severity: INFO
+    message: Runs a workflow step that releases binaries or publishes a crate or gem, which makes software available for others to install (distributes_software_product).
+    pattern-either:
+      - patterns:
+          - pattern: "run: $CMD"
+          - metavariable-regex:
+              metavariable: $CMD
+              regex: '^(?![\s\S]*--dry-run)[\s\S]*(\bcargo\s+publish\b|\bgem\s+push\b|\bdotnet\s+nuget\s+push\b)'
+      - patterns:
+          - pattern: |
+              uses: $ACTION
+              ...
+              with:
+                ...
+                args: $ARGS
+          - metavariable-regex:
+              metavariable: $ACTION
+              regex: '^goreleaser/goreleaser-action(@.*)?$'
+          - metavariable-regex:
+              metavariable: $ARGS
+              regex: '^(?![\s\S]*--snapshot)(?![\s\S]*--skip=publish)\s*release\b'
+    paths:
+      include:
+        - ".github/workflows/*.yml"
+        - ".github/workflows/*.yaml"
+        - "**/.github/workflows/*.yml"
+        - "**/.github/workflows/*.yaml"
+        - "workflow-release-other.*"
+    metadata:
+      activity: distributes_software_product
+      mentioned: performs
+      definition: https://lexlint.io/activities/distributes-software-product
+      provenance: ungovr-original
+      license: MIT

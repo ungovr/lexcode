@@ -1,0 +1,40 @@
+rules:
+  - id: lexcode.social.direct-message-js
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Stores or receives a message addressed from one user account to another, which is how people talk privately on a social platform (operates_social_platform).
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: |
+                    {..., recipientId: $Y, ...}
+              - pattern: |
+                    {..., receiverId: $Y, ...}
+              - pattern: |
+                    {..., toId: $Y, ...}
+          - pattern-either:
+              - pattern-inside: |
+                    {..., senderId: $X, ...}
+              - pattern-inside: |
+                    {..., fromId: $X, ...}
+          - pattern-either:
+              - pattern-inside: |
+                    $O.create(...)
+              - pattern-inside: |
+                    $O.insert(...)
+              - pattern-inside: |
+                    $O.insertOne(...)
+              - pattern-inside: |
+                    $O.save(...)
+              - pattern-inside: |
+                    $O.add(...)
+              - pattern-inside: |
+                    $O.upsert(...)
+      - pattern-regex: '(?i)\.on\(\s*["''`](dm|direct[ _-]?message|private[ _-]?message)["''`]'
+    metadata:
+      activity: operates_social_platform
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/operates-social-platform
+      provenance: ungovr-original
+      license: MIT
