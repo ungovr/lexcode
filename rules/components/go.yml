@@ -1,2 +1,266 @@
 ecosystem: golang
-entries: []
+entries:
+
+  # Analytics SDKs
+  - match: "github.com/segmentio/analytics-go"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Segment analytics client for Go"
+    source: https://pkg.go.dev/github.com/segmentio/analytics-go
+  - match: "github.com/segmentio/analytics-go/*"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Segment analytics client for Go"
+    source: https://pkg.go.dev/github.com/segmentio/analytics-go
+  - match: "github.com/posthog/posthog-go"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Official PostHog Go library"
+    source: https://pkg.go.dev/github.com/posthog/posthog-go
+  - match: "github.com/mixpanel/mixpanel-go"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Mixpanel Official Go SDK"
+    source: https://pkg.go.dev/github.com/mixpanel/mixpanel-go
+  - match: "github.com/amplitude/analytics-go"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Go Amplitude Analytics SDK"
+    source: https://pkg.go.dev/github.com/amplitude/analytics-go
+
+  # Crash and error reporting SDKs
+  - match: "github.com/getsentry/sentry-go"
+    enables: [tracks_devices, processes_personal_data]
+    says: "The official Go SDK for Sentry (sentry.io)"
+    source: https://pkg.go.dev/github.com/getsentry/sentry-go
+  - match: "github.com/getsentry/sentry-go/*"
+    enables: [tracks_devices, processes_personal_data]
+    says: "The official Go SDK for Sentry (sentry.io)"
+    source: https://pkg.go.dev/github.com/getsentry/sentry-go
+  - match: "github.com/rollbar/rollbar-go"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Go client for Rollbar"
+    source: https://pkg.go.dev/github.com/rollbar/rollbar-go
+  - match: "github.com/bugsnag/bugsnag-go"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Automatic panic monitoring for Go and Go web frameworks, like negroni, gin, and revel"
+    source: https://pkg.go.dev/github.com/bugsnag/bugsnag-go
+  - match: "github.com/bugsnag/bugsnag-go/*"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Automatic panic monitoring for Go and Go web frameworks, like negroni, gin, and revel"
+    source: https://pkg.go.dev/github.com/bugsnag/bugsnag-go
+  - match: "github.com/honeybadger-io/honeybadger-go"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Send Go (golang) panics and errors to Honeybadger."
+    source: https://pkg.go.dev/github.com/honeybadger-io/honeybadger-go
+  - match: "github.com/airbrake/gobrake"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Airbrake notifier for Golang"
+    source: https://pkg.go.dev/github.com/airbrake/gobrake
+  - match: "github.com/airbrake/gobrake/*"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Airbrake notifier for Golang"
+    source: https://pkg.go.dev/github.com/airbrake/gobrake
+
+  # Authentication and user management SDKs
+  - match: "github.com/markbates/goth"
+    enables: [processes_personal_data]
+    says: "Package goth provides a simple, clean, and idiomatic way to write authentication packages for Go web applications."
+    source: https://pkg.go.dev/github.com/markbates/goth
+  - match: "github.com/auth0/go-auth0"
+    enables: [processes_personal_data]
+    says: "Go SDK for the Auth0 Management API."
+    source: https://pkg.go.dev/github.com/auth0/go-auth0
+  - match: "github.com/auth0/go-auth0/*"
+    enables: [processes_personal_data]
+    says: "Go SDK for the Auth0 Management API."
+    source: https://pkg.go.dev/github.com/auth0/go-auth0
+  - match: "github.com/clerk/clerk-sdk-go/*"
+    enables: [processes_personal_data]
+    says: "Access the Clerk Backend API from Go"
+    source: https://pkg.go.dev/github.com/clerk/clerk-sdk-go
+  - match: "github.com/supabase-community/auth-go"
+    enables: [processes_personal_data]
+    says: "A Golang client library for the Supabase Auth API."
+    source: https://pkg.go.dev/github.com/supabase-community/auth-go
+
+  # Model SDKs
+  - match: "github.com/sashabaranov/go-openai"
+    enables: [generates_content]
+    says: "OpenAI, GPT 6.1, GPT-Image-2, Whisper API clients for Go. Zero-dependency."
+    source: https://pkg.go.dev/github.com/sashabaranov/go-openai
+  - match: "github.com/anthropics/anthropic-sdk-go"
+    enables: [generates_content]
+    says: "Access to Anthropic's safety-first language model APIs via Go"
+    source: https://pkg.go.dev/github.com/anthropics/anthropic-sdk-go
+  - match: "github.com/openai/openai-go"
+    enables: [generates_content]
+    says: "The official Go library for the OpenAI API"
+    source: https://pkg.go.dev/github.com/openai/openai-go
+  - match: "github.com/openai/openai-go/*"
+    enables: [generates_content]
+    says: "The official Go library for the OpenAI API"
+    source: https://pkg.go.dev/github.com/openai/openai-go
+  - match: "github.com/google/generative-ai-go"
+    enables: [generates_content]
+    says: "Go SDK for Google Generative AI"
+    source: https://pkg.go.dev/github.com/google/generative-ai-go
+    # Description of the GitHub mirror or repository, quoted as published there.
+  - match: "google.golang.org/genai"
+    enables: [generates_content]
+    says: "Google Gen AI Go SDK provides an interface for developers to integrate Google's generative models into their Go applications."
+    source: https://pkg.go.dev/google.golang.org/genai
+  - match: "github.com/tmc/langchaingo"
+    enables: [generates_content]
+    says: "LangChain for Go, the easiest way to write LLM-based programs in Go"
+    source: https://pkg.go.dev/github.com/tmc/langchaingo
+  - match: "github.com/cohere-ai/cohere-go/*"
+    enables: [generates_content]
+    says: "Go Library for Accessing the Cohere API"
+    source: https://pkg.go.dev/github.com/cohere-ai/cohere-go
+  - match: "github.com/replicate/replicate-go"
+    enables: [generates_content]
+    says: "Go client for Replicate"
+    source: https://pkg.go.dev/github.com/replicate/replicate-go
+  - match: "github.com/liushuangls/go-anthropic/*"
+    enables: [generates_content]
+    says: "Anthropic Claude API wrapper for Go"
+    source: https://pkg.go.dev/github.com/liushuangls/go-anthropic
+  - match: "github.com/henomis/lingoose"
+    enables: [generates_content]
+    says: "🪿 LinGoose is a Go framework for building awesome AI/LLM applications."
+    source: https://pkg.go.dev/github.com/henomis/lingoose
+
+  # Crawling and scraping libraries
+  - match: "github.com/gocolly/colly"
+    enables: [crawls_web]
+    says: "Elegant Scraper and Crawler Framework for Golang"
+    source: https://pkg.go.dev/github.com/gocolly/colly
+  - match: "github.com/gocolly/colly/*"
+    enables: [crawls_web]
+    says: "Elegant Scraper and Crawler Framework for Golang"
+    source: https://pkg.go.dev/github.com/gocolly/colly
+  - match: "github.com/chromedp/chromedp"
+    enables: [crawls_web]
+    says: "A faster, simpler way to drive browsers supporting the Chrome DevTools Protocol."
+    source: https://pkg.go.dev/github.com/chromedp/chromedp
+  - match: "github.com/go-rod/rod"
+    enables: [crawls_web]
+    says: "A Chrome DevTools Protocol driver for web automation and scraping."
+    source: https://pkg.go.dev/github.com/go-rod/rod
+  - match: "github.com/playwright-community/playwright-go"
+    enables: [crawls_web]
+    says: "Playwright for Go a browser automation library to control Chromium, Firefox and WebKit with a single API."
+    source: https://pkg.go.dev/github.com/playwright-community/playwright-go
+  - match: "github.com/geziyor/geziyor"
+    enables: [crawls_web]
+    says: "Geziyor, blazing fast web crawling & scraping framework for Go. Supports JS rendering."
+    source: https://pkg.go.dev/github.com/geziyor/geziyor
+
+  # Feed readers
+  - match: "github.com/mmcdole/gofeed"
+    enables: [aggregates_content]
+    says: "Parse RSS, Atom and JSON feeds in Go"
+    source: https://pkg.go.dev/github.com/mmcdole/gofeed
+  - match: "github.com/mmcdole/gofeed/*"
+    enables: [aggregates_content]
+    says: "Parse RSS, Atom and JSON feeds in Go"
+    source: https://pkg.go.dev/github.com/mmcdole/gofeed
+
+  # Email, SMS and push senders
+  - match: "github.com/sendgrid/sendgrid-go"
+    enables: [automated_outreach]
+    says: "The Official Twilio SendGrid Golang API Library"
+    source: https://pkg.go.dev/github.com/sendgrid/sendgrid-go
+  - match: "github.com/twilio/twilio-go"
+    enables: [automated_outreach]
+    says: "A Go package for communicating with the Twilio API."
+    source: https://pkg.go.dev/github.com/twilio/twilio-go
+  - match: "github.com/mailgun/mailgun-go/*"
+    enables: [automated_outreach]
+    says: "Go library for the Mailgun API."
+    source: https://pkg.go.dev/github.com/mailgun/mailgun-go
+  - match: "github.com/resend/resend-go/*"
+    enables: [automated_outreach]
+    says: "Resend's Official Go SDK"
+    source: https://pkg.go.dev/github.com/resend/resend-go
+  - match: "github.com/keighl/postmark"
+    enables: [automated_outreach]
+    says: "Golang package for the Postmark API"
+    source: https://pkg.go.dev/github.com/keighl/postmark
+  - match: "github.com/wneessen/go-mail"
+    enables: [automated_outreach]
+    says: "📧 Easy to use, yet comprehensive library for sending mails with Go"
+    source: https://pkg.go.dev/github.com/wneessen/go-mail
+  - match: "github.com/go-gomail/gomail"
+    enables: [automated_outreach]
+    says: "The best way to send emails in Go."
+    source: https://pkg.go.dev/github.com/go-gomail/gomail
+  - match: "github.com/SherClockHolmes/webpush-go"
+    enables: [automated_outreach]
+    says: "Web Push API Encryption with VAPID support."
+    source: https://pkg.go.dev/github.com/SherClockHolmes/webpush-go
+  - match: "github.com/appleboy/go-fcm"
+    enables: [automated_outreach]
+    says: "Firebase Cloud Messaging Library for Golang"
+    source: https://pkg.go.dev/github.com/appleboy/go-fcm
+  - match: "github.com/vonage/vonage-go-sdk"
+    enables: [automated_outreach]
+    says: "A lightweight library to help Go users everywhere integrate with the Vonage APIs. Issues and PRs all really welcome!!"
+    source: https://pkg.go.dev/github.com/vonage/vonage-go-sdk
+  - match: "github.com/mailjet/mailjet-apiv3-go/*"
+    enables: [automated_outreach]
+    says: "[API v3] Official Mailjet API v3 Go wrapper"
+    source: https://pkg.go.dev/github.com/mailjet/mailjet-apiv3-go
+    # The published description holds an em dash; replaced with a comma.
+  - match: "github.com/sideshow/apns2"
+    enables: [automated_outreach]
+    says: "⚡ HTTP/2 Apple Push Notification Service (APNs) push provider for Go, Send push notifications to iOS, tvOS, Safari and OSX apps, using the APNs HTTP/2 protocol."
+    source: https://pkg.go.dev/github.com/sideshow/apns2
+  - match: "github.com/jordan-wright/email"
+    enables: [automated_outreach]
+    says: "Robust and flexible email library for Go"
+    source: https://pkg.go.dev/github.com/jordan-wright/email
+  - match: "github.com/plivo/plivo-go/*"
+    enables: [automated_outreach]
+    says: "A Go SDK to make voice calls & send SMS using Plivo and to generate Plivo XML"
+    source: https://pkg.go.dev/github.com/plivo/plivo-go
+
+  # Verifiable credentials
+  - match: "github.com/hyperledger/aries-framework-go"
+    enables: [relies_on_digital_identity]
+    says: "Hyperledger Aries Framework Go provides packages for building Agent / DIDComm services."
+    source: https://pkg.go.dev/github.com/hyperledger/aries-framework-go
+  - match: "github.com/trustbloc/vc-go"
+    enables: [relies_on_digital_identity]
+    says: "Verifiable Credentials (and related code) for Go"
+    source: https://pkg.go.dev/github.com/trustbloc/vc-go
+
+  # Bundled cryptography
+    # Description of the GitHub mirror or repository, quoted as published there.
+  - match: "golang.org/x/crypto"
+    enables: [ships_encryption]
+    says: "[mirror] Go supplementary cryptography libraries"
+    source: https://pkg.go.dev/golang.org/x/crypto
+  - match: "github.com/ProtonMail/go-crypto"
+    enables: [ships_encryption]
+    says: "Fork of go/x/crypto, providing an up-to-date OpenPGP implementation"
+    source: https://pkg.go.dev/github.com/ProtonMail/go-crypto
+  - match: "github.com/google/tink/go"
+    enables: [ships_encryption]
+    says: "Tink is a multi-language, cross-platform, open source library that provides cryptographic APIs that are secure, easy to use correctly, and hard(er) to misuse."
+    source: https://pkg.go.dev/github.com/google/tink/go
+    # Description of the GitHub mirror or repository, quoted as published there.
+  - match: "filippo.io/age"
+    enables: [ships_encryption]
+    says: "A simple, modern and secure encryption tool (and Go library) with small explicit keys, no config options, and UNIX-style composability."
+    source: https://pkg.go.dev/filippo.io/age
+  - match: "github.com/cloudflare/circl"
+    enables: [ships_encryption]
+    says: "CIRCL: Cloudflare Interoperable Reusable Cryptographic Library"
+    source: https://pkg.go.dev/github.com/cloudflare/circl
+  - match: "github.com/minio/sio"
+    enables: [ships_encryption]
+    says: "Go implementation of the Data At Rest Encryption (DARE) format."
+    source: https://pkg.go.dev/github.com/minio/sio
+
+  # Face biometrics
+  - match: "github.com/Kagami/go-face"
+    enables: [processes_biometrics]
+    says: ":mag: Face recognition with Go"
+    source: https://pkg.go.dev/github.com/Kagami/go-face
