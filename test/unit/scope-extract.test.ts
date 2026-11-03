@@ -215,3 +215,21 @@ describe('extractScripts', () => {
     expect(() => extractScripts(root, ['../escape.html'], out)).toThrow();
   });
 });
+
+describe('blankOutsideScripts on hostile input', () => {
+  it('takes under 1 second for 500 KB of unterminated comment openers, and still finds the script after them', () => {
+    const text = '<!--'.repeat(125_000) + '<script>fetch(u)</script>';
+    const t0 = performance.now();
+    const out = blankOutsideScripts(text);
+    expect(performance.now() - t0).toBeLessThan(1000);
+    expect(out?.text.includes('fetch(u)')).toBe(true);
+  });
+
+  it('a terminated comment still hides the script inside it, and the script after it is kept', () => {
+    const text = '<!-- <!-- <script>a()</script> --> <script>b()</script>';
+    const out = blankOutsideScripts(text);
+    expect(out?.text).toContain('b()');
+    expect(out?.text).not.toContain('a()');
+  });
+});
+

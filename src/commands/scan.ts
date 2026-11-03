@@ -1,10 +1,11 @@
-import { existsSync } from 'node:fs';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { isAbsolute, join, resolve } from 'node:path';
+import { trackTempDir } from '../cleanup.js';
 import { matchComponents } from '../components/match.js';
 import { readLexlintYml } from '../declaration/lexlint-yml.js';
 import { ToolError } from '../errors.js';
+import { pathPresent } from '../fsread.js';
 import { ensureEngine } from '../engine/fetch.js';
 import { ENGINE_PIN } from '../engine/pin.js';
 import { runEngine } from '../engine/run.js';
@@ -17,6 +18,7 @@ import { toSarif } from '../record/sarif.js';
 import { loadRuleSet, writeMergedConfig } from '../rules/load.js';
 import { extractScripts } from '../scope/extract.js';
 import { listFiles } from '../scope/files.js';
+import { hasLongLine, MAX_LINE_CHARS } from '../scope/longlines.js';
 import { loadSidecar } from '../config/sidecar.js';
 import type { Dependency, EngineMatch, Evidence, EvidenceRecord, RuleSet, ScopeSpec, Sidecar } from '../types.js';
 import { defaultIo, flag, parseFlags, str, strList, type Io } from './args.js';
@@ -46,8 +48,8 @@ function union(...lists: string[][]): string[] {
 /** app.scope from the root's lexlint.yml, when the file exists, whichever declaration governs. */
 export function readAppScope(root: string): ScopeSpec | undefined {
   const file = join(root, 'lexlint.yml');
-  if (!existsSync(file)) return undefined;
-  const s = readLexlintYml(file).scope;
+  if (!pathPresent(file)) return undefined;
+  const s = readLexlintYml(file, root).scope;
   return s ? { include: s.include, exclude: s.exclude, includeTests: false } : undefined;
 }
 
@@ -96,6 +98,15 @@ export async function scan(o: ScanOptions): Promise<EvidenceRecord> {
   if (files.length === 0) throw new ToolError(`no files in scope under ${root}: every file was skipped, excluded or not included.`);
 
   const notices: string[] = [];
+  if (listed.noGitWorkTree) {
+    const neg = listed.gitignore.notApplied;
+    notices.push(
+      'this directory is not in a git work tree, so its files were found by walking it: common dependency and build directories ' +
+        '(virtual environments, site-packages, node_modules and the like) and the simple patterns of the root .gitignore were left out' +
+        (neg > 0 ? `, but ${neg.toLocaleString('en-US')} .gitignore ${neg === 1 ? 'pattern' : 'patterns'} (a negation with !, or one past the first 5,000) ${neg === 1 ? 'was' : 'were'} not applied` : '') +
+        '; a library that git would have ignored may have been read',
+    );
+  }
   if (listed.skippedSymlinks > 0) {
     notices.push(`skipped ${listed.skippedSymlinks} symbolic ${listed.skippedSymlinks === 1 ? 'link' : 'links'}; lexcode does not follow them`);
   }
@@ -116,9 +127,22 @@ export async function scan(o: ScanOptions): Promise<EvidenceRecord> {
 
   // Source rules: what the code performs.
   const tmp = await mkdtemp(join(tmpdir(), 'lexcode-scan-'));
+  const release = trackTempDir(tmp);
   try {
     const pairs = rs.rules.length > 0 ? extractScripts(root, files, join(tmp, 'scripts')) : [];
-    const countedFiles = [...files, ...pairs.map((p) => p.tempPath)];
+    let countedFiles = [...files, ...pairs.map((p) => p.tempPath)];
+    if (rs.rules.length > 0) {
+      // A file with a line over 100,000 characters is generated code, and the engine can spend ten
+      // minutes on one such line: it is not handed over, and not counted as read.
+      const wanted = engineTargets(rs.rules, countedFiles);
+      const long = new Set(wanted.filter((f) => hasLongLine(isAbsolute(f) ? f : join(root, ...f.split('/')))));
+      if (long.size > 0) {
+        countedFiles = countedFiles.filter((f) => !long.has(f));
+        notices.push(
+          `skipped ${long.size.toLocaleString('en-US')} ${long.size === 1 ? 'file' : 'files'} with a line over ${MAX_LINE_CHARS.toLocaleString('en-US')} characters (generated or minified code); the engine did not read ${long.size === 1 ? 'it' : 'them'}`,
+        );
+      }
+    }
     const rulesRun = countRulesRun(rs, rs.rules, countedFiles, ecosystemsFound(files));
 
     let matches: EngineMatch[] = [];
@@ -131,7 +155,7 @@ export async function scan(o: ScanOptions): Promise<EvidenceRecord> {
       writeMergedConfig(rs.rules, configFile);
       const targets = engineTargets(rs.rules, countedFiles);
       if (targets.length > 0) {
-        const ran = await runEngine({ engine: handle.path, configFile, targets, cwd: root });
+        const ran = await runEngine({ engine: handle.path, configFile, targets, root });
         engineVersion = ran.version;
         fileErrors = ran.fileErrors;
         const back = pathMapper(pairs);
@@ -157,7 +181,7 @@ export async function scan(o: ScanOptions): Promise<EvidenceRecord> {
       notices,
     });
   } finally {
-    await rm(tmp, { recursive: true, force: true });
+    await release();
   }
 }
 

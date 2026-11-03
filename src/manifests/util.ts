@@ -78,14 +78,61 @@ export function resolveInside(dir: string, rel: string): string | undefined {
   return parts.join('/');
 }
 
-/** 1-based line number of the character at `index`. */
-export function lineAt(text: string, index: number): number {
-  let line = 1;
-  for (let i = 0; i < index && i < text.length; i++) if (text.charCodeAt(i) === 10) line++;
-  return line;
+/**
+ * Line numbers for offsets into one text. The line starts are found once, so each lookup is a binary
+ * search: a lookup that scanned from the top, repeated for every dependency, took minutes on a large
+ * manifest.
+ */
+export class LineIndex {
+  private readonly starts: number[] = [0];
+
+  constructor(text: string) {
+    for (let i = text.indexOf('\n'); i !== -1; i = text.indexOf('\n', i + 1)) this.starts.push(i + 1);
+  }
+
+  /** 1-based line number of the character at `index`. */
+  lineAt(index: number): number {
+    let lo = 0;
+    let hi = this.starts.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if ((this.starts[mid] as number) <= index) lo = mid;
+      else hi = mid - 1;
+    }
+    return lo + 1;
+  }
 }
 
-export function errMessage(e: unknown): string {
-  const m = e instanceof Error ? e.message : String(e);
-  return m.split('\n')[0] ?? m;
+/**
+ * Where a manifest failed to parse, and nothing else. A parser's own message can quote the text it
+ * choked on (V8 prints an excerpt of the JSON around the fault), and a manifest may hold a token that
+ * must not be copied into the evidence record, so the message is never used: only a line and column
+ * (or an offset), taken from the error's own fields or the numbers in its text, or located by finding
+ * V8's excerpt in the source, which is looked at and not repeated.
+ */
+export function describeParseError(e: unknown, kind: 'JSON' | 'YAML' | 'TOML', text: string): string {
+  const at = locate(e, text);
+  return at ? `invalid ${kind} at ${at}` : `invalid ${kind}`;
+}
+
+function locate(e: unknown, text: string): string | undefined {
+  if (typeof e !== 'object' || e === null) return undefined;
+  const o = e as { line?: unknown; column?: unknown; linePos?: unknown; message?: unknown };
+  if (typeof o.line === 'number' && typeof o.column === 'number') return `line ${o.line}, column ${o.column}`;
+  if (Array.isArray(o.linePos)) {
+    const p = o.linePos[0] as { line?: unknown; col?: unknown } | undefined;
+    if (p && typeof p.line === 'number' && typeof p.col === 'number') return `line ${p.line}, column ${p.col}`;
+  }
+  const msg = typeof o.message === 'string' ? o.message : '';
+  const lc = /\(line (\d+) column (\d+)\)/.exec(msg);
+  if (lc) return `line ${lc[1]}, column ${lc[2]}`;
+  const pos = /\bat position (\d+)\b/.exec(msg);
+  if (pos) return `offset ${pos[1]}`;
+  // Older V8 words: Unexpected token 'g', ..."excerpt"... is not valid JSON
+  const ex = /(?:, |\.\.\.)"([\s\S]*?)"(?:\.\.\.)? is not valid JSON$/.exec(msg);
+  if (ex && ex[1]) {
+    const idx = text.indexOf(ex[1]);
+    if (idx >= 0) return `line ${new LineIndex(text).lineAt(idx + ex[1].length)}`;
+  }
+  return undefined;
 }

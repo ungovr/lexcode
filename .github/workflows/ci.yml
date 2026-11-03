@@ -11,6 +11,7 @@ permissions:
 
 jobs:
   test:
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -30,7 +31,12 @@ jobs:
         run: npm ci
       - name: Build
         run: npm run build
+      - name: Engine cache
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: ${{ env.LEXCODE_CACHE_DIR }}
+          key: lexcode-engine-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('src/engine/pin.ts') }}
       - name: Engine
-        run: node dist/cli.js engine fetch || echo "engine command not built yet"
+        run: node dist/cli.js engine fetch
       - name: Test
         run: npm test

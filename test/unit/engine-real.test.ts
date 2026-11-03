@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -37,7 +37,7 @@ describe.skipIf(!engine)('the real pinned engine', () => {
           '',
         ].join('\n'),
       );
-      const r = await runEngine({ engine: engine!, configFile: join(dir, 'rule.yml'), targets: ['app.py'], cwd: dir });
+      const r = await runEngine({ engine: engine!, configFile: join(dir, 'rule.yml'), targets: ['app.py'], root: dir });
       expect(r.matches).toHaveLength(1);
       expect(r.matches[0]).toMatchObject({ ruleId: 'lexcode.test.requests-get', path: 'app.py', line: 2 });
       expect(r.matches[0]?.metavars.$URL).toBe('"https://example.com"');
@@ -47,4 +47,65 @@ describe.skipIf(!engine)('the real pinned engine', () => {
       await rm(dir, { recursive: true, force: true });
     }
   });
+
+  it('still applies a rule path exclude to the repository-relative path when the repository lives under a directory named examples', async () => {
+    const outer = await mkdtemp(join(tmpdir(), 'lexcode-real-'));
+    try {
+      const root = join(outer, 'examples', 'app');
+      await mkdir(join(root, 'examples'), { recursive: true });
+      await writeFile(join(root, 'app.py'), 'import requests\nrequests.get("https://example.com")\n');
+      await writeFile(join(root, 'examples', 'demo.py'), 'import requests\nrequests.get("https://example.com")\n');
+      await writeFile(
+        join(outer, 'rule.yml'),
+        [
+          'rules:',
+          '  - id: lexcode.test.requests-get',
+          '    languages: [python]',
+          '    severity: INFO',
+          '    message: an HTTP GET',
+          '    pattern: requests.get($URL)',
+          '    paths:',
+          '      exclude:',
+          '        - "**/examples/**"',
+          '',
+        ].join('\n'),
+      );
+      const r = await runEngine({ engine: engine!, configFile: join(outer, 'rule.yml'), targets: ['app.py', 'examples/demo.py'], root });
+      expect(r.matches.map((m) => m.path)).toEqual(['app.py']);
+    } finally {
+      await rm(outer, { recursive: true, force: true });
+    }
+  });
+
+  it('writes nothing outside lexcode\'s own directories: no rule-set copy in the temporary directory, nothing in HOME', async () => {
+    const outer = await mkdtemp(join(tmpdir(), 'lexcode-real-'));
+    const saved = { TMPDIR: process.env.TMPDIR, TMP: process.env.TMP, TEMP: process.env.TEMP, HOME: process.env.HOME };
+    try {
+      const fakeTmp = join(outer, 'tmp');
+      const fakeHome = join(outer, 'home');
+      const root = join(outer, 'repo');
+      const own = { tempRoot: join(outer, 'own-tmp'), cacheRoot: join(outer, 'own-cache') };
+      for (const d of [fakeTmp, fakeHome, root, own.tempRoot]) await mkdir(d);
+      await writeFile(join(root, 'app.py'), 'import requests\nrequests.get("https://example.com")\n');
+      await writeFile(
+        join(outer, 'rule.yml'),
+        ['rules:', '  - id: lexcode.test.requests-get', '    languages: [python]', '    severity: INFO', '    message: an HTTP GET', '    pattern: requests.get($URL)', ''].join('\n'),
+      );
+      // The engine inherits these; if lexcode did not override them, its files would land here.
+      Object.assign(process.env, { TMPDIR: fakeTmp, TMP: fakeTmp, TEMP: fakeTmp, HOME: fakeHome });
+      const r = await runEngine({ engine: engine!, configFile: join(outer, 'rule.yml'), targets: ['app.py'], root, dirs: own });
+      expect(r.matches).toHaveLength(1);
+      expect(await readdir(fakeTmp)).toEqual([]);
+      expect(await readdir(fakeHome)).toEqual([]);
+      expect(await readdir(own.tempRoot)).toEqual([]); // its per-run directory, with the scratch files and the log, is gone
+      expect(await readdir(join(own.cacheRoot, 'engine-home'))).toEqual(['opengrep']); // the extraction went to lexcode's cache
+    } finally {
+      for (const [k, v] of Object.entries(saved)) {
+        if (v === undefined) delete process.env[k];
+        else process.env[k] = v;
+      }
+      await rm(outer, { recursive: true, force: true });
+    }
+  }, 120_000);
 });
+

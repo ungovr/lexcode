@@ -46,13 +46,12 @@ beforeAll(async () => {
         'Run `node dist/cli.js engine fetch` once, or set LEXCODE_ENGINE=<path to opengrep>.',
     );
   }
-  // The scan stub imports the compiled modules.
-  if (!existsSync(join(root, 'dist', 'rules', 'load.js'))) {
-    const tsc = join(root, 'node_modules', 'typescript', 'bin', 'tsc');
-    const built = spawnSync(process.execPath, [tsc, '-p', join(root, 'tsconfig.json')], { cwd: root, encoding: 'utf8' });
-    if (built.status !== 0) throw new Error(`npm run build is needed first and failed:\n${built.stdout}${built.stderr}`);
-  }
-});
+  // The scan stub imports the compiled modules. Always rebuilt: a dist left from an earlier checkout
+  // made this suite run old code against the current stub.
+  const tsc = join(root, 'node_modules', 'typescript', 'bin', 'tsc');
+  const built = spawnSync(process.execPath, [tsc, '-p', join(root, 'tsconfig.json')], { cwd: root, encoding: 'utf8' });
+  if (built.status !== 0) throw new Error(`npm run build is needed first and failed:\n${built.stdout}${built.stderr}`);
+}, 120_000);
 
 afterAll(() => {
   if (tmp) rmSync(tmp, { recursive: true, force: true });

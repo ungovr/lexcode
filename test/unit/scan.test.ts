@@ -1,4 +1,5 @@
-import { existsSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { chmodSync, existsSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -55,12 +56,51 @@ describe('scan with a stand-in engine', () => {
     const runs = readFileSync(argvLog, 'utf8').trim().split('\n').map((l) => JSON.parse(l) as { options: Record<string, string>; targets: string[] });
     expect(runs).toHaveLength(1);
     const targets = (runs[0] as (typeof runs)[number]).targets;
-    expect(targets).toContain('src/a.py');
+    expect(targets).toContain('scan-root/src/a.py');
     expect(targets.some((t) => t.endsWith('App.vue.lexcode.ts'))).toBe(true);
-    expect(targets).not.toContain('README.md');
+    expect(targets).not.toContain('scan-root/README.md');
     // The merged config and the extracted blocks live in a temp directory that is gone afterwards.
     expect(existsSync((runs[0] as (typeof runs)[number]).options['--config'] as string)).toBe(false);
     expect(existsSync(targets.find((t) => t.endsWith('.lexcode.ts')) as string)).toBe(false);
+  });
+
+  it.skipIf(process.platform === 'win32')('runs the engine the user named, not a same-named file in the repository, and not from inside the repository', async () => {
+    const sh = (target: string, extra = ''): string => `#!/bin/sh\n${extra}exec node '${STUB}' "$@"\n`;
+    const shell = tree({ 'og': sh(STUB) });
+    const root = tree({ 'src/a.py': 'x = 1\n', 'og': sh(STUB, `echo ran >> '${join(shell, 'REPO_ENGINE_RAN')}'\n`) });
+    chmodSync(join(shell, 'og'), 0o755);
+    chmodSync(join(root, 'og'), 0o755);
+    const was = process.cwd();
+    process.chdir(shell);
+    try {
+      await scan({ root, rulesDirs: [], rs: stubRuleSet(), enginePath: './og', includeTests: false, snippets: false });
+    } finally {
+      process.chdir(was);
+    }
+    expect(existsSync(join(shell, 'REPO_ENGINE_RAN'))).toBe(false);
+    const runs = readFileSync(argvLog, 'utf8').trim().split('\n').map((l) => JSON.parse(l) as { cwd: string });
+    expect(runs).toHaveLength(1);
+    expect(runs[0]!.cwd).toContain('lexcode-engine-');
+    expect(runs[0]!.cwd.startsWith(root)).toBe(false);
+  });
+
+  it('does not hand the engine a file with a line over 100,000 characters, and counts it in a notice', async () => {
+    const root = tree({
+      'src/a.py': 'x = 1\n',
+      'gen/long.py': `x = "${'a'.repeat(100_001)}"\n`,
+      'gen/limit.py': `${'a'.repeat(100_000)}\n`,
+      'gen/multibyte.py': `# ${'\u00e9'.repeat(60_000)}\n`,
+      'web/gen.vue': `<script lang="ts">const s = "${'b'.repeat(100_001)}"</script>\n`,
+    });
+    const rec = await scan({ root, rulesDirs: [], rs: stubRuleSet(), enginePath: STUB, includeTests: false, snippets: false });
+    const runs = readFileSync(argvLog, 'utf8').trim().split('\n').map((l) => JSON.parse(l) as { targets: string[] });
+    const targets = runs.flatMap((r) => r.targets);
+    expect(targets).toContain('scan-root/src/a.py');
+    expect(targets).toContain('scan-root/gen/limit.py');
+    expect(targets).toContain('scan-root/gen/multibyte.py'); // 60,000 characters, 120,000 bytes
+    expect(targets).not.toContain('scan-root/gen/long.py');
+    expect(targets.some((t) => t.includes('gen.vue'))).toBe(false);
+    expect(rec.notices).toContain('skipped 2 files with a line over 100,000 characters (generated or minified code); the engine did not read them');
   });
 
   it('reports the engine version the engine reports', async () => {
@@ -163,6 +203,21 @@ describe('scan scope', () => {
     rs.rules = [];
     const rec = await scan({ root, rulesDirs: [], rs, includeTests: false, snippets: false, skipFiles: ['lexcode.json', 'out/r.json'] });
     expect(rec.scope.files).toBe(4);
+  });
+
+  it('adds a notice when the directory is not in a git work tree, and none when it is', async () => {
+    const rs = makeRuleSet();
+    rs.rules = [];
+    const plain = tree({ 'src/a.py': 'x\n', '.gitignore': '*.log\n!keep.log\n', 'b.log': 'x\n' });
+    const rec = await scan({ root: plain, rulesDirs: [], rs, includeTests: false, snippets: false });
+    const notice = rec.notices.find((n) => n.includes('not in a git work tree'));
+    expect(notice).toBeDefined();
+    expect(notice).toContain('1 .gitignore pattern');
+    expect(rec.scope.files).toBe(2); // b.log is left out by the root .gitignore
+    const repo = tree({ 'src/a.py': 'x\n' });
+    execFileSync('git', ['init', '-q'], { cwd: repo });
+    const inGit = await scan({ root: repo, rulesDirs: [], rs, includeTests: false, snippets: false });
+    expect(inGit.notices.some((n) => n.includes('git work tree'))).toBe(false);
   });
 
   it('counts symbolic links it skipped', async () => {

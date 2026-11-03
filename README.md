@@ -23,14 +23,31 @@ npx lexcode check           # compares the code with your declaration
 Node 20 or later. On first run lexcode downloads the analysis engine it is
 pinned to (Opengrep, about 40 MB) from the Opengrep GitHub release, checks its
 sha256 against the value shipped in this package, and caches it. The engine
-unpacks itself under `~/.cache/opengrep` the first time it runs.
+unpacks itself under lexcode's own cache directory the first time it runs
+(see Privacy for everything the engine writes and where).
+
+To scan code you do not trust (a stranger's clone, a pull request, an unpacked
+archive), run lexcode from outside it, with a copy you chose:
+`cd ~ && npx lexcode@1 scan /path/to/repo`. npm honors a project's `.npmrc`
+`registry=` line and a local `lexcode` dependency, so `npx lexcode` run inside
+an untrusted repository may run something other than this package. lexcode
+itself never runs a program from the scanned directory (see Privacy).
 
 ## What it reads
 
-Files tracked by git or trackable by it, honoring `.gitignore`. Never
+Files tracked by git or trackable by it, honoring `.gitignore`. Outside a git
+work tree lexcode walks the directory instead, and then also leaves out
+virtual environments (`.venv`, `venv` and `env` where a `pyvenv.cfg` says they
+are one), `site-packages`, `__pycache__`, `.tox`, `.nox`, `.mypy_cache`,
+`.pytest_cache`, `.next`, `.nuxt`, `.svelte-kit`, `target`, `.gradle`, `Pods`
+and `.terraform`, and applies the simple patterns of the root `.gitignore`: a
+name, `dir/`, a glob such as `*.ext`, and a leading `/`. Negations (`!pattern`)
+are not supported, and neither is a `.gitignore` below the root; the scan says
+so in a notice. Never
 `node_modules`, `vendor`, `dist`, `build` or `.git`, never minified or bundled
 files (including any named `*.min.js`, `*.bundle.js`, `vendor.*.js` or
-`*.vendor.js`), never symbolic links, never files over 5 MB, and never directories
+`*.vendor.js`), never a file with a line over 100,000 characters (generated
+code, counted in a notice), never symbolic links, never files over 5 MB, and never directories
 named `test`, `tests`, `__tests__`, `spec`, `fixtures` or `testdata` unless you
 pass `--include-tests`. `app.scope` in `lexlint.yml` narrows the read, as the
 lint reads it.
@@ -82,7 +99,36 @@ Your code never leaves your machine. lexcode makes no network call during a
 scan; its one network call is the engine download above, which
 `lexcode engine fetch` does on its own for air-gapped setups. The record holds
 paths, line numbers, rule ids, activity ids and package URLs, and no source
-text unless you pass `--snippets`. lexcode has no telemetry.
+text unless you pass `--snippets`; a manifest that does not parse is reported
+by line and column, never by quoting it. lexcode has no telemetry.
+
+### What the engine writes, and where
+
+The engine is a separate program, and left alone it writes outside the
+directory it is given. lexcode points every one of those writes into its own
+directories, and sets nothing in your home directory:
+
+| What | Where | When it goes |
+|------|-------|--------------|
+| Scratch files: a copy of the merged rule set (`semgrep-*.rules`) and temporary target files | `TMPDIR`, `TMP` and `TEMP` for the engine are set to `<system temp>/lexcode-engine-*/tmp` | removed when the scan ends, and when lexcode is interrupted by Ctrl-C, SIGTERM or SIGHUP |
+| The engine's log, which names the scanned paths (`~/.opengrep/semgrep.log` otherwise) | `SEMGREP_LOG_FILE` is set to `engine.log` in that same directory | with the scratch files |
+| The engine's own unpacked runtime (`~/.cache/opengrep/<version>/` otherwise), loaded and run | `XDG_CACHE_HOME` is set to `<cache>/engine-home`, by default `~/.cache/lexcode/engine-home`; a directory only you can write to, kept between runs | stays, like the engine download in `<cache>/engine`; delete it to reclaim the space |
+| lexcode's copies of the `<script>` blocks it extracts, and the merged rule file | `<system temp>/lexcode-scan-*` | removed when the scan ends or is interrupted |
+
+The engine runs in a directory of lexcode's own inside `lexcode-engine-*`, not
+in the repository, and reaches the repository through a link there. It is
+started in its own process group, so a deadline or an interrupt stops its
+workers too (SIGTERM, then SIGKILL after 3 seconds). If lexcode itself is killed
+with SIGKILL or the machine loses power, the `lexcode-*` directories stay in the
+system temp directory and are safe to delete.
+
+`XDG_CACHE_HOME` is honored on Linux and macOS (verified for the pinned
+engine on Linux); on Windows the engine's own cache location is not
+redirected. lexcode runs `git ls-files` in the directory it scans, as the
+program found on `PATH` (never one in the current or scanned directory), and
+tells git to ignore the repository's own `core.fsmonitor`,
+`core.untrackedCache` and `core.excludesFile` settings, so a `.git/config`
+that came from someone else cannot run a program or point it at a file.
 
 ## The drift check
 
@@ -136,10 +182,16 @@ lexcode engine fetch | path | verify
 lexcode version
 ```
 
-`--engine <path>` or `LEXCODE_ENGINE` uses an engine you installed yourself.
+`--engine <path>` or `LEXCODE_ENGINE` uses an engine you installed yourself; a
+relative path is resolved against the directory you ran lexcode from, never
+against the repository being scanned.
 Behind a proxy, run the download under `NODE_USE_ENV_PROXY=1` (Node 22.21 or
 later), or fetch the engine on another machine. `LEXCODE_CACHE_DIR` moves the
-cache.
+cache; lexcode refuses an engine directory that another user owns or that group
+or everyone can write to, since it runs a program from there.
+`LEXCODE_ENGINE_DEADLINE=<seconds>` changes how long a whole engine run may
+take (900, 15 minutes, by default); past it the engine is stopped and the scan
+fails with exit 2.
 
 `LEXCODE_RULES_HOME=<dir>` replaces the bundled `rules/` directory (it needs `ruleset.yml`, `classes.yml`, `registry.snapshot.json` and `components/`), for a vendored rule set or a test.
 

@@ -4,10 +4,10 @@ import {
   ancestorDirs,
   baseName,
   dirOf,
-  errMessage,
+  describeParseError,
   fileExists,
   joinRel,
-  lineAt,
+  LineIndex,
   readText,
   type ReaderResult,
 } from './util.js';
@@ -152,7 +152,8 @@ class LockCache {
           res = npmLockResolver(isObj(d) ? d : {});
         }
       } catch (e) {
-        this.notices.push(`${rel}: did not parse (${errMessage(e)}); versions from it are unavailable`);
+        const kind = baseName(rel) === 'pnpm-lock.yaml' || baseName(rel) === 'yarn.lock' ? 'YAML' : 'JSON';
+        this.notices.push(`${rel}: did not parse (${describeParseError(e, kind, text)}); versions from it are unavailable`);
       }
     }
     this.cache.set(rel, res);
@@ -175,24 +176,46 @@ class LockCache {
   }
 }
 
-/** Line of `"key"` inside the object value of `"section"`; 1 when it cannot be located. */
-function findKeyLine(text: string, section: string, key: string): number {
-  const sectionRe = new RegExp(`"${section}"\\s*:\\s*\\{`, 'g');
-  const quoted = JSON.stringify(key);
-  let m: RegExpExecArray | null;
-  while ((m = sectionRe.exec(text))) {
-    const start = m.index + m[0].length;
-    const close = text.indexOf('}', start);
-    const block = text.slice(start, close < 0 ? text.length : close);
-    let from = 0;
-    for (;;) {
-      const i = block.indexOf(quoted, from);
-      if (i < 0) break;
-      if (/^\s*:/.test(block.slice(i + quoted.length))) return lineAt(text, start + i);
-      from = i + 1;
-    }
+/**
+ * Where `"key"` is written inside the object value of `"section"`, answered from one pass over the
+ * text per section. The block of a section runs to the first `}` after its `{`; when the section name
+ * appears more than once, the first block that holds the key wins. A key that cannot be located is
+ * line 1.
+ */
+class KeyLocator {
+  private readonly lines: LineIndex;
+  private readonly sections = new Map<string, Map<string, number>>();
+
+  constructor(private readonly text: string) {
+    this.lines = new LineIndex(text);
   }
-  return 1;
+
+  private keysOf(section: string): Map<string, number> {
+    const hit = this.sections.get(section);
+    if (hit) return hit;
+    const keys = new Map<string, number>();
+    const sectionRe = new RegExp(`"${section}"\\s*:\\s*\\{`, 'g');
+    const keyRe = /"((?:[^"\\]|\\.)*)"\s*:/g;
+    let m: RegExpExecArray | null;
+    while ((m = sectionRe.exec(this.text))) {
+      const start = m.index + m[0].length;
+      const close = this.text.indexOf('}', start);
+      const end = close < 0 ? this.text.length : close;
+      keyRe.lastIndex = start;
+      let k: RegExpExecArray | null;
+      while ((k = keyRe.exec(this.text)) && k.index < end) {
+        const quoted = `"${k[1] as string}"`;
+        if (!keys.has(quoted)) keys.set(quoted, k.index);
+      }
+    }
+    this.sections.set(section, keys);
+    return keys;
+  }
+
+  line(section: string, key: string): number {
+    const at = this.keysOf(section).get(JSON.stringify(key));
+    return at === undefined ? 1 : this.lines.lineAt(at);
+  }
 }
 
 const DIRECT_SECTIONS = ['dependencies', 'optionalDependencies', 'peerDependencies'] as const;
@@ -218,7 +241,7 @@ export function readNpm(root: string, files: string[]): ReaderResult {
     try {
       data = JSON.parse(text);
     } catch (e) {
-      notices.push(`${rel}: did not parse (${errMessage(e)}); skipped`);
+      notices.push(`${rel}: did not parse (${describeParseError(e, 'JSON', text)}); skipped`);
       continue;
     }
     if (!isObj(data)) {
@@ -226,6 +249,7 @@ export function readNpm(root: string, files: string[]): ReaderResult {
       continue;
     }
     const dir = dirOf(rel);
+    const where = new KeyLocator(text);
     const seen = new Map<string, { section: string; range: string }>();
     for (const section of DIRECT_SECTIONS) {
       const group = data[section];
@@ -243,7 +267,7 @@ export function readNpm(root: string, files: string[]): ReaderResult {
         ecosystem: 'npm',
         name,
         ...(version ? { version } : {}),
-        manifest: `${rel}:${findKeyLine(text, section, name)}`,
+        manifest: `${rel}:${where.line(section, name)}`,
       });
     }
   }

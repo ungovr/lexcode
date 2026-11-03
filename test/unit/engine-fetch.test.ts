@@ -1,11 +1,11 @@
 import { createHash } from 'node:crypto';
-import { chmod, mkdir, mkdtemp, readdir, rm, stat, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, readFile, readdir, realpath, rm, stat, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToolError } from '../../src/errors.js';
 import { ENGINE_PIN, type EnginePin, type PlatformKey } from '../../src/engine/pin.js';
-import { ensureEngine, pinnedEnginePath } from '../../src/engine/fetch.js';
+import { checkEngineDir, ensureEngine, pinnedEnginePath } from '../../src/engine/fetch.js';
 
 const KEY: PlatformKey = 'linux-x64-glibc';
 const sha = (b: Buffer | string): string => createHash('sha256').update(b).digest('hex');
@@ -181,6 +181,29 @@ describe('ensureEngine explicit engines', () => {
     expect(explicit.path).toBe(p);
   });
 
+  it('resolves a relative --engine or LEXCODE_ENGINE against the starting directory, to an absolute path', async () => {
+    if (process.platform === 'win32') return;
+    const p = await fakeEngine();
+    const viaFlag = await ensureEngine(base({ enginePath: 'my-engine', cwd: dir, pin: pinFor(GOOD) }));
+    expect(viaFlag.path).toBe(p);
+    const viaEnv = await ensureEngine(base({ env: { LEXCODE_ENGINE: './my-engine' }, cwd: dir, pin: pinFor(GOOD) }));
+    expect(viaEnv.path).toBe(p);
+    expect(viaEnv.path.startsWith('/')).toBe(true);
+  });
+
+  it('defaults the starting directory to the process working directory', async () => {
+    if (process.platform === 'win32') return;
+    const p = await fakeEngine();
+    const was = process.cwd();
+    process.chdir(dir);
+    try {
+      const r = await ensureEngine(base({ enginePath: 'my-engine', pin: pinFor(GOOD) }));
+      expect(r.path).toBe(await realpath(p));
+    } finally {
+      process.chdir(was);
+    }
+  });
+
   it('names the path and the next step when the explicit engine does not exist', async () => {
     const err = await ensureEngine(base({ enginePath: join(dir, 'missing') })).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ToolError);
@@ -205,3 +228,74 @@ describe('cache parent directories', () => {
     expect((await stat(r.path)).isFile()).toBe(true);
   });
 });
+
+describe.skipIf(process.platform === 'win32')('the download temporary file and the engine directory', () => {
+  const KEY2 = KEY;
+  const partialOf = (pin: EnginePin): string => `${pinnedEnginePath(pin, KEY2, dir)}.${process.pid}.partial`;
+
+  it('does not write through a symbolic link planted at the temporary file name, and says so without retrying', async () => {
+    const pin = pinFor(GOOD);
+    const victim = join(dir, 'victim.txt');
+    await writeFile(victim, 'keep me');
+    await mkdir(join(dir, 'engine', `${pin.name}-${pin.version}`), { recursive: true, mode: 0o700 });
+    await symlink(victim, partialOf(pin));
+    const { impl, calls } = serve(GOOD);
+    const err = await ensureEngine(base({ pin, fetchImpl: impl })).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ToolError);
+    expect((err as Error).message).toMatch(/not a plain file of yours/);
+    expect(await readFile(victim, 'utf8')).toBe('keep me');
+    expect(calls.length).toBeLessThanOrEqual(1);
+  });
+
+  it('clears a plain leftover temporary file of its own and downloads', async () => {
+    const pin = pinFor(GOOD);
+    await mkdir(join(dir, 'engine', `${pin.name}-${pin.version}`), { recursive: true, mode: 0o700 });
+    await writeFile(partialOf(pin), 'half a download');
+    const { impl } = serve(GOOD);
+    const r = await ensureEngine(base({ pin, fetchImpl: impl }));
+    expect((await stat(r.path)).isFile()).toBe(true);
+    expect(await cacheFiles()).toEqual([r.path]);
+  });
+
+  it('creates the engine directory closed to group and others, even under a permissive umask', async () => {
+    const was = process.umask(0o002);
+    try {
+      const pin = pinFor(GOOD);
+      const { impl } = serve(GOOD);
+      const r = await ensureEngine(base({ pin, fetchImpl: impl, cacheRoot: join(dir, 'fresh') }));
+      expect((await stat(dirname(r.path))).mode & 0o022).toBe(0);
+    } finally {
+      process.umask(was);
+    }
+  });
+
+  it('refuses an engine directory that is group- or world-writable, naming LEXCODE_CACHE_DIR', async () => {
+    const pin = pinFor(GOOD);
+    const engineDir = join(dir, 'engine', `${pin.name}-${pin.version}`);
+    await mkdir(engineDir, { recursive: true });
+    await chmod(engineDir, 0o775);
+    const { impl, calls } = serve(GOOD);
+    const err = await ensureEngine(base({ pin, fetchImpl: impl })).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ToolError);
+    expect((err as Error).message).toContain('LEXCODE_CACHE_DIR');
+    expect(calls).toHaveLength(0);
+  });
+
+  it('refuses a cached engine whose directory has become writable, before running or trusting it', async () => {
+    const pin = pinFor(GOOD);
+    const { impl } = serve(GOOD);
+    const r = await ensureEngine(base({ pin, fetchImpl: impl }));
+    await chmod(dirname(r.path), 0o777);
+    await expect(ensureEngine(base({ pin, fetchImpl: impl }))).rejects.toThrow(/LEXCODE_CACHE_DIR/);
+  });
+
+  it('refuses an engine directory owned by another user, and a symbolic link in its place', async () => {
+    const d = join(dir, 'owned');
+    await mkdir(d, { mode: 0o700 });
+    await expect(checkEngineDir(d, (process.getuid?.() ?? 0) + 1)).rejects.toThrow(/owned by another user.*LEXCODE_CACHE_DIR/s);
+    await checkEngineDir(d, process.getuid?.());
+    await symlink(d, join(dir, 'link'));
+    await expect(checkEngineDir(join(dir, 'link'))).rejects.toThrow(/not a plain directory/);
+  });
+});
+

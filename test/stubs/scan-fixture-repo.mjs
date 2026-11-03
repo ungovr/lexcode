@@ -33,7 +33,7 @@ try {
   const config = join(tmp, 'rules.yml');
   writeMergedConfig(rules.rules, config);
   const targets = listFiles(repo);
-  const run = await runEngine({ engine: engine.path, configFile: config, targets, cwd: repo });
+  const run = await runEngine({ engine: engine.path, configFile: config, targets, root: repo });
   process.stdout.write(
     `${JSON.stringify({
       version: run.version,
