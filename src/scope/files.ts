@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { lstatSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { ToolError } from '../errors.js';
+import { childEnv, gitExecutable } from '../proc.js';
 import type { ScopeInfo, ScopeSpec } from '../types.js';
 import { globToRegExp, globToRegExpSource } from './globs.js';
 
@@ -82,11 +83,13 @@ export const GIT_HARDENING = ['-c', 'core.fsmonitor=false', '-c', 'core.untracke
 
 /** Paths git lists under `root` (tracked, plus untracked and not ignored), or null when `root` is not in a git work tree. */
 function gitListing(root: string): string[] | null {
+  const git = gitExecutable();
+  if (git === undefined) return null; // git is not installed
   let out: Buffer;
   try {
-    out = execFileSync('git', [...GIT_HARDENING, 'ls-files', '-z', '--cached', '--others', '--exclude-standard'], {
+    out = execFileSync(git, [...GIT_HARDENING, 'ls-files', '-z', '--cached', '--others', '--exclude-standard'], {
       cwd: root,
-      env: { ...process.env, LC_ALL: 'C', LANG: 'C' },
+      env: childEnv({ LC_ALL: 'C', LANG: 'C', GIT_OPTIONAL_LOCKS: '0' }),
       maxBuffer: 1024 * 1024 * 1024,
       timeout: 300_000,
       killSignal: 'SIGKILL',
@@ -94,7 +97,7 @@ function gitListing(root: string): string[] | null {
     });
   } catch (e) {
     const err = e as NodeJS.ErrnoException & { stderr?: Buffer; status?: number | null };
-    if (err.code === 'ENOENT' && err.syscall === 'spawnSync git') return null; // git is not installed
+    if (err.code === 'ENOENT' && err.syscall === `spawnSync ${git}`) return null; // git vanished since it was found
     if (err.code === 'ENOENT' || err.code === 'ENOTDIR') {
       throw new ToolError(`cannot read the repository at ${root}: ${err.message}`);
     }
