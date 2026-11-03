@@ -29,7 +29,8 @@ unpacks itself under `~/.cache/opengrep` the first time it runs.
 
 Files tracked by git or trackable by it, honoring `.gitignore`. Never
 `node_modules`, `vendor`, `dist`, `build` or `.git`, never minified or bundled
-files, never symbolic links, never files over 5 MB, and never directories
+files (including any named `*.min.js`, `*.bundle.js`, `vendor.*.js` or
+`*.vendor.js`), never symbolic links, never files over 5 MB, and never directories
 named `test`, `tests`, `__tests__`, `spec`, `fixtures` or `testdata` unless you
 pass `--include-tests`. `app.scope` in `lexlint.yml` narrows the read, as the
 lint reads it.

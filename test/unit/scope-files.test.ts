@@ -51,6 +51,22 @@ describe('listFiles in a git repository', () => {
     expect(r.skippedLarge).toBe(0);
   });
 
+  it('skips bundled and minified files by name and counts them', () => {
+    const root = repo([
+      'web/app.js',
+      'web/vendor.jspdf.js',
+      'web/jquery.min.js',
+      'web/lib.min.mjs',
+      'web/main.bundle.js',
+      'web/chart.vendor.js',
+      'web/vendors.js',
+      'src/minify.ts',
+    ]);
+    const r = listFiles(root, plain);
+    expect(r.files).toEqual(['src/minify.ts', 'web/app.js', 'web/vendors.js']);
+    expect(r.skippedBundled).toBe(5);
+  });
+
   it('lists a file whose name holds spaces and non-ASCII characters', () => {
     const root = repo(['src/a b.ts', 'src/café.ts']);
     expect(listFiles(root, plain).files).toEqual(['src/a b.ts', 'src/café.ts']);

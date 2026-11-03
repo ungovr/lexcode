@@ -99,6 +99,9 @@ export async function scan(o: ScanOptions): Promise<EvidenceRecord> {
   if (listed.skippedSymlinks > 0) {
     notices.push(`skipped ${listed.skippedSymlinks} symbolic ${listed.skippedSymlinks === 1 ? 'link' : 'links'}; lexcode does not follow them`);
   }
+  if (listed.skippedBundled > 0) {
+    notices.push(`skipped ${listed.skippedBundled} bundled or minified ${listed.skippedBundled === 1 ? 'file' : 'files'} (named *.min.js, *.bundle.js, vendor.*.js or *.vendor.js)`);
+  }
   if (listed.skippedLarge > 0) {
     notices.push(`skipped ${listed.skippedLarge} ${listed.skippedLarge === 1 ? 'file' : 'files'} over 5 MB`);
   }

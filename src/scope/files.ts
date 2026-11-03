@@ -12,6 +12,13 @@ export const MAX_FILE_BYTES = 5_000_000;
 const ALWAYS_SKIPPED = new Set(['node_modules', 'vendor', 'dist', 'build', '.git']);
 /** Directories skipped unless `includeTests`. */
 const TEST_DIRS = new Set(['test', 'tests', '__tests__', 'spec', 'fixtures', 'testdata']);
+/**
+ * File names of bundled or minified code: someone else's library copied in,
+ * never the project's own code, and the costliest files to parse (a vendored
+ * jsPDF alone cost 15 CPU-seconds on the UnGovr monorepo). The engine's own
+ * minified-file check catches what these names miss.
+ */
+const BUNDLED_NAME = /(?:\.min\.(?:js|mjs|cjs)|\.bundle\.js|\.vendor\.js)$|^vendor\.[^/]+\.js$/;
 
 /** A POSIX relative path from a path built with the platform's own separator. */
 export function toPosix(p: string, flavor: Pick<typeof path, 'sep'> = path): string {
@@ -119,6 +126,7 @@ export interface ListFilesResult {
   info: Omit<ScopeInfo, 'extracted' | 'dev_dependencies_skipped'>;
   skippedSymlinks: number;
   skippedLarge: number;
+  skippedBundled: number;
 }
 
 export function listFiles(root: string, spec: ScopeSpec): ListFilesResult {
@@ -139,9 +147,14 @@ export function listFiles(root: string, spec: ScopeSpec): ListFilesResult {
 
   let skippedSymlinks = 0;
   let skippedLarge = 0;
+  let skippedBundled = 0;
   const candidates: string[] = [];
   for (const rel of listed) {
     if (underSkippedDir(rel, spec.includeTests)) continue;
+    if (BUNDLED_NAME.test(rel.slice(rel.lastIndexOf('/') + 1))) {
+      skippedBundled++;
+      continue;
+    }
     let st;
     try {
       st = lstatSync(path.join(root, ...rel.split('/')));
@@ -189,5 +202,6 @@ export function listFiles(root: string, spec: ScopeSpec): ListFilesResult {
     },
     skippedSymlinks,
     skippedLarge,
+    skippedBundled,
   };
 }

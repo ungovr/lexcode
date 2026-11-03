@@ -41,15 +41,16 @@ describe('release: the rule set is complete and well formed', () => {
     expect(validateRuleFiles(rulesDir, loadRuleSet()).filter((p) => p.startsWith('[fixtures]'))).toEqual([]);
   });
 
-  // The publish gate (design 6.13). Remove the skip once the rule set is complete.
-  it.skipIf(process.env.LEXCODE_GATE !== '1')('evidence class is covered', () => {
+  // The publish gate (design 6.13): every evidence-class id has at least one
+  // evidence-strength source rule, and the fixture tests above hold each rule
+  // to a positive and a negative fixture. A component-map entry is not a rule
+  // and does not count.
+  it('evidence class is covered (the v1 publish gate)', () => {
     const rs = loadRuleSet();
     const uncovered: string[] = [];
     for (const [id, cls] of rs.classes) {
       if (cls !== 'evidence') continue;
-      const hasRule = rs.rules.some((r) => r.activity === id && r.strength === 'evidence');
-      const hasMap = rs.components.some((c) => c.enables.includes(id));
-      if (!hasRule && !hasMap) uncovered.push(id);
+      if (!rs.rules.some((r) => r.activity === id && r.strength === 'evidence')) uncovered.push(id);
     }
     expect(uncovered).toEqual([]);
   });

@@ -5,9 +5,17 @@ import { join } from 'node:path';
 import { ToolError } from '../errors.js';
 import type { EngineMatch } from '../types.js';
 
-/** Characters of target paths per engine invocation: Windows caps a command line near 32,767. */
+/**
+ * Characters of target paths per engine invocation. Windows caps a command
+ * line near 32,767; macOS caps argv plus the environment at 1 MiB, Linux at
+ * 2 MiB. Every extra invocation parses the rules again and splits the
+ * engine's parallelism, which on the UnGovr monorepo doubled the scan time,
+ * so outside Windows a repository of several thousand files is one run.
+ */
 export const CHUNK_CHARS_WINDOWS = 24_000;
-export const CHUNK_CHARS_OTHER = 200_000;
+export const CHUNK_CHARS_OTHER = 900_000;
+/** Engine worker processes: parsing is most of a scan's cost and scales with them. */
+export const MAX_JOBS = 16;
 
 const versionCache = new Map<string, string>();
 
@@ -174,7 +182,7 @@ async function spawnEngine(engine: string, args: string[], cwd: string): Promise
 export async function runEngine(o: RunEngineOptions): Promise<RunEngineResult> {
   const cliVersion = await engineVersion(o.engine);
   const chunks = chunkTargets(o.targets, o.chunkChars ?? (process.platform === 'win32' ? CHUNK_CHARS_WINDOWS : CHUNK_CHARS_OTHER));
-  const jobs = o.jobs ?? Math.min(availableParallelism(), 8);
+  const jobs = o.jobs ?? Math.min(availableParallelism(), MAX_JOBS);
   const matches: EngineMatch[] = [];
   let fileErrors = 0;
   let version = cliVersion;
