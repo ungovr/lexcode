@@ -1,0 +1,27 @@
+rules:
+  - id: lexcode.tracking.js-tracking-cookie
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Writes a cookie whose name marks it as an analytics, advertising or visitor-identifier cookie, which is tracking devices (tracks_devices).
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: $R.cookie("$N", ...)
+              - pattern: $R.setCookie("$N", ...)
+              - pattern: Cookies.set("$N", ...)
+              - pattern: cookies().set("$N", ...)
+              - pattern: (await cookies()).set("$N", ...)
+          - metavariable-regex:
+              metavariable: $N
+              regex: (?i)^(_ga(_.*)?|_gid|_gat(_.*)?|_gcl_.*|_fbp|_fbc|_hjid|_hjSessionUser.*|ajs_(anonymous|user)_id|mp_.*_mixpanel|ph_.*_posthog|amplitude_id.*|_uetvid|_uetsid|_clck|_clsk|__utm.|(visitor|tracking|anonymous|device)_?id|fingerprint)$
+      - patterns:
+          - pattern: document.cookie = $V
+          - metavariable-regex:
+              metavariable: $V
+              regex: (?is)^.(_ga(_[a-z0-9]+)?|_gid|_fbp|_fbc|_gcl_[a-z]+|ajs_(anonymous|user)_id|_hjid|(visitor|tracking|anonymous|device)_?id)=
+    metadata:
+      activity: tracks_devices
+      mentioned: performs
+      definition: https://lexlint.io/activities/tracks-devices
+      provenance: ungovr-original
+      license: MIT

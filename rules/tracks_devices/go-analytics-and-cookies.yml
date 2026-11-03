@@ -1,0 +1,21 @@
+rules:
+  - id: lexcode.tracking.go-analytics-and-cookies
+    languages: [go]
+    severity: INFO
+    message: Sends events to a third-party analytics service or sets an analytics or visitor-identifier cookie, which is tracking devices (tracks_devices).
+    pattern-either:
+      - pattern: $C.Enqueue(analytics.Track{...})
+      - pattern: $C.Enqueue(analytics.Identify{...})
+      - pattern: $C.Enqueue(analytics.Page{...})
+      - pattern: $C.Enqueue(posthog.Capture{...})
+      - patterns:
+          - pattern: "&http.Cookie{..., Name: $N, ...}"
+          - metavariable-regex:
+              metavariable: $N
+              regex: (?i)^"(_ga(_.*)?|_gid|_gat(_.*)?|_gcl_.*|_fbp|_fbc|_hjid|_hjSessionUser.*|ajs_(anonymous|user)_id|mp_.*_mixpanel|ph_.*_posthog|amplitude_id.*|_uetvid|_uetsid|_clck|_clsk|__utm.|(visitor|tracking|anonymous|device)_?id|fingerprint)"$
+    metadata:
+      activity: tracks_devices
+      mentioned: performs
+      definition: https://lexlint.io/activities/tracks-devices
+      provenance: ungovr-original
+      license: MIT

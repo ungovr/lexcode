@@ -1,0 +1,35 @@
+rules:
+  - id: lexcode.personal.go-client-ip-captured
+    languages: [go]
+    severity: INFO
+    message: Writes the visitor's IP address into a log or a database, which is processing personal data (processes_personal_data).
+    mode: taint
+    pattern-sources:
+      - pattern: $R.RemoteAddr
+      - pattern: $R.Header.Get("X-Forwarded-For")
+      - pattern: $R.Header.Get("X-Real-IP")
+    pattern-sinks:
+      - patterns:
+          - pattern: log.$M(...)
+      - patterns:
+          - pattern: slog.$M(...)
+      - patterns:
+          - pattern: $L.$M(...)
+          - metavariable-regex:
+              metavariable: $L
+              regex: ^(logger|log|zlog|sugar|l)$
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(Info|Infof|Infow|Warn|Warnf|Error|Errorf|Debug|Debugf|Printf|Println)$
+      - patterns:
+          - pattern: $D.Exec(...)
+      - patterns:
+          - pattern: $D.ExecContext(...)
+      - patterns:
+          - pattern: $D.Create(...)
+    metadata:
+      activity: processes_personal_data
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-personal-data
+      provenance: ungovr-original
+      license: MIT

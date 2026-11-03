@@ -1,0 +1,17 @@
+rules:
+  - id: lexcode.identity.py-idv-sdk
+    languages: [python]
+    severity: INFO
+    message: Checks who a person is with an identity-verification service or verifies a verifiable credential, which is relying on a digital identity (relies_on_digital_identity).
+    pattern-either:
+      - pattern: stripe.identity.VerificationSession.create(...)
+      - pattern: onfido.Api(...)
+      - pattern: onfido.ApiClient(...)
+      - pattern: didkit.verify_credential(...)
+      - pattern: didkit.verify_presentation(...)
+    metadata:
+      activity: relies_on_digital_identity
+      mentioned: performs
+      definition: https://lexlint.io/glossary#relies-on-a-digital-identity
+      provenance: ungovr-original
+      license: MIT

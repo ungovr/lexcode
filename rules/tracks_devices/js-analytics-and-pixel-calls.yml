@@ -1,0 +1,79 @@
+rules:
+  - id: lexcode.tracking.js-analytics-and-pixel-calls
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Sends visits or events to a third-party analytics or advertising service (Google tag, Meta Pixel, PostHog, Mixpanel, Amplitude, Segment or similar), which is tracking devices (tracks_devices).
+    pattern-either:
+      - pattern: gtag("config", ...)
+      - pattern: gtag("event", ...)
+      - pattern: window.gtag("config", ...)
+      - pattern: window.gtag("event", ...)
+      - pattern: fbq("init", ...)
+      - pattern: fbq("track", ...)
+      - pattern: fbq("trackCustom", ...)
+      - pattern: window.fbq("init", ...)
+      - pattern: window.fbq("track", ...)
+      - pattern: ttq.load(...)
+      - pattern: ttq.track(...)
+      - pattern: ttq.page(...)
+      - pattern: pintrk("load", ...)
+      - pattern: pintrk("track", ...)
+      - pattern: snaptr("init", ...)
+      - pattern: snaptr("track", ...)
+      - pattern: twq("init", ...)
+      - pattern: twq("track", ...)
+      - pattern: lintrk("track", ...)
+      - pattern: _paq.push(...)
+      - pattern: _hsq.push(...)
+      - pattern: posthog.init(...)
+      - pattern: posthog.capture(...)
+      - pattern: posthog.identify(...)
+      - pattern: mixpanel.init(...)
+      - pattern: mixpanel.track(...)
+      - pattern: mixpanel.identify(...)
+      - pattern: amplitude.init(...)
+      - pattern: amplitude.track(...)
+      - pattern: amplitude.identify(...)
+      - pattern: amplitude.getInstance().logEvent(...)
+      - pattern: heap.track(...)
+      - pattern: heap.identify(...)
+      - pattern: Hotjar.init(...)
+      - pattern: LogRocket.init(...)
+      - pattern: window.plausible(...)
+      - pattern: Fathom.trackPageview(...)
+      - pattern: fathom.trackEvent(...)
+      - pattern: getAnalytics(...)
+      - pattern: analytics().logEvent(...)
+      - pattern: AnalyticsBrowser.load(...)
+      - pattern: window.analytics.track(...)
+      - pattern: window.analytics.identify(...)
+      - pattern: window.analytics.page(...)
+      - pattern: analytics.load("...")
+      - patterns:
+          - pattern-either:
+              - pattern: analytics.track(...)
+              - pattern: analytics.identify(...)
+              - pattern: analytics.page(...)
+              - pattern: analytics.screen(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import {...} from "@segment/analytics-next";
+                  ...
+              - pattern-inside: |
+                  import {...} from "@segment/analytics-node";
+                  ...
+              - pattern-inside: |
+                  import $A from "@segment/analytics-react-native";
+                  ...
+              - pattern-inside: |
+                  import {...} from "@segment/analytics-react-native";
+                  ...
+              - pattern-inside: |
+                  import $A from "analytics-node";
+                  ...
+    metadata:
+      activity: tracks_devices
+      mentioned: performs
+      definition: https://lexlint.io/activities/tracks-devices
+      provenance: ungovr-original
+      license: MIT

@@ -1,0 +1,32 @@
+rules:
+  - id: lexcode.crypto.py-library-encryption
+    languages: [python]
+    severity: INFO
+    message: Builds a cipher with a cryptography library the product bundles (cryptography, PyCryptodome or PyNaCl), which is shipping encryption (ships_encryption).
+    pattern-either:
+      - pattern: Fernet(...)
+      - pattern: MultiFernet(...)
+      - pattern: AESGCM(...)
+      - pattern: AESCCM(...)
+      - pattern: AESSIV(...)
+      - pattern: ChaCha20Poly1305(...)
+      - pattern: Cipher(algorithms.$A(...), modes.$M(...), ...)
+      - pattern: AES.new(...)
+      - pattern: ChaCha20.new(...)
+      - pattern: Salsa20.new(...)
+      - pattern: DES3.new(...)
+      - pattern: PKCS1_OAEP.new(...)
+      - pattern: SecretBox(...)
+      - pattern: SealedBox(...)
+      - pattern: nacl.public.Box(...)
+      - patterns:
+          - pattern: Box(...)
+          - pattern-inside: |
+              from nacl.public import Box
+              ...
+    metadata:
+      activity: ships_encryption
+      mentioned: performs
+      definition: https://lexlint.io/glossary#ships-encryption
+      provenance: ungovr-original
+      license: MIT

@@ -1,0 +1,44 @@
+rules:
+  - id: lexcode.personal.py-client-ip-captured
+    languages: [python]
+    severity: INFO
+    message: Writes the visitor's IP address into a log or a database, which is processing personal data (processes_personal_data).
+    mode: taint
+    pattern-sources:
+      - pattern: $R.client.host
+      - pattern: $R.remote_addr
+      - pattern: $R.META["REMOTE_ADDR"]
+      - pattern: $R.META["HTTP_X_FORWARDED_FOR"]
+      - pattern: $R.META.get("REMOTE_ADDR")
+      - pattern: $R.META.get("HTTP_X_FORWARDED_FOR")
+      - pattern: $R.headers.get("x-forwarded-for")
+      - pattern: $R.headers.get("X-Forwarded-For")
+      - pattern: $R.headers["x-forwarded-for"]
+      - pattern: $R.headers["X-Forwarded-For"]
+      - pattern: $R.environ["REMOTE_ADDR"]
+    pattern-sinks:
+      - patterns:
+          - pattern: $L.$M(...)
+          - metavariable-regex:
+              metavariable: $L
+              regex: ^(logging|logger|log|LOG|LOGGER|_log|_logger|self\.logger|self\.log|app\.logger)$
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(debug|info|warning|warn|error|exception|critical|log)$
+      - patterns:
+          - pattern: $D.execute(...)
+      - patterns:
+          - pattern: $D.executemany(...)
+      - patterns:
+          - pattern: $D.add(...)
+          - metavariable-regex:
+              metavariable: $D
+              regex: (?i)^(db|session|s|self\.db|self\.session|conn|connection)$
+      - patterns:
+          - pattern: $M.objects.create(...)
+    metadata:
+      activity: processes_personal_data
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-personal-data
+      provenance: ungovr-original
+      license: MIT

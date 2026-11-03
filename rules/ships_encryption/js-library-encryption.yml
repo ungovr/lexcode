@@ -1,0 +1,43 @@
+rules:
+  - id: lexcode.crypto.js-library-encryption
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Encrypts data or agrees keys with a cryptography library the product bundles, which is shipping encryption (ships_encryption).
+    pattern-either:
+      - pattern: $S.crypto_secretbox_easy(...)
+      - pattern: $S.crypto_box_easy(...)
+      - pattern: $S.crypto_box_seal(...)
+      - pattern: $S.crypto_aead_xchacha20poly1305_ietf_encrypt(...)
+      - pattern: $S.crypto_aead_chacha20poly1305_ietf_encrypt(...)
+      - pattern: $S.crypto_aead_aes256gcm_encrypt(...)
+      - pattern: $S.crypto_secretstream_xchacha20poly1305_init_push(...)
+      - pattern: nacl.box(...)
+      - pattern: nacl.secretbox(...)
+      - pattern: nacl.box.before(...)
+      - patterns:
+          - pattern: CryptoJS.$ALG.encrypt(...)
+          - metavariable-regex:
+              metavariable: $ALG
+              regex: ^(AES|DES|TripleDES|Rabbit|RabbitLegacy|RC4|RC4Drop)$
+      - pattern: AES.encrypt(...)
+      - pattern: forge.cipher.createCipher(...)
+      - pattern: forge.cipher.createDecipher(...)
+      - pattern: forge.rsa.generateKeyPair(...)
+      - pattern: forge.pki.rsa.generateKeyPair(...)
+      - pattern: openpgp.encrypt(...)
+      - pattern: openpgp.generateKey(...)
+      - pattern: new $J.EncryptJWT(...)
+      - pattern: new EncryptJWT(...)
+      - pattern: new CompactEncrypt(...)
+      - pattern: new $J.CompactEncrypt(...)
+      - pattern: sjcl.encrypt(...)
+      - pattern: xchacha20poly1305(...).encrypt(...)
+      - pattern: chacha20poly1305(...).encrypt(...)
+      - pattern: gcm(...).encrypt(...)
+      - pattern: x25519.getSharedSecret(...)
+    metadata:
+      activity: ships_encryption
+      mentioned: performs
+      definition: https://lexlint.io/glossary#ships-encryption
+      provenance: ungovr-original
+      license: MIT

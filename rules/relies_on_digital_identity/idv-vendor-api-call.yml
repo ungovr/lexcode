@@ -1,0 +1,29 @@
+rules:
+  - id: lexcode.identity.idv-vendor-api-call
+    languages: [javascript, typescript, python, go]
+    severity: INFO
+    message: Calls an identity-verification vendor's API (Persona, Veriff, Onfido, Jumio, Yoti, Sumsub and similar), which is relying on a digital identity (relies_on_digital_identity).
+    patterns:
+      - pattern-regex: (?i)(?<=["'`])https?://(?:[a-z0-9-]*api[a-z0-9-]*\.(?:[a-z0-9-]+\.)*(?:withpersona\.com|veriff\.(?:com|me)|onfido\.com|jumio\.com|netverify\.com|yoti\.com|sumsub\.com|idenfy\.com|au10tix\.com|ondato\.com|incode\.com|trulioo\.com|idnow\.io)|(?:[a-z0-9-]+\.)*(?:withpersona\.com|veriff\.(?:com|me)|onfido\.com|jumio\.com|netverify\.com|yoti\.com|sumsub\.com|idenfy\.com|au10tix\.com|ondato\.com|incode\.com|trulioo\.com|idnow\.io)/(?:[^\s"'`]*/)?(?:api|v[0-9]+)(?=/))[^\s"'`]*
+      - pattern-either:
+          - pattern-inside: fetch(...)
+          - pattern-inside: $O.fetch(...)
+          - pattern-inside: urlopen(...)
+          - pattern-inside: $O.urlopen(...)
+          - pattern-inside: $O.get(...)
+          - pattern-inside: $O.post(...)
+          - pattern-inside: $O.put(...)
+          - pattern-inside: $O.patch(...)
+          - pattern-inside: $O.delete(...)
+          - pattern-inside: $O.request(...)
+          - pattern-inside: $O.stream(...)
+          - pattern-inside: $O.Get(...)
+          - pattern-inside: $O.Post(...)
+          - pattern-inside: $O.NewRequest(...)
+          - pattern-inside: $O.NewRequestWithContext(...)
+    metadata:
+      activity: relies_on_digital_identity
+      mentioned: performs
+      definition: https://lexlint.io/glossary#relies-on-a-digital-identity
+      provenance: ungovr-original
+      license: MIT

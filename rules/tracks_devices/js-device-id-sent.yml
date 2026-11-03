@@ -1,0 +1,34 @@
+rules:
+  - id: lexcode.tracking.js-device-id-sent
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Reads a hardware-bound device identifier and sends it to another host, which is tracking devices (tracks_devices).
+    mode: taint
+    pattern-sources:
+      - pattern: $D.getUniqueId(...)
+      - pattern: $D.getUniqueIdSync(...)
+      - pattern: $A.getAndroidId(...)
+      - pattern: $A.getIosIdForVendorAsync(...)
+    pattern-sinks:
+      - patterns:
+          - pattern: fetch($URL, ...)
+          - metavariable-regex:
+              metavariable: $URL
+              regex: (?s)^(?!.\/[^\/]).*
+      - patterns:
+          - pattern: axios.$M($URL, ...)
+          - metavariable-regex:
+              metavariable: $URL
+              regex: (?s)^(?!.\/[^\/]).*
+      - patterns:
+          - pattern: $C.post($URL, ...)
+          - metavariable-regex:
+              metavariable: $URL
+              regex: (?s)^(?!.\/[^\/]).*
+    metadata:
+      activity: tracks_devices
+      mentioned: performs
+      host_metavar: $URL
+      definition: https://lexlint.io/activities/tracks-devices
+      provenance: ungovr-original
+      license: MIT
