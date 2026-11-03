@@ -228,3 +228,16 @@ describe('readPypi on very large manifests', () => {
   });
 });
 
+describe('parse-error notices never carry source text (TOML)', () => {
+  const SECRET = 'ghp_NOT_QUITE_A_SECRET_0123456789';
+
+  it('names a line and column for a malformed pyproject.toml and a malformed uv.lock', () => {
+    const a = readPypi(tree({ 'pyproject.toml': `[project]\nname = "x"\ntoken = ${SECRET}\n` }), ['pyproject.toml']);
+    expect(a.notices.join('\n')).toMatch(/^pyproject\.toml: did not parse \(invalid TOML at line 3, column \d+\); skipped$/);
+    expect(a.notices.join('\n')).not.toContain('ghp_');
+    const b = readPypi(tree({ 'pyproject.toml': '[project]\nname = "x"\ndependencies = ["flask"]\n', 'uv.lock': `token = ${SECRET}\n` }), ['pyproject.toml']);
+    expect(b.notices.join('\n')).toMatch(/uv\.lock: did not parse \(invalid TOML at line 1/);
+    expect(b.notices.join('\n')).not.toContain('ghp_');
+  });
+});
+

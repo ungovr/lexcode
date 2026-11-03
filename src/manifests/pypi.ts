@@ -5,7 +5,7 @@ import {
   ancestorDirs,
   baseName,
   dirOf,
-  errMessage,
+  describeParseError,
   fileExists,
   joinRel,
   readText,
@@ -109,7 +109,7 @@ class Lockfiles {
           out.set(key, prev === undefined || prev === p['version'] ? p['version'] : null);
         }
       } catch (e) {
-        this.notices.push(`${rel}: did not parse (${errMessage(e)}); versions from it are unavailable`);
+        this.notices.push(`${rel}: did not parse (${describeParseError(e, 'TOML', text)}); versions from it are unavailable`);
       }
     }
     this.cache.set(rel, out);
@@ -400,7 +400,7 @@ export function readPypi(root: string, files: string[]): ReaderResult {
         devSkipped += r.devCount;
         for (const f of r.found) emit(f);
       } catch (e) {
-        notices.push(`${rel}: did not parse (${errMessage(e)}); skipped`);
+        notices.push(`${rel}: did not parse (${describeParseError(e, 'TOML', text)}); skipped`);
       }
     } else if (isRequirementsFile(rel)) {
       if (reqs.visited.has(rel)) continue;

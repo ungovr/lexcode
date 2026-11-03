@@ -4,7 +4,7 @@ import {
   ancestorDirs,
   baseName,
   dirOf,
-  errMessage,
+  describeParseError,
   fileExists,
   joinRel,
   LineIndex,
@@ -152,7 +152,8 @@ class LockCache {
           res = npmLockResolver(isObj(d) ? d : {});
         }
       } catch (e) {
-        this.notices.push(`${rel}: did not parse (${errMessage(e)}); versions from it are unavailable`);
+        const kind = baseName(rel) === 'pnpm-lock.yaml' || baseName(rel) === 'yarn.lock' ? 'YAML' : 'JSON';
+        this.notices.push(`${rel}: did not parse (${describeParseError(e, kind, text)}); versions from it are unavailable`);
       }
     }
     this.cache.set(rel, res);
@@ -240,7 +241,7 @@ export function readNpm(root: string, files: string[]): ReaderResult {
     try {
       data = JSON.parse(text);
     } catch (e) {
-      notices.push(`${rel}: did not parse (${errMessage(e)}); skipped`);
+      notices.push(`${rel}: did not parse (${describeParseError(e, 'JSON', text)}); skipped`);
       continue;
     }
     if (!isObj(data)) {

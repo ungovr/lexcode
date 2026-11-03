@@ -218,3 +218,26 @@ describe('readNpm on a very large manifest', () => {
   });
 });
 
+describe('parse-error notices never carry source text', () => {
+  const SECRET = 'ghp_NOT_QUITE_A_SECRET_0123456789';
+
+  it('names a position and not the excerpt V8 prints, for a malformed package.json', () => {
+    const root = tree({ 'package.json': `{\n  "name": "x",\n  "token": ${SECRET},\n  "dependencies": {}\n}\n` });
+    const r = readNpm(root, ['package.json']);
+    const notice = r.notices.join('\n');
+    expect(notice).toMatch(/^package\.json: did not parse \(invalid JSON( at (line \d+(, column \d+)?|offset \d+))?\); skipped$/);
+    expect(notice).not.toContain(SECRET);
+    expect(notice).not.toContain('ghp_');
+  });
+
+  it('does the same for a malformed package-lock.json and a malformed pnpm-lock.yaml', () => {
+    const pkgJson = '{ "name": "x", "dependencies": { "left-pad": "^1.0.0" } }';
+    const a = readNpm(tree({ 'package.json': pkgJson, 'package-lock.json': `{"token": ${SECRET}}` }), ['package.json']);
+    expect(a.notices.join('\n')).toMatch(/package-lock\.json: did not parse \(invalid JSON/);
+    expect(a.notices.join('\n')).not.toContain('ghp_');
+    const b = readNpm(tree({ 'package.json': pkgJson, 'pnpm-lock.yaml': `token: ${SECRET}\n  bad: [x\n` }), ['package.json']);
+    expect(b.notices.join('\n')).toMatch(/pnpm-lock\.yaml: did not parse \(invalid YAML/);
+    expect(b.notices.join('\n')).not.toContain('ghp_');
+  });
+});
+
