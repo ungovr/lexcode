@@ -1,0 +1,41 @@
+rules:
+  - id: lexcode.esign.py-esign-envelope
+    languages: [python]
+    severity: INFO
+    message: Sends a document to a person for electronic signature through DocuSign, Dropbox Sign or HelloSign, which is collecting electronic signatures (collects_e_signatures).
+    mode: taint
+    pattern-sources:
+      - pattern: EnvelopesApi(...)
+      - pattern: $D.EnvelopesApi(...)
+      - pattern: SignatureRequestApi(...)
+      - pattern: $D.SignatureRequestApi(...)
+      - pattern: HSClient(...)
+      - pattern: $D.HSClient(...)
+    pattern-sinks:
+      - patterns:
+          - pattern: $C.create_envelope(...)
+          - focus-metavariable: $C
+      - patterns:
+          - pattern: $C.signature_request_send(...)
+          - focus-metavariable: $C
+      - patterns:
+          - pattern: $C.signature_request_send_with_template(...)
+          - focus-metavariable: $C
+      - patterns:
+          - pattern: $C.signature_request_create_embedded(...)
+          - focus-metavariable: $C
+      - patterns:
+          - pattern: $C.send_signature_request(...)
+          - focus-metavariable: $C
+      - patterns:
+          - pattern: $C.send_signature_request_with_template(...)
+          - focus-metavariable: $C
+      - patterns:
+          - pattern: $C.send_signature_request_embedded(...)
+          - focus-metavariable: $C
+    metadata:
+      activity: collects_e_signatures
+      mentioned: performs
+      definition: https://lexlint.io/glossary#collects-electronic-signatures
+      provenance: ungovr-original
+      license: MIT

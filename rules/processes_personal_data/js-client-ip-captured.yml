@@ -1,0 +1,52 @@
+rules:
+  - id: lexcode.personal.js-client-ip-captured
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Writes the visitor's IP address into a log or a database, which is processing personal data (processes_personal_data).
+    mode: taint
+    pattern-sources:
+      - pattern: req.ip
+      - pattern: req.ips
+      - pattern: request.ip
+      - pattern: ctx.ip
+      - pattern: req.headers["x-forwarded-for"]
+      - pattern: req.headers["x-real-ip"]
+      - pattern: req.headers.get("x-forwarded-for")
+      - pattern: request.headers.get("x-forwarded-for")
+      - pattern: req.headers.get("x-real-ip")
+      - pattern: request.headers.get("x-real-ip")
+      - pattern: req.header("x-forwarded-for")
+      - pattern: req.socket.remoteAddress
+      - pattern: req.connection.remoteAddress
+      - pattern: requestIp.getClientIp(...)
+    pattern-sinks:
+      - patterns:
+          - pattern: $L.$M(...)
+          - metavariable-regex:
+              metavariable: $L
+              regex: ^(console|logger|log|this\.logger|req\.log|request\.log)$
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(log|info|warn|error|debug|trace|fatal)$
+      - patterns:
+          - pattern: $D.query(...)
+          - metavariable-regex:
+              metavariable: $D
+              regex: (?i)^.*(pool|db|conn|client|knex|sql)$
+      - patterns:
+          - pattern: $D.$M(...)
+          - metavariable-regex:
+              metavariable: $D
+              regex: (?i)^(db|model|collection|repo|repository|manager|table|\w*(model|repo|repository|collection))$
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(create|insert|insertOne|insertMany|save|upsert|execute)$
+      - pattern: prisma.$T.create(...)
+      - pattern: prisma.$T.createMany(...)
+      - pattern: db.$T.create(...)
+    metadata:
+      activity: processes_personal_data
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-personal-data
+      provenance: ungovr-original
+      license: MIT

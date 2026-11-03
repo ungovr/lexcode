@@ -1,0 +1,23 @@
+rules:
+  - id: lexcode.personal.js-form-schema-email
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Validates an email address a person types into a form or request schema (zod, yup, Joi or valibot), which is processing personal data (processes_personal_data).
+    patterns:
+      - pattern: "$S.object({..., $F: $V, ...})"
+      - metavariable-regex:
+          metavariable: $S
+          regex: ^(z|zod|yup|Yup|Joi|v)$
+      - metavariable-regex:
+          metavariable: $F
+          regex: (?i)^(e_?mail|email_?(address|addr)?|(user|contact|work|primary|customer)_?e_?mail)$
+      - metavariable-pattern:
+          metavariable: $V
+          pattern: $X.email(...)
+      - focus-metavariable: $F
+    metadata:
+      activity: processes_personal_data
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-personal-data
+      provenance: ungovr-original
+      license: MIT

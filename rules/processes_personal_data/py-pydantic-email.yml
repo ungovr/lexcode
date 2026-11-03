@@ -1,0 +1,23 @@
+rules:
+  - id: lexcode.personal.py-pydantic-email
+    languages: [python]
+    severity: INFO
+    message: Accepts or stores an email address in a request or database model (pydantic EmailStr), which is processing personal data (processes_personal_data).
+    patterns:
+      - pattern-either:
+          - pattern: "$F: EmailStr"
+          - pattern: "$F: Optional[EmailStr] = None"
+          - pattern: "$F: EmailStr = Field(...)"
+      - pattern-inside: |
+          class $C(...):
+              ...
+      - pattern-not-inside: |
+          class $C(BaseSettings):
+              ...
+      - pattern-not: "$F: EmailStr = Field(default=...)"
+    metadata:
+      activity: processes_personal_data
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-personal-data
+      provenance: ungovr-original
+      license: MIT

@@ -1,0 +1,12 @@
+rules:
+  - id: lexcode.esign.react-signature-canvas
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Reads back a signature drawn on a react-signature-canvas pad, which is collecting electronic signatures (collects_e_signatures).
+    pattern: $PAD.getTrimmedCanvas()
+    metadata:
+      activity: collects_e_signatures
+      mentioned: performs
+      definition: https://lexlint.io/glossary#collects-electronic-signatures
+      provenance: ungovr-original
+      license: MIT

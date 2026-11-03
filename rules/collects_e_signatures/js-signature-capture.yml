@@ -1,0 +1,25 @@
+rules:
+  - id: lexcode.esign.js-signature-capture
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Exports a signature a person drew on a signature pad, which is collecting electronic signatures (collects_e_signatures).
+    mode: taint
+    pattern-sources:
+      - pattern: new SignaturePad(...)
+      - pattern: new $NS.SignaturePad(...)
+    pattern-sinks:
+      - patterns:
+          - pattern: $PAD.toDataURL(...)
+          - focus-metavariable: $PAD
+      - patterns:
+          - pattern: $PAD.toSVG(...)
+          - focus-metavariable: $PAD
+      - patterns:
+          - pattern: $PAD.toData(...)
+          - focus-metavariable: $PAD
+    metadata:
+      activity: collects_e_signatures
+      mentioned: performs
+      definition: https://lexlint.io/glossary#collects-electronic-signatures
+      provenance: ungovr-original
+      license: MIT

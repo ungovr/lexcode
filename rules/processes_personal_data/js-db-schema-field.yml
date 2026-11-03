@@ -1,0 +1,25 @@
+rules:
+  - id: lexcode.personal.js-db-schema-field
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Declares a stored field for an email, phone number, date of birth, government identifier or IP address, which is processing personal data (processes_personal_data).
+    patterns:
+      - pattern-either:
+          - pattern: "new Schema({..., $F: $V, ...})"
+          - pattern: "new mongoose.Schema({..., $F: $V, ...})"
+          - pattern: "new $NS.Schema({..., $F: $V, ...})"
+          - pattern: "pgTable($N, {..., $F: $V, ...})"
+          - pattern: "sqliteTable($N, {..., $F: $V, ...})"
+          - pattern: "mysqlTable($N, {..., $F: $V, ...})"
+          - pattern: "sequelize.define($N, {..., $F: $V, ...})"
+          - pattern: "$X.sequelize.define($N, {..., $F: $V, ...})"
+      - metavariable-regex:
+          metavariable: $F
+          regex: (?i)^(e_?mail|email_?(address|addr)?|(user|contact|work|primary|customer)_?e_?mail|phone(_?(number|no|num))?|mobile(_?(number|phone|no))?|telephone|date_?of_?birth|dob|birth_?(date|day)|birthday|ssn|social_?security(_?(number|no))?|national_?(id|insurance)(_?number)?|passport(_?(number|no))?|tax_?(id|number)|drivers?_?licen[sc]e(_?(number|no))?|ip_?(address|addr)?|last_?ip(_?address)?|client_?ip|remote_?(addr|ip|address))$
+      - focus-metavariable: $F
+    metadata:
+      activity: processes_personal_data
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-personal-data
+      provenance: ungovr-original
+      license: MIT

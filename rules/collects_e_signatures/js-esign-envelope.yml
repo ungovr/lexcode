@@ -1,0 +1,41 @@
+rules:
+  - id: lexcode.esign.js-esign-envelope
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Sends a document to a person for electronic signature through DocuSign, Dropbox Sign or HelloSign, which is collecting electronic signatures (collects_e_signatures).
+    mode: taint
+    pattern-sources:
+      - pattern: new $D.EnvelopesApi(...)
+      - pattern: new EnvelopesApi(...)
+      - pattern: new HelloSign(...)
+      - pattern: new $D.HelloSign(...)
+      - pattern: new $D.SignatureRequestApi(...)
+      - pattern: new SignatureRequestApi(...)
+    pattern-sinks:
+      - patterns:
+          - pattern: $C.createEnvelope(...)
+          - focus-metavariable: $C
+      - patterns:
+          - pattern: $C.signatureRequest.send(...)
+          - focus-metavariable: $C
+      - patterns:
+          - pattern: $C.signatureRequest.sendWithTemplate(...)
+          - focus-metavariable: $C
+      - patterns:
+          - pattern: $C.signatureRequest.createEmbedded(...)
+          - focus-metavariable: $C
+      - patterns:
+          - pattern: $C.signatureRequestSend(...)
+          - focus-metavariable: $C
+      - patterns:
+          - pattern: $C.signatureRequestSendWithTemplate(...)
+          - focus-metavariable: $C
+      - patterns:
+          - pattern: $C.signatureRequestCreateEmbedded(...)
+          - focus-metavariable: $C
+    metadata:
+      activity: collects_e_signatures
+      mentioned: performs
+      definition: https://lexlint.io/glossary#collects-electronic-signatures
+      provenance: ungovr-original
+      license: MIT

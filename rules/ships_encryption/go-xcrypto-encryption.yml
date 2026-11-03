@@ -1,0 +1,41 @@
+rules:
+  - id: lexcode.crypto.go-xcrypto-encryption
+    languages: [go]
+    severity: INFO
+    message: Encrypts data or agrees keys with golang.org/x/crypto (NaCl boxes, ChaCha20-Poly1305 or Curve25519), which is shipping encryption (ships_encryption).
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: secretbox.Seal(...)
+              - pattern: secretbox.Open(...)
+          - pattern-inside: |
+              import "golang.org/x/crypto/nacl/secretbox"
+              ...
+      - patterns:
+          - pattern-either:
+              - pattern: box.Seal(...)
+              - pattern: box.SealAnonymous(...)
+              - pattern: box.GenerateKey(...)
+          - pattern-inside: |
+              import "golang.org/x/crypto/nacl/box"
+              ...
+      - patterns:
+          - pattern-either:
+              - pattern: chacha20poly1305.New(...)
+              - pattern: chacha20poly1305.NewX(...)
+          - pattern-inside: |
+              import "golang.org/x/crypto/chacha20poly1305"
+              ...
+      - patterns:
+          - pattern-either:
+              - pattern: curve25519.X25519(...)
+              - pattern: curve25519.ScalarMult(...)
+          - pattern-inside: |
+              import "golang.org/x/crypto/curve25519"
+              ...
+    metadata:
+      activity: ships_encryption
+      mentioned: performs
+      definition: https://lexlint.io/glossary#ships-encryption
+      provenance: ungovr-original
+      license: MIT

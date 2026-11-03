@@ -1,0 +1,23 @@
+rules:
+  - id: lexcode.personal.js-geolocation
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Reads the person's precise location from the device or the request, which is processing personal data (processes_personal_data).
+    pattern-either:
+      - pattern: navigator.geolocation.getCurrentPosition(...)
+      - pattern: navigator.geolocation.watchPosition(...)
+      - pattern: $L.getCurrentPositionAsync(...)
+      - pattern: $L.watchPositionAsync(...)
+      - pattern: Geolocation.getCurrentPosition(...)
+      - pattern: Geolocation.watchPosition(...)
+      - patterns:
+          - pattern: geolocation($REQ)
+          - pattern-inside: |
+              import {..., geolocation, ...} from "@vercel/functions";
+              ...
+    metadata:
+      activity: processes_personal_data
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-personal-data
+      provenance: ungovr-original
+      license: MIT

@@ -1,0 +1,22 @@
+rules:
+  - id: lexcode.identity.js-idv-sdk
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Checks who a person is with an identity-verification service (Stripe Identity, Onfido, Persona, Veriff or Yoti), which is relying on a digital identity (relies_on_digital_identity).
+    pattern-either:
+      - pattern: $S.identity.verificationSessions.create(...)
+      - pattern: $S.verifyIdentity(...)
+      - pattern: new Persona.Client(...)
+      - pattern: Veriff(...)
+      - pattern: createVeriffFrame(...)
+      - pattern: Onfido.init(...)
+      - pattern: new Onfido(...)
+      - pattern: new Yoti.Client(...)
+      - pattern: new Yoti.DigitalIdentityClient(...)
+      - pattern: new YotiClient(...)
+    metadata:
+      activity: relies_on_digital_identity
+      mentioned: performs
+      definition: https://lexlint.io/glossary#relies-on-a-digital-identity
+      provenance: ungovr-original
+      license: MIT

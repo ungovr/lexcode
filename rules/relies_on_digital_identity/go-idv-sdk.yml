@@ -1,0 +1,26 @@
+rules:
+  - id: lexcode.identity.go-idv-sdk
+    languages: [go]
+    severity: INFO
+    message: Checks who a person is with Stripe Identity or verifies a verifiable credential, which is relying on a digital identity (relies_on_digital_identity).
+    patterns:
+      - pattern-either:
+          - pattern: verificationsession.New(...)
+          - pattern: verifiable.ParseCredential(...)
+          - pattern: verifiable.ParsePresentation(...)
+      - pattern-either:
+          - pattern-inside: |
+              import "github.com/stripe/stripe-go/v79/identity/verificationsession"
+              ...
+          - pattern-inside: |
+              import "github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
+              ...
+          - pattern-inside: |
+              import "github.com/trustbloc/vc-go/verifiable"
+              ...
+    metadata:
+      activity: relies_on_digital_identity
+      mentioned: performs
+      definition: https://lexlint.io/glossary#relies-on-a-digital-identity
+      provenance: ungovr-original
+      license: MIT
