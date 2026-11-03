@@ -3,8 +3,10 @@ import type {
   Declaration,
   Evidence,
   EvidenceRecord,
+  IgnoredReport,
   Mentioned,
   RuleSet,
+  Sidecar,
   Verdict,
   VerdictRow,
 } from '../types.js';
@@ -17,19 +19,76 @@ function rulesFor(id: string, rs: RuleSet): number {
   return rs.rules.filter((r) => r.activity === id).length + rs.components.filter((c) => c.enables.includes(id)).length;
 }
 
+/** The id, its parent, and its children: the ids a declaration may carry in place of the id itself. */
+function relatedIds(id: string, rs: RuleSet): Set<string> {
+  const out = new Set<string>([id]);
+  const parent = rs.registry.get(id)?.parent ?? null;
+  if (parent !== null) out.add(parent);
+  for (const e of rs.registry.values()) if (e.parent === id) out.add(e.id);
+  return out;
+}
+
+/** The other children of the id's parent, sorted. */
+function siblingsOf(id: string, rs: RuleSet): string[] {
+  const parent = rs.registry.get(id)?.parent ?? null;
+  if (parent === null) return [];
+  return [...rs.registry.values()].filter((e) => e.parent === parent && e.id !== id).map((e) => e.id).sort();
+}
+
+/** Join each ignore the record kept with the sidecar entry that asked for it (same rule and where, in order). */
+export function joinIgnored(r: EvidenceRecord, sidecar: Sidecar | undefined): IgnoredReport[] {
+  const used = new Set<number>();
+  return r.ignored.map((ig) => {
+    const at = (sidecar?.ignore ?? []).findIndex((s, i) => !used.has(i) && s.rule === ig.rule && s.where === ig.where);
+    const out: IgnoredReport = { ...ig, ...(ig.activities ? { activities: [...ig.activities] } : {}) };
+    const entry = at < 0 ? undefined : sidecar?.ignore[at];
+    if (at >= 0) used.add(at);
+    if (entry) {
+      out.reason = entry.reason;
+      if (entry.by !== undefined) out.by = entry.by;
+      if (entry.on !== undefined) out.on = entry.on;
+    }
+    return out;
+  });
+}
+
 /**
  * Compare an evidence record with the governing declaration (design 6.6).
- * Families: evidence for a child satisfies a declared parent and the reverse;
- * a FAIL needs the whole family undeclared. An id declared in any component
- * counts as declared even if another component rules it out.
+ * An explicit `not:` for the id, or for its parent, is a FAIL whatever else the
+ * declaration carries. Otherwise evidence for a child is covered by a declared
+ * parent, and evidence for a parent by a declared child; a declared sibling alone
+ * is a WARN, because the lint reads a declared child as implying its parent and
+ * never a sibling. A FAIL for a family needs the whole family undeclared.
  */
-export function compare(r: EvidenceRecord, d: Declaration, rs: RuleSet, o: { failOnEnables: boolean }): CheckResult {
+export function compare(
+  r: EvidenceRecord,
+  d: Declaration,
+  rs: RuleSet,
+  o: { failOnEnables: boolean; sidecar?: Sidecar },
+): CheckResult {
   const rows: VerdictRow[] = [];
+  const named = [...new Set([...d.declared.keys(), ...d.absent])].sort();
 
-  const unknown = [...new Set([...d.declared.keys(), ...d.absent])].filter((id) => !rs.registry.has(id)).sort();
-  const notices = unknown.map(
-    (id) => `${id} is in the declaration but not in the registry snapshot lexcode pins (version ${rs.registryVersion}); it is treated as declaration-only`,
-  );
+  const notices: string[] = [];
+  const unknown = named.filter((id) => !rs.registry.has(id));
+  if (unknown.length > 0) {
+    const many = unknown.length > 1;
+    notices.push(
+      `${unknown.join(', ')} ${many ? 'are' : 'is'} in the declaration but not in the registry snapshot lexcode pins: lexcode's rules are pinned to registry ${rs.registryVersion}, ` +
+        `so ${many ? 'these ids may be' : 'the id may be'} newer than this lexcode, or misspelled. ${many ? 'They are' : 'It is'} treated as declaration-only; ` +
+        'update lexcode to read newer ids, or check the spelling.',
+    );
+  }
+  const retired = named.filter((id) => rs.registry.get(id)?.status === 'retired');
+  if (retired.length > 0) {
+    const parts = retired.map((id) => {
+      const by = rs.registry.get(id)?.supersededBy ?? [];
+      return by.length > 0
+        ? `${id} is retired in the registry; declare ${by.join(', ')} instead`
+        : `${id} is retired in the registry and has no replacement; remove it from the declaration`;
+    });
+    notices.push(`${parts.join('; ')}.`);
+  }
 
   // One verdict per id. A performs row beats an enables row for the same id.
   const byId = new Map<string, { mentioned: Mentioned; evidence: Evidence[] }>();
@@ -42,30 +101,79 @@ export function compare(r: EvidenceRecord, d: Declaration, rs: RuleSet, o: { fai
   }
 
   for (const [id, { mentioned, evidence }] of byId) {
-    const family = familyOf(id, rs);
-    const declaredValues = [...family].flatMap((f) => (d.declared.has(f) ? [d.declared.get(f) as Mentioned | 'declared'] : []));
     const parent = rs.registry.get(id)?.parent ?? null;
     const ruledOut = d.absent.has(id) || (parent !== null && d.absent.has(parent));
     const rulesTried = rulesFor(id, rs);
-    const row = (verdict: Verdict, kind: VerdictRow['kind']): VerdictRow => ({ verdict, id, kind, evidence, rulesTried });
+    const row = (verdict: Verdict, kind: VerdictRow['kind'], extra: Partial<VerdictRow> = {}): VerdictRow => ({
+      verdict,
+      id,
+      kind,
+      evidence,
+      rulesTried,
+      mentioned,
+      ...extra,
+    });
 
+    if (ruledOut) {
+      // The declaration says no, and nothing else it carries can turn that into a yes.
+      rows.push(mentioned === 'performs' ? row('FAIL', 'declared-absent') : row(o.failOnEnables ? 'FAIL' : 'WARN', 'enables-declared-absent'));
+      continue;
+    }
+
+    const declaredValues = [...relatedIds(id, rs)].flatMap((f) => (d.declared.has(f) ? [d.declared.get(f) as Mentioned | 'declared'] : []));
     if (declaredValues.length > 0) {
       const onlyEnables = declaredValues.every((v) => v === 'enables');
-      if (mentioned === 'performs' && onlyEnables) rows.push(row('WARN', 'performs-declared-enables'));
-      else rows.push(row('PASS', 'confirmed'));
+      rows.push(mentioned === 'performs' && onlyEnables ? row('WARN', 'performs-declared-enables') : row('PASS', 'confirmed'));
+      continue;
+    }
+
+    const declaredSiblings = siblingsOf(id, rs).filter((s) => d.declared.has(s));
+    if (declaredSiblings.length > 0 && parent !== null) {
+      rows.push(row('WARN', 'sibling-declared', { siblings: declaredSiblings, parent }));
     } else if (mentioned === 'performs') {
-      rows.push(row('FAIL', ruledOut ? 'declared-absent' : 'not-mentioned'));
+      rows.push(row('FAIL', 'not-mentioned'));
     } else {
-      rows.push(row(o.failOnEnables ? 'FAIL' : 'WARN', ruledOut ? 'enables-declared-absent' : 'enables-undeclared'));
+      rows.push(row(o.failOnEnables ? 'FAIL' : 'WARN', 'enables-undeclared'));
     }
   }
 
-  // INFO: declared, rules ran, nothing in the family was found.
-  for (const nf of r.searched_not_found) {
-    if (!d.declared.has(nf.id) || classOf(nf.id, rs) !== 'evidence') continue;
-    const family = familyOf(nf.id, rs);
-    if ([...byId.keys()].some((k) => family.has(k))) continue;
-    rows.push({ verdict: 'INFO', id: nf.id, kind: 'not-found', evidence: [], rulesTried: nf.rules });
+  // INFO: declared, and nothing in the family was found. Either the rules ran and saw nothing
+  // (not-found) or no rule had a file to read (not-looked-at).
+  const searched = new Map(r.searched_not_found.map((nf) => [nf.id, nf.rules]));
+  for (const id of [...d.declared.keys()].sort()) {
+    if (classOf(id, rs) !== 'evidence') continue;
+    if ([...familyOf(id, rs)].some((k) => byId.has(k))) continue;
+    const own = searched.get(id);
+    if (own !== undefined) {
+      rows.push({ verdict: 'INFO', id, kind: 'not-found', evidence: [], rulesTried: own });
+    } else if (![...relatedIds(id, rs)].some((k) => searched.has(k))) {
+      rows.push({ verdict: 'INFO', id, kind: 'not-looked-at', evidence: [], rulesTried: 0 });
+    }
+  }
+
+  // WARN: an ignore in .lexcode.yml set aside evidence for something the declaration rules out.
+  const ignored = joinIgnored(r, o.sidecar);
+  const setAside = new Map<string, { evidence: Evidence[]; reasons: string[] }>();
+  for (const ig of ignored) {
+    if (ig.matched <= 0) continue;
+    for (const id of ig.activities ?? []) {
+      const parent = rs.registry.get(id)?.parent ?? null;
+      if (classOf(id, rs) !== 'evidence' || !(d.absent.has(id) || (parent !== null && d.absent.has(parent)))) continue;
+      const cur = setAside.get(id) ?? { evidence: [], reasons: [] };
+      cur.evidence.push({ rule: ig.rule, where: ig.where ?? '.lexcode.yml' });
+      if (ig.reason !== undefined && ig.reason !== '' && !cur.reasons.includes(ig.reason)) cur.reasons.push(ig.reason);
+      setAside.set(id, cur);
+    }
+  }
+  for (const [id, { evidence, reasons }] of setAside) {
+    rows.push({
+      verdict: 'WARN',
+      id,
+      kind: 'ignored-declared-absent',
+      evidence,
+      rulesTried: rulesFor(id, rs),
+      ...(reasons.length > 0 ? { note: reasons.join('; ') } : {}),
+    });
   }
 
   rows.sort((a, b) => ORDER[a.verdict] - ORDER[b.verdict] || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
@@ -74,5 +182,7 @@ export function compare(r: EvidenceRecord, d: Declaration, rs: RuleSet, o: { fai
     signals: r.signals.map((s) => ({ id: s.id, evidence: [...s.evidence] })),
     notices,
     exitCode: rows.some((x) => x.verdict === 'FAIL') ? 1 : 0,
+    ignored,
+    scope: r.scope,
   };
 }

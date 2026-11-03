@@ -32,6 +32,22 @@ export interface ScopeInfo {
   dev_dependencies_skipped: number;
 }
 
+/** One sidecar ignore as the record keeps it: how much evidence it removed, and for which activities. */
+export interface IgnoredEvidence {
+  rule: string;
+  where?: string;
+  matched: number;
+  /** The activity ids whose evidence this ignore removed; present when `matched` is above 0. */
+  activities?: string[];
+}
+
+/** An ignored entry joined with the sidecar entry that asked for it. */
+export interface IgnoredReport extends IgnoredEvidence {
+  reason?: string;
+  by?: string;
+  on?: string;
+}
+
 export interface EvidenceRecord {
   schema: 'https://lexlint.io/lexcode/v1';
   engine: { name: 'opengrep'; version: string };
@@ -45,7 +61,7 @@ export interface EvidenceRecord {
   signals: SignalRow[];
   searched_not_found: NotFoundRow[];
   components: ComponentRow[];
-  ignored: { rule: string; where?: string; matched: number }[];
+  ignored: IgnoredEvidence[];
   notices: string[];
 }
 
@@ -67,6 +83,8 @@ export interface RegistryEntry {
   id: string;
   scope: 'code' | 'deployment' | 'role';
   parent: string | null;
+  /** The ids that replace a retired id; empty or absent for a current one. */
+  supersededBy?: string[];
   status: string;
   term: string;
   lint_definition: string;
@@ -132,7 +150,32 @@ export type VerdictKind =
   | 'performs-declared-enables'
   | 'confirmed'
   | 'not-found'
-  | 'declarations-disagree';
+  | 'declarations-disagree'
+  | 'sibling-declared'
+  | 'ignored-declared-absent'
+  | 'not-looked-at';
 
-export interface VerdictRow { verdict: Verdict; id: string; kind: VerdictKind; evidence: Evidence[]; rulesTried: number }
-export interface CheckResult { rows: VerdictRow[]; signals: SignalRow[]; notices: string[]; exitCode: 0 | 1 }
+export interface VerdictRow {
+  verdict: Verdict;
+  id: string;
+  kind: VerdictKind;
+  evidence: Evidence[];
+  rulesTried: number;
+  /** What the evidence is: set on the rows built from evidence. */
+  mentioned?: Mentioned;
+  /** `sibling-declared`: the declared siblings, and the parent they share with the id. */
+  siblings?: string[];
+  parent?: string;
+  /** Free text the row prints under its message (the reason of an ignore). */
+  note?: string;
+}
+export interface CheckResult {
+  rows: VerdictRow[];
+  signals: SignalRow[];
+  notices: string[];
+  exitCode: 0 | 1;
+  /** The record's ignores, each joined with the reason, by and on of the sidecar entry. */
+  ignored: IgnoredReport[];
+  /** The scope the scan used. */
+  scope: ScopeInfo;
+}

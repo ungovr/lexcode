@@ -45,6 +45,8 @@ const result: CheckResult = {
   signals: [{ id: 'operates_social_platform', evidence: [e(9)] }],
   notices: ['something to know'],
   exitCode: 1,
+  ignored: [],
+  scope: record().scope,
 };
 
 const ctx = { declarationFile: 'ACTIVITIES.md', record: record(), quiet: false, registry: rs.registry };
@@ -134,7 +136,7 @@ describe('renderHuman', () => {
   });
 
   it('a result with no rows still has a result line', () => {
-    const o = renderHuman({ rows: [], signals: [], notices: [], exitCode: 0 }, ctx);
+    const o = renderHuman({ rows: [], signals: [], notices: [], exitCode: 0, ignored: [], scope: record().scope }, ctx);
     expect(o).toContain('Result: 0 FAIL, 0 WARN, 0 PASS, 0 INFO.');
     expect(o).not.toContain('Worth a look');
   });
