@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -39,5 +40,17 @@ describe('LEXCODE_RULES_HOME', () => {
   it('is an error that names the missing file when the directory is not a rules home', () => {
     vi.stubEnv('LEXCODE_RULES_HOME', tree({ 'readme.txt': 'nothing here' }));
     expect(() => loadRuleSet()).toThrow(/ruleset\.yml/);
+  });
+});
+
+describe('the test rules home', () => {
+  // The end-to-end tests run against these copies so the growing rule set
+  // cannot move their expectations; the copies must still say what the real
+  // files say, or those tests would pass against a classification or a
+  // registry lexcode no longer ships.
+  it('holds the same classes, registry snapshot and rule-set pin as rules/', () => {
+    for (const f of ['classes.yml', 'registry.snapshot.json', 'ruleset.yml']) {
+      expect(readFileSync(resolve(RULES_HOME, f), 'utf8'), f).toBe(readFileSync(resolve(PACKAGE_RULES, f), 'utf8'));
+    }
   });
 });
