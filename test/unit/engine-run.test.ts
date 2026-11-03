@@ -131,9 +131,9 @@ describe.skipIf(skipStub)('runEngine with the fake engine', () => {
     // 7,300 targets of about 50 characters, the UnGovr monorepo's measured
     // shape, is about 370,000 characters: one run, so the rules are parsed
     // once and the engine's own parallelism covers every file.
-    const targets = Array.from({ length: 7300 }, (_, i) => `ungovr-ops/ungovr_ops/routes/module_${i}.py`);
+    const targets = Array.from({ length: 7300 }, (_, i) => `scan-root/ungovr-ops/ungovr_ops/routes/module_${i}.py`);
     expect(chunkTargets(targets, CHUNK_CHARS_OTHER)).toHaveLength(1);
-    expect(CHUNK_CHARS_OTHER).toBeLessThanOrEqual(900_000); // macOS caps argv and environment at 1 MiB
+    expect(CHUNK_CHARS_OTHER).toBeLessThanOrEqual(600_000); // macOS caps argv and environment at 1 MiB
   });
 
   it('maps check_id, path, start.line, metavars and lines', async () => {
