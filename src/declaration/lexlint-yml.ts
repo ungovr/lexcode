@@ -1,5 +1,5 @@
-import { readFileSync } from 'node:fs';
 import { ToolError } from '../errors.js';
+import { readRegularFile } from '../fsread.js';
 import type { Declaration } from '../types.js';
 import { isRecord, parseYamlFile, stringList } from './yaml.js';
 
@@ -8,16 +8,11 @@ import { isRecord, parseYamlFile, stringList } from './yaml.js';
  * mentioned value), `profile.activities_left_out` are absent, and `app.scope`
  * is returned when set.
  */
-export function readLexlintYml(path: string): {
+export function readLexlintYml(path: string, root?: string): {
   declaration: Declaration;
   scope?: { include: string[]; exclude: string[] };
 } {
-  let text: string;
-  try {
-    text = readFileSync(path, 'utf8');
-  } catch (e) {
-    throw new ToolError(`cannot read ${path}: ${(e as NodeJS.ErrnoException).code ?? (e as Error).message}`);
-  }
+  const text = readRegularFile(path, root === undefined ? {} : { insideRoot: root });
   const doc = parseYamlFile(text, path);
   if (!isRecord(doc)) throw new ToolError(`${path}: the file must be a mapping`);
 

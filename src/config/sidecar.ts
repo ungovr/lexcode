@@ -1,7 +1,7 @@
-import { existsSync, readFileSync } from 'node:fs';
 import { isAbsolute, join } from 'node:path';
 import { isRecord, parseYamlFile, stringList } from '../declaration/yaml.js';
 import { ToolError } from '../errors.js';
+import { pathPresent, readRegularFile } from '../fsread.js';
 import type { Sidecar } from '../types.js';
 
 export const SIDECAR_SCHEMA = 'https://lexlint.io/lexcode/config/v1';
@@ -22,16 +22,12 @@ function optionalString(v: unknown, file: string, what: string): string | undefi
  */
 export function loadSidecar(root: string, path?: string): Sidecar | undefined {
   const file = path === undefined ? join(root, '.lexcode.yml') : isAbsolute(path) ? path : join(root, path);
-  if (!existsSync(file)) {
+  if (!pathPresent(file)) {
     if (path === undefined) return undefined;
     throw new ToolError(`config file not found: ${file}`);
   }
-  let text: string;
-  try {
-    text = readFileSync(file, 'utf8');
-  } catch (e) {
-    throw new ToolError(`cannot read ${file}: ${(e as NodeJS.ErrnoException).code ?? (e as Error).message}`);
-  }
+  // The default file is found in the repository; a path named on the command line may be anywhere.
+  const text = readRegularFile(file, path === undefined ? { insideRoot: root } : {});
   const doc = parseYamlFile(text, file);
   if (!isRecord(doc)) throw new ToolError(`${file}: the file must be a mapping with a schema key`);
   for (const k of Object.keys(doc)) {

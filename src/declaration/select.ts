@@ -1,6 +1,6 @@
-import { existsSync } from 'node:fs';
 import { basename, isAbsolute, join } from 'node:path';
 import { ToolError } from '../errors.js';
+import { pathPresent } from '../fsread.js';
 import type { Declaration, RegistryEntry, ScopeSpec } from '../types.js';
 import { readActivitiesMd } from './activities-md.js';
 import { readLexlintYml } from './lexlint-yml.js';
@@ -32,15 +32,15 @@ export function selectDeclaration(
 
   if (override !== undefined) {
     const path = isAbsolute(override) ? override : join(root, override);
-    if (!existsSync(path)) throw new ToolError(`declaration file not found: ${path}`);
+    if (!pathPresent(path)) throw new ToolError(`declaration file not found: ${path}`);
     governing = kindOf(path);
     if (governing === 'md') mdDecl = readActivitiesMd(path);
     else yml = readLexlintYml(path);
   }
   const mdPath = join(root, 'ACTIVITIES.md');
   const ymlPath = join(root, 'lexlint.yml');
-  if (!mdDecl && existsSync(mdPath)) mdDecl = readActivitiesMd(mdPath);
-  if (!yml && existsSync(ymlPath)) yml = readLexlintYml(ymlPath);
+  if (!mdDecl && pathPresent(mdPath)) mdDecl = readActivitiesMd(mdPath, root);
+  if (!yml && pathPresent(ymlPath)) yml = readLexlintYml(ymlPath, root);
 
   const declaration = governing === 'md' ? mdDecl : governing === 'yml' ? (yml?.declaration ?? null) : (mdDecl ?? yml?.declaration ?? null);
 

@@ -1,10 +1,10 @@
-import { existsSync } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { matchComponents } from '../components/match.js';
 import { readLexlintYml } from '../declaration/lexlint-yml.js';
 import { ToolError } from '../errors.js';
+import { pathPresent } from '../fsread.js';
 import { ensureEngine } from '../engine/fetch.js';
 import { ENGINE_PIN } from '../engine/pin.js';
 import { runEngine } from '../engine/run.js';
@@ -46,8 +46,8 @@ function union(...lists: string[][]): string[] {
 /** app.scope from the root's lexlint.yml, when the file exists, whichever declaration governs. */
 export function readAppScope(root: string): ScopeSpec | undefined {
   const file = join(root, 'lexlint.yml');
-  if (!existsSync(file)) return undefined;
-  const s = readLexlintYml(file).scope;
+  if (!pathPresent(file)) return undefined;
+  const s = readLexlintYml(file, root).scope;
   return s ? { include: s.include, exclude: s.exclude, includeTests: false } : undefined;
 }
 

@@ -1,15 +1,7 @@
-import { readFileSync } from 'node:fs';
 import { ToolError } from '../errors.js';
+import { readRegularFile } from '../fsread.js';
 import type { Declaration, Mentioned } from '../types.js';
 import { isRecord, parseYamlFile } from './yaml.js';
-
-function readText(path: string): string {
-  try {
-    return readFileSync(path, 'utf8');
-  } catch (e) {
-    throw new ToolError(`cannot read ${path}: ${(e as NodeJS.ErrnoException).code ?? (e as Error).message}`);
-  }
-}
 
 /** The YAML between the first two `---` lines, and the file line it starts on. */
 function frontMatter(text: string, path: string): { yaml: string; firstLine: number } {
@@ -26,12 +18,12 @@ function frontMatter(text: string, path: string): { yaml: string; firstLine: num
 }
 
 /**
- * Read an ACTIVITIES.md front matter. Every component's activities are
+ * Read an ACTIVITIES.md front matter. `root` is set when the file was found in a repository (see `readRegularFile`). Every component's activities are
  * unioned, `performs` in any component beats `enables`, and every `not:` id
  * goes to `absent`.
  */
-export function readActivitiesMd(path: string): Declaration {
-  const fm = frontMatter(readText(path), path);
+export function readActivitiesMd(path: string, root?: string): Declaration {
+  const fm = frontMatter(readRegularFile(path, root === undefined ? {} : { insideRoot: root }), path);
   const doc = parseYamlFile(fm.yaml, path, fm.firstLine - 1);
   if (!isRecord(doc)) throw new ToolError(`${path}: the front matter must be a mapping`);
   const components = doc.components;
