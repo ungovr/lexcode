@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
-import { chmod, mkdir, open, rename, rm, stat } from 'node:fs/promises';
+import { chmod, lstat, mkdir, open, rename, rm, stat } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { ToolError } from '../errors.js';
 import { cacheDir } from './cache.js';
@@ -59,6 +59,55 @@ function waysOut(): string {
 /** A wrong digest is final: retrying the same bytes cannot fix it. */
 class DigestMismatch extends ToolError {}
 
+/** A refused path is final too: waiting does not make a planted link a regular file. */
+class RefusedPath extends ToolError {}
+
+function currentUid(): number | undefined {
+  return typeof process.getuid === 'function' ? process.getuid() : undefined;
+}
+
+/**
+ * The engine directory is where a program lexcode will run is kept, so it must be the user's own and
+ * closed to everyone else: a directory someone else owns, or one that group or world can write to, lets
+ * them swap the binary between the check and the run. Not checked on Windows, whose permission model
+ * is different. `uid` is injectable for tests.
+ */
+export async function checkEngineDir(dir: string, uid: number | undefined = currentUid(), platform: string = process.platform): Promise<void> {
+  if (platform === 'win32') return;
+  const st = await lstat(dir);
+  const fix = `Remove it and run \`lexcode engine fetch\` again, or point LEXCODE_CACHE_DIR at a directory only you can write to.`;
+  if (st.isSymbolicLink() || !st.isDirectory()) {
+    throw new ToolError(`the engine directory ${dir} is not a plain directory (it is a link or a file), so lexcode will not run a program from it. ${fix}`);
+  }
+  if (uid !== undefined && st.uid !== uid) {
+    throw new ToolError(`the engine directory ${dir} is owned by another user (uid ${st.uid}), so lexcode will not run a program from it. ${fix}`);
+  }
+  if ((st.mode & 0o022) !== 0) {
+    throw new ToolError(
+      `the engine directory ${dir} is writable by its group or by everyone (mode ${(st.mode & 0o777).toString(8)}), so lexcode will not run a program from it. ` +
+        `Run \`chmod go-w\` on it, or ${fix.charAt(0).toLowerCase()}${fix.slice(1)}`,
+    );
+  }
+}
+
+/** Open the download's temporary file for writing, creating it exclusively and never through a link. */
+async function openPartial(partial: string) {
+  for (let again = 0; ; again += 1) {
+    try {
+      return await open(partial, 'wx', 0o755);
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code !== 'EEXIST' || again > 0) throw e;
+      // Left by an earlier run with this process id, or planted. Only our own plain file is cleared.
+      const st = await lstat(partial);
+      const uid = currentUid();
+      if (!st.isFile() || (uid !== undefined && st.uid !== uid)) {
+        throw new RefusedPath(`${partial} already exists and is not a plain file of yours (a link, or another user's); lexcode will not write through it. Remove it and try again.`);
+      }
+      await rm(partial, { force: true });
+    }
+  }
+}
+
 export async function sha256OfFile(path: string): Promise<string> {
   const hash = createHash('sha256');
   for await (const chunk of createReadStream(path)) hash.update(chunk as Buffer);
@@ -80,7 +129,7 @@ async function downloadOnce(url: string, final: string, expected: string, fetchI
     if (!res.ok) throw new Error(`HTTP ${res.status} from ${url}`);
     if (!res.body) throw new Error(`empty response from ${url}`);
     const hash = createHash('sha256');
-    const fh = await open(partial, 'w', 0o755);
+    const fh = await openPartial(partial);
     try {
       for await (const chunk of res.body as unknown as AsyncIterable<Uint8Array>) {
         hash.update(chunk);
@@ -107,7 +156,8 @@ async function download(pin: EnginePin, key: PlatformKey, cacheRoot: string, o: 
   const asset = pin.assets[key];
   const url = assetUrl(pin, key);
   const final = pinnedEnginePath(pin, key, cacheRoot);
-  await mkdir(dirname(final), { recursive: true });
+  await mkdir(dirname(final), { recursive: true, mode: 0o700 });
+  await checkEngineDir(dirname(final));
   const fetchImpl = o.fetchImpl ?? fetch;
   const sleep = o.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
   let lastReason = '';
@@ -116,7 +166,7 @@ async function download(pin: EnginePin, key: PlatformKey, cacheRoot: string, o: 
       await downloadOnce(url, final, asset.sha256, fetchImpl);
       return { path: final, url, sha256: asset.sha256 };
     } catch (err) {
-      if (err instanceof DigestMismatch) throw err;
+      if (err instanceof DigestMismatch || err instanceof RefusedPath) throw err;
       lastReason = err instanceof Error ? (err.cause instanceof Error ? `${err.message}: ${err.cause.message}` : err.message) : String(err);
       if (attempt < ATTEMPTS) await sleep(BACKOFF_MS[attempt - 1] ?? 3000);
     }
@@ -135,6 +185,7 @@ export async function fetchPinnedEngine(o: Omit<EnsureEngineOptions, 'download' 
   const path = pinnedEnginePath(pin, key, root);
   const asset = pin.assets[key];
   if (await exists(path)) {
+    await checkEngineDir(dirname(path));
     if ((await sha256OfFile(path)) === asset.sha256) return { path, url: assetUrl(pin, key), sha256: asset.sha256, downloaded: false };
     await rm(path, { force: true });
   }
@@ -149,6 +200,7 @@ export async function verifyPinnedEngine(o: Omit<EnsureEngineOptions, 'download'
   if (!(await exists(path))) {
     throw new ToolError(`the pinned engine is not installed (looked for ${path}). Run \`lexcode engine fetch\` to download and verify it, or pass --engine <path>.`);
   }
+  await checkEngineDir(dirname(path));
   const actual = await sha256OfFile(path);
   if (actual !== asset.sha256) {
     throw new ToolError(
