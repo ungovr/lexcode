@@ -1,2 +1,6 @@
 ecosystem: files
+# Empty on purpose. Firebase's Android setup page describes google-services.json only as
+# holding non-secret project identifiers and presents Analytics as optional, so the file's
+# presence alone does not enable an activity. Add an entry only when a vendor's own
+# documentation says the file by itself turns collection on.
 entries: []

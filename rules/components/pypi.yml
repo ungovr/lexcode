@@ -1,2 +1,645 @@
 ecosystem: pypi
-entries: []
+entries:
+
+  # Analytics and product-analytics SDKs
+  - match: "segment-analytics-python"
+    enables: [tracks_devices, processes_personal_data]
+    says: "The hassle-free way to integrate analytics into any python application."
+    source: https://pypi.org/project/segment-analytics-python/
+  - match: "analytics-python"
+    enables: [tracks_devices, processes_personal_data]
+    says: "The hassle-free way to integrate analytics into any python application."
+    source: https://pypi.org/project/analytics-python/
+  - match: "mixpanel"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Official Mixpanel library for Python"
+    source: https://pypi.org/project/mixpanel/
+  - match: "posthog"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Integrate PostHog into any python application."
+    source: https://pypi.org/project/posthog/
+  - match: "amplitude-analytics"
+    enables: [tracks_devices, processes_personal_data]
+    says: "The official Amplitude backend Python SDK for server-side instrumentation."
+    source: https://pypi.org/project/amplitude-analytics/
+  - match: "snowplow-tracker"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Snowplow event tracker for Python. Add analytics to your Python and Django apps, webapps and games"
+    source: https://pypi.org/project/snowplow-tracker/
+
+  # Crash and error reporting SDKs
+  - match: "sentry-sdk"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Python client for Sentry (https://sentry.io)"
+    source: https://pypi.org/project/sentry-sdk/
+  - match: "rollbar"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Easy and powerful exception tracking with Rollbar. Send messages and exceptions with arbitrary context, get back aggregates, and debug production issues quickly."
+    source: https://pypi.org/project/rollbar/
+  - match: "bugsnag"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Automatic error monitoring for django, flask, etc."
+    source: https://pypi.org/project/bugsnag/
+  - match: "honeybadger"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Send Python and Django errors to Honeybadger"
+    source: https://pypi.org/project/honeybadger/
+  - match: "airbrake"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Python SDK for airbrake.io"
+    source: https://pypi.org/project/airbrake/
+  - match: "raygun4py"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Official Raygun provider for Python"
+    source: https://pypi.org/project/raygun4py/
+
+  # Authentication and user management SDKs
+  - match: "django-allauth"
+    enables: [processes_personal_data]
+    says: "Integrated set of Django applications addressing authentication, registration, account management as well as 3rd party (social) account authentication."
+    source: https://pypi.org/project/django-allauth/
+  - match: "fastapi-users"
+    enables: [processes_personal_data]
+    says: "Ready-to-use and customizable users management for FastAPI"
+    source: https://pypi.org/project/fastapi-users/
+  - match: "python-keycloak"
+    enables: [processes_personal_data]
+    says: "python-keycloak is a Python package providing access to the Keycloak API."
+    source: https://pypi.org/project/python-keycloak/
+  - match: "auth0-python"
+    enables: [processes_personal_data]
+    says: "Auth0 Python SDK - Management and Authentication APIs"
+    source: https://pypi.org/project/auth0-python/
+  - match: "clerk-backend-api"
+    enables: [processes_personal_data]
+    says: "Python Client SDK for clerk.dev"
+    source: https://pypi.org/project/clerk-backend-api/
+  - match: "flask-login"
+    enables: [processes_personal_data]
+    says: "User authentication and session management for Flask."
+    source: https://pypi.org/project/flask-login/
+  - match: "flask-security-too"
+    enables: [processes_personal_data]
+    says: "Quickly add security features to your Flask application."
+    source: https://pypi.org/project/flask-security-too/
+  - match: "dj-rest-auth"
+    enables: [processes_personal_data]
+    says: "Authentication and Registration in Django Rest Framework"
+    source: https://pypi.org/project/dj-rest-auth/
+  - match: "social-auth-app-django"
+    enables: [processes_personal_data]
+    says: "Python Social Authentication, Django integration."
+    source: https://pypi.org/project/social-auth-app-django/
+  - match: "python-social-auth"
+    enables: [processes_personal_data]
+    says: "Python social authentication made simple."
+    source: https://pypi.org/project/python-social-auth/
+  - match: "supabase-auth"
+    enables: [processes_personal_data]
+    says: "Python Client Library for Supabase Auth"
+    source: https://pypi.org/project/supabase-auth/
+  - match: "gotrue"
+    enables: [processes_personal_data]
+    says: "Python Client Library for Supabase Auth"
+    source: https://pypi.org/project/gotrue/
+  - match: "stytch"
+    enables: [processes_personal_data]
+    says: "Stytch python client"
+    source: https://pypi.org/project/stytch/
+  - match: "workos"
+    enables: [processes_personal_data]
+    says: "WorkOS Python Client"
+    source: https://pypi.org/project/workos/
+  - match: "descope"
+    enables: [processes_personal_data]
+    says: "Descope Python SDK"
+    source: https://pypi.org/project/descope/
+  - match: "pycognito"
+    enables: [processes_personal_data]
+    says: "Python class to integrate Boto3's Cognito client so it is easy to login users. With SRP support."
+    source: https://pypi.org/project/pycognito/
+
+  # Model SDKs
+  - match: "openai"
+    enables: [generates_content]
+    says: "The official Python library for the openai API"
+    source: https://pypi.org/project/openai/
+  - match: "anthropic"
+    enables: [generates_content]
+    says: "The official Python library for the anthropic API"
+    source: https://pypi.org/project/anthropic/
+  - match: "google-generativeai"
+    enables: [generates_content]
+    says: "Google Generative AI High level API client library and tools."
+    source: https://pypi.org/project/google-generativeai/
+  - match: "google-genai"
+    enables: [generates_content]
+    says: "GenAI Python SDK"
+    source: https://pypi.org/project/google-genai/
+  - match: "mistralai"
+    enables: [generates_content]
+    says: "Python Client SDK for the Mistral AI API."
+    source: https://pypi.org/project/mistralai/
+    # The registry has no usable description; this is the first sentence of the README, markdown link markup removed.
+  - match: "cohere"
+    enables: [generates_content]
+    says: "The Cohere Python SDK allows access to Cohere models across many different platforms: the cohere platform, AWS (Bedrock, Sagemaker), Azure, GCP and Oracle OCI."
+    source: https://pypi.org/project/cohere/
+  - match: "langchain"
+    enables: [generates_content]
+    says: "Building applications with LLMs through composability"
+    source: https://pypi.org/project/langchain/
+  - match: "langchain-core"
+    enables: [generates_content]
+    says: "Building applications with LLMs through composability"
+    source: https://pypi.org/project/langchain-core/
+  - match: "langchain-openai"
+    enables: [generates_content]
+    says: "An integration package connecting OpenAI and LangChain"
+    source: https://pypi.org/project/langchain-openai/
+  - match: "langchain-anthropic"
+    enables: [generates_content]
+    says: "Integration package connecting Claude (Anthropic) APIs and LangChain"
+    source: https://pypi.org/project/langchain-anthropic/
+  - match: "langchain-google-genai"
+    enables: [generates_content]
+    says: "An integration package connecting Google's genai package and LangChain"
+    source: https://pypi.org/project/langchain-google-genai/
+  - match: "replicate"
+    enables: [generates_content]
+    says: "Python client for Replicate"
+    source: https://pypi.org/project/replicate/
+  - match: "groq"
+    enables: [generates_content]
+    says: "The official Python library for the groq API"
+    source: https://pypi.org/project/groq/
+  - match: "together"
+    enables: [generates_content]
+    says: "The official Python library for the together API"
+    source: https://pypi.org/project/together/
+  - match: "ollama"
+    enables: [generates_content]
+    says: "The official Python client for Ollama."
+    source: https://pypi.org/project/ollama/
+  - match: "llama-index"
+    enables: [generates_content]
+    says: "Interface between LLMs and your data"
+    source: https://pypi.org/project/llama-index/
+  - match: "litellm"
+    enables: [generates_content]
+    says: "Library to easily interface with LLM API providers"
+    source: https://pypi.org/project/litellm/
+  - match: "openai-agents"
+    enables: [generates_content]
+    says: "OpenAI Agents SDK"
+    source: https://pypi.org/project/openai-agents/
+  - match: "claude-agent-sdk"
+    enables: [generates_content]
+    says: "Python SDK for Claude Code"
+    source: https://pypi.org/project/claude-agent-sdk/
+  - match: "fal-client"
+    enables: [generates_content]
+    says: "Python client for fal.ai"
+    source: https://pypi.org/project/fal-client/
+
+  # Image and video generation
+  - match: "stability-sdk"
+    enables: [generates_images]
+    says: "Python SDK for interacting with stability.ai APIs"
+    source: https://pypi.org/project/stability-sdk/
+  - match: "diffusers"
+    enables: [generates_images]
+    says: "State-of-the-art diffusion in PyTorch."
+    source: https://pypi.org/project/diffusers/
+  - match: "lumaai"
+    enables: [generates_video]
+    says: "The official Python library for the lumaai API"
+    source: https://pypi.org/project/lumaai/
+  - match: "runwayml"
+    enables: [generates_video]
+    says: "The official Python library for the runwayml API"
+    source: https://pypi.org/project/runwayml/
+
+  # Speech synthesis
+    # The registry has no summary; this is the first sentence of the README, markdown link markup removed.
+  - match: "elevenlabs"
+    enables: [generates_audio]
+    says: "The official Python SDK for ElevenLabs."
+    source: https://pypi.org/project/elevenlabs/
+  - match: "google-cloud-texttospeech"
+    enables: [generates_audio]
+    says: "Google Cloud Texttospeech API client library"
+    source: https://pypi.org/project/google-cloud-texttospeech/
+  - match: "TTS"
+    enables: [generates_audio]
+    says: "Deep learning for Text to Speech by Coqui."
+    source: https://pypi.org/project/TTS/
+  - match: "gTTS"
+    enables: [generates_audio]
+    says: "gTTS (Google Text-to-Speech), a Python library and CLI tool to interface with Google Translate text-to-speech API"
+    source: https://pypi.org/project/gTTS/
+
+  # Speech-to-text
+    # The registry has no usable description; this is the first sentence of the README, markdown link markup removed.
+  - match: "deepgram-sdk"
+    enables: [processes_voice]
+    says: "The official Python SDK for Deepgram's automated speech recognition, text-to-speech, and language understanding APIs."
+    source: https://pypi.org/project/deepgram-sdk/
+  - match: "assemblyai"
+    enables: [processes_voice]
+    says: "AssemblyAI Python SDK"
+    source: https://pypi.org/project/assemblyai/
+  - match: "openai-whisper"
+    enables: [processes_voice]
+    says: "Robust Speech Recognition via Large-Scale Weak Supervision"
+    source: https://pypi.org/project/openai-whisper/
+  - match: "faster-whisper"
+    enables: [processes_voice]
+    says: "Faster Whisper transcription with CTranslate2"
+    source: https://pypi.org/project/faster-whisper/
+  - match: "SpeechRecognition"
+    enables: [processes_voice]
+    says: "Library for performing speech recognition, with support for several engines and APIs, online and offline."
+    source: https://pypi.org/project/SpeechRecognition/
+  - match: "vosk"
+    enables: [processes_voice]
+    says: "Offline open source speech recognition API based on Kaldi and Vosk"
+    source: https://pypi.org/project/vosk/
+  - match: "google-cloud-speech"
+    enables: [processes_voice]
+    says: "Google Cloud Speech API client library"
+    source: https://pypi.org/project/google-cloud-speech/
+  - match: "amazon-transcribe"
+    enables: [processes_voice]
+    says: "Async Python SDK for Amazon Transcribe Streaming"
+    source: https://pypi.org/project/amazon-transcribe/
+  - match: "whisperx"
+    enables: [processes_voice]
+    says: "Time-Accurate Automatic Speech Recognition using Whisper."
+    source: https://pypi.org/project/whisperx/
+  - match: "speechmatics-python"
+    enables: [processes_voice]
+    says: "Python library and CLI for Speechmatics"
+    source: https://pypi.org/project/speechmatics-python/
+  - match: "pywhispercpp"
+    enables: [processes_voice]
+    says: "Python bindings for whisper.cpp"
+    source: https://pypi.org/project/pywhispercpp/
+  - match: "stable-ts"
+    enables: [processes_voice]
+    says: "Modifies OpenAI's Whisper to produce more reliable timestamps."
+    source: https://pypi.org/project/stable-ts/
+  - match: "whisper-timestamped"
+    enables: [processes_voice]
+    says: "Multi-lingual Automatic Speech Recognition (ASR) based on Whisper models, with accurate word timestamps, access to language detection confidence, several options for Voice Activity Detection (VAD), and more."
+    source: https://pypi.org/project/whisper-timestamped/
+  - match: "pocketsphinx"
+    enables: [processes_voice]
+    says: "Official Python bindings for PocketSphinx"
+    source: https://pypi.org/project/pocketsphinx/
+  - match: "azure-cognitiveservices-speech"
+    enables: [processes_voice, generates_audio]
+    says: "Microsoft Cognitive Services Speech SDK for Python"
+    source: https://pypi.org/project/azure-cognitiveservices-speech/
+
+  # Fine-tuning and training frameworks
+  - match: "trl"
+    enables: [trains_models]
+    says: "Train transformer language models with reinforcement learning."
+    source: https://pypi.org/project/trl/
+  - match: "peft"
+    enables: [trains_models]
+    says: "Parameter-Efficient Fine-Tuning (PEFT)"
+    source: https://pypi.org/project/peft/
+  - match: "lightning"
+    enables: [trains_models]
+    says: "The Deep Learning framework to train, deploy, and ship AI products Lightning fast."
+    source: https://pypi.org/project/lightning/
+  - match: "pytorch-lightning"
+    enables: [trains_models]
+    says: "PyTorch Lightning is the lightweight PyTorch wrapper for ML researchers. Scale your models. Write less boilerplate."
+    source: https://pypi.org/project/pytorch-lightning/
+  - match: "deepspeed"
+    enables: [trains_models]
+    says: "DeepSpeed library"
+    source: https://pypi.org/project/deepspeed/
+  - match: "unsloth"
+    enables: [trains_models]
+    says: "2-5X faster training, reinforcement learning & finetuning"
+    source: https://pypi.org/project/unsloth/
+  - match: "keras"
+    enables: [trains_models]
+    says: "Multi-backend Keras"
+    source: https://pypi.org/project/keras/
+  - match: "axolotl"
+    enables: [trains_models]
+    says: "LLM Trainer"
+    source: https://pypi.org/project/axolotl/
+  - match: "llamafactory"
+    enables: [trains_models]
+    says: "Unified Efficient Fine-Tuning of 100+ LLMs"
+    source: https://pypi.org/project/llamafactory/
+  - match: "torchtune"
+    enables: [trains_models]
+    says: "A native-PyTorch library for LLM fine-tuning"
+    source: https://pypi.org/project/torchtune/
+
+  # Chatbot framework
+  - match: "rasa"
+    enables: [trains_models, deploys_chatbot]
+    says: "Open source machine learning framework to automate text- and voice-based conversations: NLU, dialogue management, connect to Slack, Facebook, and more - Create chatbots and voice assistants"
+    source: https://pypi.org/project/rasa/
+
+  # Crawling and scraping libraries
+  - match: "scrapy"
+    enables: [crawls_web]
+    says: "A high-level Web Crawling and Web Scraping framework"
+    source: https://pypi.org/project/scrapy/
+  - match: "crawlee"
+    enables: [crawls_web]
+    says: "Crawlee for Python"
+    source: https://pypi.org/project/crawlee/
+  - match: "crawl4ai"
+    enables: [crawls_web]
+    says: "🚀🤖 Crawl4AI: Open-source LLM Friendly Web Crawler & scraper"
+    source: https://pypi.org/project/crawl4ai/
+  - match: "firecrawl-py"
+    enables: [crawls_web]
+    says: "Python SDK for Firecrawl, the context API for AI agents: search, scrape, parse, crawl, map, and interact with the web, run Agent and Monitor jobs, and search scientific papers (PubMed, bioRxiv, medRxiv, arXiv)"
+    source: https://pypi.org/project/firecrawl-py/
+  - match: "firecrawl"
+    enables: [crawls_web]
+    says: "Python SDK for Firecrawl, the context API for AI agents: search, scrape, parse, crawl, map, and interact with the web, run Agent and Monitor jobs, and search scientific papers (PubMed, bioRxiv, medRxiv, arXiv)"
+    source: https://pypi.org/project/firecrawl/
+  - match: "playwright"
+    enables: [crawls_web]
+    says: "A high-level API to automate web browsers"
+    source: https://pypi.org/project/playwright/
+  - match: "pyppeteer"
+    enables: [crawls_web]
+    says: "Headless chrome/chromium automation library (unofficial port of puppeteer)"
+    source: https://pypi.org/project/pyppeteer/
+  - match: "trafilatura"
+    enables: [crawls_web]
+    says: "Python & Command-line tool to gather text and metadata on the Web: Crawling, scraping, extraction, output as CSV, JSON, HTML, MD, TXT, XML."
+    source: https://pypi.org/project/trafilatura/
+  - match: "scrapegraphai"
+    enables: [crawls_web]
+    says: "A web scraping library based on LangChain which uses LLM and direct graph logic to create scraping pipelines."
+    source: https://pypi.org/project/scrapegraphai/
+  - match: "scrapegraph-py"
+    enables: [crawls_web]
+    says: "Official Python SDK for ScrapeGraph AI API"
+    source: https://pypi.org/project/scrapegraph-py/
+  - match: "scrapy-playwright"
+    enables: [crawls_web]
+    says: "Playwright integration for Scrapy"
+    source: https://pypi.org/project/scrapy-playwright/
+  - match: "mechanicalsoup"
+    enables: [crawls_web]
+    says: "A Python library for automating interaction with websites"
+    source: https://pypi.org/project/mechanicalsoup/
+  - match: "newspaper3k"
+    enables: [crawls_web]
+    says: "Simplified python article discovery & extraction."
+    source: https://pypi.org/project/newspaper3k/
+  - match: "browser-use"
+    enables: [crawls_web]
+    says: "Open-source browser agent + hosted cloud browsers for AI agents, from $0.02/browser-hour"
+    source: https://pypi.org/project/browser-use/
+
+  # Feed readers
+  - match: "feedparser"
+    enables: [aggregates_content]
+    says: "Universal feed parser, handles RSS 0.9x, RSS 1.0, RSS 2.0, CDF, Atom 0.3, and Atom 1.0 feeds"
+    source: https://pypi.org/project/feedparser/
+  - match: "atoma"
+    enables: [aggregates_content]
+    says: "Atom, RSS and JSON feed parser for Python 3"
+    source: https://pypi.org/project/atoma/
+
+  # Email, SMS, push and messaging senders
+  - match: "sendgrid"
+    enables: [automated_outreach]
+    says: "Twilio SendGrid library for Python"
+    source: https://pypi.org/project/sendgrid/
+  - match: "resend"
+    enables: [automated_outreach]
+    says: "Resend Python SDK"
+    source: https://pypi.org/project/resend/
+  - match: "postmarker"
+    enables: [automated_outreach]
+    says: "Python client library for Postmark API"
+    source: https://pypi.org/project/postmarker/
+  - match: "twilio"
+    enables: [automated_outreach]
+    says: "Twilio API client and TwiML generator"
+    source: https://pypi.org/project/twilio/
+  - match: "vonage"
+    enables: [automated_outreach]
+    says: "Python Server SDK for using Vonage APIs"
+    source: https://pypi.org/project/vonage/
+  - match: "nexmo"
+    enables: [automated_outreach]
+    says: "Nexmo Client Library for Python"
+    source: https://pypi.org/project/nexmo/
+  - match: "django-anymail"
+    enables: [automated_outreach]
+    says: "Django email backends and webhooks for Amazon SES, Brevo, MailerSend, Mailgun, Mailjet, Mailtrap, Mandrill, Postal, Postmark, Resend, Scaleway TEM, SendGrid, SparkPost, and Unisender Go (EmailBackend, transactional email tracking and inbound email signals)"
+    source: https://pypi.org/project/django-anymail/
+  - match: "onesignal-sdk"
+    enables: [automated_outreach]
+    says: "A Python wrapper around the OneSignal API"
+    source: https://pypi.org/project/onesignal-sdk/
+  - match: "pywebpush"
+    enables: [automated_outreach]
+    says: "WebPush publication library"
+    source: https://pypi.org/project/pywebpush/
+  - match: "exponent-server-sdk"
+    enables: [automated_outreach]
+    says: "Expo Server SDK for Python"
+    source: https://pypi.org/project/exponent-server-sdk/
+  - match: "firebase-admin"
+    enables: [automated_outreach]
+    says: "Firebase Admin Python SDK"
+    source: https://pypi.org/project/firebase-admin/
+  - match: "mailchimp-marketing"
+    enables: [automated_outreach]
+    says: "Mailchimp Marketing API"
+    source: https://pypi.org/project/mailchimp-marketing/
+  - match: "mailchimp-transactional"
+    enables: [automated_outreach]
+    says: "Mailchimp Transactional API"
+    source: https://pypi.org/project/mailchimp-transactional/
+  - match: "customerio"
+    enables: [automated_outreach]
+    says: "Customer.io Python bindings."
+    source: https://pypi.org/project/customerio/
+  - match: "yagmail"
+    enables: [automated_outreach]
+    says: "Yet Another GMAIL client"
+    source: https://pypi.org/project/yagmail/
+  - match: "mailjet-rest"
+    enables: [automated_outreach]
+    says: "Mailjet V3 API wrapper"
+    source: https://pypi.org/project/mailjet-rest/
+  - match: "sib-api-v3-sdk"
+    enables: [automated_outreach]
+    says: "SendinBlue API"
+    source: https://pypi.org/project/sib-api-v3-sdk/
+  - match: "plivo"
+    enables: [automated_outreach]
+    says: "A Python SDK to make voice calls & send SMS using Plivo and to generate Plivo XML"
+    source: https://pypi.org/project/plivo/
+  - match: "messagebird"
+    enables: [automated_outreach]
+    says: "MessageBird's REST API"
+    source: https://pypi.org/project/messagebird/
+  - match: "telnyx"
+    enables: [automated_outreach]
+    says: "The official Python library for the telnyx API"
+    source: https://pypi.org/project/telnyx/
+  - match: "novu"
+    enables: [automated_outreach]
+    says: "This project aims to provide a wrapper for the Novu API."
+    source: https://pypi.org/project/novu/
+  - match: "knockapi"
+    enables: [automated_outreach]
+    says: "The official Python library for the knock API"
+    source: https://pypi.org/project/knockapi/
+
+  # Identity verification and verifiable credentials
+  - match: "onfido-python"
+    enables: [relies_on_digital_identity]
+    says: "Python library for the Onfido API"
+    source: https://pypi.org/project/onfido-python/
+  - match: "yoti"
+    enables: [relies_on_digital_identity]
+    says: "The Yoti Python SDK, providing API support for Login, Verify (2FA) and Age Verification."
+    source: https://pypi.org/project/yoti/
+  - match: "didkit"
+    enables: [relies_on_digital_identity]
+    says: "Library for Verifiable Credentials and Decentralized Identifiers."
+    source: https://pypi.org/project/didkit/
+  - match: "pyvckit"
+    enables: [relies_on_digital_identity]
+    says: "signature and validation of verifiable credential and verifiable presentation"
+    source: https://pypi.org/project/pyvckit/
+  - match: "aries-cloudagent"
+    enables: [relies_on_digital_identity]
+    says: "Hyperledger Aries Cloud Agent Python (ACA-Py) is a foundation for building decentralized identity applications and services running in non-mobile environments."
+    source: https://pypi.org/project/aries-cloudagent/
+  - match: "acapy-agent"
+    enables: [relies_on_digital_identity]
+    says: "(ACA-Py) A Cloud Agent Python is a foundation for building decentralized identity applications and services running in non-mobile environments."
+    source: https://pypi.org/project/acapy-agent/
+  - match: "sd-jwt"
+    enables: [relies_on_digital_identity]
+    says: "The reference implementation of the IETF SD-JWT specification."
+    source: https://pypi.org/project/sd-jwt/
+
+  # E-signature
+  - match: "docusign-esign"
+    enables: [collects_e_signatures]
+    says: "Docusign eSignature REST API"
+    source: https://pypi.org/project/docusign-esign/
+  - match: "dropbox-sign"
+    enables: [collects_e_signatures]
+    says: "Dropbox Sign API"
+    source: https://pypi.org/project/dropbox-sign/
+  - match: "pandadoc-python-client"
+    enables: [collects_e_signatures]
+    says: "PandaDoc Public API"
+    source: https://pypi.org/project/pandadoc-python-client/
+  - match: "signnow-python-sdk"
+    enables: [collects_e_signatures]
+    says: "SignNow official Python SDK"
+    source: https://pypi.org/project/signnow-python-sdk/
+  - match: "docuseal"
+    enables: [collects_e_signatures]
+    says: "DocuSeal Python API client"
+    source: https://pypi.org/project/docuseal/
+
+  # Bundled cryptography
+  - match: "pynacl"
+    enables: [ships_encryption]
+    says: "Python binding to the Networking and Cryptography (NaCl) library"
+    source: https://pypi.org/project/pynacl/
+  - match: "cryptography"
+    enables: [ships_encryption]
+    says: "cryptography is a package which provides cryptographic recipes and primitives to Python developers."
+    source: https://pypi.org/project/cryptography/
+  - match: "pycryptodome"
+    enables: [ships_encryption]
+    says: "Cryptographic library for Python"
+    source: https://pypi.org/project/pycryptodome/
+  - match: "pycryptodomex"
+    enables: [ships_encryption]
+    says: "Cryptographic library for Python"
+    source: https://pypi.org/project/pycryptodomex/
+  - match: "pgpy"
+    enables: [ships_encryption]
+    says: "Pretty Good Privacy for Python"
+    source: https://pypi.org/project/pgpy/
+  - match: "tink"
+    enables: [ships_encryption]
+    says: "A multi-language, cross-platform library that provides cryptographic APIs that are secure, easy to use correctly, and hard(er) to misuse."
+    source: https://pypi.org/project/tink/
+  - match: "rsa"
+    enables: [ships_encryption]
+    says: "Pure-Python RSA implementation"
+    source: https://pypi.org/project/rsa/
+  - match: "ecdsa"
+    enables: [ships_encryption]
+    says: "ECDSA cryptographic signature library (pure python)"
+    source: https://pypi.org/project/ecdsa/
+  - match: "libnacl"
+    enables: [ships_encryption]
+    says: "Python bindings for libsodium based on ctypes"
+    source: https://pypi.org/project/libnacl/
+  - match: "pyaes"
+    enables: [ships_encryption]
+    says: "Pure-Python Implementation of the AES block-cipher and common modes of operation"
+    source: https://pypi.org/project/pyaes/
+
+  # Face and voice biometrics
+  - match: "face-recognition"
+    enables: [processes_biometrics]
+    says: "Recognize faces from Python or from the command line"
+    source: https://pypi.org/project/face-recognition/
+  - match: "deepface"
+    enables: [processes_biometrics]
+    says: "A Lightweight Face Recognition and Facial Attribute Analysis Framework (Age, Gender, Emotion, Race) for Python"
+    source: https://pypi.org/project/deepface/
+  - match: "insightface"
+    enables: [processes_biometrics]
+    says: "InsightFace Python Library"
+    source: https://pypi.org/project/insightface/
+  - match: "pyannote.audio"
+    enables: [processes_biometrics]
+    says: "State-of-the-art speaker diarization toolkit"
+    source: https://pypi.org/project/pyannote.audio/
+  - match: "speechbrain"
+    enables: [processes_biometrics]
+    says: "All-in-one speech toolkit in pure Python and Pytorch"
+    source: https://pypi.org/project/speechbrain/
+  - match: "resemblyzer"
+    enables: [processes_biometrics]
+    says: "Analyze and compare voices with deep learning"
+    source: https://pypi.org/project/resemblyzer/
+  - match: "facenet-pytorch"
+    enables: [processes_biometrics]
+    says: "Pretrained Pytorch face detection and recognition models"
+    source: https://pypi.org/project/facenet-pytorch/
+
+  # Call and meeting recording
+  - match: "recallai"
+    enables: [records_calls]
+    says: "recall.ai Python SDK"
+    source: https://pypi.org/project/recallai/
+
+  # Chat SDKs
+  - match: "stream-chat"
+    enables: [records_text_chat]
+    says: "Client for Stream Chat."
+    source: https://pypi.org/project/stream-chat/

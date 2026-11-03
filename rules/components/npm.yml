@@ -1,2 +1,1329 @@
 ecosystem: npm
-entries: []
+entries:
+
+  # Analytics, advertising and attribution SDKs
+  - match: "@segment/analytics-next"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Analytics Next (aka Analytics 2.0) is the latest version of Segment’s JavaScript SDK - enabling you to send your data to any tool without having to learn, test, or use a new API every time."
+    source: https://www.npmjs.com/package/@segment/analytics-next
+  - match: "@segment/analytics-react-native"
+    enables: [tracks_devices, processes_personal_data]
+    says: "The hassle-free way to add Segment analytics to your React-Native app."
+    source: https://www.npmjs.com/package/@segment/analytics-react-native
+  - match: "analytics-node"
+    enables: [tracks_devices, processes_personal_data]
+    says: "The hassle-free way to integrate analytics into any Node.js application"
+    source: https://www.npmjs.com/package/analytics-node
+  - match: "@segment/analytics.js-core"
+    enables: [tracks_devices, processes_personal_data]
+    says: "The hassle-free way to integrate analytics into any web application."
+    source: https://www.npmjs.com/package/@segment/analytics.js-core
+  - match: "mixpanel-browser"
+    enables: [tracks_devices, processes_personal_data]
+    says: "The official Mixpanel JavaScript browser client library"
+    source: https://www.npmjs.com/package/mixpanel-browser
+  - match: "mixpanel"
+    enables: [tracks_devices, processes_personal_data]
+    says: "A simple server-side API for mixpanel"
+    source: https://www.npmjs.com/package/mixpanel
+  - match: "mixpanel-react-native"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Official React Native Tracking Library for Mixpanel Analytics"
+    source: https://www.npmjs.com/package/mixpanel-react-native
+  - match: "react-native-mixpanel"
+    enables: [tracks_devices, processes_personal_data]
+    says: "A React Native wrapper for Mixpanel tracking"
+    source: https://www.npmjs.com/package/react-native-mixpanel
+  - match: "posthog-js"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Posthog-js allows you to automatically capture usage and send events to PostHog."
+    source: https://www.npmjs.com/package/posthog-js
+  - match: "posthog-node"
+    enables: [tracks_devices, processes_personal_data]
+    says: "PostHog Node.js integration"
+    source: https://www.npmjs.com/package/posthog-node
+  - match: "@amplitude/analytics-browser"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Official Amplitude SDK for Web"
+    source: https://www.npmjs.com/package/@amplitude/analytics-browser
+  - match: "@amplitude/analytics-node"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Official Amplitude SDK for NodeJS"
+    source: https://www.npmjs.com/package/@amplitude/analytics-node
+  - match: "@amplitude/analytics-react-native"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Official React Native SDK"
+    source: https://www.npmjs.com/package/@amplitude/analytics-react-native
+  - match: "amplitude-js"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Javascript library for Amplitude Analytics"
+    source: https://www.npmjs.com/package/amplitude-js
+  - match: "react-ga"
+    enables: [tracks_devices, processes_personal_data]
+    says: "React Google Analytics Module"
+    source: https://www.npmjs.com/package/react-ga
+  - match: "react-ga4"
+    enables: [tracks_devices, processes_personal_data]
+    says: "React Google Analytics 4"
+    source: https://www.npmjs.com/package/react-ga4
+  - match: "universal-analytics"
+    enables: [tracks_devices, processes_personal_data]
+    says: "A node module for Google's Universal Analytics tracking"
+    source: https://www.npmjs.com/package/universal-analytics
+  - match: "react-gtm-module"
+    enables: [tracks_devices, processes_personal_data]
+    says: "React Google Tag Manager Module"
+    source: https://www.npmjs.com/package/react-gtm-module
+  - match: "react-native-google-analytics-bridge"
+    enables: [tracks_devices, processes_personal_data]
+    says: "React Native bridge for using native Google Analytics libraries on iOS and Android"
+    source: https://www.npmjs.com/package/react-native-google-analytics-bridge
+  - match: "@react-native-firebase/analytics"
+    enables: [tracks_devices, processes_personal_data]
+    says: "React Native Firebase - The analytics module provides out of the box support with Google Analytics for Firebase. Integration with the Android & iOS allows for in-depth analytical insight reporting, such as device information, location, user actions and mo"
+    source: https://www.npmjs.com/package/@react-native-firebase/analytics
+  - match: "expo-firebase-analytics"
+    enables: [tracks_devices, processes_personal_data]
+    says: "A universal module that interfaces with the native firebase analytics API"
+    source: https://www.npmjs.com/package/expo-firebase-analytics
+  - match: "rudder-sdk-js"
+    enables: [tracks_devices, processes_personal_data]
+    says: "RudderStack JavaScript SDK"
+    source: https://www.npmjs.com/package/rudder-sdk-js
+  - match: "@rudderstack/analytics-js"
+    enables: [tracks_devices, processes_personal_data]
+    says: "RudderStack JavaScript SDK"
+    source: https://www.npmjs.com/package/@rudderstack/analytics-js
+  - match: "@rudderstack/rudder-sdk-node"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Rudder Node SDK"
+    source: https://www.npmjs.com/package/@rudderstack/rudder-sdk-node
+  - match: "@june-so/analytics-next"
+    enables: [tracks_devices, processes_personal_data]
+    says: "This is June's JS SDK, based on Analytics-Next by Segment."
+    source: https://www.npmjs.com/package/@june-so/analytics-next
+  - match: "analytics"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Lightweight analytics library for tracking events, page views, & identifying users. Works with any third party analytics provider via an extendable plugin system."
+    source: https://www.npmjs.com/package/analytics
+  - match: "@snowplow/browser-tracker"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Browser tracker for Snowplow"
+    source: https://www.npmjs.com/package/@snowplow/browser-tracker
+  - match: "@snowplow/node-tracker"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Node tracker for Snowplow"
+    source: https://www.npmjs.com/package/@snowplow/node-tracker
+  - match: "@snowplow/react-native-tracker"
+    enables: [tracks_devices, processes_personal_data]
+    says: "React Native tracker for Snowplow"
+    source: https://www.npmjs.com/package/@snowplow/react-native-tracker
+  - match: "@heap/react-native-heap"
+    enables: [tracks_devices, processes_personal_data]
+    says: "React Native event tracking with Heap."
+    source: https://www.npmjs.com/package/@heap/react-native-heap
+  - match: "heap-api"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Heap Server-Side API Client"
+    source: https://www.npmjs.com/package/heap-api
+  - match: "@mparticle/web-sdk"
+    enables: [tracks_devices, processes_personal_data]
+    says: "mParticle core SDK for web applications"
+    source: https://www.npmjs.com/package/@mparticle/web-sdk
+  - match: "@braze/web-sdk"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Braze SDK for web sites and other JS platforms."
+    source: https://www.npmjs.com/package/@braze/web-sdk
+  - match: "@braze/react-native-sdk"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Braze SDK for React Native."
+    source: https://www.npmjs.com/package/@braze/react-native-sdk
+  - match: "appcenter-analytics"
+    enables: [tracks_devices, processes_personal_data]
+    says: "React Native plugin for AppCenter Analytics"
+    source: https://www.npmjs.com/package/appcenter-analytics
+  - match: "react-native-appsflyer"
+    enables: [tracks_devices, processes_personal_data]
+    says: "React Native Appsflyer plugin"
+    source: https://www.npmjs.com/package/react-native-appsflyer
+  - match: "react-native-adjust"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Adjust React Native SDK"
+    source: https://www.npmjs.com/package/react-native-adjust
+  - match: "branch-sdk"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Branch Metrics Deep Linking/Smart Banner Web SDK"
+    source: https://www.npmjs.com/package/branch-sdk
+  - match: "react-native-branch"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Branch Metrics React Native SDK"
+    source: https://www.npmjs.com/package/react-native-branch
+  - match: "react-facebook-pixel"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Pixel Kit for React"
+    source: https://www.npmjs.com/package/react-facebook-pixel
+  - match: "react-tiktok-pixel"
+    enables: [tracks_devices, processes_personal_data]
+    says: "React JS wrapper for Tiktok's Pixel"
+    source: https://www.npmjs.com/package/react-tiktok-pixel
+  - match: "react-native-fbsdk-next"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Facebook SDK support for React Native apps."
+    source: https://www.npmjs.com/package/react-native-fbsdk-next
+  - match: "react-native-google-mobile-ads"
+    enables: [tracks_devices, processes_personal_data]
+    says: "React Native Google Mobile Ads is an easy way to monetize mobile apps with targeted, in-app advertising."
+    source: https://www.npmjs.com/package/react-native-google-mobile-ads
+  - match: "@fingerprintjs/fingerprintjs"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Browser fingerprinting library with the highest accuracy and stability"
+    source: https://www.npmjs.com/package/@fingerprintjs/fingerprintjs
+  - match: "@fingerprintjs/fingerprintjs-pro"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Fingerprint JavaScript agent"
+    source: https://www.npmjs.com/package/@fingerprintjs/fingerprintjs-pro
+  - match: "@microsoft/clarity"
+    enables: [tracks_devices, processes_personal_data]
+    says: "An analytics library that uses web page interactions to generate aggregated insights"
+    source: https://www.npmjs.com/package/@microsoft/clarity
+  - match: "@hotjar/browser"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Bring Hotjar directly to your application"
+    source: https://www.npmjs.com/package/@hotjar/browser
+  - match: "react-hotjar"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Small component to implement Hotjar into your react application"
+    source: https://www.npmjs.com/package/react-hotjar
+  - match: "@microsoft/applicationinsights-web"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Microsoft Application Insights JavaScript SDK - Web"
+    source: https://www.npmjs.com/package/@microsoft/applicationinsights-web
+  - match: "@datadog/mobile-react-native"
+    enables: [tracks_devices, processes_personal_data]
+    says: "A client-side React Native module to interact with Datadog"
+    source: https://www.npmjs.com/package/@datadog/mobile-react-native
+
+  # Session replay
+  - match: "@fullstory/browser"
+    enables: [tracks_devices, processes_personal_data]
+    says: "The official Fullstory browser SDK"
+    source: https://www.npmjs.com/package/@fullstory/browser
+  - match: "logrocket"
+    enables: [tracks_devices, processes_personal_data]
+    says: "JavaScript SDK for [LogRocket](https://logrocket.com/)"
+    source: https://www.npmjs.com/package/logrocket
+  - match: "@openreplay/tracker"
+    enables: [tracks_devices, processes_personal_data]
+    says: "The OpenReplay tracker main package"
+    source: https://www.npmjs.com/package/@openreplay/tracker
+  - match: "smartlook-client"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Official Smartlook client for easy frontend integration."
+    source: https://www.npmjs.com/package/smartlook-client
+
+  # Crash and error reporting SDKs
+  - match: "@sentry/browser"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Official Sentry SDK for browsers"
+    source: https://www.npmjs.com/package/@sentry/browser
+  - match: "@sentry/node"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Sentry Node SDK using OpenTelemetry for performance instrumentation"
+    source: https://www.npmjs.com/package/@sentry/node
+  - match: "@sentry/react"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Official Sentry SDK for React.js"
+    source: https://www.npmjs.com/package/@sentry/react
+  - match: "@sentry/react-native"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Official Sentry SDK for react-native"
+    source: https://www.npmjs.com/package/@sentry/react-native
+  - match: "@sentry/nextjs"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Official Sentry SDK for Next.js"
+    source: https://www.npmjs.com/package/@sentry/nextjs
+  - match: "@sentry/vue"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Official Sentry SDK for Vue.js"
+    source: https://www.npmjs.com/package/@sentry/vue
+  - match: "@sentry/angular"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Official Sentry SDK for Angular"
+    source: https://www.npmjs.com/package/@sentry/angular
+  - match: "@sentry/svelte"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Official Sentry SDK for Svelte"
+    source: https://www.npmjs.com/package/@sentry/svelte
+  - match: "@sentry/electron"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Official Sentry SDK for Electron"
+    source: https://www.npmjs.com/package/@sentry/electron
+  - match: "@sentry/remix"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Official Sentry SDK for Remix"
+    source: https://www.npmjs.com/package/@sentry/remix
+  - match: "@sentry/nuxt"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Official Sentry SDK for Nuxt"
+    source: https://www.npmjs.com/package/@sentry/nuxt
+  - match: "@sentry/astro"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Official Sentry SDK for Astro"
+    source: https://www.npmjs.com/package/@sentry/astro
+  - match: "@sentry/sveltekit"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Official Sentry SDK for SvelteKit"
+    source: https://www.npmjs.com/package/@sentry/sveltekit
+  - match: "@sentry/capacitor"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Official Sentry SDK for Capacitor"
+    source: https://www.npmjs.com/package/@sentry/capacitor
+  - match: "@sentry/bun"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Official Sentry SDK for bun"
+    source: https://www.npmjs.com/package/@sentry/bun
+  - match: "raven-js"
+    enables: [tracks_devices, processes_personal_data]
+    says: "JavaScript client for Sentry"
+    source: https://www.npmjs.com/package/raven-js
+  - match: "raven"
+    enables: [tracks_devices, processes_personal_data]
+    says: "A standalone (Node.js) client for Sentry"
+    source: https://www.npmjs.com/package/raven
+  - match: "rollbar"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Effortlessly track and debug errors in your JavaScript applications with Rollbar. This package includes advanced error tracking features and an intuitive interface to help you identify and fix issues more quickly."
+    source: https://www.npmjs.com/package/rollbar
+  - match: "@rollbar/react"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Effortlessly track and debug errors in your React applications with Rollbar. This package includes advanced error tracking features and a set of React-specific enhancements to help you identify and fix issues more quickly."
+    source: https://www.npmjs.com/package/@rollbar/react
+  - match: "@bugsnag/js"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Universal Javascript error reporting. Automatically detect JavaScript errors in the browser and Node.js, with plugins for React, Vue, Angular, Express, Restify and Koa."
+    source: https://www.npmjs.com/package/@bugsnag/js
+  - match: "@bugsnag/browser"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Bugsnag error reporter for browser JavaScript"
+    source: https://www.npmjs.com/package/@bugsnag/browser
+  - match: "@bugsnag/node"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Bugsnag error reporter for Node.js"
+    source: https://www.npmjs.com/package/@bugsnag/node
+  - match: "@bugsnag/expo"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Bugsnag error reporter for Expo applications"
+    source: https://www.npmjs.com/package/@bugsnag/expo
+  - match: "@bugsnag/react-native"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Bugsnag error reporter for React Native applications"
+    source: https://www.npmjs.com/package/@bugsnag/react-native
+  - match: "@honeybadger-io/js"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Universal (Browser & Node) JavaScript error notifier for Honeybadger.io"
+    source: https://www.npmjs.com/package/@honeybadger-io/js
+  - match: "@honeybadger-io/react"
+    enables: [tracks_devices, processes_personal_data]
+    says: "React.js integration for honeybadger"
+    source: https://www.npmjs.com/package/@honeybadger-io/react
+  - match: "@airbrake/browser"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Official Airbrake notifier for browsers"
+    source: https://www.npmjs.com/package/@airbrake/browser
+  - match: "@airbrake/node"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Official Airbrake notifier for Node.js"
+    source: https://www.npmjs.com/package/@airbrake/node
+  - match: "raygun4js"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Raygun.com plugin for JavaScript"
+    source: https://www.npmjs.com/package/raygun4js
+  - match: "trackjs"
+    enables: [tracks_devices, processes_personal_data]
+    says: "TrackJS JavaScript error tracking agent."
+    source: https://www.npmjs.com/package/trackjs
+  - match: "appcenter-crashes"
+    enables: [tracks_devices, processes_personal_data]
+    says: "React Native plugin for AppCenter Crashes"
+    source: https://www.npmjs.com/package/appcenter-crashes
+  - match: "@react-native-firebase/crashlytics"
+    enables: [tracks_devices, processes_personal_data]
+    says: "React Native Firebase - Firebase Crashlytics is a lightweight, realtime crash reporter that helps you track, prioritize, and fix stability issues that erode your app quality. React Native Firebase provides automatic crash reporting for both native and Jav"
+    source: https://www.npmjs.com/package/@react-native-firebase/crashlytics
+  - match: "@elastic/apm-rum"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Elastic APM JavaScript agent"
+    source: https://www.npmjs.com/package/@elastic/apm-rum
+  - match: "@elastic/apm-rum-react"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Elastic APM Real User Monitoring for React applications"
+    source: https://www.npmjs.com/package/@elastic/apm-rum-react
+
+  # Authentication and user management SDKs
+  - match: "next-auth"
+    enables: [processes_personal_data]
+    says: "Authentication for Next.js"
+    source: https://www.npmjs.com/package/next-auth
+  - match: "@auth/core"
+    enables: [processes_personal_data]
+    says: "Authentication for the Web."
+    source: https://www.npmjs.com/package/@auth/core
+  - match: "@auth/sveltekit"
+    enables: [processes_personal_data]
+    says: "Authentication for SvelteKit."
+    source: https://www.npmjs.com/package/@auth/sveltekit
+  - match: "@auth/express"
+    enables: [processes_personal_data]
+    says: "Authentication for Express."
+    source: https://www.npmjs.com/package/@auth/express
+  - match: "@clerk/clerk-react"
+    enables: [processes_personal_data]
+    says: "Clerk React library"
+    source: https://www.npmjs.com/package/@clerk/clerk-react
+  - match: "@clerk/nextjs"
+    enables: [processes_personal_data]
+    says: "Clerk SDK for NextJS"
+    source: https://www.npmjs.com/package/@clerk/nextjs
+  - match: "@clerk/clerk-js"
+    enables: [processes_personal_data]
+    says: "Clerk JS library"
+    source: https://www.npmjs.com/package/@clerk/clerk-js
+  - match: "@clerk/backend"
+    enables: [processes_personal_data]
+    says: "Clerk Backend SDK - REST Client for Backend API & JWT verification utilities"
+    source: https://www.npmjs.com/package/@clerk/backend
+  - match: "@clerk/clerk-expo"
+    enables: [processes_personal_data]
+    says: "Clerk React Native/Expo library"
+    source: https://www.npmjs.com/package/@clerk/clerk-expo
+  - match: "@clerk/express"
+    enables: [processes_personal_data]
+    says: "Clerk server SDK for usage with Express"
+    source: https://www.npmjs.com/package/@clerk/express
+  - match: "@clerk/clerk-sdk-node"
+    enables: [processes_personal_data]
+    says: "Clerk server SDK for usage with node"
+    source: https://www.npmjs.com/package/@clerk/clerk-sdk-node
+  - match: "@clerk/remix"
+    enables: [processes_personal_data]
+    says: "Clerk SDK for Remix"
+    source: https://www.npmjs.com/package/@clerk/remix
+  - match: "@clerk/astro"
+    enables: [processes_personal_data]
+    says: "Clerk SDK for Astro"
+    source: https://www.npmjs.com/package/@clerk/astro
+  - match: "@clerk/nuxt"
+    enables: [processes_personal_data]
+    says: "Clerk SDK for Nuxt"
+    source: https://www.npmjs.com/package/@clerk/nuxt
+  - match: "@clerk/fastify"
+    enables: [processes_personal_data]
+    says: "Clerk SDK for Fastify"
+    source: https://www.npmjs.com/package/@clerk/fastify
+  - match: "@supabase/auth-js"
+    enables: [processes_personal_data]
+    says: "Official SDK for Supabase Auth"
+    source: https://www.npmjs.com/package/@supabase/auth-js
+  - match: "@supabase/ssr"
+    enables: [processes_personal_data]
+    says: "Use the Supabase JavaScript library in popular server-side rendering (SSR) frameworks."
+    source: https://www.npmjs.com/package/@supabase/ssr
+  - match: "@supabase/auth-helpers-nextjs"
+    enables: [processes_personal_data]
+    says: "Use the Supabase JavaScript library in popular server-side rendering (SSR) frameworks."
+    source: https://www.npmjs.com/package/@supabase/auth-helpers-nextjs
+  - match: "@supabase/auth-ui-react"
+    enables: [processes_personal_data]
+    says: "Supabase Auth UI is a collection of pre built UI components that work seamlessly with @supabase/auth-helpers."
+    source: https://www.npmjs.com/package/@supabase/auth-ui-react
+  - match: "@firebase/auth"
+    enables: [processes_personal_data]
+    says: "The Firebase Authenticaton component of the Firebase JS SDK."
+    source: https://www.npmjs.com/package/@firebase/auth
+  - match: "@react-native-firebase/auth"
+    enables: [processes_personal_data]
+    says: "React Native Firebase - The authentication module provides an easy-to-use API to integrate an authentication workflow into new and existing applications. React Native Firebase provides access to all Firebase authentication methods and identity providers."
+    source: https://www.npmjs.com/package/@react-native-firebase/auth
+  - match: "auth0"
+    enables: [processes_personal_data]
+    says: "Auth0 Node.js SDK for the Management API v2."
+    source: https://www.npmjs.com/package/auth0
+  - match: "@auth0/auth0-react"
+    enables: [processes_personal_data]
+    says: "Auth0 SDK for React Single Page Applications (SPA)"
+    source: https://www.npmjs.com/package/@auth0/auth0-react
+  - match: "@auth0/auth0-spa-js"
+    enables: [processes_personal_data]
+    says: "Auth0 SDK for Single Page Applications using Authorization Code Grant Flow with PKCE"
+    source: https://www.npmjs.com/package/@auth0/auth0-spa-js
+  - match: "@auth0/nextjs-auth0"
+    enables: [processes_personal_data]
+    says: "Auth0 Next.js SDK"
+    source: https://www.npmjs.com/package/@auth0/nextjs-auth0
+  - match: "@auth0/auth0-angular"
+    enables: [processes_personal_data]
+    says: "Auth0 SDK for Angular Single Page Applications (SPA)"
+    source: https://www.npmjs.com/package/@auth0/auth0-angular
+  - match: "@auth0/auth0-vue"
+    enables: [processes_personal_data]
+    says: "Auth0 SDK for Vue Applications using Authorization Code Grant Flow with PKCE"
+    source: https://www.npmjs.com/package/@auth0/auth0-vue
+  - match: "auth0-js"
+    enables: [processes_personal_data]
+    says: "Auth0 headless browser sdk"
+    source: https://www.npmjs.com/package/auth0-js
+  - match: "auth0-lock"
+    enables: [processes_personal_data]
+    says: "Auth0 Lock"
+    source: https://www.npmjs.com/package/auth0-lock
+  - match: "react-native-auth0"
+    enables: [processes_personal_data]
+    says: "React Native toolkit for Auth0 API"
+    source: https://www.npmjs.com/package/react-native-auth0
+  - match: "passport"
+    enables: [processes_personal_data]
+    says: "Simple, unobtrusive authentication for Node.js."
+    source: https://www.npmjs.com/package/passport
+  - match: "better-auth"
+    enables: [processes_personal_data]
+    says: "The most comprehensive authentication framework for TypeScript."
+    source: https://www.npmjs.com/package/better-auth
+  - match: "lucia"
+    enables: [processes_personal_data]
+    says: "A simple and flexible authentication library"
+    source: https://www.npmjs.com/package/lucia
+  - match: "keycloak-js"
+    enables: [processes_personal_data]
+    says: "A client-side JavaScript OpenID Connect library that can be used to secure web applications."
+    source: https://www.npmjs.com/package/keycloak-js
+  - match: "amazon-cognito-identity-js"
+    enables: [processes_personal_data]
+    says: "Amazon Cognito Identity Provider JavaScript SDK"
+    source: https://www.npmjs.com/package/amazon-cognito-identity-js
+  - match: "@okta/okta-auth-js"
+    enables: [processes_personal_data]
+    says: "The Okta Auth SDK"
+    source: https://www.npmjs.com/package/@okta/okta-auth-js
+  - match: "@okta/okta-react"
+    enables: [processes_personal_data]
+    says: "React support for Okta"
+    source: https://www.npmjs.com/package/@okta/okta-react
+  - match: "@kinde-oss/kinde-auth-nextjs"
+    enables: [processes_personal_data]
+    says: "Kinde Auth SDK for NextJS"
+    source: https://www.npmjs.com/package/@kinde-oss/kinde-auth-nextjs
+  - match: "@kinde-oss/kinde-auth-react"
+    enables: [processes_personal_data]
+    says: "Kinde React SDK for authentication"
+    source: https://www.npmjs.com/package/@kinde-oss/kinde-auth-react
+  - match: "@workos-inc/node"
+    enables: [processes_personal_data]
+    says: "A Node wrapper for the WorkOS API"
+    source: https://www.npmjs.com/package/@workos-inc/node
+  - match: "@stytch/nextjs"
+    enables: [processes_personal_data]
+    says: "Stytch's official Next.js Library"
+    source: https://www.npmjs.com/package/@stytch/nextjs
+  - match: "@stytch/vanilla-js"
+    enables: [processes_personal_data]
+    says: "Stytch's official Javascript Client Library"
+    source: https://www.npmjs.com/package/@stytch/vanilla-js
+  - match: "@descope/react-sdk"
+    enables: [processes_personal_data]
+    says: "Descope React SDK"
+    source: https://www.npmjs.com/package/@descope/react-sdk
+  - match: "@propelauth/react"
+    enables: [processes_personal_data]
+    says: "A React library for managing authentication, backed by PropelAuth"
+    source: https://www.npmjs.com/package/@propelauth/react
+
+  # Model SDKs
+  - match: "openai"
+    enables: [generates_content]
+    says: "The official TypeScript library for the OpenAI API"
+    source: https://www.npmjs.com/package/openai
+  - match: "@anthropic-ai/sdk"
+    enables: [generates_content]
+    says: "The official TypeScript library for the Anthropic API"
+    source: https://www.npmjs.com/package/@anthropic-ai/sdk
+  - match: "@anthropic-ai/bedrock-sdk"
+    enables: [generates_content]
+    says: "The official TypeScript library for the Anthropic Bedrock API"
+    source: https://www.npmjs.com/package/@anthropic-ai/bedrock-sdk
+  - match: "@anthropic-ai/vertex-sdk"
+    enables: [generates_content]
+    says: "The official TypeScript library for the Anthropic Vertex API"
+    source: https://www.npmjs.com/package/@anthropic-ai/vertex-sdk
+  - match: "@anthropic-ai/claude-agent-sdk"
+    enables: [generates_content]
+    says: "SDK for building AI agents with Claude Code's capabilities. Programmatically interact with Claude to build autonomous agents that can understand codebases, edit files, and execute workflows."
+    source: https://www.npmjs.com/package/@anthropic-ai/claude-agent-sdk
+  - match: "@google/generative-ai"
+    enables: [generates_content]
+    says: "Google AI JavaScript SDK"
+    source: https://www.npmjs.com/package/@google/generative-ai
+    # The registry has no usable description; this is the first sentence of the README, markdown link markup removed.
+  - match: "@google/genai"
+    enables: [generates_content]
+    says: "The Google Gen AI JavaScript SDK is designed for TypeScript and JavaScript developers to build applications powered by Gemini."
+    source: https://www.npmjs.com/package/@google/genai
+  - match: "@google-cloud/vertexai"
+    enables: [generates_content]
+    says: "Vertex Generative AI client for Node.js"
+    source: https://www.npmjs.com/package/@google-cloud/vertexai
+  - match: "@mistralai/mistralai"
+    enables: [generates_content]
+    says: "TypeScript client library for the Mistral AI API"
+    source: https://www.npmjs.com/package/@mistralai/mistralai
+    # The registry has no usable description; this is the first sentence of the README, markdown link markup removed.
+  - match: "cohere-ai"
+    enables: [generates_content]
+    says: "The Cohere Typescript SDK allows access to Cohere models across many different platforms: the cohere platform, AWS (Bedrock, Sagemaker), Azure, GCP and Oracle OCI."
+    source: https://www.npmjs.com/package/cohere-ai
+  - match: "ai"
+    enables: [generates_content]
+    says: "AI SDK by Vercel - build apps like ChatGPT, Claude, Gemini, and more with a single interface for any model using the Vercel AI Gateway or go direct to OpenAI, Anthropic, Google, or any other model provider."
+    source: https://www.npmjs.com/package/ai
+    # The registry has no usable description; this is the first sentence of the README, markdown link markup removed.
+  - match: "@ai-sdk/openai"
+    enables: [generates_content]
+    says: "The OpenAI provider for the AI SDK contains language model support for the OpenAI chat and completion APIs and embedding model support for the OpenAI embeddings API."
+    source: https://www.npmjs.com/package/@ai-sdk/openai
+    # The registry has no usable description; this is the first sentence of the README, markdown link markup removed.
+  - match: "@ai-sdk/anthropic"
+    enables: [generates_content]
+    says: "The Anthropic provider for the AI SDK contains language model support for the Anthropic Messages API."
+    source: https://www.npmjs.com/package/@ai-sdk/anthropic
+    # The registry has no usable description; this is the first sentence of the README, markdown link markup removed.
+  - match: "@ai-sdk/google"
+    enables: [generates_content]
+    says: "The Google provider for the AI SDK contains language model support for the Google Generative AI APIs."
+    source: https://www.npmjs.com/package/@ai-sdk/google
+    # The registry has no usable description; this is the first sentence of the README, markdown link markup removed.
+  - match: "@ai-sdk/mistral"
+    enables: [generates_content]
+    says: "The Mistral provider for the AI SDK contains language model, embedding model, and speech model support for Mistral APIs."
+    source: https://www.npmjs.com/package/@ai-sdk/mistral
+    # The registry has no usable description; this is the first sentence of the README, markdown link markup removed.
+  - match: "@ai-sdk/cohere"
+    enables: [generates_content]
+    says: "The Cohere provider for the AI SDK contains language model support for the Cohere API."
+    source: https://www.npmjs.com/package/@ai-sdk/cohere
+    # The registry has no usable description; this is the first sentence of the README, markdown link markup removed.
+  - match: "@ai-sdk/azure"
+    enables: [generates_content]
+    says: "The Azure provider for the AI SDK contains language model support for the Azure OpenAI API."
+    source: https://www.npmjs.com/package/@ai-sdk/azure
+    # The registry has no usable description; this is the first sentence of the README, markdown link markup removed.
+  - match: "@ai-sdk/amazon-bedrock"
+    enables: [generates_content]
+    says: "The Amazon Bedrock provider for the AI SDK contains language model support for the Amazon Bedrock converse API."
+    source: https://www.npmjs.com/package/@ai-sdk/amazon-bedrock
+    # The registry has no usable description; this is the first sentence of the README, markdown link markup removed.
+  - match: "@ai-sdk/google-vertex"
+    enables: [generates_content]
+    says: "The Google Vertex provider for the AI SDK contains language model support for the Google Vertex AI APIs."
+    source: https://www.npmjs.com/package/@ai-sdk/google-vertex
+    # The registry has no usable description; this is the first sentence of the README, markdown link markup removed.
+  - match: "@ai-sdk/groq"
+    enables: [generates_content]
+    says: "The Groq provider for the AI SDK contains language model support for the Groq chat and completion APIs, transcription support, and browser search tool."
+    source: https://www.npmjs.com/package/@ai-sdk/groq
+    # The registry has no usable description; this is the first sentence of the README, markdown link markup removed.
+  - match: "@ai-sdk/xai"
+    enables: [generates_content]
+    says: "The xAI Grok provider for the AI SDK contains language model support for the xAI chat and completion APIs."
+    source: https://www.npmjs.com/package/@ai-sdk/xai
+  - match: "langchain"
+    enables: [generates_content]
+    says: "Typescript bindings for langchain"
+    source: https://www.npmjs.com/package/langchain
+  - match: "@langchain/core"
+    enables: [generates_content]
+    says: "Core LangChain.js abstractions and schemas"
+    source: https://www.npmjs.com/package/@langchain/core
+  - match: "@langchain/openai"
+    enables: [generates_content]
+    says: "OpenAI integrations for LangChain.js"
+    source: https://www.npmjs.com/package/@langchain/openai
+  - match: "@langchain/anthropic"
+    enables: [generates_content]
+    says: "Anthropic integrations for LangChain.js"
+    source: https://www.npmjs.com/package/@langchain/anthropic
+  - match: "@langchain/google-genai"
+    enables: [generates_content]
+    says: "Google Generative AI integration for LangChain.js"
+    source: https://www.npmjs.com/package/@langchain/google-genai
+  - match: "@langchain/mistralai"
+    enables: [generates_content]
+    says: "MistralAI integration for LangChain.js"
+    source: https://www.npmjs.com/package/@langchain/mistralai
+  - match: "@langchain/cohere"
+    enables: [generates_content]
+    says: "Cohere integration for LangChain.js"
+    source: https://www.npmjs.com/package/@langchain/cohere
+  - match: "replicate"
+    enables: [generates_content]
+    says: "JavaScript client for Replicate"
+    source: https://www.npmjs.com/package/replicate
+  - match: "groq-sdk"
+    enables: [generates_content]
+    says: "The official TypeScript library for the Groq API"
+    source: https://www.npmjs.com/package/groq-sdk
+  - match: "together-ai"
+    enables: [generates_content]
+    says: "The official TypeScript library for the Together API"
+    source: https://www.npmjs.com/package/together-ai
+  - match: "@huggingface/inference"
+    enables: [generates_content]
+    says: "Typescript client for the Hugging Face Inference Providers and Inference Endpoints"
+    source: https://www.npmjs.com/package/@huggingface/inference
+  - match: "ollama"
+    enables: [generates_content]
+    says: "Ollama Javascript library"
+    source: https://www.npmjs.com/package/ollama
+  - match: "@aws-sdk/client-bedrock-runtime"
+    enables: [generates_content]
+    says: "AWS SDK for JavaScript Bedrock Runtime Client for Node.js, Browser and React Native"
+    source: https://www.npmjs.com/package/@aws-sdk/client-bedrock-runtime
+    # The registry has no usable description; this is the first sentence of the README, markdown link markup removed.
+  - match: "llamaindex"
+    enables: [generates_content]
+    says: "LlamaIndex.TS Data framework for your LLM application."
+    source: https://www.npmjs.com/package/llamaindex
+  - match: "@openai/agents"
+    enables: [generates_content]
+    says: "The OpenAI Agents SDK is a lightweight yet powerful framework for building multi-agent workflows."
+    source: https://www.npmjs.com/package/@openai/agents
+  - match: "@azure/openai"
+    enables: [generates_content]
+    says: "A companion library to openai for Azure OpenAI."
+    source: https://www.npmjs.com/package/@azure/openai
+  - match: "openai-edge"
+    enables: [generates_content]
+    says: "Use OpenAI's API from an edge runtime, using standard Web APIs only"
+    source: https://www.npmjs.com/package/openai-edge
+  - match: "@fal-ai/client"
+    enables: [generates_content]
+    says: "The fal.ai client for JavaScript and TypeScript"
+    source: https://www.npmjs.com/package/@fal-ai/client
+  - match: "@mlc-ai/web-llm"
+    enables: [generates_content]
+    says: "Hardware accelerated language model chats on browsers"
+    source: https://www.npmjs.com/package/@mlc-ai/web-llm
+  - match: "@google/adk"
+    enables: [generates_content]
+    says: "Google ADK JS"
+    source: https://www.npmjs.com/package/@google/adk
+
+  # Image and video generation SDKs
+  - match: "stability-ai"
+    enables: [generates_images]
+    says: "Node SDK for Stability AI REST API"
+    source: https://www.npmjs.com/package/stability-ai
+  - match: "@runwayml/sdk"
+    enables: [generates_video]
+    says: "The official TypeScript library for the RunwayML API"
+    source: https://www.npmjs.com/package/@runwayml/sdk
+  - match: "lumaai"
+    enables: [generates_video]
+    says: "The official TypeScript library for the LumaAI API"
+    source: https://www.npmjs.com/package/lumaai
+
+  # Speech synthesis SDKs
+    # The registry has no usable description; this is the first sentence of the README, markdown link markup removed.
+  - match: "elevenlabs"
+    enables: [generates_audio]
+    says: "The official JS API for ElevenLabs text-to-speech software."
+    source: https://www.npmjs.com/package/elevenlabs
+    # The registry has no usable description; this is the first sentence of the README, markdown link markup removed.
+  - match: "@elevenlabs/elevenlabs-js"
+    enables: [generates_audio]
+    says: "The official Node SDK for ElevenLabs."
+    source: https://www.npmjs.com/package/@elevenlabs/elevenlabs-js
+  - match: "@elevenlabs/client"
+    enables: [generates_audio]
+    says: "ElevenLabs JavaScript Client Library"
+    source: https://www.npmjs.com/package/@elevenlabs/client
+  - match: "@google-cloud/text-to-speech"
+    enables: [generates_audio]
+    says: "Cloud Text-to-Speech API client for Node.js"
+    source: https://www.npmjs.com/package/@google-cloud/text-to-speech
+  - match: "@aws-sdk/client-polly"
+    enables: [generates_audio]
+    says: "AWS SDK for JavaScript Polly Client for Node.js, Browser and React Native"
+    source: https://www.npmjs.com/package/@aws-sdk/client-polly
+  - match: "playht"
+    enables: [generates_audio]
+    says: "NodeJS SDK for PlayHT generative AI text-to-speech APIs"
+    source: https://www.npmjs.com/package/playht
+
+  # Speech-to-text SDKs
+    # The registry has no usable description; this is the first sentence of the README, markdown link markup removed.
+  - match: "@deepgram/sdk"
+    enables: [processes_voice]
+    says: "The official JavaScript/TypeScript SDK for Deepgram's automated speech recognition, text-to-speech, and language understanding APIs."
+    source: https://www.npmjs.com/package/@deepgram/sdk
+  - match: "assemblyai"
+    enables: [processes_voice]
+    says: "The AssemblyAI JavaScript SDK provides an easy-to-use interface for interacting with the AssemblyAI API, which supports async and real-time transcription and text-to-speech."
+    source: https://www.npmjs.com/package/assemblyai
+  - match: "@google-cloud/speech"
+    enables: [processes_voice]
+    says: "Cloud Speech Client Library for Node.js"
+    source: https://www.npmjs.com/package/@google-cloud/speech
+  - match: "@aws-sdk/client-transcribe"
+    enables: [processes_voice]
+    says: "AWS SDK for JavaScript Transcribe Client for Node.js, Browser and React Native"
+    source: https://www.npmjs.com/package/@aws-sdk/client-transcribe
+  - match: "@aws-sdk/client-transcribe-streaming"
+    enables: [processes_voice]
+    says: "AWS SDK for JavaScript Transcribe Streaming Client for Node.js, Browser and React Native"
+    source: https://www.npmjs.com/package/@aws-sdk/client-transcribe-streaming
+  - match: "vosk"
+    enables: [processes_voice]
+    says: "Node binding for continuous offline voice recoginition with Vosk library."
+    source: https://www.npmjs.com/package/vosk
+  - match: "vosk-browser"
+    enables: [processes_voice]
+    says: "Kaldi in-browser speech recognition based on a WASM build of the Vosk library"
+    source: https://www.npmjs.com/package/vosk-browser
+  - match: "whisper-node"
+    enables: [processes_voice]
+    says: "Node.js bindings for OpenAI's Whisper. Runs local on CPU."
+    source: https://www.npmjs.com/package/whisper-node
+  - match: "nodejs-whisper"
+    enables: [processes_voice]
+    says: "Node bindings for OpenAI's Whisper. Optimized for CPU."
+    source: https://www.npmjs.com/package/nodejs-whisper
+  - match: "@speechmatics/real-time-client"
+    enables: [processes_voice]
+    says: "Client for the Speechmatics real-time API"
+    source: https://www.npmjs.com/package/@speechmatics/real-time-client
+  - match: "revai-node-sdk"
+    enables: [processes_voice]
+    says: "Rev AI makes speech applications easy to build!"
+    source: https://www.npmjs.com/package/revai-node-sdk
+  - match: "microsoft-cognitiveservices-speech-sdk"
+    enables: [processes_voice, generates_audio]
+    says: "Microsoft Cognitive Services Speech SDK for JavaScript"
+    source: https://www.npmjs.com/package/microsoft-cognitiveservices-speech-sdk
+
+  # Crawling and scraping libraries
+  - match: "crawlee"
+    enables: [crawls_web]
+    says: "The scalable web crawling and scraping library for JavaScript/Node.js. Enables development of data extraction and web automation jobs (not only) with headless Chrome and Puppeteer."
+    source: https://www.npmjs.com/package/crawlee
+  - match: "@crawlee/core"
+    enables: [crawls_web]
+    says: "The scalable web crawling and scraping library for JavaScript/Node.js. Enables development of data extraction and web automation jobs (not only) with headless Chrome and Puppeteer."
+    source: https://www.npmjs.com/package/@crawlee/core
+  - match: "@crawlee/playwright"
+    enables: [crawls_web]
+    says: "The scalable web crawling and scraping library for JavaScript/Node.js. Enables development of data extraction and web automation jobs (not only) with headless Chrome and Puppeteer."
+    source: https://www.npmjs.com/package/@crawlee/playwright
+  - match: "@crawlee/puppeteer"
+    enables: [crawls_web]
+    says: "The scalable web crawling and scraping library for JavaScript/Node.js. Enables development of data extraction and web automation jobs (not only) with headless Chrome and Puppeteer."
+    source: https://www.npmjs.com/package/@crawlee/puppeteer
+  - match: "@crawlee/cheerio"
+    enables: [crawls_web]
+    says: "The scalable web crawling and scraping library for JavaScript/Node.js. Enables development of data extraction and web automation jobs (not only) with headless Chrome and Puppeteer."
+    source: https://www.npmjs.com/package/@crawlee/cheerio
+  - match: "@crawlee/basic"
+    enables: [crawls_web]
+    says: "The scalable web crawling and scraping library for JavaScript/Node.js. Enables development of data extraction and web automation jobs (not only) with headless Chrome and Puppeteer."
+    source: https://www.npmjs.com/package/@crawlee/basic
+  - match: "puppeteer"
+    enables: [crawls_web]
+    says: "A high-level API to control headless Chrome over the DevTools Protocol"
+    source: https://www.npmjs.com/package/puppeteer
+  - match: "puppeteer-core"
+    enables: [crawls_web]
+    says: "A high-level API to control headless Chrome over the DevTools Protocol"
+    source: https://www.npmjs.com/package/puppeteer-core
+  - match: "puppeteer-extra"
+    enables: [crawls_web]
+    says: "Teach puppeteer new tricks through plugins."
+    source: https://www.npmjs.com/package/puppeteer-extra
+  - match: "puppeteer-cluster"
+    enables: [crawls_web]
+    says: "Cluster management for puppeteer"
+    source: https://www.npmjs.com/package/puppeteer-cluster
+  - match: "playwright"
+    enables: [crawls_web]
+    says: "A high-level API to automate web browsers"
+    source: https://www.npmjs.com/package/playwright
+  - match: "playwright-core"
+    enables: [crawls_web]
+    says: "A high-level API to automate web browsers"
+    source: https://www.npmjs.com/package/playwright-core
+  - match: "@mendable/firecrawl-js"
+    enables: [crawls_web]
+    says: "JavaScript SDK for Firecrawl, the context API for AI agents: search, scrape, parse, crawl, map, and interact with the web, run Agent and Monitor jobs, and search scientific papers (PubMed, bioRxiv, medRxiv, arXiv)"
+    source: https://www.npmjs.com/package/@mendable/firecrawl-js
+  - match: "firecrawl"
+    enables: [crawls_web]
+    says: "JavaScript SDK for Firecrawl, the context API for AI agents: search, scrape, parse, crawl, map, and interact with the web, run Agent and Monitor jobs, and search scientific papers (PubMed, bioRxiv, medRxiv, arXiv)"
+    source: https://www.npmjs.com/package/firecrawl
+  - match: "simplecrawler"
+    enables: [crawls_web]
+    says: "Very straightforward, event driven web crawler. Features a flexible queue interface and a basic cache mechanism with extensible backend."
+    source: https://www.npmjs.com/package/simplecrawler
+  - match: "crawler"
+    enables: [crawls_web]
+    says: "Crawler is a ready-to-use web spider that works with proxies, asynchrony, rate limit, configurable request pools, jQuery, and HTTP/2 support."
+    source: https://www.npmjs.com/package/crawler
+  - match: "headless-chrome-crawler"
+    enables: [crawls_web]
+    says: "Distributed web crawler powered by Headless Chrome"
+    source: https://www.npmjs.com/package/headless-chrome-crawler
+  - match: "@extractus/article-extractor"
+    enables: [crawls_web]
+    says: "To extract main article from given URL"
+    source: https://www.npmjs.com/package/@extractus/article-extractor
+
+  # Feed readers
+  - match: "rss-parser"
+    enables: [aggregates_content]
+    says: "A lightweight RSS parser, for Node and the browser"
+    source: https://www.npmjs.com/package/rss-parser
+  - match: "feedparser"
+    enables: [aggregates_content]
+    says: "Robust RSS Atom and RDF feed parsing using sax js"
+    source: https://www.npmjs.com/package/feedparser
+  - match: "@extractus/feed-extractor"
+    enables: [aggregates_content]
+    says: "To read and normalize RSS/ATOM/JSON feed data"
+    source: https://www.npmjs.com/package/@extractus/feed-extractor
+  - match: "feedsmith"
+    enables: [aggregates_content]
+    says: "Fast, all‑in‑one feed parser and generator for RSS, Atom, RDF, and JSON Feed, with support for Podcast, iTunes, Dublin Core, and OPML files."
+    source: https://www.npmjs.com/package/feedsmith
+
+  # Email, SMS, push and messaging senders
+  - match: "nodemailer"
+    enables: [automated_outreach]
+    says: "Easy as cake e-mail sending from your Node.js applications"
+    source: https://www.npmjs.com/package/nodemailer
+  - match: "@sendgrid/mail"
+    enables: [automated_outreach]
+    says: "Twilio SendGrid NodeJS mail service"
+    source: https://www.npmjs.com/package/@sendgrid/mail
+  - match: "resend"
+    enables: [automated_outreach]
+    says: "Node.js library for the Resend API"
+    source: https://www.npmjs.com/package/resend
+  - match: "postmark"
+    enables: [automated_outreach]
+    says: "Official Node.js client library for the Postmark HTTP API - https://www.postmarkapp.com"
+    source: https://www.npmjs.com/package/postmark
+  - match: "mailgun.js"
+    enables: [automated_outreach]
+    says: "A javascript sdk for Mailgun built with webpack, babel & es6. This can be used in node or in the browser*."
+    source: https://www.npmjs.com/package/mailgun.js
+  - match: "mailgun-js"
+    enables: [automated_outreach]
+    says: "Simple Node.js helper module for Mailgun API"
+    source: https://www.npmjs.com/package/mailgun-js
+  - match: "twilio"
+    enables: [automated_outreach]
+    says: "A Twilio helper library"
+    source: https://www.npmjs.com/package/twilio
+  - match: "@vonage/server-sdk"
+    enables: [automated_outreach]
+    says: "Node.js Client for the Vonage API Platform"
+    source: https://www.npmjs.com/package/@vonage/server-sdk
+  - match: "@vonage/messages"
+    enables: [automated_outreach]
+    says: "Multi-channel messaging that integrates WhatsApp, Facebook, Viber, SMS, and MMS"
+    source: https://www.npmjs.com/package/@vonage/messages
+  - match: "expo-server-sdk"
+    enables: [automated_outreach]
+    says: "Server-side library for working with Expo using Node.js"
+    source: https://www.npmjs.com/package/expo-server-sdk
+  - match: "firebase-admin"
+    enables: [automated_outreach]
+    says: "Firebase admin SDK for Node.js"
+    source: https://www.npmjs.com/package/firebase-admin
+  - match: "onesignal-node"
+    enables: [automated_outreach]
+    says: "A Node.js Library for OneSignal push notification service"
+    source: https://www.npmjs.com/package/onesignal-node
+  - match: "@onesignal/node-onesignal"
+    enables: [automated_outreach]
+    says: "OpenAPI client for @onesignal/node-onesignal"
+    source: https://www.npmjs.com/package/@onesignal/node-onesignal
+  - match: "react-native-onesignal"
+    enables: [automated_outreach]
+    says: "React Native OneSignal SDK"
+    source: https://www.npmjs.com/package/react-native-onesignal
+  - match: "react-onesignal"
+    enables: [automated_outreach]
+    says: "React OneSignal Module: Make it easy to integrate OneSignal with your React App!"
+    source: https://www.npmjs.com/package/react-onesignal
+  - match: "web-push"
+    enables: [automated_outreach]
+    says: "Web Push library for Node.js"
+    source: https://www.npmjs.com/package/web-push
+  - match: "@aws-sdk/client-ses"
+    enables: [automated_outreach]
+    says: "AWS SDK for JavaScript Ses Client for Node.js, Browser and React Native"
+    source: https://www.npmjs.com/package/@aws-sdk/client-ses
+  - match: "@aws-sdk/client-sesv2"
+    enables: [automated_outreach]
+    says: "AWS SDK for JavaScript Sesv2 Client for Node.js, Browser and React Native"
+    source: https://www.npmjs.com/package/@aws-sdk/client-sesv2
+  - match: "@aws-sdk/client-sns"
+    enables: [automated_outreach]
+    says: "AWS SDK for JavaScript Sns Client for Node.js, Browser and React Native"
+    source: https://www.npmjs.com/package/@aws-sdk/client-sns
+  - match: "@aws-sdk/client-pinpoint"
+    enables: [automated_outreach]
+    says: "AWS SDK for JavaScript Pinpoint Client for Node.js, Browser and React Native"
+    source: https://www.npmjs.com/package/@aws-sdk/client-pinpoint
+  - match: "@mailchimp/mailchimp_marketing"
+    enables: [automated_outreach]
+    says: "The official Node client library for the Mailchimp Marketing API"
+    source: https://www.npmjs.com/package/@mailchimp/mailchimp_marketing
+  - match: "@mailchimp/mailchimp_transactional"
+    enables: [automated_outreach]
+    says: "The official Node client library for the Mailchimp Transactional API"
+    source: https://www.npmjs.com/package/@mailchimp/mailchimp_transactional
+  - match: "customerio-node"
+    enables: [automated_outreach]
+    says: "A node client for the Customer.io event API. http://customer.io"
+    source: https://www.npmjs.com/package/customerio-node
+  - match: "node-mailjet"
+    enables: [automated_outreach]
+    says: "Mailjet API client"
+    source: https://www.npmjs.com/package/node-mailjet
+  - match: "@getbrevo/brevo"
+    enables: [automated_outreach]
+    says: "Brevo SDK for Node.js with TypeScript support."
+    source: https://www.npmjs.com/package/@getbrevo/brevo
+  - match: "plivo"
+    enables: [automated_outreach]
+    says: "A Node.js SDK to make voice calls and send SMS using Plivo and to generate Plivo XML"
+    source: https://www.npmjs.com/package/plivo
+  - match: "messagebird"
+    enables: [automated_outreach]
+    says: "A node.js wrapper for the MessageBird REST API"
+    source: https://www.npmjs.com/package/messagebird
+  - match: "telnyx"
+    enables: [automated_outreach]
+    says: "The official TypeScript library for the Telnyx API"
+    source: https://www.npmjs.com/package/telnyx
+  - match: "@novu/node"
+    enables: [automated_outreach]
+    says: "Notification Management Framework"
+    source: https://www.npmjs.com/package/@novu/node
+  - match: "@knocklabs/node"
+    enables: [automated_outreach]
+    says: "The official TypeScript library for the Knock API"
+    source: https://www.npmjs.com/package/@knocklabs/node
+  - match: "node-pushnotifications"
+    enables: [automated_outreach]
+    says: "A cross-platform push service for node.js"
+    source: https://www.npmjs.com/package/node-pushnotifications
+  - match: "@parse/node-apn"
+    enables: [automated_outreach]
+    says: "An interface to the Apple Push Notification service for Node.js"
+    source: https://www.npmjs.com/package/@parse/node-apn
+  - match: "fcm-node"
+    enables: [automated_outreach]
+    says: "A Node.JS simple interface to Google's Firebase Cloud Messaging (FCM). Supports both android and iOS, including topic messages, and parallel calls. Aditionally it also keeps the callback behavior for the new firebase messaging service."
+    source: https://www.npmjs.com/package/fcm-node
+  - match: "mandrill-api"
+    enables: [automated_outreach]
+    says: "The official API client for the Mandrill email as a service product."
+    source: https://www.npmjs.com/package/mandrill-api
+
+  # Identity verification, age verification and verifiable credentials
+  - match: "onfido-sdk-ui"
+    enables: [relies_on_digital_identity]
+    says: "JavaScript SDK view layer for Onfido identity verification"
+    source: https://www.npmjs.com/package/onfido-sdk-ui
+  - match: "@onfido/api"
+    enables: [relies_on_digital_identity]
+    says: "Node.js library for the Onfido API"
+    source: https://www.npmjs.com/package/@onfido/api
+  - match: "@onfido/react-native-sdk"
+    enables: [relies_on_digital_identity]
+    says: "Onfido React Native SDK"
+    source: https://www.npmjs.com/package/@onfido/react-native-sdk
+  - match: "persona"
+    enables: [relies_on_digital_identity]
+    says: "The official JavaScript SDK for the Persona Inquiry Flow."
+    source: https://www.npmjs.com/package/persona
+  - match: "react-native-persona"
+    enables: [relies_on_digital_identity]
+    says: "Launch a mobile native implementation of the Persona inquiry flow from React Native."
+    source: https://www.npmjs.com/package/react-native-persona
+  - match: "@veriff/incontext-sdk"
+    enables: [relies_on_digital_identity]
+    says: "In-Context Veriff browser integration"
+    source: https://www.npmjs.com/package/@veriff/incontext-sdk
+  - match: "@veriff/js-sdk"
+    enables: [relies_on_digital_identity]
+    says: "JavaScript SDK for Veriff identity verification"
+    source: https://www.npmjs.com/package/@veriff/js-sdk
+  - match: "@veriff/react-native-sdk"
+    enables: [relies_on_digital_identity]
+    says: "React Native SDK for Veriff identity verification"
+    source: https://www.npmjs.com/package/@veriff/react-native-sdk
+  - match: "yoti"
+    enables: [relies_on_digital_identity]
+    says: "Yoti NodeJS SDK for back-end integration"
+    source: https://www.npmjs.com/package/yoti
+  - match: "@stripe/stripe-identity-react-native"
+    enables: [relies_on_digital_identity]
+    says: "Stripe identity react native SDK library"
+    source: https://www.npmjs.com/package/@stripe/stripe-identity-react-native
+  - match: "@sumsub/websdk"
+    enables: [relies_on_digital_identity]
+    says: "SumSub WebSdk"
+    source: https://www.npmjs.com/package/@sumsub/websdk
+  - match: "@sumsub/react-native-mobilesdk-module"
+    enables: [relies_on_digital_identity]
+    says: "React Native Module exposing Sumsub MobileSDK"
+    source: https://www.npmjs.com/package/@sumsub/react-native-mobilesdk-module
+  - match: "jumio"
+    enables: [relies_on_digital_identity]
+    says: "Jumio NetVerify identity and document verification library"
+    source: https://www.npmjs.com/package/jumio
+  - match: "@veramo/core"
+    enables: [relies_on_digital_identity]
+    says: "Veramo Core Logic & Interfaces."
+    source: https://www.npmjs.com/package/@veramo/core
+  - match: "did-jwt-vc"
+    enables: [relies_on_digital_identity]
+    says: "Create and verify W3C Verifiable Credentials and Presentations in JWT format"
+    source: https://www.npmjs.com/package/did-jwt-vc
+  - match: "@digitalbazaar/vc"
+    enables: [relies_on_digital_identity]
+    says: "Verifiable Credentials JavaScript library."
+    source: https://www.npmjs.com/package/@digitalbazaar/vc
+  - match: "vc-js"
+    enables: [relies_on_digital_identity]
+    says: "Verifiable Credentials JavaScript library."
+    source: https://www.npmjs.com/package/vc-js
+  - match: "@digitalcredentials/vc"
+    enables: [relies_on_digital_identity]
+    says: "Verifiable Credentials JavaScript library."
+    source: https://www.npmjs.com/package/@digitalcredentials/vc
+  - match: "@sphereon/ssi-sdk.core"
+    enables: [relies_on_digital_identity]
+    says: "SSI SDK Core & Interfaces"
+    source: https://www.npmjs.com/package/@sphereon/ssi-sdk.core
+  - match: "@sphereon/oid4vci-client"
+    enables: [relies_on_digital_identity]
+    says: "OpenID for Verifiable Credential Issuance (OpenID4VCI) client"
+    source: https://www.npmjs.com/package/@sphereon/oid4vci-client
+  - match: "@cef-ebsi/verifiable-credential"
+    enables: [relies_on_digital_identity]
+    says: "EBSI Verifiable Credential library"
+    source: https://www.npmjs.com/package/@cef-ebsi/verifiable-credential
+
+  # E-signature
+  - match: "docusign-esign"
+    enables: [collects_e_signatures]
+    says: "Docusign Node.js API client."
+    source: https://www.npmjs.com/package/docusign-esign
+  - match: "@dropbox/sign"
+    enables: [collects_e_signatures]
+    says: "Official Node client for Dropbox Sign"
+    source: https://www.npmjs.com/package/@dropbox/sign
+  - match: "hellosign-sdk"
+    enables: [collects_e_signatures]
+    says: "HelloSign NodeJS SDK"
+    source: https://www.npmjs.com/package/hellosign-sdk
+  - match: "signature_pad"
+    enables: [collects_e_signatures]
+    says: "Library for drawing smooth signatures."
+    source: https://www.npmjs.com/package/signature_pad
+  - match: "react-signature-canvas"
+    enables: [collects_e_signatures]
+    says: "A React wrapper component around signature_pad. 100% test coverage, types, examples, & more. Unopinionated and heavily updated fork of react-signature-pad"
+    source: https://www.npmjs.com/package/react-signature-canvas
+  - match: "react-signature-pad-wrapper"
+    enables: [collects_e_signatures]
+    says: "A React component wrapper for signature_pad"
+    source: https://www.npmjs.com/package/react-signature-pad-wrapper
+  - match: "vue-signature-pad"
+    enables: [collects_e_signatures]
+    says: "SignaturePad component for Vue.js"
+    source: https://www.npmjs.com/package/vue-signature-pad
+  - match: "pandadoc-node-client"
+    enables: [collects_e_signatures]
+    says: "The Official PandaDoc Node client SDK"
+    source: https://www.npmjs.com/package/pandadoc-node-client
+  - match: "@signnow/api-client"
+    enables: [collects_e_signatures]
+    says: "SignNow REST Service Wrapper"
+    source: https://www.npmjs.com/package/@signnow/api-client
+  - match: "@docuseal/api"
+    enables: [collects_e_signatures]
+    says: "JavaScript / TypeScript library for the DocuSeal API"
+    source: https://www.npmjs.com/package/@docuseal/api
+
+  # Bundled cryptography
+  - match: "libsodium-wrappers"
+    enables: [ships_encryption]
+    says: "The Sodium cryptographic library compiled to pure JavaScript (wrappers)"
+    source: https://www.npmjs.com/package/libsodium-wrappers
+  - match: "libsodium-wrappers-sumo"
+    enables: [ships_encryption]
+    says: "The Sodium cryptographic library compiled to pure JavaScript (wrappers, sumo variant)"
+    source: https://www.npmjs.com/package/libsodium-wrappers-sumo
+  - match: "libsodium"
+    enables: [ships_encryption]
+    says: "The Sodium cryptographic library compiled to pure JavaScript (raw library, no wrappers)"
+    source: https://www.npmjs.com/package/libsodium
+  - match: "tweetnacl"
+    enables: [ships_encryption]
+    says: "Port of TweetNaCl cryptographic library to JavaScript"
+    source: https://www.npmjs.com/package/tweetnacl
+  - match: "crypto-js"
+    enables: [ships_encryption]
+    says: "JavaScript library of crypto standards."
+    source: https://www.npmjs.com/package/crypto-js
+  - match: "node-forge"
+    enables: [ships_encryption]
+    says: "JavaScript implementations of network transports, cryptography, ciphers, PKI, message digests, and various utilities."
+    source: https://www.npmjs.com/package/node-forge
+  - match: "openpgp"
+    enables: [ships_encryption]
+    says: "OpenPGP.js is a Javascript implementation of the OpenPGP protocol. This is defined in RFC 4880."
+    source: https://www.npmjs.com/package/openpgp
+  - match: "@noble/ciphers"
+    enables: [ships_encryption]
+    says: "Audited & minimal JS implementation of Salsa20, ChaCha and AES"
+    source: https://www.npmjs.com/package/@noble/ciphers
+  - match: "@noble/curves"
+    enables: [ships_encryption]
+    says: "Audited & minimal JS implementation of elliptic curve cryptography"
+    source: https://www.npmjs.com/package/@noble/curves
+  - match: "sjcl"
+    enables: [ships_encryption]
+    says: "Stanford Javascript Crypto Library"
+    source: https://www.npmjs.com/package/sjcl
+  - match: "elliptic"
+    enables: [ships_encryption]
+    says: "EC cryptography"
+    source: https://www.npmjs.com/package/elliptic
+  - match: "eccrypto"
+    enables: [ships_encryption]
+    says: "JavaScript Elliptic curve cryptography library"
+    source: https://www.npmjs.com/package/eccrypto
+  - match: "aes-js"
+    enables: [ships_encryption]
+    says: "A pure JavaScript implementation of the AES block cipher and all common modes of operation."
+    source: https://www.npmjs.com/package/aes-js
+  - match: "@stablelib/chacha20poly1305"
+    enables: [ships_encryption]
+    says: "ChaCha20-Poly1305 AEAD (RFC 7539)"
+    source: https://www.npmjs.com/package/@stablelib/chacha20poly1305
+  - match: "kbpgp"
+    enables: [ships_encryption]
+    says: "Keybase's PGP Implementation"
+    source: https://www.npmjs.com/package/kbpgp
+
+  # Face and voice biometrics
+  - match: "face-api.js"
+    enables: [processes_biometrics]
+    says: "JavaScript API for face detection and face recognition in the browser with tensorflow.js"
+    source: https://www.npmjs.com/package/face-api.js
+  - match: "@vladmandic/face-api"
+    enables: [processes_biometrics]
+    says: "FaceAPI: AI-powered Face Detection & Rotation Tracking, Face Description & Recognition, Age & Gender & Emotion Prediction for Browser and NodeJS using TensorFlow/JS"
+    source: https://www.npmjs.com/package/@vladmandic/face-api
+  - match: "face-recognition"
+    enables: [processes_biometrics]
+    says: "Simple Node.js API for robust face detection and face recognition."
+    source: https://www.npmjs.com/package/face-recognition
+
+  # Call and meeting recording
+    # The registry has no usable description; this is the first sentence of the README, markdown link markup removed.
+  - match: "recall-ai"
+    enables: [records_calls]
+    says: "An easy to use Node/TypeScript client for Recall APIs."
+    source: https://www.npmjs.com/package/recall-ai
+
+  # Live chat widgets and chat SDKs
+  - match: "@intercom/messenger-js-sdk"
+    enables: [records_text_chat]
+    says: "Beta - Npm package for Intercom Messenger Client SDK"
+    source: https://www.npmjs.com/package/@intercom/messenger-js-sdk
+  - match: "react-use-intercom"
+    enables: [records_text_chat]
+    says: "React Intercom integration without the hassle, driven by hooks."
+    source: https://www.npmjs.com/package/react-use-intercom
+  - match: "@intercom/intercom-react-native"
+    enables: [records_text_chat]
+    says: "React Native wrapper to bridge our iOS and Android SDK"
+    source: https://www.npmjs.com/package/@intercom/intercom-react-native
+  - match: "crisp-sdk-web"
+    enables: [records_text_chat]
+    says: "Include Crisp chat widget inside web frameworks."
+    source: https://www.npmjs.com/package/crisp-sdk-web
+  - match: "tawkto-react"
+    enables: [records_text_chat]
+    says: "Integrate tawk.to into react application"
+    source: https://www.npmjs.com/package/tawkto-react
+  - match: "@tawk.to/tawk-messenger-react"
+    enables: [records_text_chat]
+    says: "Official React plugin for Tawk messenger"
+    source: https://www.npmjs.com/package/@tawk.to/tawk-messenger-react
+  - match: "@tawk.to/tawk-messenger-vue-2"
+    enables: [records_text_chat]
+    says: "Official Vue 2 plugin for Tawk messenger"
+    source: https://www.npmjs.com/package/@tawk.to/tawk-messenger-vue-2
+  - match: "stream-chat"
+    enables: [records_text_chat]
+    says: "JS SDK for the Stream Chat API"
+    source: https://www.npmjs.com/package/stream-chat
+  - match: "stream-chat-react"
+    enables: [records_text_chat]
+    says: "React components to create chat conversations or livestream style chat"
+    source: https://www.npmjs.com/package/stream-chat-react
+  - match: "stream-chat-react-native"
+    enables: [records_text_chat]
+    says: "The official React Native SDK for Stream Chat, a service for building chat applications"
+    source: https://www.npmjs.com/package/stream-chat-react-native
+  - match: "@sendbird/chat"
+    enables: [records_text_chat]
+    says: "Sendbird SDK for JavaScript"
+    source: https://www.npmjs.com/package/@sendbird/chat
+  - match: "@sendbird/uikit-react"
+    enables: [records_text_chat]
+    says: "Sendbird UIKit for React: A feature-rich and customizable chat UI kit with messaging, channel management, and user authentication."
+    source: https://www.npmjs.com/package/@sendbird/uikit-react
+  - match: "@sendbird/uikit-react-native"
+    enables: [records_text_chat]
+    says: "Sendbird UIKit for React Native: A feature-rich and customizable chat UI kit with messaging, channel management, and user authentication."
+    source: https://www.npmjs.com/package/@sendbird/uikit-react-native
+  - match: "@livechat/widget-react"
+    enables: [records_text_chat]
+    says: "This library allows to render and interact with the LiveChat Chat Widget inside a React application"
+    source: https://www.npmjs.com/package/@livechat/widget-react
+  - match: "@livechat/widget-vue"
+    enables: [records_text_chat]
+    says: "This library allows to render and interact with the LiveChat Chat Widget inside a Vue 3 application"
+    source: https://www.npmjs.com/package/@livechat/widget-vue
+  - match: "talkjs"
+    enables: [records_text_chat]
+    says: "Build the perfect messaging experience in 10 minutes."
+    source: https://www.npmjs.com/package/talkjs
+  - match: "@talkjs/react"
+    enables: [records_text_chat]
+    says: "Official TalkJS SDK for React"
+    source: https://www.npmjs.com/package/@talkjs/react
+  - match: "react-live-chat-loader"
+    enables: [records_text_chat]
+    says: "Implement live chat in your react app without taking a performance hit."
+    source: https://www.npmjs.com/package/react-live-chat-loader
+  - match: "smooch"
+    enables: [records_text_chat]
+    says: "Smooch.io powered web messaging"
+    source: https://www.npmjs.com/package/smooch
