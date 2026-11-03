@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { chmod, mkdir, mkdtemp, readdir, rm, stat, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, readdir, realpath, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -179,6 +179,29 @@ describe('ensureEngine explicit engines', () => {
     expect(viaEnv.pinned).toBe(false);
     const explicit = await ensureEngine(base({ enginePath: p, env: { LEXCODE_ENGINE: '/nowhere/else' }, pin: pinFor(GOOD) }));
     expect(explicit.path).toBe(p);
+  });
+
+  it('resolves a relative --engine or LEXCODE_ENGINE against the starting directory, to an absolute path', async () => {
+    if (process.platform === 'win32') return;
+    const p = await fakeEngine();
+    const viaFlag = await ensureEngine(base({ enginePath: 'my-engine', cwd: dir, pin: pinFor(GOOD) }));
+    expect(viaFlag.path).toBe(p);
+    const viaEnv = await ensureEngine(base({ env: { LEXCODE_ENGINE: './my-engine' }, cwd: dir, pin: pinFor(GOOD) }));
+    expect(viaEnv.path).toBe(p);
+    expect(viaEnv.path.startsWith('/')).toBe(true);
+  });
+
+  it('defaults the starting directory to the process working directory', async () => {
+    if (process.platform === 'win32') return;
+    const p = await fakeEngine();
+    const was = process.cwd();
+    process.chdir(dir);
+    try {
+      const r = await ensureEngine(base({ enginePath: 'my-engine', pin: pinFor(GOOD) }));
+      expect(r.path).toBe(await realpath(p));
+    } finally {
+      process.chdir(was);
+    }
   });
 
   it('names the path and the next step when the explicit engine does not exist', async () => {

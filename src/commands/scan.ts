@@ -131,7 +131,7 @@ export async function scan(o: ScanOptions): Promise<EvidenceRecord> {
       writeMergedConfig(rs.rules, configFile);
       const targets = engineTargets(rs.rules, countedFiles);
       if (targets.length > 0) {
-        const ran = await runEngine({ engine: handle.path, configFile, targets, cwd: root });
+        const ran = await runEngine({ engine: handle.path, configFile, targets, root });
         engineVersion = ran.version;
         fileErrors = ran.fileErrors;
         const back = pathMapper(pairs);

@@ -4,7 +4,7 @@
 //   FAKE_OPENGREP_ARGV_LOG  append one JSON line {argv, cwd, env} per scan run
 //   FAKE_OPENGREP_RESULTS   JSON array that replaces the default results (ok and errors modes)
 //   FAKE_OPENGREP_VERSION   the version to print and report (default 1.33.1)
-import { appendFileSync, writeFileSync } from 'node:fs';
+import { appendFileSync, readlinkSync, realpathSync, writeFileSync } from 'node:fs';
 
 const argv = process.argv.slice(2);
 const version = process.env.FAKE_OPENGREP_VERSION ?? '1.33.1';
@@ -45,6 +45,13 @@ if (process.env.FAKE_OPENGREP_ARGV_LOG) {
       flags,
       targets,
       cwd: process.cwd(),
+      rootLink: (() => {
+        try {
+          return realpathSync(readlinkSync('scan-root'));
+        } catch {
+          return null;
+        }
+      })(),
       env: {
         SEMGREP_SEND_METRICS: process.env.SEMGREP_SEND_METRICS,
         OPENGREP_ENABLE_VERSION_CHECK: process.env.OPENGREP_ENABLE_VERSION_CHECK,

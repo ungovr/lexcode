@@ -1,8 +1,10 @@
 import { execFile, spawn } from 'node:child_process';
+import { mkdirSync, symlinkSync } from 'node:fs';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { availableParallelism, tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { isAbsolute, join } from 'node:path';
 import { ToolError } from '../errors.js';
+import { childEnv } from '../proc.js';
 import type { EngineMatch } from '../types.js';
 
 /**
@@ -17,6 +19,17 @@ export const CHUNK_CHARS_OTHER = 900_000;
 /** Engine worker processes: parsing is most of a scan's cost and scales with them. */
 export const MAX_JOBS = 16;
 
+/**
+ * The engine runs in a directory of lexcode's own, never in the scanned
+ * repository, so nothing the repository holds (a program the engine starts by
+ * name, a relative path in its environment) is found first. The repository is
+ * reached through a link of this name in that directory, and targets are
+ * `<name>/<path>`. Absolute targets would put the repository's own location in
+ * every path, and a rule that excludes `**\/examples/**` would then drop a
+ * whole repository that merely lives under a directory called `examples`.
+ */
+export const ROOT_LINK = 'scan-root';
+
 const versionCache = new Map<string, string>();
 
 /** What `<engine> --version` prints, read once per engine path. */
@@ -24,7 +37,7 @@ export async function engineVersion(engine: string): Promise<string> {
   const cached = versionCache.get(engine);
   if (cached) return cached;
   const text = await new Promise<string>((resolve, reject) => {
-    execFile(engine, ['--version'], { timeout: 30_000, windowsHide: true, env: engineEnv() }, (err, stdout) => {
+    execFile(engine, ['--version'], { timeout: 30_000, killSignal: 'SIGKILL', windowsHide: true, cwd: tmpdir(), env: engineEnv() }, (err, stdout) => {
       if (err) reject(err);
       else resolve(stdout);
     });
@@ -43,7 +56,7 @@ export async function engineVersion(engine: string): Promise<string> {
 }
 
 function engineEnv(): NodeJS.ProcessEnv {
-  return { ...process.env, SEMGREP_SEND_METRICS: 'off', OPENGREP_ENABLE_VERSION_CHECK: '0' };
+  return childEnv({ SEMGREP_SEND_METRICS: 'off', OPENGREP_ENABLE_VERSION_CHECK: '0' });
 }
 
 /** Split paths into groups whose joined length, with one separator between paths, stays at or under maxChars. */
@@ -68,8 +81,10 @@ export function chunkTargets(paths: string[], maxChars: number): string[][] {
 export interface RunEngineOptions {
   engine: string;
   configFile: string;
+  /** Repository-relative POSIX paths, or absolute paths (lexcode's own extracted script copies). */
   targets: string[];
-  cwd: string;
+  /** The scanned repository. The engine does not run here. */
+  root: string;
   jobs?: number;
   /** Override the per-run target budget (tests). */
   chunkChars?: number;
@@ -137,6 +152,12 @@ function toPosix(p: string): string {
   return s.startsWith('./') ? s.slice(2) : s;
 }
 
+/** An engine-reported path back to what lexcode passed in: the link prefix comes off a repository path. */
+function fromEngine(reported: string): string {
+  const p = toPosix(reported);
+  return p.startsWith(`${ROOT_LINK}/`) ? p.slice(ROOT_LINK.length + 1) : p;
+}
+
 function mapResults(results: unknown): EngineMatch[] {
   if (!Array.isArray(results)) return [];
   const out: EngineMatch[] = [];
@@ -148,7 +169,7 @@ function mapResults(results: unknown): EngineMatch[] {
     }
     out.push({
       ruleId: r.check_id,
-      path: toPosix(r.path),
+      path: fromEngine(r.path),
       line: typeof r.start?.line === 'number' ? r.start.line : 0,
       metavars,
       lines: typeof r.extra?.lines === 'string' ? r.extra.lines : '',
@@ -181,7 +202,8 @@ async function spawnEngine(engine: string, args: string[], cwd: string): Promise
 
 export async function runEngine(o: RunEngineOptions): Promise<RunEngineResult> {
   const cliVersion = await engineVersion(o.engine);
-  const chunks = chunkTargets(o.targets, o.chunkChars ?? (process.platform === 'win32' ? CHUNK_CHARS_WINDOWS : CHUNK_CHARS_OTHER));
+  const given = o.targets.map((t) => (isAbsolute(t) ? t : `${ROOT_LINK}/${t}`));
+  const chunks = chunkTargets(given, o.chunkChars ?? (process.platform === 'win32' ? CHUNK_CHARS_WINDOWS : CHUNK_CHARS_OTHER));
   const jobs = o.jobs ?? Math.min(availableParallelism(), MAX_JOBS);
   const matches: EngineMatch[] = [];
   let fileErrors = 0;
@@ -190,6 +212,9 @@ export async function runEngine(o: RunEngineOptions): Promise<RunEngineResult> {
 
   const tmp = await mkdtemp(join(tmpdir(), 'lexcode-engine-'));
   try {
+    const cwd = join(tmp, 'cwd');
+    mkdirSync(cwd);
+    symlinkSync(o.root, join(cwd, ROOT_LINK), 'junction');
     for (const [i, chunk] of chunks.entries()) {
       const outFile = join(tmp, `out-${i}.json`);
       const args = [
@@ -209,7 +234,7 @@ export async function runEngine(o: RunEngineOptions): Promise<RunEngineResult> {
         '--',
         ...chunk,
       ];
-      const run = await spawnEngine(o.engine, args, o.cwd).catch((err: unknown) => {
+      const run = await spawnEngine(o.engine, args, cwd).catch((err: unknown) => {
         throw new ToolError(
           `cannot start the engine at ${o.engine} (${err instanceof Error ? err.message : String(err)}). Run \`lexcode engine fetch\` or pass --engine <path>.`,
         );

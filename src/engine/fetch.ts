@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import { chmod, mkdir, open, rename, rm, stat } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { ToolError } from '../errors.js';
 import { cacheDir } from './cache.js';
 import { ENGINE_PIN, assetUrl, type EnginePin, type PlatformKey } from './pin.js';
@@ -21,6 +21,8 @@ export interface EnsureEngineOptions {
   cacheRoot?: string;
   env?: Env;
   platform?: PlatformKey;
+  /** The directory a relative `enginePath` or LEXCODE_ENGINE is resolved against: where lexcode was started, never the scanned repository. */
+  cwd?: string;
   /** Backoff between download attempts; injectable so tests do not wait. */
   sleep?: (ms: number) => Promise<void>;
 }
@@ -159,8 +161,12 @@ export async function verifyPinnedEngine(o: Omit<EnsureEngineOptions, 'download'
 /** Engine precedence: `enginePath`, then LEXCODE_ENGINE, then the cached pinned asset (downloaded when allowed). */
 export async function ensureEngine(o: EnsureEngineOptions): Promise<EngineHandle> {
   const env = o.env ?? process.env;
-  const explicit = o.enginePath || env.LEXCODE_ENGINE;
-  if (explicit) {
+  const given = o.enginePath || env.LEXCODE_ENGINE;
+  if (given) {
+    // Resolved once, here, against the directory lexcode was started from: the existence check, the
+    // --version check and the scan then all name the same file, and none of them can find a program
+    // of the same relative name inside the repository being scanned.
+    const explicit = resolve(o.cwd ?? process.cwd(), given);
     if (!(await exists(explicit))) {
       throw new ToolError(`no engine at ${explicit}. Check the path given to --engine or LEXCODE_ENGINE, or run \`lexcode engine fetch\` to use the pinned engine.`);
     }

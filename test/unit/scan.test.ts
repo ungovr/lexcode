@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -55,12 +55,32 @@ describe('scan with a stand-in engine', () => {
     const runs = readFileSync(argvLog, 'utf8').trim().split('\n').map((l) => JSON.parse(l) as { options: Record<string, string>; targets: string[] });
     expect(runs).toHaveLength(1);
     const targets = (runs[0] as (typeof runs)[number]).targets;
-    expect(targets).toContain('src/a.py');
+    expect(targets).toContain('scan-root/src/a.py');
     expect(targets.some((t) => t.endsWith('App.vue.lexcode.ts'))).toBe(true);
-    expect(targets).not.toContain('README.md');
+    expect(targets).not.toContain('scan-root/README.md');
     // The merged config and the extracted blocks live in a temp directory that is gone afterwards.
     expect(existsSync((runs[0] as (typeof runs)[number]).options['--config'] as string)).toBe(false);
     expect(existsSync(targets.find((t) => t.endsWith('.lexcode.ts')) as string)).toBe(false);
+  });
+
+  it.skipIf(process.platform === 'win32')('runs the engine the user named, not a same-named file in the repository, and not from inside the repository', async () => {
+    const sh = (target: string, extra = ''): string => `#!/bin/sh\n${extra}exec node '${STUB}' "$@"\n`;
+    const shell = tree({ 'og': sh(STUB) });
+    const root = tree({ 'src/a.py': 'x = 1\n', 'og': sh(STUB, `echo ran >> '${join(shell, 'REPO_ENGINE_RAN')}'\n`) });
+    chmodSync(join(shell, 'og'), 0o755);
+    chmodSync(join(root, 'og'), 0o755);
+    const was = process.cwd();
+    process.chdir(shell);
+    try {
+      await scan({ root, rulesDirs: [], rs: stubRuleSet(), enginePath: './og', includeTests: false, snippets: false });
+    } finally {
+      process.chdir(was);
+    }
+    expect(existsSync(join(shell, 'REPO_ENGINE_RAN'))).toBe(false);
+    const runs = readFileSync(argvLog, 'utf8').trim().split('\n').map((l) => JSON.parse(l) as { cwd: string });
+    expect(runs).toHaveLength(1);
+    expect(runs[0]!.cwd).toContain('lexcode-engine-');
+    expect(runs[0]!.cwd.startsWith(root)).toBe(false);
   });
 
   it('reports the engine version the engine reports', async () => {

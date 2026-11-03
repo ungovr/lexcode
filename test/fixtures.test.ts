@@ -45,7 +45,7 @@ beforeAll(async () => {
   tmp = mkdtempSync(join(tmpdir(), 'lexcode-fixtures-'));
   const config = join(tmp, 'rules.yml');
   writeMergedConfig(ruleSet.rules, config);
-  result = await runEngine({ engine, configFile: config, targets: cases.map((c) => rel(c.fixture)), cwd: rulesDir });
+  result = await runEngine({ engine, configFile: config, targets: cases.map((c) => rel(c.fixture)), root: rulesDir });
 });
 
 afterAll(() => {

@@ -60,14 +60,14 @@ describe.skipIf(skipStub)('runEngine with the fake engine', () => {
     await rm(dir, { recursive: true, force: true });
   });
 
-  const calls = async (): Promise<Array<{ argv: string[]; options: Record<string, string>; flags: string[]; targets: string[]; cwd: string; env: Record<string, string | undefined> }>> =>
+  const calls = async (): Promise<Array<{ rootLink?: string; argv: string[]; options: Record<string, string>; flags: string[]; targets: string[]; cwd: string; env: Record<string, string | undefined> }>> =>
     (await readFile(log, 'utf8').catch(() => ''))
       .split('\n')
       .filter(Boolean)
       .map((l) => JSON.parse(l));
 
   it('passes the pinned flags, config, json output and targets, in the given cwd', async () => {
-    const r = await runEngine({ engine: STUB, configFile: '/tmp/cfg.yml', targets: ['a.py', 'sub/b.js'], cwd: dir, jobs: 3 });
+    const r = await runEngine({ engine: STUB, configFile: '/tmp/cfg.yml', targets: ['a.py', 'sub/b.js'], root: dir, jobs: 3 });
     const [c] = await calls();
     expect(c).toBeDefined();
     expect(c!.argv[0]).toBe('scan');
@@ -78,24 +78,43 @@ describe.skipIf(skipStub)('runEngine with the fake engine', () => {
     expect(c!.options['--json-output']).toMatch(/out.*\.json$/);
     expect(c!.options['--timeout']).toBe('30');
     expect(c!.options['--jobs']).toBe('3');
-    expect(c!.targets).toEqual(['a.py', 'sub/b.js']);
-    expect(await realpathOf(c!.cwd)).toBe(await realpathOf(dir));
+    expect(c!.targets).toEqual(['scan-root/a.py', 'scan-root/sub/b.js']);
+    expect(r.matches.map((m) => m.path)).toEqual(['a.py', 'sub/b.js']);
     expect(c!.env.SEMGREP_SEND_METRICS).toBe('off');
     expect(c!.env.OPENGREP_ENABLE_VERSION_CHECK).toBe('0');
     expect(r.version).toBe('1.33.1');
   });
 
   it('puts -- before the targets so a file name that starts with a dash is not read as an option', async () => {
-    await runEngine({ engine: STUB, configFile: 'c.yml', targets: ['-weird.py', 'ok.py'], cwd: dir });
+    await runEngine({ engine: STUB, configFile: 'c.yml', targets: ['-weird.py', 'ok.py'], root: dir });
     const [c] = await calls();
     const at = c!.argv.indexOf('--');
     expect(at).toBeGreaterThan(0);
-    expect(c!.argv.slice(at + 1)).toEqual(['-weird.py', 'ok.py']);
-    expect(c!.targets).toEqual(['-weird.py', 'ok.py']);
+    expect(c!.argv.slice(at + 1)).toEqual(['scan-root/-weird.py', 'scan-root/ok.py']);
+    expect(c!.targets).toEqual(['scan-root/-weird.py', 'scan-root/ok.py']);
+  });
+
+  it('runs the engine in a directory of lexcode\'s own, reaching the repository only through a link', async () => {
+    await runEngine({ engine: STUB, configFile: 'c.yml', targets: ['a.py'], root: dir });
+    const [c] = await calls();
+    const here = await realpathOf(c!.cwd).catch(() => c!.cwd);
+    const root = await realpathOf(dir);
+    expect(here.startsWith(root)).toBe(false);
+    expect(root.startsWith(here)).toBe(false);
+    expect(c!.cwd).toContain('lexcode-engine-');
+    expect(c!.rootLink).toBe(root);
+  });
+
+  it('leaves an absolute target (an extracted script copy) as it is and reports its path unchanged', async () => {
+    const abs = join(dir, 'scripts', 'x.vue.lexcode.ts');
+    const r = await runEngine({ engine: STUB, configFile: 'c.yml', targets: [abs, 'a.py'], root: dir });
+    const [c] = await calls();
+    expect(c!.targets).toEqual([abs, 'scan-root/a.py']);
+    expect(r.matches.map((m) => m.path)).toEqual([abs, 'a.py']);
   });
 
   it('defaults --jobs to the available parallelism, at most 16', async () => {
-    await runEngine({ engine: STUB, configFile: 'c.yml', targets: ['a.py'], cwd: dir });
+    await runEngine({ engine: STUB, configFile: 'c.yml', targets: ['a.py'], root: dir });
     const [c] = await calls();
     const jobs = Number(c!.options['--jobs']);
     expect(jobs).toBe(Math.min(availableParallelism(), 16));
@@ -124,7 +143,7 @@ describe.skipIf(skipStub)('runEngine with the fake engine', () => {
         { check_id: 'lexcode.other', path: 'b.ts', start: { line: 1 }, extra: { lines: 'x' } },
       ]),
     );
-    const r = await runEngine({ engine: STUB, configFile: 'c.yml', targets: ['x'], cwd: dir });
+    const r = await runEngine({ engine: STUB, configFile: 'c.yml', targets: ['x'], root: dir });
     expect(r.matches).toEqual([
       { ruleId: 'lexcode.crawl.http', path: 'src/deep/a.py', line: 12, metavars: { $URL: '"https://example.com"', $F: 'get' }, lines: '    requests.get(url)' },
       { ruleId: 'lexcode.other', path: 'b.ts', line: 1, metavars: {}, lines: 'x' },
@@ -133,21 +152,21 @@ describe.skipIf(skipStub)('runEngine with the fake engine', () => {
 
   it('counts per-file errors in fileErrors without throwing', async () => {
     setEnv('FAKE_OPENGREP_MODE', 'errors');
-    const r = await runEngine({ engine: STUB, configFile: 'c.yml', targets: ['a.py'], cwd: dir });
+    const r = await runEngine({ engine: STUB, configFile: 'c.yml', targets: ['a.py'], root: dir });
     expect(r.fileErrors).toBe(2);
     expect(r.matches).toHaveLength(1);
   });
 
   it('throws a ToolError carrying the engine message for a fatal rule error', async () => {
     setEnv('FAKE_OPENGREP_MODE', 'fatal');
-    const err = await runEngine({ engine: STUB, configFile: 'c.yml', targets: ['a.py'], cwd: dir }).catch((e: unknown) => e);
+    const err = await runEngine({ engine: STUB, configFile: 'c.yml', targets: ['a.py'], root: dir }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ToolError);
     expect((err as Error).message).toContain('rule is broken');
   });
 
   it('throws a ToolError with the last stderr line when the engine exits non-zero', async () => {
     setEnv('FAKE_OPENGREP_MODE', 'exit2');
-    const err = await runEngine({ engine: STUB, configFile: 'c.yml', targets: ['a.py'], cwd: dir }).catch((e: unknown) => e);
+    const err = await runEngine({ engine: STUB, configFile: 'c.yml', targets: ['a.py'], root: dir }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ToolError);
     expect((err as Error).message).toContain('last stderr line');
     expect((err as Error).message).toContain('config exploded');
@@ -155,16 +174,16 @@ describe.skipIf(skipStub)('runEngine with the fake engine', () => {
 
   it('throws a ToolError when the output file is not JSON', async () => {
     setEnv('FAKE_OPENGREP_MODE', 'badjson');
-    await expect(runEngine({ engine: STUB, configFile: 'c.yml', targets: ['a.py'], cwd: dir })).rejects.toBeInstanceOf(ToolError);
+    await expect(runEngine({ engine: STUB, configFile: 'c.yml', targets: ['a.py'], root: dir })).rejects.toBeInstanceOf(ToolError);
   });
 
   it('throws a ToolError when the engine writes no output file', async () => {
     setEnv('FAKE_OPENGREP_MODE', 'nooutput');
-    await expect(runEngine({ engine: STUB, configFile: 'c.yml', targets: ['a.py'], cwd: dir })).rejects.toBeInstanceOf(ToolError);
+    await expect(runEngine({ engine: STUB, configFile: 'c.yml', targets: ['a.py'], root: dir })).rejects.toBeInstanceOf(ToolError);
   });
 
   it('throws a ToolError naming the engine when it cannot be started', async () => {
-    const err = await runEngine({ engine: join(dir, 'no-such-engine'), configFile: 'c.yml', targets: ['a.py'], cwd: dir }).catch((e: unknown) => e);
+    const err = await runEngine({ engine: join(dir, 'no-such-engine'), configFile: 'c.yml', targets: ['a.py'], root: dir }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ToolError);
     expect((err as Error).message).toContain('no-such-engine');
   });
@@ -172,17 +191,17 @@ describe.skipIf(skipStub)('runEngine with the fake engine', () => {
   it('runs once per chunk and concatenates matches and fileErrors', async () => {
     setEnv('FAKE_OPENGREP_MODE', 'errors');
     const targets = ['aaaa.py', 'bbbb.py', 'cccc.py', 'dddd.py', 'eeee.py'];
-    const r = await runEngine({ engine: STUB, configFile: 'c.yml', targets, cwd: dir, chunkChars: 16 });
+    const r = await runEngine({ engine: STUB, configFile: 'c.yml', targets, root: dir, chunkChars: 26 });
     const cs = await calls();
     expect(cs.length).toBeGreaterThan(1);
-    expect(cs.flatMap((c) => c.targets)).toEqual(targets);
+    expect(cs.flatMap((c) => c.targets)).toEqual(targets.map((t) => `scan-root/${t}`));
     expect(new Set(cs.map((c) => c.options['--json-output'])).size).toBe(cs.length);
     expect(r.matches.map((m) => m.path)).toEqual(targets);
     expect(r.fileErrors).toBe(2 * cs.length);
   });
 
   it('does not run the engine at all for an empty target list', async () => {
-    const r = await runEngine({ engine: STUB, configFile: 'c.yml', targets: [], cwd: dir });
+    const r = await runEngine({ engine: STUB, configFile: 'c.yml', targets: [], root: dir });
     expect(r.matches).toEqual([]);
     expect(r.fileErrors).toBe(0);
     expect(await calls()).toEqual([]);
@@ -190,15 +209,15 @@ describe.skipIf(skipStub)('runEngine with the fake engine', () => {
 
   it('removes its temporary output directory, on success and on failure', async () => {
     const before = await tmpEntries();
-    await runEngine({ engine: STUB, configFile: 'c.yml', targets: ['a.py'], cwd: dir });
+    await runEngine({ engine: STUB, configFile: 'c.yml', targets: ['a.py'], root: dir });
     setEnv('FAKE_OPENGREP_MODE', 'exit2');
-    await runEngine({ engine: STUB, configFile: 'c.yml', targets: ['a.py'], cwd: dir }).catch(() => {});
+    await runEngine({ engine: STUB, configFile: 'c.yml', targets: ['a.py'], root: dir }).catch(() => {});
     expect(await tmpEntries()).toEqual(before);
   });
 
   it('reads the version from --version once per engine path', async () => {
     setEnv('FAKE_OPENGREP_VERSION', '1.33.1');
-    const a = await runEngine({ engine: STUB, configFile: 'c.yml', targets: ['a.py'], cwd: dir });
+    const a = await runEngine({ engine: STUB, configFile: 'c.yml', targets: ['a.py'], root: dir });
     expect(a.version).toBe('1.33.1');
   });
 });
