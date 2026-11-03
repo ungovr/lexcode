@@ -1,0 +1,26 @@
+rules:
+  - id: lexcode.voice.whisper-transcribe
+    languages: [python]
+    severity: INFO
+    message: Transcribes recorded speech to text with a Whisper model or the hosted transcription endpoint.
+    mode: taint
+    pattern-sources:
+      - pattern: whisper.load_model(...)
+      - pattern: OpenAI(...)
+      - pattern: AsyncOpenAI(...)
+      - pattern: AzureOpenAI(...)
+      - pattern: openai.OpenAI(...)
+      - pattern: openai.AsyncOpenAI(...)
+    pattern-sinks:
+      - patterns:
+          - pattern: $M.transcribe(...)
+          - focus-metavariable: $M
+      - patterns:
+          - pattern: $C.audio.transcriptions.create(...)
+          - focus-metavariable: $C
+    metadata:
+      activity: processes_voice
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-voice
+      provenance: ungovr-original
+      license: MIT
