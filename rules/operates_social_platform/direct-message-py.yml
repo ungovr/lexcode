@@ -1,0 +1,47 @@
+rules:
+  - id: lexcode.social.direct-message-py
+    languages: [python]
+    severity: INFO
+    message: Stores or receives a message addressed from one user account to another, which is how people talk privately on a social platform (operates_social_platform).
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: |
+                    recipient = $RV
+              - pattern: |
+                    receiver = $RV
+              - pattern: |
+                    to_user = $RV
+          - pattern-either:
+              - pattern-inside: |
+                    class $C(...):
+                        ...
+                        sender = $SV
+                        ...
+              - pattern-inside: |
+                    class $C(...):
+                        ...
+                        from_user = $SV
+                        ...
+              - pattern-inside: |
+                    class $C(...):
+                        ...
+                        author = $SV
+                        ...
+          - metavariable-regex:
+              metavariable: $C
+              regex: '(?i).*(message|dm|directchat|conversationentry)'
+          - metavariable-regex:
+              metavariable: $SV
+              regex: '(?s).*(ForeignKey|relationship\()'
+          - metavariable-regex:
+              metavariable: $RV
+              regex: '(?s).*(ForeignKey|relationship\()'
+      - pattern-regex: '(?mi)^[ \t]*@\w+\.on\([ \t]*["''](dm|direct[_-]message|private[_-]message)["'']'
+    metadata:
+      activity: operates_social_platform
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/operates-social-platform
+      provenance: ungovr-original
+      license: MIT

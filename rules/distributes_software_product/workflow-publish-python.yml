@@ -1,0 +1,29 @@
+rules:
+  - id: lexcode.distribute.workflow-publish-python
+    languages: [yaml]
+    severity: INFO
+    message: Runs a workflow step that uploads a package to the Python Package Index, which makes software available for others to install (distributes_software_product).
+    pattern-either:
+      - patterns:
+          - pattern: "run: $CMD"
+          - metavariable-regex:
+              metavariable: $CMD
+              regex: '^(?![\s\S]*--dry-run)[\s\S]*(\btwine\s+upload\b|\b(poetry|uv|flit|hatch)\s+publish\b)'
+      - patterns:
+          - pattern: "uses: $ACTION"
+          - metavariable-regex:
+              metavariable: $ACTION
+              regex: '^pypa/gh-action-pypi-publish(@.*)?$'
+    paths:
+      include:
+        - ".github/workflows/*.yml"
+        - ".github/workflows/*.yaml"
+        - "**/.github/workflows/*.yml"
+        - "**/.github/workflows/*.yaml"
+        - "workflow-publish-python.*"
+    metadata:
+      activity: distributes_software_product
+      mentioned: performs
+      definition: https://lexlint.io/activities/distributes-software-product
+      provenance: ungovr-original
+      license: MIT

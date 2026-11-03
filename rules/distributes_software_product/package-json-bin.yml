@@ -1,0 +1,20 @@
+rules:
+  - id: lexcode.distribute.package-json-bin
+    languages: [json]
+    severity: INFO
+    message: Declares a command-line program in a package that is not marked private, which is software made available for others to install (distributes_software_product).
+    patterns:
+      - pattern: |
+          {..., "name": $NAME, ..., "bin": $BIN, ...}
+      - pattern-not: |
+          {..., "private": true, ...}
+    paths:
+      include:
+        - "package.json"
+        - "package-json-bin.*"
+    metadata:
+      activity: distributes_software_product
+      mentioned: performs
+      definition: https://lexlint.io/activities/distributes-software-product
+      provenance: ungovr-original
+      license: MIT

@@ -1,0 +1,14 @@
+rules:
+  - id: lexcode.social.home-feed-js
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Selects posts written by the accounts a user follows or befriends, which builds a feed of other users' posts for a social platform (operates_social_platform).
+    pattern-either:
+      - pattern-regex: '\b(author|user|owner|creator|poster)(Id)?\s*:\s*\{\s*\$?in\s*:\s*[^}]{0,80}(follow|friend)'
+    metadata:
+      activity: operates_social_platform
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/operates-social-platform
+      provenance: ungovr-original
+      license: MIT

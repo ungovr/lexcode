@@ -1,0 +1,12 @@
+# lexcode-expect: 1
+[project]
+name = "app"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.110",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

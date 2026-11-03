@@ -1,0 +1,8 @@
+{
+  "name": "contact-form",
+  "fields": [
+    {"id": "email", "type": "email"},
+    {"id": "message", "type": "textarea"}
+  ],
+  "submit": {}
+}

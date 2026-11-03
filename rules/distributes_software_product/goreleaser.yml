@@ -1,0 +1,23 @@
+rules:
+  - id: lexcode.distribute.goreleaser
+    languages: [yaml]
+    severity: INFO
+    message: Configures release builds of a program for download on several platforms, which is software made available for others to run (distributes_software_product).
+    pattern-either:
+      - pattern: |
+          builds: ...
+      - pattern: |
+          dockers: ...
+    paths:
+      include:
+        - ".goreleaser.yml"
+        - ".goreleaser.yaml"
+        - "goreleaser.yml"
+        - "goreleaser.yaml"
+        - "goreleaser.*test.*"
+    metadata:
+      activity: distributes_software_product
+      mentioned: performs
+      definition: https://lexlint.io/activities/distributes-software-product
+      provenance: ungovr-original
+      license: MIT

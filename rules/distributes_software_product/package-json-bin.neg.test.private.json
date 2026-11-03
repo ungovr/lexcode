@@ -1,0 +1,11 @@
+{
+  "name": "@acme/dev-tools",
+  "version": "0.0.0",
+  "private": true,
+  "bin": {
+    "seed-db": "./bin/seed-db.js"
+  },
+  "dependencies": {
+    "pg": "^8.12.0"
+  }
+}

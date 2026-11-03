@@ -1,0 +1,15 @@
+rules:
+  - id: lexcode.consumer.signup-route-py
+    languages: [python]
+    severity: INFO
+    message: Serves a public sign-up page or endpoint, a screen that members of the public use to reach a service (ships_consumer_interface).
+    pattern-either:
+      - pattern-regex: '(?m)^[ \t]*@\w+\.(route|get|post)\([ \t]*["'']/?(api/)?(v[0-9]+/)?(accounts/|auth/|users/)?(sign-?up|register|registration|create-account)/?["'']'
+      - pattern-regex: '(?m)^[ \t]*(path|re_path|url)\([ \t]*r?["'']\^?/?(accounts/|auth/|users/)?(sign-?up|register|registration|create-account)/?\$?["'']'
+    metadata:
+      activity: ships_consumer_interface
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/ships-consumer-interface
+      provenance: ungovr-original
+      license: MIT

@@ -1,0 +1,27 @@
+rules:
+  - id: lexcode.mobile.expo-config-json
+    languages: [json]
+    severity: INFO
+    message: Configures an Expo app with an iOS bundle identifier or an Android package name, which is preparing an app for Apple's or Google's store (ships_mobile_app).
+    pattern-either:
+      - pattern: |
+          {..., "expo": {..., "ios": {..., "bundleIdentifier": $ID, ...}, ...}, ...}
+      - pattern: |
+          {..., "expo": {..., "android": {..., "package": $ID, ...}, ...}, ...}
+    paths:
+      include:
+        - "app.json"
+        - "expo-config-json.*"
+      exclude:
+        - "**/example/**"
+        - "**/examples/**"
+        - "**/sample/**"
+        - "**/samples/**"
+        - "**/demo/**"
+        - "**/demos/**"
+    metadata:
+      activity: ships_mobile_app
+      mentioned: performs
+      definition: https://lexlint.io/activities/ships-mobile-app
+      provenance: ungovr-original
+      license: MIT

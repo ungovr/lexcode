@@ -1,0 +1,10 @@
+# lexcode-expect: 0
+# A service definition with a similar-looking key set: nothing here packages a desktop app.
+name: notes-api
+services:
+  api:
+    image: ghcr.io/example/notes-api:main
+    environment:
+      APP_ID: org.example.notes
+    ports:
+      - "8080:8080"

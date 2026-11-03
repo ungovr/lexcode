@@ -1,0 +1,6 @@
+{
+  "productName": "Field Notes Desktop",
+  "directories": { "output": "release" },
+  "files": ["dist/**/*"],
+  "mac": { "category": "public.app-category.productivity" }
+}

@@ -1,0 +1,17 @@
+rules:
+  - id: lexcode.distribute.pyproject-package
+    languages: [generic]
+    severity: INFO
+    message: Declares a Python project beside a build backend, which may be a package made available for others to install or only a service that builds itself (distributes_software_product).
+    pattern-regex: '(?ms)^\[build-system\].*?^\[project\]|^\[project\].*?^\[build-system\]'
+    paths:
+      include:
+        - "pyproject.toml"
+        - "pyproject-package.*"
+    metadata:
+      activity: distributes_software_product
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/distributes-software-product
+      provenance: ungovr-original
+      license: MIT

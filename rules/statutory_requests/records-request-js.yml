@@ -1,0 +1,15 @@
+rules:
+  - id: lexcode.records-request.compose-js
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Composes a public-records or freedom-of-information request addressed to a public body, which is filing a statutory request (statutory_requests).
+    pattern-either:
+      - pattern-regex: '(?i)\bsubject\s*:\s*["''`][^"''`\n]{0,60}?((public records( act)?|freedom of information( act)?|foia|open records|right to know|right to information)[^\"''`\n]{0,40}request|request[^\"''`\n]{0,40}(public records|freedom of information|foia|open records|right to information))'
+      - pattern-regex: '(?is)(public records act|freedom of information act|foia|open records act|right to know law|right to information act)[^\"''`]{0,700}?\b(i|we)\s+(hereby\s+)?(request|am requesting|are requesting|am writing to request)\b'
+    metadata:
+      activity: statutory_requests
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/statutory-requests
+      provenance: ungovr-original
+      license: MIT

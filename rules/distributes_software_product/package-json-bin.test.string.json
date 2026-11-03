@@ -1,0 +1,9 @@
+{
+  "name": "create-field-app",
+  "version": "0.4.2",
+  "license": "Apache-2.0",
+  "bin": "./index.js",
+  "dependencies": {
+    "prompts": "^2.4.2"
+  }
+}

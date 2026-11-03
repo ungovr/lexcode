@@ -1,0 +1,29 @@
+rules:
+  - id: lexcode.distribute.workflow-docker-push
+    languages: [yaml]
+    severity: INFO
+    message: Builds a container image and pushes it to a registry, which may make a server available for others to run or may only feed the operator's own hosting (distributes_software_product).
+    patterns:
+      - pattern: |
+          uses: $ACTION
+          ...
+          with:
+            ...
+            push: true
+      - metavariable-regex:
+          metavariable: $ACTION
+          regex: '^docker/build-push-action(@.*)?$'
+    paths:
+      include:
+        - ".github/workflows/*.yml"
+        - ".github/workflows/*.yaml"
+        - "**/.github/workflows/*.yml"
+        - "**/.github/workflows/*.yaml"
+        - "workflow-docker-push.*"
+    metadata:
+      activity: distributes_software_product
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/distributes-software-product
+      provenance: ungovr-original
+      license: MIT

@@ -1,0 +1,23 @@
+rules:
+  - id: lexcode.distribute.setup-py
+    languages: [python]
+    severity: INFO
+    message: Calls setuptools setup with a package name and a project link or command-line entry point, which defines a Python package made available for others to install (distributes_software_product).
+    patterns:
+      - pattern-either:
+          - pattern: setuptools.setup(..., name=$NAME, ..., $KEY=$VALUE, ...)
+          - pattern: distutils.core.setup(..., name=$NAME, ..., $KEY=$VALUE, ...)
+          - pattern: setup(..., name=$NAME, ..., $KEY=$VALUE, ...)
+      - metavariable-regex:
+          metavariable: $KEY
+          regex: '^(url|project_urls|download_url|entry_points)$'
+    paths:
+      include:
+        - "setup.py"
+        - "setup-py.*"
+    metadata:
+      activity: distributes_software_product
+      mentioned: performs
+      definition: https://lexlint.io/activities/distributes-software-product
+      provenance: ungovr-original
+      license: MIT

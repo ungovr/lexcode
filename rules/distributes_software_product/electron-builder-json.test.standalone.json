@@ -1,0 +1,7 @@
+{
+  "appId": "org.example.trailmap",
+  "productName": "Trail Map",
+  "directories": { "output": "release" },
+  "files": ["dist/**/*"],
+  "linux": { "target": ["AppImage", "deb"] }
+}

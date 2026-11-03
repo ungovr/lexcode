@@ -1,0 +1,14 @@
+{
+  "name": "docs-site",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "config": {
+    "bin": "./node_modules/.bin"
+  },
+  "dependencies": {
+    "vite": "^5.4.0"
+  }
+}

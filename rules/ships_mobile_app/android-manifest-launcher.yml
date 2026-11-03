@@ -1,0 +1,30 @@
+rules:
+  - id: lexcode.mobile.android-manifest-launcher
+    languages: [xml]
+    severity: INFO
+    message: Declares an Android application with a launcher activity, an app that installs onto a phone and is listed in Google Play or sideloaded (ships_mobile_app).
+    patterns:
+      - pattern: |
+          <category android:name="android.intent.category.LAUNCHER" />
+      - pattern-inside: |
+          <manifest ...>
+            ...
+          </manifest>
+    paths:
+      include:
+        - "AndroidManifest.xml"
+        - "android-manifest-launcher.*"
+      exclude:
+        - "**/example/**"
+        - "**/examples/**"
+        - "**/sample/**"
+        - "**/samples/**"
+        - "**/demo/**"
+        - "**/demos/**"
+        - "**/androidTest/**"
+    metadata:
+      activity: ships_mobile_app
+      mentioned: performs
+      definition: https://lexlint.io/activities/ships-mobile-app
+      provenance: ungovr-original
+      license: MIT

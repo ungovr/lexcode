@@ -1,0 +1,15 @@
+rules:
+  - id: lexcode.appstore.review-workflow-js
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Defines an approval step for plugins, extensions or apps that outside developers submit, which is how an app store vets what it lists (operates_app_store).
+    pattern-either:
+      - pattern-regex: '\b(function|const|let|var)\s+(approve|reject|review)(Plugin|Extension|Addon|AddOn|App|Listing|Integration)(Submission)?s?\b'
+      - pattern-regex: '\.(post|put|patch)\(\s*["''`]/[A-Za-z0-9_/:{}.\-]*(plugins|extensions|addons|apps|listings|integrations)/[:{]?[A-Za-z]+\}?/(approve|reject)/?["''`]'
+    metadata:
+      activity: operates_app_store
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/operates-app-store
+      provenance: ungovr-original
+      license: MIT

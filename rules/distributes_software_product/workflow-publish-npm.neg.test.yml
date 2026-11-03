@@ -1,0 +1,30 @@
+# lexcode-expect: 0
+name: ci
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npm test
+      - name: Check what would be published
+        run: npm publish --dry-run
+  deploy:
+    needs: check
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ship to our own servers
+        run: |
+          npm ci
+          npm run build
+          rsync -az --delete dist/ deploy@app.internal.example:/srv/site/
+          ssh deploy@app.internal.example 'sudo systemctl restart site'

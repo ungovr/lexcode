@@ -1,0 +1,7 @@
+# lexcode-expect: 1
+version: 2
+project_name: relay
+dockers:
+  - image_templates:
+      - "ghcr.io/example/relay:{{ .Tag }}"
+    dockerfile: Dockerfile

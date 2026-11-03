@@ -1,0 +1,18 @@
+rules:
+  - id: lexcode.distribute.pyproject-published
+    languages: [generic]
+    severity: INFO
+    message: Declares a buildable Python package with project links or registry classifiers, which is a library made available for others to install (distributes_software_product).
+    options:
+      generic_ellipsis_max_span: 400
+    pattern-regex: '(?ms)^\[build-system\].*?^\[project\.urls\]|^\[project\.urls\].*?^\[build-system\]|^\[build-system\].*?^classifiers\s*=|^classifiers\s*=.*?^\[build-system\]'
+    paths:
+      include:
+        - "pyproject.toml"
+        - "pyproject-published.*"
+    metadata:
+      activity: distributes_software_product
+      mentioned: performs
+      definition: https://lexlint.io/activities/distributes-software-product
+      provenance: ungovr-original
+      license: MIT

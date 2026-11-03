@@ -1,0 +1,17 @@
+# lexcode-expect: 1
+appId: org.example.notes
+productName: Field Notes
+directories:
+  output: release
+files:
+  - dist/**/*
+  - package.json
+mac:
+  category: public.app-category.productivity
+  target: dmg
+win:
+  target: nsis
+linux:
+  target: AppImage
+publish:
+  provider: github

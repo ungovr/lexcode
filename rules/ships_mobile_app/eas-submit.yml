@@ -1,0 +1,24 @@
+rules:
+  - id: lexcode.mobile.eas-submit
+    languages: [json]
+    severity: INFO
+    message: Defines an EAS submit profile that sends a build to Apple's or Google's store, which is distributing a mobile app (ships_mobile_app).
+    pattern: |
+      {..., "submit": {..., $PROFILE: {...}, ...}, ...}
+    paths:
+      include:
+        - "eas.json"
+        - "eas-submit.*"
+      exclude:
+        - "**/example/**"
+        - "**/examples/**"
+        - "**/sample/**"
+        - "**/samples/**"
+        - "**/demo/**"
+        - "**/demos/**"
+    metadata:
+      activity: ships_mobile_app
+      mentioned: performs
+      definition: https://lexlint.io/activities/ships-mobile-app
+      provenance: ungovr-original
+      license: MIT

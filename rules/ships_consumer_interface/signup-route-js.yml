@@ -1,0 +1,15 @@
+rules:
+  - id: lexcode.consumer.signup-route-js
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Serves a public sign-up page or endpoint, a screen that members of the public use to reach a service (ships_consumer_interface).
+    pattern-either:
+      - pattern-regex: '\.(get|post|all)\(\s*["''`]/(api/)?(v[0-9]+/)?(auth/|accounts/|users/)?(sign-?up|register|registration|create-account)/?["''`]'
+      - pattern-regex: '<Route\s[^>]{0,80}\bpath=\{?["''`]/(auth/|accounts/|users/)?(sign-?up|register|registration|create-account)/?["''`]'
+    metadata:
+      activity: ships_consumer_interface
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/ships-consumer-interface
+      provenance: ungovr-original
+      license: MIT

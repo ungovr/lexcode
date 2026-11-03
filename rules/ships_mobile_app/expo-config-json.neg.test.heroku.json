@@ -1,0 +1,23 @@
+{
+  "name": "review-app-api",
+  "description": "A review app for the API",
+  "repository": "https://github.com/example/review-app-api",
+  "scripts": {
+    "postdeploy": "python manage.py migrate"
+  },
+  "env": {
+    "SECRET_KEY": {
+      "generator": "secret"
+    },
+    "DEBUG": {
+      "value": "false"
+    }
+  },
+  "formation": {
+    "web": {
+      "quantity": 1
+    }
+  },
+  "addons": ["heroku-postgresql:essential-0"],
+  "buildpacks": [{"url": "heroku/python"}]
+}
