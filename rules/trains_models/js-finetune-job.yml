@@ -1,0 +1,16 @@
+rules:
+  - id: lexcode.train.js-finetune-job
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Starts a hosted fine-tuning job that adapts a model to the caller's data, which is training models (trains_models).
+    pattern-either:
+      - pattern: $C.fineTuning.jobs.create(...)
+      - pattern: $C.fineTuning.create(...)
+      - pattern: $C.fineTunes.create(...)
+      - pattern: $C.tunings.tune(...)
+    metadata:
+      activity: trains_models
+      mentioned: performs
+      definition: https://lexlint.io/activities/trains-models
+      provenance: ungovr-original
+      license: MIT

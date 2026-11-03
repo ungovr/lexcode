@@ -1,0 +1,45 @@
+rules:
+  - id: lexcode.train.py-hf-trainer
+    languages: [python]
+    severity: INFO
+    message: Runs a Hugging Face, TRL or Lightning trainer over a model and a training dataset, which is training models (trains_models).
+    mode: taint
+    pattern-sources:
+      - pattern: Trainer(..., train_dataset=..., ...)
+      - pattern: $MOD.Trainer(..., train_dataset=..., ...)
+      - pattern: Seq2SeqTrainer(...)
+      - pattern: $MOD.Seq2SeqTrainer(...)
+      - pattern: SFTTrainer(...)
+      - pattern: $MOD.SFTTrainer(...)
+      - pattern: DPOTrainer(...)
+      - pattern: $MOD.DPOTrainer(...)
+      - pattern: GRPOTrainer(...)
+      - pattern: $MOD.GRPOTrainer(...)
+      - pattern: PPOTrainer(...)
+      - pattern: $MOD.PPOTrainer(...)
+      - pattern: RewardTrainer(...)
+      - pattern: $MOD.RewardTrainer(...)
+      - pattern: ORPOTrainer(...)
+      - pattern: $MOD.ORPOTrainer(...)
+      - pattern: KTOTrainer(...)
+      - pattern: $MOD.KTOTrainer(...)
+      - pattern: CPOTrainer(...)
+      - pattern: $MOD.CPOTrainer(...)
+      - pattern: pl.Trainer(...)
+      - pattern: L.Trainer(...)
+      - pattern: lightning.Trainer(...)
+      - pattern: pytorch_lightning.Trainer(...)
+      - pattern: lightning.pytorch.Trainer(...)
+    pattern-sinks:
+      - patterns:
+          - pattern: $T.train(...)
+          - focus-metavariable: $T
+      - patterns:
+          - pattern: $T.fit(...)
+          - focus-metavariable: $T
+    metadata:
+      activity: trains_models
+      mentioned: performs
+      definition: https://lexlint.io/activities/trains-models
+      provenance: ungovr-original
+      license: MIT

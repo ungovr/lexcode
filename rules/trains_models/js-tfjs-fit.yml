@@ -1,0 +1,28 @@
+rules:
+  - id: lexcode.train.js-tfjs-fit
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Fits a TensorFlow.js model to training data, which is training models (trains_models).
+    mode: taint
+    pattern-sources:
+      - pattern: tf.sequential(...)
+      - pattern: tf.model(...)
+      - pattern: tf.loadLayersModel(...)
+      - pattern: tfjs.sequential(...)
+      - pattern: tfjs.model(...)
+    pattern-sinks:
+      - patterns:
+          - pattern: $M.fit(...)
+          - focus-metavariable: $M
+      - patterns:
+          - pattern: $M.fitDataset(...)
+          - focus-metavariable: $M
+      - patterns:
+          - pattern: $M.trainOnBatch(...)
+          - focus-metavariable: $M
+    metadata:
+      activity: trains_models
+      mentioned: performs
+      definition: https://lexlint.io/activities/trains-models
+      provenance: ungovr-original
+      license: MIT

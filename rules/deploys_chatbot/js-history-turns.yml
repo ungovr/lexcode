@@ -1,0 +1,42 @@
+rules:
+  - id: lexcode.chatbot.js-history-turns
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Appends the user's message to a running history, sends the history to a language model and stores the reply back in it, which is deploying a chatbot (deploys_chatbot).
+    patterns:
+      - pattern-either:
+          - pattern: |
+              $H.push({..., role: "user", ...});
+              ...
+              $R = await $C.chat.completions.create({..., messages: $H, ...});
+              ...
+              $H.push($Z);
+          - pattern: |
+              $H.push({..., role: "user", ...});
+              ...
+              $R = await $C.messages.create({..., messages: $H, ...});
+              ...
+              $H.push($Z);
+          - pattern: |
+              $H.push({..., role: "user", ...});
+              ...
+              $R = await $C.responses.create({..., input: $H, ...});
+              ...
+              $H.push($Z);
+          - pattern: |
+              $H.push({..., role: "user", ...});
+              ...
+              $R = await generateText({..., messages: $H, ...});
+              ...
+              $H.push($Z);
+      - metavariable-pattern:
+          metavariable: $Z
+          patterns:
+            - pattern: $ANY
+            - pattern-not: '{..., role: "user", ...}'
+    metadata:
+      activity: deploys_chatbot
+      mentioned: performs
+      definition: https://lexlint.io/activities/deploys-chatbot
+      provenance: ungovr-original
+      license: MIT

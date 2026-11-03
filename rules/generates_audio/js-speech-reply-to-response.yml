@@ -1,0 +1,59 @@
+rules:
+  - id: lexcode.audio.js-speech-reply-to-response
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Sends speech synthesized by a text-to-speech model back in an HTTP response, which is generating audio with AI that reaches users (generates_audio).
+    mode: taint
+    pattern-sources:
+      - pattern: $C.audio.speech.create(...)
+      - pattern: $C.textToSpeech.convert(...)
+      - pattern: $C.textToSpeech.stream(...)
+      - pattern: $C.textToSpeech.convertAsStream(...)
+      - pattern: $C.synthesizeSpeech(...)
+      - pattern: new SynthesizeSpeechCommand(...)
+      - patterns:
+          - pattern: experimental_generateSpeech(...)
+          - pattern-inside: |
+              import { ..., experimental_generateSpeech, ... } from "ai";
+              ...
+      - patterns:
+          - pattern: generateSpeech(...)
+          - pattern-inside: |
+              import { ..., experimental_generateSpeech as generateSpeech, ... } from "ai";
+              ...
+      - patterns:
+          - pattern: generateSpeech(...)
+          - pattern-inside: |
+              import { ..., generateSpeech, ... } from "ai";
+              ...
+    pattern-sinks:
+      - patterns:
+          - pattern: $RES.$M(...)
+          - metavariable-regex:
+              metavariable: $RES
+              regex: ^(res|resp|response|reply|ctx|c|context)(\s*\.\s*(status|code|type|header|set|setHeader|contentType|append)\([^()]*\))*$
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(json|send|end|write|text|html|jsonp)$
+      - pattern: new Response(...)
+      - pattern: new NextResponse(...)
+      - pattern: Response.json(...)
+      - pattern: NextResponse.json(...)
+      - pattern: ctx.body = ...
+      - patterns:
+          - pattern: $WS.send(...)
+          - metavariable-regex:
+              metavariable: $WS
+              regex: ^(ws|socket|webSocket|websocket|conn|connection)$
+      - patterns:
+          - pattern: $S.pipe($R)
+          - metavariable-regex:
+              metavariable: $R
+              regex: ^(res|resp|response|reply)$
+          - focus-metavariable: $S
+    metadata:
+      activity: generates_audio
+      mentioned: performs
+      definition: https://lexlint.io/activities/generates-audio
+      provenance: ungovr-original
+      license: MIT

@@ -1,0 +1,175 @@
+rules:
+  - id: lexcode.chatbot.py-request-messages-to-model
+    languages: [python]
+    severity: INFO
+    message: Passes the conversation a client sent in a request to a language model, which is deploying a chatbot (deploys_chatbot).
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  @$A.$V2(...)
+                  def $F(..., $P, ...):
+                    ...
+              - pattern-inside: |
+                  @$A.$V2(...)
+                  async def $F(..., $P, ...):
+                    ...
+          - metavariable-regex:
+              metavariable: $V2
+              regex: ^(get|post|put|patch|delete|route|api_route|head|options)$
+          - pattern-either:
+              - pattern: $C.chat.completions.create(..., messages=$X, ...)
+              - pattern: $C.chat.completions.parse(..., messages=$X, ...)
+              - pattern: $C.messages.create(..., max_tokens=..., messages=$X, ...)
+              - pattern: $C.messages.stream(..., max_tokens=..., messages=$X, ...)
+              - pattern: litellm.completion(..., messages=$X, ...)
+              - pattern: litellm.acompletion(..., messages=$X, ...)
+              - pattern: ollama.chat(..., messages=$X, ...)
+          - metavariable-pattern:
+              metavariable: $X
+              patterns:
+                - pattern-either:
+                    - pattern: <... $P.$ATTR ...>
+                - metavariable-regex:
+                    metavariable: $ATTR
+                    regex: ^(messages|history|chat_history|chatHistory|conversation|conversation_history)$
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  @$A.$V2(...)
+                  def $F(..., $P, ...):
+                    ...
+              - pattern-inside: |
+                  @$A.$V2(...)
+                  async def $F(..., $P, ...):
+                    ...
+          - metavariable-regex:
+              metavariable: $V2
+              regex: ^(get|post|put|patch|delete|route|api_route|head|options)$
+          - pattern-either:
+              - pattern: $C.chat.completions.create(..., messages=$X, ...)
+              - pattern: $C.chat.completions.parse(..., messages=$X, ...)
+              - pattern: $C.messages.create(..., max_tokens=..., messages=$X, ...)
+              - pattern: $C.messages.stream(..., max_tokens=..., messages=$X, ...)
+              - pattern: litellm.completion(..., messages=$X, ...)
+              - pattern: litellm.acompletion(..., messages=$X, ...)
+              - pattern: ollama.chat(..., messages=$X, ...)
+          - metavariable-pattern:
+              metavariable: $X
+              patterns:
+                - pattern-either:
+                    - pattern: <... $P[$K] ...>
+                    - pattern: <... $P.get($K, ...) ...>
+                - metavariable-regex:
+                    metavariable: $K
+                    regex: ^["'](messages|history|chat_history|chatHistory|conversation|conversation_history)["']$
+      - patterns:
+          - pattern-either:
+              - pattern: $C.chat.completions.create(..., messages=$X, ...)
+              - pattern: $C.chat.completions.parse(..., messages=$X, ...)
+              - pattern: $C.messages.create(..., max_tokens=..., messages=$X, ...)
+              - pattern: $C.messages.stream(..., max_tokens=..., messages=$X, ...)
+              - pattern: litellm.completion(..., messages=$X, ...)
+              - pattern: litellm.acompletion(..., messages=$X, ...)
+              - pattern: ollama.chat(..., messages=$X, ...)
+          - metavariable-pattern:
+              metavariable: $X
+              patterns:
+                - pattern-either:
+                    - pattern: <... request.get_json(...)[$K] ...>
+                    - pattern: <... request.json[$K] ...>
+                    - pattern: <... request.get_json(...).get($K, ...) ...>
+                    - pattern: <... request.json.get($K, ...) ...>
+                - metavariable-regex:
+                    metavariable: $K
+                    regex: ^["'](messages|history|chat_history|chatHistory|conversation|conversation_history)["']$
+      - patterns:
+          - pattern-inside: |
+              $D = request.get_json(...)
+              ...
+          - pattern-either:
+              - pattern: $C.chat.completions.create(..., messages=$X, ...)
+              - pattern: $C.chat.completions.parse(..., messages=$X, ...)
+              - pattern: $C.messages.create(..., max_tokens=..., messages=$X, ...)
+              - pattern: $C.messages.stream(..., max_tokens=..., messages=$X, ...)
+              - pattern: litellm.completion(..., messages=$X, ...)
+              - pattern: litellm.acompletion(..., messages=$X, ...)
+              - pattern: ollama.chat(..., messages=$X, ...)
+          - metavariable-pattern:
+              metavariable: $X
+              patterns:
+                - pattern-either:
+                    - pattern: <... $D[$K] ...>
+                    - pattern: <... $D.get($K, ...) ...>
+                - metavariable-regex:
+                    metavariable: $K
+                    regex: ^["'](messages|history|chat_history|chatHistory|conversation|conversation_history)["']$
+      - patterns:
+          - pattern-inside: |
+              $D = request.json
+              ...
+          - pattern-either:
+              - pattern: $C.chat.completions.create(..., messages=$X, ...)
+              - pattern: $C.chat.completions.parse(..., messages=$X, ...)
+              - pattern: $C.messages.create(..., max_tokens=..., messages=$X, ...)
+              - pattern: $C.messages.stream(..., max_tokens=..., messages=$X, ...)
+              - pattern: litellm.completion(..., messages=$X, ...)
+              - pattern: litellm.acompletion(..., messages=$X, ...)
+              - pattern: ollama.chat(..., messages=$X, ...)
+          - metavariable-pattern:
+              metavariable: $X
+              patterns:
+                - pattern-either:
+                    - pattern: <... $D[$K] ...>
+                    - pattern: <... $D.get($K, ...) ...>
+                - metavariable-regex:
+                    metavariable: $K
+                    regex: ^["'](messages|history|chat_history|chatHistory|conversation|conversation_history)["']$
+      - patterns:
+          - pattern-inside: |
+              $D = await $R.json()
+              ...
+          - pattern-either:
+              - pattern: $C.chat.completions.create(..., messages=$X, ...)
+              - pattern: $C.chat.completions.parse(..., messages=$X, ...)
+              - pattern: $C.messages.create(..., max_tokens=..., messages=$X, ...)
+              - pattern: $C.messages.stream(..., max_tokens=..., messages=$X, ...)
+              - pattern: litellm.completion(..., messages=$X, ...)
+              - pattern: litellm.acompletion(..., messages=$X, ...)
+              - pattern: ollama.chat(..., messages=$X, ...)
+          - metavariable-pattern:
+              metavariable: $X
+              patterns:
+                - pattern-either:
+                    - pattern: <... $D[$K] ...>
+                    - pattern: <... $D.get($K, ...) ...>
+                - metavariable-regex:
+                    metavariable: $K
+                    regex: ^["'](messages|history|chat_history|chatHistory|conversation|conversation_history)["']$
+      - patterns:
+          - pattern-inside: |
+              $D = await $R.get_json(...)
+              ...
+          - pattern-either:
+              - pattern: $C.chat.completions.create(..., messages=$X, ...)
+              - pattern: $C.chat.completions.parse(..., messages=$X, ...)
+              - pattern: $C.messages.create(..., max_tokens=..., messages=$X, ...)
+              - pattern: $C.messages.stream(..., max_tokens=..., messages=$X, ...)
+              - pattern: litellm.completion(..., messages=$X, ...)
+              - pattern: litellm.acompletion(..., messages=$X, ...)
+              - pattern: ollama.chat(..., messages=$X, ...)
+          - metavariable-pattern:
+              metavariable: $X
+              patterns:
+                - pattern-either:
+                    - pattern: <... $D[$K] ...>
+                    - pattern: <... $D.get($K, ...) ...>
+                - metavariable-regex:
+                    metavariable: $K
+                    regex: ^["'](messages|history|chat_history|chatHistory|conversation|conversation_history)["']$
+    metadata:
+      activity: deploys_chatbot
+      mentioned: performs
+      definition: https://lexlint.io/activities/deploys-chatbot
+      provenance: ungovr-original
+      license: MIT

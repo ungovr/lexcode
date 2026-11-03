@@ -1,0 +1,52 @@
+rules:
+  - id: lexcode.image.py-image-reply-to-response
+    languages: [python]
+    severity: INFO
+    message: Sends a picture drawn by an image model back in an HTTP response, which is generating images with AI that reach users (generates_images).
+    mode: taint
+    pattern-sources:
+      - pattern: $C.images.generate(...)
+      - pattern: $C.images.edit(...)
+      - pattern: $C.images.create_variation(...)
+      - pattern: $C.models.generate_images(...)
+      - pattern: openai.Image.create(...)
+    pattern-sinks:
+      - patterns:
+          - pattern: $FN(...)
+          - metavariable-regex:
+              metavariable: $FN
+              regex: ^(\w+\.)*(jsonify|JSONResponse|ORJSONResponse|UJSONResponse|HTMLResponse|PlainTextResponse|StreamingResponse|EventSourceResponse|Response|make_response|HttpResponse|JsonResponse|StreamingHttpResponse|render_template|send_file)$
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  @$A.$M(...)
+                  def $F(...):
+                    ...
+              - pattern-inside: |
+                  @$A.$M(...)
+                  async def $F(...):
+                    ...
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(get|post|put|patch|delete|route|api_route|head|options)$
+          - pattern: return $X
+          - focus-metavariable: $X
+      - patterns:
+          - pattern: $WS.$M(...)
+          - metavariable-regex:
+              metavariable: $WS
+              regex: ^(ws|websocket|socket)$
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(send_text|send_json|send_bytes)$
+    pattern-propagators:
+      - pattern: $IMG.save($BUF, ...)
+        from: $IMG
+        to: $BUF
+        by-side-effect: true
+    metadata:
+      activity: generates_images
+      mentioned: performs
+      definition: https://lexlint.io/activities/generates-images
+      provenance: ungovr-original
+      license: MIT

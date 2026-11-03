@@ -1,0 +1,45 @@
+rules:
+  - id: lexcode.text.py-chat-result-returned
+    languages: [python]
+    severity: INFO
+    message: Returns text written by a chat or completion model from a function, which may be generating text with AI that reaches users (generates_text).
+    mode: taint
+    pattern-sources:
+      - pattern: $C.chat.completions.create(...)
+      - pattern: $C.chat.completions.parse(...)
+      - pattern: $C.beta.chat.completions.parse(...)
+      - pattern: $C.messages.create(..., max_tokens=..., ...)
+      - pattern: $C.messages.stream(..., max_tokens=..., ...)
+      - pattern: litellm.completion(...)
+      - pattern: litellm.acompletion(...)
+      - pattern: openai.ChatCompletion.create(...)
+      - pattern: openai.ChatCompletion.acreate(...)
+      - pattern: ollama.chat(...)
+      - pattern: ollama.generate(...)
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: return $X
+              - pattern: yield $X
+          - pattern-not-inside: |
+              @$A.$M(...)
+              def $F(...):
+                ...
+          - pattern-not-inside: |
+              @$A.$M(...)
+              async def $F(...):
+                ...
+          - focus-metavariable: $X
+    pattern-sanitizers:
+      - patterns:
+          - pattern: $FN(...)
+          - metavariable-regex:
+              metavariable: $FN
+              regex: ^(\w+\.)*(jsonify|JSONResponse|ORJSONResponse|UJSONResponse|HTMLResponse|PlainTextResponse|StreamingResponse|EventSourceResponse|Response|make_response|HttpResponse|JsonResponse|StreamingHttpResponse|render_template|send_file)$
+    metadata:
+      activity: generates_text
+      mentioned: performs
+      definition: https://lexlint.io/activities/generates-text
+      provenance: ungovr-original
+      license: MIT
+      strength: signal

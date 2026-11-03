@@ -1,0 +1,62 @@
+rules:
+  - id: lexcode.generate.js-model-result-returned
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Returns the output of a LangChain chat model or a Gemini call from a function, which may be generating content with AI that reaches users (generates_content).
+    mode: taint
+    pattern-sources:
+      - pattern: new ChatOpenAI(...)
+      - pattern: new AzureChatOpenAI(...)
+      - pattern: new ChatAnthropic(...)
+      - pattern: new ChatGoogleGenerativeAI(...)
+      - pattern: new ChatVertexAI(...)
+      - pattern: new ChatGroq(...)
+      - pattern: new ChatMistralAI(...)
+      - pattern: new ChatOllama(...)
+      - pattern: new ChatBedrockConverse(...)
+      - pattern: new ChatBedrock(...)
+      - pattern: new ChatCohere(...)
+      - pattern: new ChatTogetherAI(...)
+      - pattern: new ChatFireworks(...)
+      - pattern: new ChatDeepSeek(...)
+      - pattern: new ChatXAI(...)
+      - pattern: new ChatPerplexity(...)
+      - pattern: new ChatNVIDIA(...)
+      - pattern: new ChatHuggingFace(...)
+      - pattern: initChatModel(...)
+      - pattern: $M.generateContent(...)
+      - pattern: $M.generateContentStream(...)
+    pattern-sinks:
+      - pattern: return $X
+    pattern-sanitizers:
+      - patterns:
+          - pattern: $RES.$M(...)
+          - metavariable-regex:
+              metavariable: $RES
+              regex: ^(res|resp|response|reply|ctx|c|context)(\s*\.\s*(status|code|type|header|set|setHeader|contentType|append)\([^()]*\))*$
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(json|send|end|write|text|html|jsonp)$
+      - pattern: new Response(...)
+      - pattern: new NextResponse(...)
+      - pattern: Response.json(...)
+      - pattern: NextResponse.json(...)
+      - pattern: ctx.body = ...
+      - patterns:
+          - pattern: $WS.send(...)
+          - metavariable-regex:
+              metavariable: $WS
+              regex: ^(ws|socket|webSocket|websocket|conn|connection)$
+      - patterns:
+          - pattern: $S.pipe($R)
+          - metavariable-regex:
+              metavariable: $R
+              regex: ^(res|resp|response|reply)$
+          - focus-metavariable: $S
+    metadata:
+      activity: generates_content
+      mentioned: performs
+      definition: https://lexlint.io/activities/generates-content
+      provenance: ungovr-original
+      license: MIT
+      strength: signal

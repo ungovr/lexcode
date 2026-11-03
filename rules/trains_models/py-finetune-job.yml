@@ -1,0 +1,20 @@
+rules:
+  - id: lexcode.train.py-finetune-job
+    languages: [python]
+    severity: INFO
+    message: Starts a hosted fine-tuning job that adapts a model to the caller's data, which is training models (trains_models).
+    pattern-either:
+      - pattern: $C.fine_tuning.jobs.create(...)
+      - pattern: $C.fine_tuning.create(...)
+      - pattern: $C.finetuning.create(...)
+      - pattern: $C.fine_tunes.create(...)
+      - pattern: openai.FineTuningJob.create(...)
+      - pattern: $C.tunings.tune(...)
+      - pattern: $C.create_tuned_model(...)
+      - pattern: genai.create_tuned_model(...)
+    metadata:
+      activity: trains_models
+      mentioned: performs
+      definition: https://lexlint.io/activities/trains-models
+      provenance: ungovr-original
+      license: MIT

@@ -1,0 +1,82 @@
+rules:
+  - id: lexcode.train.py-sklearn-fit
+    languages: [python]
+    severity: INFO
+    message: Fits a machine-learning model to training data with scikit-learn or a compatible library, which is training models (trains_models).
+    mode: taint
+    pattern-sources:
+      - pattern: RandomForestClassifier(...)
+      - pattern: RandomForestRegressor(...)
+      - pattern: ExtraTreesClassifier(...)
+      - pattern: ExtraTreesRegressor(...)
+      - pattern: GradientBoostingClassifier(...)
+      - pattern: GradientBoostingRegressor(...)
+      - pattern: HistGradientBoostingClassifier(...)
+      - pattern: HistGradientBoostingRegressor(...)
+      - pattern: AdaBoostClassifier(...)
+      - pattern: AdaBoostRegressor(...)
+      - pattern: BaggingClassifier(...)
+      - pattern: BaggingRegressor(...)
+      - pattern: DecisionTreeClassifier(...)
+      - pattern: DecisionTreeRegressor(...)
+      - pattern: LogisticRegression(...)
+      - pattern: LogisticRegressionCV(...)
+      - pattern: LinearRegression(...)
+      - pattern: Ridge(...)
+      - pattern: RidgeClassifier(...)
+      - pattern: Lasso(...)
+      - pattern: ElasticNet(...)
+      - pattern: SGDClassifier(...)
+      - pattern: SGDRegressor(...)
+      - pattern: PassiveAggressiveClassifier(...)
+      - pattern: Perceptron(...)
+      - pattern: LinearSVC(...)
+      - pattern: LinearSVR(...)
+      - pattern: SVC(...)
+      - pattern: SVR(...)
+      - pattern: NuSVC(...)
+      - pattern: KNeighborsClassifier(...)
+      - pattern: KNeighborsRegressor(...)
+      - pattern: GaussianNB(...)
+      - pattern: MultinomialNB(...)
+      - pattern: BernoulliNB(...)
+      - pattern: ComplementNB(...)
+      - pattern: MLPClassifier(...)
+      - pattern: MLPRegressor(...)
+      - pattern: GaussianProcessClassifier(...)
+      - pattern: GaussianProcessRegressor(...)
+      - pattern: LinearDiscriminantAnalysis(...)
+      - pattern: QuadraticDiscriminantAnalysis(...)
+      - pattern: StackingClassifier(...)
+      - pattern: StackingRegressor(...)
+      - pattern: VotingClassifier(...)
+      - pattern: VotingRegressor(...)
+      - pattern: XGBClassifier(...)
+      - pattern: XGBRegressor(...)
+      - pattern: XGBRanker(...)
+      - pattern: LGBMClassifier(...)
+      - pattern: LGBMRegressor(...)
+      - pattern: LGBMRanker(...)
+      - pattern: CatBoostClassifier(...)
+      - pattern: CatBoostRegressor(...)
+      - pattern: $MOD.XGBClassifier(...)
+      - pattern: $MOD.XGBRegressor(...)
+      - pattern: $MOD.XGBRanker(...)
+      - pattern: $MOD.LGBMClassifier(...)
+      - pattern: $MOD.LGBMRegressor(...)
+      - pattern: $MOD.LGBMRanker(...)
+      - pattern: $MOD.CatBoostClassifier(...)
+      - pattern: $MOD.CatBoostRegressor(...)
+    pattern-sinks:
+      - patterns:
+          - pattern: $M.fit(...)
+          - focus-metavariable: $M
+      - patterns:
+          - pattern: $M.partial_fit(...)
+          - focus-metavariable: $M
+    metadata:
+      activity: trains_models
+      mentioned: performs
+      definition: https://lexlint.io/activities/trains-models
+      provenance: ungovr-original
+      license: MIT

@@ -1,0 +1,100 @@
+rules:
+  - id: lexcode.audio.go-speech-reply-to-response
+    languages: [go]
+    severity: INFO
+    message: Writes speech synthesized by a text-to-speech model into an HTTP response, which is generating audio with AI that reaches users (generates_audio).
+    mode: taint
+    pattern-sources:
+      - pattern: $C.CreateSpeech(...)
+      - pattern: $C.Audio.Speech.New(...)
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  func $F(..., $W http.ResponseWriter, ...) {
+                    ...
+                  }
+              - pattern-inside: |
+                  func ($RECV $T) $F(..., $W http.ResponseWriter, ...) {
+                    ...
+                  }
+              - pattern-inside: |
+                  func(..., $W http.ResponseWriter, ...) {
+                    ...
+                  }
+          - pattern-either:
+              - pattern: $W.Write(...)
+              - pattern: fmt.Fprint($W, ...)
+              - pattern: fmt.Fprintf($W, ...)
+              - pattern: fmt.Fprintln($W, ...)
+              - pattern: io.WriteString($W, ...)
+              - pattern: json.NewEncoder($W).Encode(...)
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  func $F(..., $W http.ResponseWriter, ...) {
+                    ...
+                  }
+              - pattern-inside: |
+                  func ($RECV $T) $F(..., $W http.ResponseWriter, ...) {
+                    ...
+                  }
+              - pattern-inside: |
+                  func(..., $W http.ResponseWriter, ...) {
+                    ...
+                  }
+          - pattern: io.Copy($W, $SRC)
+          - focus-metavariable: $SRC
+      - patterns:
+          - pattern-either:
+              - pattern-either:
+                  - pattern-inside: |
+                      func $F(..., $C *gin.Context, ...) {
+                        ...
+                      }
+                  - pattern-inside: |
+                      func ($RECV $T) $F(..., $C *gin.Context, ...) {
+                        ...
+                      }
+                  - pattern-inside: |
+                      func(..., $C *gin.Context, ...) {
+                        ...
+                      }
+              - pattern-either:
+                  - pattern-inside: |
+                      func $F(..., $C echo.Context, ...) {
+                        ...
+                      }
+                  - pattern-inside: |
+                      func ($RECV $T) $F(..., $C echo.Context, ...) {
+                        ...
+                      }
+                  - pattern-inside: |
+                      func(..., $C echo.Context, ...) {
+                        ...
+                      }
+              - pattern-either:
+                  - pattern-inside: |
+                      func $F(..., $C *fiber.Ctx, ...) {
+                        ...
+                      }
+                  - pattern-inside: |
+                      func ($RECV $T) $F(..., $C *fiber.Ctx, ...) {
+                        ...
+                      }
+                  - pattern-inside: |
+                      func(..., $C *fiber.Ctx, ...) {
+                        ...
+                      }
+          - pattern-either:
+              - pattern: $C.JSON(...)
+              - pattern: $C.String(...)
+              - pattern: $C.SendString(...)
+              - pattern: $C.Data(...)
+              - pattern: $C.Blob(...)
+    metadata:
+      activity: generates_audio
+      mentioned: performs
+      definition: https://lexlint.io/activities/generates-audio
+      provenance: ungovr-original
+      license: MIT

@@ -1,0 +1,43 @@
+rules:
+  - id: lexcode.chatbot.go-history-turns
+    languages: [go]
+    severity: INFO
+    message: Appends the user's message to a running slice of messages, sends it to a chat model and stores the reply back in it, which is deploying a chatbot (deploys_chatbot).
+    patterns:
+      - pattern-either:
+          - pattern: |
+              $H = append($H, openai.ChatCompletionMessage{..., Role: openai.ChatMessageRoleUser, ...})
+              ...
+              $R, $ERR := $C.CreateChatCompletion($CTX, openai.ChatCompletionRequest{..., Messages: $H, ...})
+              ...
+              $H = append($H, $Z)
+          - pattern: |
+              $H = append($H, openai.ChatCompletionMessage{..., Role: "user", ...})
+              ...
+              $R, $ERR := $C.CreateChatCompletion($CTX, openai.ChatCompletionRequest{..., Messages: $H, ...})
+              ...
+              $H = append($H, $Z)
+          - pattern: |
+              $H = append($H, openai.ChatCompletionMessage{..., Role: openai.ChatMessageRoleUser, ...})
+              ...
+              $R, $ERR = $C.CreateChatCompletion($CTX, openai.ChatCompletionRequest{..., Messages: $H, ...})
+              ...
+              $H = append($H, $Z)
+          - pattern: |
+              $H = append($H, openai.ChatCompletionMessage{..., Role: "user", ...})
+              ...
+              $R, $ERR = $C.CreateChatCompletion($CTX, openai.ChatCompletionRequest{..., Messages: $H, ...})
+              ...
+              $H = append($H, $Z)
+      - metavariable-pattern:
+          metavariable: $Z
+          patterns:
+            - pattern: $ANY
+            - pattern-not: "openai.ChatCompletionMessage{..., Role: openai.ChatMessageRoleUser, ...}"
+            - pattern-not: 'openai.ChatCompletionMessage{..., Role: "user", ...}'
+    metadata:
+      activity: deploys_chatbot
+      mentioned: performs
+      definition: https://lexlint.io/activities/deploys-chatbot
+      provenance: ungovr-original
+      license: MIT

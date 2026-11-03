@@ -1,0 +1,38 @@
+rules:
+  - id: lexcode.train.js-brain-train
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Trains a brain.js neural network on labelled examples, which is training models (trains_models).
+    mode: taint
+    pattern-sources:
+      - pattern: new NeuralNetwork(...)
+      - pattern: new NeuralNetworkGPU(...)
+      - pattern: new FeedForward(...)
+      - pattern: new brain.NeuralNetwork(...)
+      - pattern: new brain.NeuralNetworkGPU(...)
+      - pattern: new brain.FeedForward(...)
+      - pattern: new recurrent.LSTM(...)
+      - pattern: new recurrent.GRU(...)
+      - pattern: new recurrent.RNN(...)
+      - pattern: new recurrent.LSTMTimeStep(...)
+      - pattern: new recurrent.GRUTimeStep(...)
+      - pattern: new recurrent.RNNTimeStep(...)
+      - pattern: new brain.recurrent.LSTM(...)
+      - pattern: new brain.recurrent.GRU(...)
+      - pattern: new brain.recurrent.RNN(...)
+      - pattern: new brain.recurrent.LSTMTimeStep(...)
+      - pattern: new brain.recurrent.GRUTimeStep(...)
+      - pattern: new brain.recurrent.RNNTimeStep(...)
+    pattern-sinks:
+      - patterns:
+          - pattern: $N.train(...)
+          - focus-metavariable: $N
+      - patterns:
+          - pattern: $N.trainAsync(...)
+          - focus-metavariable: $N
+    metadata:
+      activity: trains_models
+      mentioned: performs
+      definition: https://lexlint.io/activities/trains-models
+      provenance: ungovr-original
+      license: MIT

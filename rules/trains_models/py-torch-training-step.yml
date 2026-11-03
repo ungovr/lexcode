@@ -1,0 +1,31 @@
+rules:
+  - id: lexcode.train.py-torch-training-step
+    languages: [python]
+    severity: INFO
+    message: Runs a PyTorch training loop, back-propagating a loss and stepping an optimizer, which is training models (trains_models).
+    patterns:
+      - pattern: $LOSS.backward(...)
+      - pattern-either:
+          - pattern-inside: |
+              for ... in ...:
+                ...
+                $OPT.step(...)
+                ...
+          - pattern-inside: |
+              for ... in ...:
+                ...
+                if ...:
+                  ...
+                  $OPT.step(...)
+                  ...
+          - pattern-inside: |
+              while ...:
+                ...
+                $OPT.step(...)
+                ...
+    metadata:
+      activity: trains_models
+      mentioned: performs
+      definition: https://lexlint.io/activities/trains-models
+      provenance: ungovr-original
+      license: MIT

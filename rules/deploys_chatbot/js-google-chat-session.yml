@@ -1,0 +1,23 @@
+rules:
+  - id: lexcode.chatbot.js-google-chat-session
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Sends a message into a Gemini chat session, which keeps the earlier turns, so this may be deploying a chatbot (deploys_chatbot).
+    mode: taint
+    pattern-sources:
+      - pattern: $M.startChat(...)
+      - pattern: $C.chats.create(...)
+    pattern-sinks:
+      - patterns:
+          - pattern: $S.sendMessage(...)
+          - focus-metavariable: $S
+      - patterns:
+          - pattern: $S.sendMessageStream(...)
+          - focus-metavariable: $S
+    metadata:
+      activity: deploys_chatbot
+      mentioned: performs
+      definition: https://lexlint.io/activities/deploys-chatbot
+      provenance: ungovr-original
+      license: MIT
+      strength: signal

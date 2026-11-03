@@ -1,0 +1,112 @@
+rules:
+  - id: lexcode.chatbot.js-request-messages-to-model
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Passes the conversation a client sent in a request to a language model, which is deploying a chatbot (deploys_chatbot).
+    mode: taint
+    pattern-sources:
+      - patterns:
+          - pattern: const { ..., $M, ... } = await $REQ.json();
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(messages|history|chat_history|chatHistory|conversation|conversation_history)$
+          - metavariable-regex:
+              metavariable: $REQ
+              regex: ^(req|request|c\.req|ctx\.request|context\.request|event\.request)$
+          - focus-metavariable: $M
+      - patterns:
+          - pattern: const { ..., $M, ... } = $REQ.body;
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(messages|history|chat_history|chatHistory|conversation|conversation_history)$
+          - metavariable-regex:
+              metavariable: $REQ
+              regex: ^(req|request|c\.req|ctx\.request|context\.request|event\.request)$
+          - focus-metavariable: $M
+      - patterns:
+          - pattern: $REQ.body.$M
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(messages|history|chat_history|chatHistory|conversation|conversation_history)$
+          - metavariable-regex:
+              metavariable: $REQ
+              regex: ^(req|request|c\.req|ctx\.request|context\.request|event\.request)$
+      - patterns:
+          - pattern: (await $REQ.json()).$M
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(messages|history|chat_history|chatHistory|conversation|conversation_history)$
+          - metavariable-regex:
+              metavariable: $REQ
+              regex: ^(req|request|c\.req|ctx\.request|context\.request|event\.request)$
+      - patterns:
+          - pattern: $B.$M
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(messages|history|chat_history|chatHistory|conversation|conversation_history)$
+          - pattern-inside: |
+              $B = await $REQ.json();
+              ...
+          - metavariable-regex:
+              metavariable: $REQ
+              regex: ^(req|request|c\.req|ctx\.request|context\.request|event\.request)$
+      - patterns:
+          - pattern: $B.$M
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(messages|history|chat_history|chatHistory|conversation|conversation_history)$
+          - pattern-inside: |
+              $B = $REQ.body;
+              ...
+          - metavariable-regex:
+              metavariable: $REQ
+              regex: ^(req|request|c\.req|ctx\.request|context\.request|event\.request)$
+    pattern-sinks:
+      - patterns:
+          - pattern: "streamText({..., messages: $X, ...})"
+          - focus-metavariable: $X
+      - patterns:
+          - pattern: "generateText({..., messages: $X, ...})"
+          - focus-metavariable: $X
+      - patterns:
+          - pattern: "streamObject({..., messages: $X, ...})"
+          - focus-metavariable: $X
+      - patterns:
+          - pattern: "generateObject({..., messages: $X, ...})"
+          - focus-metavariable: $X
+      - patterns:
+          - pattern: "$C.chat.completions.create({..., messages: $X, ...})"
+          - focus-metavariable: $X
+      - patterns:
+          - pattern: "$C.chat.completions.stream({..., messages: $X, ...})"
+          - focus-metavariable: $X
+      - patterns:
+          - pattern: "$C.chat.completions.parse({..., messages: $X, ...})"
+          - focus-metavariable: $X
+      - patterns:
+          - pattern: "$C.messages.create({..., messages: $X, ...})"
+          - focus-metavariable: $X
+      - patterns:
+          - pattern: "$C.messages.stream({..., messages: $X, ...})"
+          - focus-metavariable: $X
+      - patterns:
+          - pattern: "$C.responses.create({..., input: $X, ...})"
+          - focus-metavariable: $X
+      - patterns:
+          - pattern: $LLM.invoke($X)
+          - metavariable-regex:
+              metavariable: $LLM
+              regex: (?i)^(\w+\.)*\w*(llm|model|chain|agent|graph|chat)\w*$
+          - focus-metavariable: $X
+      - patterns:
+          - pattern: $LLM.stream($X)
+          - metavariable-regex:
+              metavariable: $LLM
+              regex: (?i)^(\w+\.)*\w*(llm|model|chain|agent|graph|chat)\w*$
+          - focus-metavariable: $X
+    metadata:
+      activity: deploys_chatbot
+      mentioned: performs
+      definition: https://lexlint.io/activities/deploys-chatbot
+      provenance: ungovr-original
+      license: MIT
