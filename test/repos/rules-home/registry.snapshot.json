@@ -1,0 +1,1515 @@
+{
+  "registry": "https://lexlint.io/activities/v1",
+  "version": "1.15",
+  "published": "2026-11-02",
+  "publisher": "LexLint",
+  "license": {
+    "id": "CC-BY-4.0",
+    "url": "https://creativecommons.org/licenses/by/4.0/",
+    "credit": "LexLint (UnGovr)"
+  },
+  "schema": "https://lexlint.io/schema/activities.schema.json",
+  "changelog": "https://lexlint.io/activities/v1/changelog.json",
+  "method": "The list is derived from the law, not drawn up in advance. LexLint reads the software law of every jurisdiction in its law library, and for each law records what a product must do for that law to reach it. The activities are the triggers that recur across those laws, each written so that one id means the same thing wherever a law turns on it.",
+  "admission": "An activity is added only when at least one law in the library turns on something no activity on the list captures, and the addition names that law. A proposal without such a law is not added.",
+  "scopes": [
+    {
+      "id": "code",
+      "note": "Something the component's own code does. A component declares it as performs (the shipped software does it when run as documented) or enables (a product that calls it does it)."
+    },
+    {
+      "id": "deployment",
+      "note": "A property of how the software is offered. Only an application or service component declares it, and only as performs; distributes_software_product is implied for every component with a package URL."
+    },
+    {
+      "id": "role",
+      "note": "Who the operator is. A component never declares a role: a payments SDK does not make a product a bank. Roles are declared in a product's own lexlint.yml."
+    }
+  ],
+  "shapes": [
+    "application",
+    "framework",
+    "library",
+    "protocol-spec",
+    "runtime",
+    "service"
+  ],
+  "jurisdictions": [
+    "ad",
+    "ae",
+    "af",
+    "ag",
+    "ai",
+    "al",
+    "am",
+    "ao",
+    "aq",
+    "ar",
+    "as",
+    "at",
+    "au",
+    "aw",
+    "ax",
+    "az",
+    "ba",
+    "bb",
+    "bd",
+    "be",
+    "bf",
+    "bg",
+    "bh",
+    "bi",
+    "bj",
+    "bl",
+    "bm",
+    "bn",
+    "bo",
+    "bq",
+    "br",
+    "bs",
+    "bt",
+    "bv",
+    "bw",
+    "by",
+    "bz",
+    "ca",
+    "cc",
+    "cd",
+    "cf",
+    "cg",
+    "ch",
+    "ci",
+    "ck",
+    "cl",
+    "cm",
+    "cn",
+    "co",
+    "cr",
+    "cu",
+    "cv",
+    "cw",
+    "cx",
+    "cy",
+    "cz",
+    "de",
+    "dj",
+    "dk",
+    "dm",
+    "do",
+    "dz",
+    "ec",
+    "ee",
+    "eg",
+    "eh",
+    "er",
+    "es",
+    "et",
+    "eu",
+    "fi",
+    "fj",
+    "fk",
+    "fm",
+    "fo",
+    "fr",
+    "ga",
+    "gb",
+    "gd",
+    "ge",
+    "gf",
+    "gg",
+    "gh",
+    "gi",
+    "gl",
+    "gm",
+    "gn",
+    "gp",
+    "gq",
+    "gr",
+    "gs",
+    "gt",
+    "gu",
+    "gw",
+    "gy",
+    "hk",
+    "hm",
+    "hn",
+    "hr",
+    "ht",
+    "hu",
+    "id",
+    "ie",
+    "il",
+    "im",
+    "in",
+    "io",
+    "iq",
+    "ir",
+    "is",
+    "it",
+    "je",
+    "jm",
+    "jo",
+    "jp",
+    "ke",
+    "kg",
+    "kh",
+    "ki",
+    "km",
+    "kn",
+    "kp",
+    "kr",
+    "kw",
+    "ky",
+    "kz",
+    "la",
+    "lb",
+    "lc",
+    "li",
+    "lk",
+    "lr",
+    "ls",
+    "lt",
+    "lu",
+    "lv",
+    "ly",
+    "ma",
+    "mc",
+    "md",
+    "me",
+    "mf",
+    "mg",
+    "mh",
+    "mk",
+    "ml",
+    "mm",
+    "mn",
+    "mo",
+    "mp",
+    "mq",
+    "mr",
+    "ms",
+    "mt",
+    "mu",
+    "mv",
+    "mw",
+    "mx",
+    "my",
+    "mz",
+    "na",
+    "nc",
+    "ne",
+    "nf",
+    "ng",
+    "ni",
+    "nl",
+    "no",
+    "np",
+    "nr",
+    "nu",
+    "nz",
+    "om",
+    "pa",
+    "pe",
+    "pf",
+    "pg",
+    "ph",
+    "pk",
+    "pl",
+    "pm",
+    "pn",
+    "pr",
+    "ps",
+    "pt",
+    "pw",
+    "py",
+    "qa",
+    "re",
+    "ro",
+    "rs",
+    "ru",
+    "rw",
+    "sa",
+    "sb",
+    "sc",
+    "sd",
+    "se",
+    "sg",
+    "sh",
+    "si",
+    "sj",
+    "sk",
+    "sl",
+    "sm",
+    "sn",
+    "so",
+    "sr",
+    "ss",
+    "st",
+    "sv",
+    "sx",
+    "sy",
+    "sz",
+    "tc",
+    "td",
+    "tf",
+    "tg",
+    "th",
+    "tj",
+    "tk",
+    "tl",
+    "tm",
+    "tn",
+    "to",
+    "tr",
+    "tt",
+    "tv",
+    "tw",
+    "tz",
+    "ua",
+    "ug",
+    "um",
+    "us",
+    "uy",
+    "uz",
+    "va",
+    "vc",
+    "ve",
+    "vg",
+    "vi",
+    "vn",
+    "vu",
+    "wf",
+    "ws",
+    "ye",
+    "yt",
+    "za",
+    "zm",
+    "zw"
+  ],
+  "activities": [
+    {
+      "id": "crawls_web",
+      "scope": "code",
+      "status": "current",
+      "term": "Crawls the web",
+      "short": "Your app runs automated software that visits and downloads web pages at scale, rather than a person browsing them one at a time.",
+      "definition": "This covers a search-indexing bot, a price-comparison tool that pulls listings from other sites, and a research crawler that harvests articles for later analysis. A single scheduled call to a partner's documented API is not crawling on its own. Declaring it puts scraping and crawling law and product-liability law in scope, along with any other law that names this activity.",
+      "lint_definition": "It fetches pages or files from sites you do not operate, by any automated means, whether or not the code calls itself a crawler.",
+      "areas": [
+        "scraping",
+        "liability"
+      ],
+      "counterparties": [
+        "a proxy or scraping service that fetches pages for it",
+        "a headless-browser host"
+      ],
+      "related": [
+        "aggregates_content",
+        "trains_models"
+      ],
+      "parent": null,
+      "superseded_by": [],
+      "since": "1.0",
+      "page": "https://lexlint.io/activities/crawls-web",
+      "glossary": "https://lexlint.io/glossary#crawls-the-web"
+    },
+    {
+      "id": "trains_models",
+      "scope": "code",
+      "status": "current",
+      "term": "Trains models",
+      "short": "Your app uses data to train or fine-tune a machine learning model, rather than only calling a model someone else already trained.",
+      "definition": "This covers building a recommendation model from user activity, fine-tuning a language model on your own documents, and training an image classifier on photos users upload. Calling a third-party model's inference API without training or fine-tuning anything does not count. Declaring it puts scraping and crawling law, AI law and product-liability law in scope, along with any other law that names this activity.",
+      "lint_definition": "It trains, fine-tunes or builds a model on data it collects. Calling somebody else's model is not this.",
+      "areas": [
+        "scraping",
+        "ai",
+        "liability"
+      ],
+      "counterparties": [
+        "a cloud platform that runs the training",
+        "a dataset host or data broker that supplies the training data"
+      ],
+      "related": [
+        "generates_content",
+        "crawls_web"
+      ],
+      "parent": null,
+      "superseded_by": [],
+      "since": "1.0",
+      "page": "https://lexlint.io/activities/trains-models",
+      "glossary": "https://lexlint.io/glossary#trains-models"
+    },
+    {
+      "id": "generates_content",
+      "scope": "code",
+      "status": "current",
+      "term": "Generates content with AI",
+      "short": "Your app uses artificial intelligence (AI) to produce text, images, audio, or video, rather than only publishing what a person wrote or recorded.",
+      "definition": "This covers an AI copywriting tool, an image generator, and a voice clone used in an advertisement. Content a person wrote, that your app only formats or spell-checks, does not count. Declaring it puts AI law, product-liability law and digital-accessibility law in scope, along with any other law that names this activity.",
+      "lint_definition": "It makes text, images, audio or video with an AI model that reaches its users or the public. Somebody else's model counts; a tool whose output only its own team reads is not this.",
+      "areas": [
+        "ai",
+        "liability",
+        "accessibility"
+      ],
+      "counterparties": [
+        "a model provider whose API writes the output"
+      ],
+      "related": [
+        "deploys_chatbot",
+        "trains_models"
+      ],
+      "parent": null,
+      "superseded_by": [],
+      "since": "1.0",
+      "page": "https://lexlint.io/activities/generates-content",
+      "glossary": "https://lexlint.io/glossary#generates-content-with-ai"
+    },
+    {
+      "id": "deploys_chatbot",
+      "scope": "code",
+      "status": "current",
+      "term": "Deploys a chatbot",
+      "short": "Your app runs a conversational interface that answers users in natural language, whether scripted or built on a language model.",
+      "definition": "This covers a customer-support chat window, a voice assistant embedded in an app, and a text-based intake tool that asks a user questions and stores the replies. A static FAQ page with no back-and-forth exchange does not count. Declaring it puts AI law, product-liability law and digital-accessibility law in scope, along with any other law that names this activity.",
+      "lint_definition": "It offers a conversational AI interface that people talk to, in the product or acting for it, whether the model is yours or a vendor's.",
+      "areas": [
+        "ai",
+        "liability",
+        "accessibility"
+      ],
+      "counterparties": [
+        "a model provider that writes the answers",
+        "a chat-widget vendor"
+      ],
+      "related": [
+        "generates_content",
+        "records_text_chat"
+      ],
+      "parent": null,
+      "superseded_by": [],
+      "since": "1.0",
+      "page": "https://lexlint.io/activities/deploys-chatbot",
+      "glossary": "https://lexlint.io/glossary#deploys-a-chatbot"
+    },
+    {
+      "id": "processes_personal_data",
+      "scope": "code",
+      "status": "current",
+      "term": "Processes personal data",
+      "short": "Your app collects, stores, uses, or shares information about a person who can be identified, such as a name, an email address, an account, a location, or a device ID.",
+      "definition": "This covers user accounts and sign-in, a contact or sign-up form, analytics that follow visitors, and an order or support history kept for each customer. An anonymous total that can no longer be tied to anyone does not count. Declaring it puts privacy law, cybersecurity law and product-liability law in scope, along with any other law that names this activity.",
+      "lint_definition": "It collects, stores, uses or shares information about an identifiable person: a name, an email address, an account, a location, a device identifier. Accounts, sign-in, analytics or a contact form almost always mean it.",
+      "areas": [
+        "privacy",
+        "security",
+        "liability"
+      ],
+      "counterparties": [
+        "a hosting or database provider",
+        "an analytics or email service"
+      ],
+      "related": [
+        "processes_biometrics",
+        "processes_voice",
+        "crawls_web"
+      ],
+      "parent": null,
+      "superseded_by": [],
+      "since": "1.11",
+      "page": "https://lexlint.io/activities/processes-personal-data",
+      "glossary": "https://lexlint.io/glossary#processes-personal-data"
+    },
+    {
+      "id": "processes_voice",
+      "scope": "code",
+      "status": "current",
+      "term": "Processes voice recordings",
+      "short": "Your app records, stores, or analyzes a person's spoken voice, whether a call, a voice memo, or a voice command.",
+      "definition": "This covers a call-recording feature, a voice-command assistant, and a voicemail transcription tool. Text a user typed themselves does not count, even if your app later reads it aloud. Declaring it puts privacy law and product-liability law in scope, along with any other law that names this activity.",
+      "lint_definition": "It records, stores, transcribes or analyzes human voices, including call recordings and voice messages, with or without a model anywhere in the product.",
+      "areas": [
+        "privacy",
+        "liability"
+      ],
+      "counterparties": [
+        "a transcription or speech-recognition vendor",
+        "a telephony provider"
+      ],
+      "related": [
+        "records_calls",
+        "processes_biometrics"
+      ],
+      "parent": null,
+      "superseded_by": [],
+      "since": "1.0",
+      "page": "https://lexlint.io/activities/processes-voice",
+      "glossary": "https://lexlint.io/glossary#processes-voice-recordings"
+    },
+    {
+      "id": "processes_biometrics",
+      "scope": "code",
+      "status": "current",
+      "term": "Processes biometric data",
+      "short": "Your app collects or analyzes a physical or behavioral trait, such as a fingerprint, a face, or a voiceprint, to identify or verify a person.",
+      "definition": "This covers a face-unlock feature, a fingerprint login, and a voiceprint used to confirm a caller's identity. Storing an ordinary photo a user uploads for their profile does not count unless your app extracts a biometric template from it. Declaring it puts privacy law and product-liability law in scope, along with any other law that names this activity.",
+      "lint_definition": "It handles body or behavior measurements that identify a person: face geometry, fingerprint, voiceprint, iris. A photo is not this; recognizing someone from one is, as is your notice saying you may.",
+      "areas": [
+        "privacy",
+        "liability"
+      ],
+      "counterparties": [
+        "a face- or voice-matching vendor",
+        "an identity-verification provider"
+      ],
+      "related": [
+        "processes_voice"
+      ],
+      "parent": null,
+      "superseded_by": [],
+      "since": "1.0",
+      "page": "https://lexlint.io/activities/processes-biometrics",
+      "glossary": "https://lexlint.io/glossary#processes-biometric-data"
+    },
+    {
+      "id": "automated_outreach",
+      "scope": "code",
+      "status": "current",
+      "term": "Sends automated outreach",
+      "short": "Your app contacts people through automated calls, texts, or messages that a person did not individually compose and send.",
+      "definition": "This covers an automated phone campaign, a bulk text reminder service, and a voice call generated by a speech model rather than recorded by a person. A single email a staff member writes and sends by hand does not count, even if a template supplied the boilerplate. Declaring it puts AI law, communications law and product-liability law in scope, along with any other law that names this activity.",
+      "lint_definition": "It sends people messages by email, text, call or direct message that the software initiates, rather than a person sending each one. Requests under a records law are statutory_requests.",
+      "areas": [
+        "ai",
+        "communications",
+        "liability"
+      ],
+      "counterparties": [
+        "an email delivery service",
+        "a carrier gateway for text messages and calls"
+      ],
+      "related": [
+        "statutory_requests"
+      ],
+      "parent": null,
+      "superseded_by": [],
+      "since": "1.0",
+      "page": "https://lexlint.io/activities/automated-outreach",
+      "glossary": "https://lexlint.io/glossary#sends-automated-outreach"
+    },
+    {
+      "id": "high_risk_decisions",
+      "scope": "code",
+      "status": "current",
+      "term": "Makes high-risk automated decisions",
+      "short": "Your app lets software decide, on its own, an outcome with a serious effect on a person, such as a loan, a job, or a benefit.",
+      "definition": "This covers an automated loan-approval system, a resume-screening tool that rejects candidates without human review, and a claims model that denies a benefit. Declare each kind of decision it makes as well, from Makes employment decisions to Makes justice decisions, so a rule written for one kind reaches it. A recommendation a human reviewer can freely overrule before it takes effect does not count in the same way. Declaring it puts AI law, privacy law and product-liability law in scope, along with any other law that names this activity.",
+      "lint_definition": "It makes or scores decisions about a person with legal or similar effect. Also declare each kind it makes, one of the eight *_decisions values.",
+      "areas": [
+        "ai",
+        "privacy",
+        "liability"
+      ],
+      "counterparties": [
+        "a credit bureau or background-check provider",
+        "the vendor of a scoring model"
+      ],
+      "related": [],
+      "parent": null,
+      "superseded_by": [],
+      "since": "1.0",
+      "page": "https://lexlint.io/activities/high-risk-decisions",
+      "glossary": "https://lexlint.io/glossary#makes-high-risk-automated-decisions"
+    },
+    {
+      "id": "ships_consumer_interface",
+      "scope": "code",
+      "status": "current",
+      "term": "Ships a consumer interface",
+      "short": "Your product has a website, app or other screen that members of the public use to buy, book, read or reach a service.",
+      "definition": "This covers a storefront, a booking or sign-up flow, a news or reference site, a portal where customers manage an account, and a mobile app's screens, whether you built them or a vendor hosts them. A tool only your own staff use, such as an admin console or an internal dashboard, does not count, and neither does an API with no screen of its own. Distributing an app through an app store is Ships a mobile app, which can apply beside this one. Declaring it puts digital-accessibility law in scope, along with any other law that names this activity.",
+      "lint_definition": "It offers a website, app or other screen that members of the public use to buy, book, read or reach a service. A tool only your own staff use is not this.",
+      "areas": [
+        "accessibility"
+      ],
+      "counterparties": [
+        "the members of the public who use its pages and screens",
+        "the web host or content network that serves them"
+      ],
+      "related": [
+        "ships_mobile_app"
+      ],
+      "parent": null,
+      "superseded_by": [],
+      "since": "1.15",
+      "page": "https://lexlint.io/activities/ships-consumer-interface",
+      "glossary": "https://lexlint.io/glossary#ships-a-consumer-interface"
+    },
+    {
+      "id": "aggregates_content",
+      "scope": "code",
+      "status": "current",
+      "term": "Reuses other publishers' content",
+      "short": "Your app republishes, excerpts, links to, or indexes content another publisher made first: headlines, articles, snippets, or images.",
+      "definition": "This covers a news-aggregation app that lists headlines linking out to original articles, a digest that quotes a short excerpt from each story it summarizes, and a search or preview feature that shows thumbnails or snippets of other sites' pages. Linking to a single article a user pastes in themselves, with no ongoing collection, does not count. Declaring it puts reuse law, product-liability law and digital-accessibility law in scope, along with any other law that names this activity.",
+      "lint_definition": "It republishes, excerpts or indexes news or other publishers' content, by any means.",
+      "areas": [
+        "aggregation",
+        "liability",
+        "accessibility"
+      ],
+      "counterparties": [
+        "the publishers whose feeds it reads",
+        "a news or search API"
+      ],
+      "related": [
+        "crawls_web"
+      ],
+      "parent": null,
+      "superseded_by": [],
+      "since": "1.0",
+      "page": "https://lexlint.io/activities/aggregates-content",
+      "glossary": "https://lexlint.io/glossary#aggregates-news-content"
+    },
+    {
+      "id": "statutory_requests",
+      "scope": "code",
+      "status": "current",
+      "term": "Files records requests",
+      "short": "Your app automatically submits public-records or freedom-of-information requests to a government body on a user's behalf.",
+      "definition": "This covers a tool that files a public-records or freedom-of-information request for a user, and a service that sends the same request to many agencies at once. An app that only helps a user draft a request they send themselves does not count in the same way. Records acts bind the body that answers a request, not the person who files it, so LexLint holds no law this activity raises and reports it as coverage only.",
+      "lint_definition": "It files requests with public bodies under a public-records, freedom-of-information or similar statutory right, by software or at scale. Messages that market or notify are automated_outreach.",
+      "areas": [],
+      "counterparties": [
+        "a public body's request portal",
+        "the mail service that delivers each request"
+      ],
+      "related": [
+        "automated_outreach"
+      ],
+      "parent": null,
+      "superseded_by": [],
+      "since": "1.0",
+      "page": "https://lexlint.io/activities/statutory-requests",
+      "glossary": "https://lexlint.io/glossary#files-records-requests"
+    },
+    {
+      "id": "records_calls",
+      "scope": "code",
+      "status": "current",
+      "term": "Records calls",
+      "short": "Your app records, transcribes, or monitors people talking to each other, on a phone or video call or in a meeting.",
+      "definition": "This covers a call-center recording feature, a notetaker that joins a video meeting, and a tool that saves a session for later review. A call your app only carries from one person to another, without keeping or reading it, does not count. A voice assistant a caller talks to is Processes voice recordings, and so is recording your own voice alone: Records calls is for people talking to each other. Declaring it puts communications law and product-liability law in scope, along with any other law that names this activity.",
+      "lint_definition": "It records, transcribes or monitors people talking to each other: a phone or video call, or a meeting in person or online, including a notetaker that joins one. A voice assistant, or your voice alone, is processes_voice.",
+      "areas": [
+        "communications",
+        "liability"
+      ],
+      "counterparties": [
+        "a telephony or video-meeting platform",
+        "a transcription vendor"
+      ],
+      "related": [
+        "processes_voice",
+        "records_text_chat"
+      ],
+      "parent": null,
+      "superseded_by": [],
+      "since": "1.0",
+      "page": "https://lexlint.io/activities/records-calls",
+      "glossary": "https://lexlint.io/glossary#records-calls"
+    },
+    {
+      "id": "records_text_chat",
+      "scope": "code",
+      "status": "current",
+      "term": "Records text chat",
+      "short": "Your app keeps what users type in a chat, or a vendor's chat feature inside it receives the text as it is typed, whether a person or an assistant answers.",
+      "definition": "This covers a live-chat window whose vendor keeps the transcript, a support widget that forwards messages to an agent, an assistant whose conversations you store, and a session-replay tool that captures what users type. A form your app only saves does not count, and an assistant that keeps no transcript and passes nothing to a vendor is Deploys a chatbot alone. Declaring it puts communications law and product-liability law in scope, along with any other law that names this activity.",
+      "lint_definition": "It keeps what users type in a chat, or has a vendor receive it as they type, with a person or an assistant answering: live chat, a chat widget, stored transcripts, session replay of typing. A saved form is not this.",
+      "areas": [
+        "communications",
+        "liability"
+      ],
+      "counterparties": [
+        "a live-chat or help-desk vendor",
+        "a session-replay service"
+      ],
+      "related": [
+        "deploys_chatbot",
+        "records_calls"
+      ],
+      "parent": null,
+      "superseded_by": [],
+      "since": "1.0",
+      "page": "https://lexlint.io/activities/records-text-chat",
+      "glossary": "https://lexlint.io/glossary#records-text-chat"
+    },
+    {
+      "id": "tracks_devices",
+      "scope": "code",
+      "status": "current",
+      "term": "Tracks devices",
+      "short": "Your app identifies or follows a specific phone, browser, or other device across visits, or across other sites and apps.",
+      "definition": "This covers a device-fingerprinting technique, an advertising identifier your app reads, and a tracking cookie set for a returning visitor. A session token that only keeps a single visit logged in, and is discarded when the visit ends, does not count in the same way. Declaring it puts communications law and product-liability law in scope, along with any other law that names this activity.",
+      "lint_definition": "It stores or reads information on a user's browser or device beyond what delivering the service needs: analytics or advertising cookies, pixels, SDK identifiers, fingerprinting.",
+      "areas": [
+        "communications",
+        "liability"
+      ],
+      "counterparties": [
+        "an analytics provider",
+        "an advertising network",
+        "a crash-reporting service"
+      ],
+      "related": [
+        "records_text_chat"
+      ],
+      "parent": null,
+      "superseded_by": [],
+      "since": "1.0",
+      "page": "https://lexlint.io/activities/tracks-devices",
+      "glossary": "https://lexlint.io/glossary#tracks-devices"
+    },
+    {
+      "id": "employment_decisions",
+      "scope": "code",
+      "status": "current",
+      "term": "Makes employment decisions",
+      "short": "Your app makes or scores decisions about a person's work, such as hiring, promotion, pay or termination.",
+      "definition": "This covers a resume screener, a video-interview scorer, and software that allocates tasks to workers or monitors and rates their performance. It implies Makes high-risk automated decisions, so the rules written for every such decision reach it too. A scheduling tool that applies a rule a person set and can see does not count in the same way. Declaring it puts AI law, privacy law and product-liability law in scope, along with any other law that names this activity.",
+      "lint_definition": "It makes or scores decisions about a person's work: hiring, promotion, termination, pay, task allocation, or monitoring and evaluating workers.",
+      "areas": [
+        "ai",
+        "privacy",
+        "liability"
+      ],
+      "counterparties": [
+        "an applicant-tracking system or job board",
+        "a background-check provider"
+      ],
+      "related": [
+        "high_risk_decisions"
+      ],
+      "parent": "high_risk_decisions",
+      "superseded_by": [],
+      "since": "1.4",
+      "page": "https://lexlint.io/activities/employment-decisions",
+      "glossary": "https://lexlint.io/glossary#makes-employment-decisions"
+    },
+    {
+      "id": "credit_decisions",
+      "scope": "code",
+      "status": "current",
+      "term": "Makes credit decisions",
+      "short": "Your app makes or scores decisions about a person's credit, a loan or another financial service offered to them.",
+      "definition": "This covers a credit-scoring model, an automated loan approval and a system that sets a credit limit or a rate, whoever runs it, a lender or its vendor. It implies Makes high-risk automated decisions, so the rules written for every such decision reach it too. A model used only to detect fraud does not count. Declaring it puts AI law, privacy law and product-liability law in scope, along with any other law that names this activity.",
+      "lint_definition": "It makes or scores decisions about a person's credit, a loan or another financial service offered to them: creditworthiness, a credit score, a limit or its price. Fraud detection alone is not this.",
+      "areas": [
+        "ai",
+        "privacy",
+        "liability"
+      ],
+      "counterparties": [
+        "a credit bureau",
+        "the vendor of a scoring model"
+      ],
+      "related": [
+        "is_lender",
+        "high_risk_decisions"
+      ],
+      "parent": "high_risk_decisions",
+      "superseded_by": [],
+      "since": "1.4",
+      "page": "https://lexlint.io/activities/credit-decisions",
+      "glossary": "https://lexlint.io/glossary#makes-credit-decisions"
+    },
+    {
+      "id": "insurance_decisions",
+      "scope": "code",
+      "status": "current",
+      "term": "Makes insurance decisions",
+      "short": "Your app makes or scores decisions about a person's insurance, such as eligibility, a price or a claim.",
+      "definition": "This covers an underwriting model, a pricing engine that sets a person's premium and a claims model that denies or reduces a claim, whoever runs it. It implies Makes high-risk automated decisions, so the rules written for every such decision reach it too. A comparison site that only ranks published prices does not count. Declaring it puts AI law, privacy law and product-liability law in scope, along with any other law that names this activity.",
+      "lint_definition": "It makes or scores decisions about a person's insurance: eligibility, underwriting, risk assessment, pricing or a claim.",
+      "areas": [
+        "ai",
+        "privacy",
+        "liability"
+      ],
+      "counterparties": [
+        "an insurer or insurance producer",
+        "the vendor of a pricing model"
+      ],
+      "related": [
+        "is_insurer",
+        "high_risk_decisions"
+      ],
+      "parent": "high_risk_decisions",
+      "superseded_by": [],
+      "since": "1.4",
+      "page": "https://lexlint.io/activities/insurance-decisions",
+      "glossary": "https://lexlint.io/glossary#makes-insurance-decisions"
+    },
+    {
+      "id": "housing_decisions",
+      "scope": "code",
+      "status": "current",
+      "term": "Makes housing decisions",
+      "short": "Your app makes or scores decisions about a person's housing, such as a rental application or tenant screening.",
+      "definition": "This covers a tenant-screening score, an automated rental-application decision and a system that decides who is offered a home. It implies Makes high-risk automated decisions, so the rules written for every such decision reach it too. A listing site that shows every listing to everyone does not count. Declaring it puts AI law, privacy law and product-liability law in scope, along with any other law that names this activity.",
+      "lint_definition": "It makes or scores decisions about a person's housing: a tenancy, a rental application, tenant screening or a housing offer.",
+      "areas": [
+        "ai",
+        "privacy",
+        "liability"
+      ],
+      "counterparties": [
+        "a tenant-screening or background-check provider"
+      ],
+      "related": [
+        "high_risk_decisions"
+      ],
+      "parent": "high_risk_decisions",
+      "superseded_by": [],
+      "since": "1.4",
+      "page": "https://lexlint.io/activities/housing-decisions",
+      "glossary": "https://lexlint.io/glossary#makes-housing-decisions"
+    },
+    {
+      "id": "education_decisions",
+      "scope": "code",
+      "status": "current",
+      "term": "Makes education decisions",
+      "short": "Your app makes or scores decisions about a person's education, such as admission, a grade or a test result.",
+      "definition": "This covers an admissions screener, an automated essay grader that sets a mark, and remote proctoring that flags a test taker. It implies Makes high-risk automated decisions, so the rules written for every such decision reach it too. A practice quiz with no effect on a grade or a place does not count. Declaring it puts AI law, privacy law and product-liability law in scope, along with any other law that names this activity.",
+      "lint_definition": "It makes or scores decisions about a person's education: admission, grading or assessing learning, the level they may access, or proctoring a test.",
+      "areas": [
+        "ai",
+        "privacy",
+        "liability"
+      ],
+      "counterparties": [
+        "a learning-management or exam platform"
+      ],
+      "related": [
+        "serves_minors",
+        "high_risk_decisions"
+      ],
+      "parent": "high_risk_decisions",
+      "superseded_by": [],
+      "since": "1.4",
+      "page": "https://lexlint.io/activities/education-decisions",
+      "glossary": "https://lexlint.io/glossary#makes-education-decisions"
+    },
+    {
+      "id": "health_care_decisions",
+      "scope": "code",
+      "status": "current",
+      "term": "Makes health care decisions",
+      "short": "Your app makes or scores decisions about a person's access to health care, such as coverage, prior authorization or triage.",
+      "definition": "This covers a prior-authorization engine, a utilization-review model that recommends a denial, and a triage tool that sets who is seen first. It implies Makes high-risk automated decisions, so the rules written for every such decision reach it too. Diagnosis by a medical device is not this; it is a decision about a condition, not about access to care. Declaring it puts AI law, privacy law and product-liability law in scope, along with any other law that names this activity.",
+      "lint_definition": "It makes or scores decisions about a person's access to health care: eligibility, coverage, prior authorization, utilization review or triage. Diagnosis by a medical device is not this.",
+      "areas": [
+        "ai",
+        "privacy",
+        "liability"
+      ],
+      "counterparties": [
+        "a health plan or utilization-review organization"
+      ],
+      "related": [
+        "handles_health_records",
+        "high_risk_decisions"
+      ],
+      "parent": "high_risk_decisions",
+      "superseded_by": [],
+      "since": "1.4",
+      "page": "https://lexlint.io/activities/health-care-decisions",
+      "glossary": "https://lexlint.io/glossary#makes-health-care-decisions"
+    },
+    {
+      "id": "public_services_decisions",
+      "scope": "code",
+      "status": "current",
+      "term": "Makes public services decisions",
+      "short": "Your app makes or scores decisions about a person's public services or benefits, such as eligibility for public assistance.",
+      "definition": "This covers a benefits-eligibility engine, a model that flags a claimant for review or cuts a benefit, and software that triages emergency calls and dispatches a response. It implies Makes high-risk automated decisions, so the rules written for every such decision reach it too. A public body's internal tool that decides nothing about a person does not count. Declaring it puts AI law, privacy law and product-liability law in scope, along with any other law that names this activity.",
+      "lint_definition": "It makes or scores decisions about a person's public services or benefits: eligibility for public assistance, awarding, cutting or ending it, or emergency dispatch.",
+      "areas": [
+        "ai",
+        "privacy",
+        "liability"
+      ],
+      "counterparties": [
+        "a public agency that runs a benefits program"
+      ],
+      "related": [
+        "high_risk_decisions"
+      ],
+      "parent": "high_risk_decisions",
+      "superseded_by": [],
+      "since": "1.4",
+      "page": "https://lexlint.io/activities/public-services-decisions",
+      "glossary": "https://lexlint.io/glossary#makes-public-services-decisions"
+    },
+    {
+      "id": "justice_decisions",
+      "scope": "code",
+      "status": "current",
+      "term": "Makes justice decisions",
+      "short": "Your app makes or scores decisions about a person in law enforcement, migration, the courts or legal services.",
+      "definition": "This covers a recidivism or risk-assessment tool, software that screens a visa or asylum application, and a system that decides who receives legal aid. It implies Makes high-risk automated decisions, so the rules written for every such decision reach it too. A legal research tool that decides nothing about a person does not count. Declaring it puts AI law, privacy law and product-liability law in scope, along with any other law that names this activity.",
+      "lint_definition": "It makes or scores decisions about a person in law enforcement, migration, asylum or border control, the administration of justice, or legal services.",
+      "areas": [
+        "ai",
+        "privacy",
+        "liability"
+      ],
+      "counterparties": [
+        "a police, court or immigration agency"
+      ],
+      "related": [
+        "processes_biometrics",
+        "high_risk_decisions"
+      ],
+      "parent": "high_risk_decisions",
+      "superseded_by": [],
+      "since": "1.4",
+      "page": "https://lexlint.io/activities/justice-decisions",
+      "glossary": "https://lexlint.io/glossary#makes-justice-decisions"
+    },
+    {
+      "id": "deploys_companion_chatbot",
+      "scope": "code",
+      "status": "current",
+      "term": "Deploys a companion chatbot",
+      "short": "Your app offers a chatbot that plays a friend, partner or other companion to the person using it.",
+      "definition": "This covers a chatbot built to simulate a personal, social, emotional or romantic relationship with its user. A customer-support bot or a task assistant does not count, even when it is friendly. It implies Deploys a chatbot, so the rules written for every chatbot reach it too. Declaring it puts AI law, product-liability law and digital-accessibility law in scope, along with any other law that names this activity.",
+      "lint_definition": "It offers a chatbot that simulates a personal, social, emotional or romantic relationship or companionship with its user. A chatbot that only answers questions or helps with a task is not this.",
+      "areas": [
+        "ai",
+        "liability",
+        "accessibility"
+      ],
+      "counterparties": [
+        "a model provider that writes the answers",
+        "a character or persona platform"
+      ],
+      "related": [
+        "deploys_chatbot",
+        "deploys_mental_health_chatbot"
+      ],
+      "parent": "deploys_chatbot",
+      "superseded_by": [],
+      "since": "1.14",
+      "page": "https://lexlint.io/activities/deploys-companion-chatbot",
+      "glossary": "https://lexlint.io/glossary#deploys-a-companion-chatbot"
+    },
+    {
+      "id": "deploys_mental_health_chatbot",
+      "scope": "code",
+      "status": "current",
+      "term": "Deploys a mental-health chatbot",
+      "short": "Your app offers a chatbot that provides therapy, counseling or mental-health care, or presents itself as doing so.",
+      "definition": "This covers a therapy or counseling bot and a chatbot marketed as mental or behavioral health care. A clinician's own note-taking or scheduling AI does not count. It implies Deploys a chatbot, so the rules written for every chatbot reach it too. Declaring it puts AI law, product-liability law and digital-accessibility law in scope, along with any other law that names this activity.",
+      "lint_definition": "It offers a chatbot that provides therapy, counseling or mental or behavioral health care, or is offered as doing so. A clinician's own note-taking or scheduling AI is not this.",
+      "areas": [
+        "ai",
+        "liability",
+        "accessibility"
+      ],
+      "counterparties": [
+        "a model provider that writes the answers",
+        "a licensed professional who oversees the service"
+      ],
+      "related": [
+        "deploys_chatbot",
+        "deploys_companion_chatbot"
+      ],
+      "parent": "deploys_chatbot",
+      "superseded_by": [],
+      "since": "1.14",
+      "page": "https://lexlint.io/activities/deploys-mental-health-chatbot",
+      "glossary": "https://lexlint.io/glossary#deploys-a-mental-health-chatbot"
+    },
+    {
+      "id": "generates_text",
+      "scope": "code",
+      "status": "current",
+      "term": "Generates text with AI",
+      "short": "Your app uses artificial intelligence (AI) to produce written text, rather than only publishing what a person wrote.",
+      "definition": "This covers an AI copywriting tool, a summarizer, a drafting assistant and a code generator, whether the model is yours or a vendor's. It implies Generates content with AI, so the rules written for every kind of AI-generated content reach it too. Content a person wrote, that your app only formats or spell-checks, does not count. A chatbot that people talk to is Deploys a chatbot. Declaring it puts AI law, product-liability law and digital-accessibility law in scope, along with any other law that names this activity.",
+      "lint_definition": "It writes text with an AI model that reaches its users or the public: articles, messages, summaries or code. Somebody else's model counts; output only its own team reads is not this.",
+      "areas": [
+        "ai",
+        "liability",
+        "accessibility"
+      ],
+      "counterparties": [
+        "a model provider whose API writes the output"
+      ],
+      "related": [
+        "generates_content",
+        "deploys_chatbot"
+      ],
+      "parent": "generates_content",
+      "superseded_by": [],
+      "since": "1.7",
+      "page": "https://lexlint.io/activities/generates-text",
+      "glossary": "https://lexlint.io/glossary#generates-text-with-ai"
+    },
+    {
+      "id": "generates_images",
+      "scope": "code",
+      "status": "current",
+      "term": "Generates images with AI",
+      "short": "Your app uses artificial intelligence (AI) to produce pictures, rather than only publishing what a person photographed or drew.",
+      "definition": "This covers an image generator, an AI avatar or logo maker, and a tool that edits or retouches a photograph with a model. It implies Generates content with AI, so the rules written for every kind of AI-generated content reach it too. A picture a person made that your app only resizes or crops does not count. Declaring it puts AI law, product-liability law and digital-accessibility law in scope, along with any other law that names this activity.",
+      "lint_definition": "It makes pictures with an AI model that reach its users or the public: photographs, artwork, graphics or edits of them. Somebody else's model counts; output only its own team reads is not this.",
+      "areas": [
+        "ai",
+        "liability",
+        "accessibility"
+      ],
+      "counterparties": [
+        "a model provider whose API writes the output"
+      ],
+      "related": [
+        "generates_content",
+        "generates_video"
+      ],
+      "parent": "generates_content",
+      "superseded_by": [],
+      "since": "1.7",
+      "page": "https://lexlint.io/activities/generates-images",
+      "glossary": "https://lexlint.io/glossary#generates-images-with-ai"
+    },
+    {
+      "id": "generates_video",
+      "scope": "code",
+      "status": "current",
+      "term": "Generates video with AI",
+      "short": "Your app uses artificial intelligence (AI) to produce moving pictures, rather than only publishing what a person filmed.",
+      "definition": "This covers a text-to-video generator, an AI avatar presenter, and a tool that swaps a face or alters footage of a real person. It implies Generates content with AI, so the rules written for every kind of AI-generated content reach it too. Footage a person shot that your app only trims or captions does not count. Declaring it puts AI law, product-liability law and digital-accessibility law in scope, along with any other law that names this activity.",
+      "lint_definition": "It makes moving pictures with an AI model that reach its users or the public: clips, animation, or edits and swaps of real footage. Somebody else's model counts; output only its own team reads is not this.",
+      "areas": [
+        "ai",
+        "liability",
+        "accessibility"
+      ],
+      "counterparties": [
+        "a model provider whose API writes the output"
+      ],
+      "related": [
+        "generates_content",
+        "generates_images"
+      ],
+      "parent": "generates_content",
+      "superseded_by": [],
+      "since": "1.7",
+      "page": "https://lexlint.io/activities/generates-video",
+      "glossary": "https://lexlint.io/glossary#generates-video-with-ai"
+    },
+    {
+      "id": "generates_audio",
+      "scope": "code",
+      "status": "current",
+      "term": "Generates audio with AI",
+      "short": "Your app uses artificial intelligence (AI) to produce speech, singing, music or other sound, rather than only publishing what a person recorded.",
+      "definition": "This covers a voice clone used in an advertisement, a text-to-speech narrator, a synthetic singer and a music generator, whether the model is yours or a vendor's. It implies Generates content with AI, so the rules written for every kind of AI-generated content reach it too. A person's own recording that your app only plays, trims or transcribes does not count; recording and analyzing voices is Processes voice recordings. Declaring it puts AI law, product-liability law and digital-accessibility law in scope, along with any other law that names this activity.",
+      "lint_definition": "It makes speech, singing, music or other sound with an AI model that reaches its users or the public. Somebody else's model counts; output only its own team reads is not this.",
+      "areas": [
+        "ai",
+        "liability",
+        "accessibility"
+      ],
+      "counterparties": [
+        "a model provider whose API writes the output"
+      ],
+      "related": [
+        "generates_content",
+        "processes_voice"
+      ],
+      "parent": "generates_content",
+      "superseded_by": [],
+      "since": "1.7",
+      "page": "https://lexlint.io/activities/generates-audio",
+      "glossary": "https://lexlint.io/glossary#generates-audio-with-ai"
+    },
+    {
+      "id": "publishes_adult_content",
+      "scope": "deployment",
+      "status": "current",
+      "term": "Publishes adult content",
+      "short": "Your app hosts or distributes sexually explicit material, or other content a jurisdiction classifies as harmful to minors.",
+      "definition": "This covers an adult video site, a forum that hosts explicit images its users upload, and a livestreaming service in that category. A mainstream app that removes an occasional user-posted image once it is flagged does not count in the same way. Declaring it puts age-gating law, product-liability law and digital-accessibility law in scope, along with any other law that names this activity.",
+      "lint_definition": "It makes sexually explicit material available, whether it is yours or your users'.",
+      "areas": [
+        "age",
+        "liability",
+        "accessibility"
+      ],
+      "counterparties": [
+        "an age-assurance provider",
+        "a payment processor"
+      ],
+      "related": [
+        "serves_minors"
+      ],
+      "parent": null,
+      "superseded_by": [],
+      "since": "1.0",
+      "page": "https://lexlint.io/activities/publishes-adult-content",
+      "glossary": "https://lexlint.io/glossary#publishes-adult-content"
+    },
+    {
+      "id": "operates_social_platform",
+      "scope": "deployment",
+      "status": "current",
+      "term": "Operates a social platform",
+      "short": "Your app lets users create accounts, post content, and interact with each other's posts in a shared public or semi-public space.",
+      "definition": "This covers a photo-sharing network, a video-sharing site users upload to, and a discussion forum with public profiles. A single-player app with no user-to-user posting does not count, even if users can leave a comment for your staff to read. Declaring it puts age-gating law, cybersecurity law, content moderation law, product-liability law and digital-accessibility law in scope, along with any other law that names this activity.",
+      "lint_definition": "It runs a service where users post content that other users see, or find and connect with each other.",
+      "areas": [
+        "age",
+        "security",
+        "platform",
+        "liability",
+        "accessibility"
+      ],
+      "counterparties": [
+        "a content-moderation vendor",
+        "a hosting provider for what users upload"
+      ],
+      "related": [
+        "aggregates_content",
+        "serves_minors"
+      ],
+      "parent": null,
+      "superseded_by": [],
+      "since": "1.0",
+      "page": "https://lexlint.io/activities/operates-social-platform",
+      "glossary": "https://lexlint.io/glossary#operates-a-social-platform"
+    },
+    {
+      "id": "serves_minors",
+      "scope": "deployment",
+      "status": "current",
+      "term": "Serves under-18s",
+      "short": "Your app is used by, or knowingly allows, people under the age of eighteen, whether or not it was designed for them.",
+      "definition": "This covers a general-audience social app that in practice has a large under-18 user base, and a game marketed to teenagers. An app that requires and enforces an adult-only signup, and takes real steps to keep minors out, does not count in the same way. Declaring it puts age-gating law, product-liability law and digital-accessibility law in scope, along with any other law that names this activity.",
+      "lint_definition": "It is used by people under 18 or is likely to be: it is aimed at them, or it is open to everyone and does not keep them out. Data about minors collected elsewhere is the data activity, not this one.",
+      "areas": [
+        "age",
+        "liability",
+        "accessibility"
+      ],
+      "counterparties": [
+        "an age-assurance provider"
+      ],
+      "related": [
+        "publishes_adult_content",
+        "operates_social_platform"
+      ],
+      "parent": null,
+      "superseded_by": [],
+      "since": "1.0",
+      "page": "https://lexlint.io/activities/serves-minors",
+      "glossary": "https://lexlint.io/glossary#serves-under-18s"
+    },
+    {
+      "id": "operates_app_store",
+      "scope": "deployment",
+      "status": "current",
+      "term": "Operates an app store",
+      "short": "Your app is itself a storefront that lists, distributes, or lets people download other companies' apps.",
+      "definition": "This covers a general-purpose app marketplace and a curated storefront limited to one device category. A company's own single app does not count, even one built with plugins, unless it distributes other developers' separate apps. Declaring it puts age-gating law, product-liability law and digital-accessibility law in scope, along with any other law that names this activity.",
+      "lint_definition": "It distributes other developers' apps: a store, a marketplace, or an operating system that carries one.",
+      "areas": [
+        "age",
+        "liability",
+        "accessibility"
+      ],
+      "counterparties": [
+        "the developers whose apps it carries",
+        "a payment processor"
+      ],
+      "related": [
+        "ships_mobile_app"
+      ],
+      "parent": null,
+      "superseded_by": [],
+      "since": "1.0",
+      "page": "https://lexlint.io/activities/operates-app-store",
+      "glossary": "https://lexlint.io/glossary#operates-an-app-store"
+    },
+    {
+      "id": "ships_mobile_app",
+      "scope": "deployment",
+      "status": "current",
+      "term": "Ships a mobile app",
+      "short": "Your app is distributed as a native application for a phone or tablet, through an app store or a direct install.",
+      "definition": "This covers an iOS or Android app listed in an app store, and a sideloaded app installed directly onto a device. A browser-based site with no installable app does not count on its own. Declaring it puts age-gating law, cybersecurity law, product-liability law and digital-accessibility law in scope, along with any other law that names this activity.",
+      "lint_definition": "It distributes an app through somebody else's store, Apple's, Google's or another; running the store is operates_app_store.",
+      "areas": [
+        "age",
+        "security",
+        "liability",
+        "accessibility"
+      ],
+      "counterparties": [
+        "Apple's App Store or Google Play"
+      ],
+      "related": [
+        "operates_app_store",
+        "distributes_software_product"
+      ],
+      "parent": null,
+      "superseded_by": [],
+      "since": "1.0",
+      "page": "https://lexlint.io/activities/ships-mobile-app",
+      "glossary": "https://lexlint.io/glossary#ships-a-mobile-app"
+    },
+    {
+      "id": "distributes_software_product",
+      "scope": "deployment",
+      "status": "current",
+      "term": "Distributes a software product",
+      "short": "Your app is itself a software product a maker ships to customers, rather than a service you operate and run yourself.",
+      "definition": "This covers packaged desktop software, a licensed on-premises system, and a software development kit other companies embed in their own products. A service you host and operate entirely yourself, with no separate product to install, does not count in the same way. Declaring it puts cybersecurity law, product-liability law and digital-accessibility law in scope, along with any other law that names this activity.",
+      "lint_definition": "It makes software available to others in any form: a desktop app, library, package, CLI, firmware, or a server others self-host. A service used only through a browser or API is not this.",
+      "areas": [
+        "security",
+        "liability",
+        "accessibility"
+      ],
+      "counterparties": [
+        "a package registry",
+        "an update or download server"
+      ],
+      "related": [
+        "ships_mobile_app"
+      ],
+      "parent": null,
+      "superseded_by": [],
+      "since": "1.0",
+      "page": "https://lexlint.io/activities/distributes-software-product",
+      "glossary": "https://lexlint.io/glossary#distributes-a-software-product"
+    },
+    {
+      "id": "handles_health_records",
+      "scope": "role",
+      "status": "current",
+      "term": "Handles health records",
+      "short": "Your app stores or processes a person's medical history, diagnosis, treatment, or other health information.",
+      "definition": "This covers a patient portal, a fitness app that stores a diagnosis a user enters, and a scheduling tool that records the reason for a medical visit. A step counter with no diagnosis or health condition attached does not count on its own. Declaring it puts privacy law and cybersecurity law in scope, along with any other law that names this activity.",
+      "lint_definition": "It is a HIPAA covered entity or business associate, or a health-sector entity under a national regime. Storing health data does not make an app one; being the regulated party does.",
+      "areas": [
+        "privacy",
+        "security"
+      ],
+      "counterparties": [],
+      "related": [
+        "provides_financial_services"
+      ],
+      "parent": null,
+      "superseded_by": [],
+      "since": "1.0",
+      "page": "https://lexlint.io/activities/handles-health-records",
+      "glossary": "https://lexlint.io/glossary#handles-health-records"
+    },
+    {
+      "id": "provides_financial_services",
+      "scope": "role",
+      "status": "current",
+      "term": "Provides financial services",
+      "short": "The company behind your app holds a financial-services license, as a bank, lender, insurer, securities firm, payment provider or crypto-asset provider, or supplies software to a firm that does.",
+      "definition": "This is a status of the company that runs or supplies the app, not a feature of the app. Declare its license class too: Is a bank, Is a lender, Is an insurer, Is a securities firm, Is a payment provider or Is a crypto-asset provider. Declared alone, it is answered with every class's rules, and the lint asks which class applies. An app that only moves money or takes card payments, without holding a license or supplying a firm that does, does not count. Declaring it puts AI law, privacy law and cybersecurity law in scope, along with any other law that names this activity.",
+      "lint_definition": "It holds a financial-services license, or supplies software to a firm that does. Moving money alone is not this. Also declare the class: a bank, lender, insurer, securities firm, payment or crypto-asset provider.",
+      "areas": [
+        "ai",
+        "privacy",
+        "security"
+      ],
+      "counterparties": [],
+      "related": [
+        "handles_health_records",
+        "is_bank",
+        "is_lender"
+      ],
+      "parent": null,
+      "superseded_by": [],
+      "since": "1.0",
+      "page": "https://lexlint.io/activities/provides-financial-services",
+      "glossary": "https://lexlint.io/glossary#provides-financial-services"
+    },
+    {
+      "id": "operates_essential_service",
+      "scope": "role",
+      "status": "current",
+      "term": "Runs an essential service",
+      "short": "Your app supports infrastructure a government has designated essential, such as energy, water, transport, or health delivery.",
+      "definition": "This covers a utility's outage-reporting app, a hospital scheduling system, and a transit operator's ticketing platform. A general productivity app a utility happens to use for internal memos does not count on its own. Declaring it puts cybersecurity law in scope, along with any other law that names this activity.",
+      "lint_definition": "It is an essential or important entity under NIS2 or a transposition, or a designated critical-infrastructure operator (energy, transport, banking, health, water, digital infrastructure).",
+      "areas": [
+        "security"
+      ],
+      "counterparties": [],
+      "related": [
+        "provides_telecom_services"
+      ],
+      "parent": null,
+      "superseded_by": [],
+      "since": "1.0",
+      "page": "https://lexlint.io/activities/operates-essential-service",
+      "glossary": "https://lexlint.io/glossary#runs-an-essential-service"
+    },
+    {
+      "id": "is_listed_company",
+      "scope": "role",
+      "status": "current",
+      "term": "Is a listed company",
+      "short": "The company behind your app has shares traded on a public stock exchange.",
+      "definition": "This is a status of the company that makes the app, not a feature of the app. Some cybersecurity rules bind listed companies directly, such as the US Securities and Exchange Commission's rule that a listed company disclose a material cybersecurity incident. A privately held company, including one planning to go public, does not count. Declaring it puts cybersecurity law in scope, along with any other law that names this activity.",
+      "lint_definition": "It is a public company, or files periodic reports with a securities regulator such as the SEC, whatever the software does.",
+      "areas": [
+        "security"
+      ],
+      "counterparties": [],
+      "related": [],
+      "parent": null,
+      "superseded_by": [],
+      "since": "1.0",
+      "page": "https://lexlint.io/activities/is-listed-company",
+      "glossary": "https://lexlint.io/glossary#is-a-listed-company"
+    },
+    {
+      "id": "provides_telecom_services",
+      "scope": "role",
+      "status": "current",
+      "term": "Provides telecom services",
+      "short": "Your app carries other people's calls, texts, or internet traffic, rather than only using someone else's network to reach its own users.",
+      "definition": "This covers a voice-over-internet calling service, a text-messaging carrier, and an internet service provider's own app. A messaging app that rides on top of the public internet, without operating network infrastructure itself, does not count in the same way. Declaring it puts cybersecurity law in scope, along with any other law that names this activity.",
+      "lint_definition": "It provides a public telecommunications network or an electronic communications service, including Internet access.",
+      "areas": [
+        "security"
+      ],
+      "counterparties": [],
+      "related": [
+        "operates_essential_service"
+      ],
+      "parent": null,
+      "superseded_by": [],
+      "since": "1.0",
+      "page": "https://lexlint.io/activities/provides-telecom-services",
+      "glossary": "https://lexlint.io/glossary#provides-telecom-services"
+    },
+    {
+      "id": "is_bank",
+      "scope": "role",
+      "status": "current",
+      "term": "Is a bank",
+      "short": "The company behind your app is a bank, credit union or other deposit-taker, or supplies software to one.",
+      "definition": "This covers a bank, a credit union, a building society and a savings association, and a vendor whose software one of them runs. It implies Provides financial services, so the rules that bind every financial firm reach it too, and a bank that lends also declares Is a lender. A lender that takes no deposits does not count. Declaring it puts AI law, privacy law and cybersecurity law in scope, along with any other law that names this activity.",
+      "lint_definition": "It is a bank, credit union, building society or other deposit-taker, or supplies software to one. A lender that takes no deposits is is_lender; a bank that lends declares both.",
+      "areas": [
+        "ai",
+        "privacy",
+        "security"
+      ],
+      "counterparties": [],
+      "related": [
+        "is_lender",
+        "provides_financial_services"
+      ],
+      "parent": "provides_financial_services",
+      "superseded_by": [],
+      "since": "1.1",
+      "page": "https://lexlint.io/activities/is-bank",
+      "glossary": "https://lexlint.io/glossary#is-a-bank"
+    },
+    {
+      "id": "is_lender",
+      "scope": "role",
+      "status": "current",
+      "term": "Is a lender",
+      "short": "The company behind your app regularly lends or arranges credit as a business, such as consumer, business or mortgage loans or buy now, pay later, or supplies software to a lender.",
+      "definition": "This covers a consumer or small-business lender, a mortgage lender or broker, a buy now, pay later provider and a bank when it lends, licensed or not, because credit law binds whoever regularly extends credit. It implies Provides financial services. A retailer that only accepts a card at checkout does not count. Declaring it puts AI law, privacy law and cybersecurity law in scope, along with any other law that names this activity.",
+      "lint_definition": "It regularly extends or arranges credit as a business, licensed or not: consumer, business or mortgage loans, or buy now, pay later; or supplies software to such a lender. Taking a card at checkout is not this.",
+      "areas": [
+        "ai",
+        "privacy",
+        "security"
+      ],
+      "counterparties": [],
+      "related": [
+        "is_bank",
+        "high_risk_decisions"
+      ],
+      "parent": "provides_financial_services",
+      "superseded_by": [],
+      "since": "1.1",
+      "page": "https://lexlint.io/activities/is-lender",
+      "glossary": "https://lexlint.io/glossary#is-a-lender"
+    },
+    {
+      "id": "is_insurer",
+      "scope": "role",
+      "status": "current",
+      "term": "Is an insurer",
+      "short": "The company behind your app is an insurer, reinsurer or insurance producer, or a utilization-review organization acting for a health insurer, or supplies software to one.",
+      "definition": "This covers a carrier that underwrites policies, a reinsurer, an agent or broker licensed to sell insurance, and a utilization-review organization deciding claims for a health insurer. It implies Provides financial services. A comparison site that sells no policy itself does not count. Declaring it puts AI law, privacy law and cybersecurity law in scope, along with any other law that names this activity.",
+      "lint_definition": "It is an insurer, reinsurer or insurance producer, or a utilization-review organization acting for a health insurer, or supplies software to one. A comparison site that sells no policy is not this.",
+      "areas": [
+        "ai",
+        "privacy",
+        "security"
+      ],
+      "counterparties": [],
+      "related": [
+        "handles_health_records",
+        "provides_financial_services"
+      ],
+      "parent": "provides_financial_services",
+      "superseded_by": [],
+      "since": "1.1",
+      "page": "https://lexlint.io/activities/is-insurer",
+      "glossary": "https://lexlint.io/glossary#is-an-insurer"
+    },
+    {
+      "id": "is_securities_firm",
+      "scope": "role",
+      "status": "current",
+      "term": "Is a securities firm",
+      "short": "The company behind your app is a broker-dealer, investment firm or investment adviser, or a fund or portfolio manager, or supplies software to one.",
+      "definition": "This covers a broker-dealer, an investment firm under EU law, a registered investment adviser, a fund or portfolio manager, and a robo-adviser that invests on a user's behalf. It implies Provides financial services. A market-data or charting app that gives no advice and takes no orders does not count. Declaring it puts AI law, privacy law and cybersecurity law in scope, along with any other law that names this activity.",
+      "lint_definition": "It is a broker-dealer, investment firm, investment adviser, fund or portfolio manager, or robo-adviser, or supplies software to one. A market-data app that gives no advice is not this.",
+      "areas": [
+        "ai",
+        "privacy",
+        "security"
+      ],
+      "counterparties": [],
+      "related": [
+        "is_listed_company",
+        "provides_financial_services"
+      ],
+      "parent": "provides_financial_services",
+      "superseded_by": [],
+      "since": "1.1",
+      "page": "https://lexlint.io/activities/is-securities-firm",
+      "glossary": "https://lexlint.io/glossary#is-a-securities-firm"
+    },
+    {
+      "id": "is_payment_provider",
+      "scope": "role",
+      "status": "current",
+      "term": "Is a payment provider",
+      "short": "The company behind your app is a payment or e-money institution or a money transmitter, or supplies software to one.",
+      "definition": "This covers a payment institution, an e-money issuer, and a money transmitter or remittance service. A crypto-asset exchange or custodian declares Is a crypto-asset provider instead. It implies Provides financial services. A merchant that takes payment for its own goods, through a processor it does not run, does not count. Declaring it puts AI law, privacy law and cybersecurity law in scope, along with any other law that names this activity.",
+      "lint_definition": "It is a payment or e-money institution or a money transmitter, or supplies software to one. A merchant taking payment for its own goods is not this.",
+      "areas": [
+        "ai",
+        "privacy",
+        "security"
+      ],
+      "counterparties": [],
+      "related": [
+        "is_bank",
+        "is_crypto_asset_provider",
+        "provides_financial_services"
+      ],
+      "parent": "provides_financial_services",
+      "superseded_by": [],
+      "since": "1.1",
+      "page": "https://lexlint.io/activities/is-payment-provider",
+      "glossary": "https://lexlint.io/glossary#is-a-payment-provider"
+    },
+    {
+      "id": "is_crypto_asset_provider",
+      "scope": "role",
+      "status": "current",
+      "term": "Is a crypto-asset provider",
+      "short": "The company behind your app is a crypto-asset or virtual-asset service provider, or supplies software to one.",
+      "definition": "This covers a crypto-asset exchange or trading platform, a custodial wallet provider, a broker, a transfer service and a token or stablecoin issuer, whatever the law calls the license: a crypto-asset service provider, a virtual asset service provider, a virtual currency business or a digital asset business. It implies Provides financial services. A merchant that accepts crypto for its own goods, through a processor it does not run, does not count. Declaring it puts AI law, privacy law and cybersecurity law in scope, along with any other law that names this activity.",
+      "lint_definition": "It is a crypto-asset or virtual-asset service provider: an exchange, custodian, broker, transfer service or token issuer, or supplies software to one. A merchant that accepts crypto for its own goods is not this.",
+      "areas": [
+        "ai",
+        "privacy",
+        "security"
+      ],
+      "counterparties": [],
+      "related": [
+        "is_payment_provider",
+        "provides_financial_services"
+      ],
+      "parent": "provides_financial_services",
+      "superseded_by": [],
+      "since": "1.5",
+      "page": "https://lexlint.io/activities/is-crypto-asset-provider",
+      "glossary": "https://lexlint.io/glossary#is-a-crypto-asset-provider"
+    },
+    {
+      "id": "records_conversations",
+      "scope": "code",
+      "status": "retired",
+      "term": "Records conversations",
+      "short": "Retired. Declare records_calls or records_text_chat instead.",
+      "definition": null,
+      "lint_definition": null,
+      "areas": [],
+      "counterparties": [],
+      "related": [
+        "records_calls",
+        "records_text_chat"
+      ],
+      "parent": null,
+      "superseded_by": [
+        "records_calls",
+        "records_text_chat"
+      ],
+      "since": "1.0",
+      "page": "https://lexlint.io/activities/records-conversations",
+      "glossary": null
+    }
+  ],
+  "held": [
+    {
+      "id": "relies_on_digital_identity",
+      "scope": "code",
+      "term": "Relies on a digital identity",
+      "parent": null,
+      "reason": "The laws tagged with it are not on lexlint.io yet; it joins the list when they are."
+    },
+    {
+      "id": "collects_e_signatures",
+      "scope": "code",
+      "term": "Collects electronic signatures",
+      "parent": null,
+      "reason": "It joins the list with the first law that turns on it."
+    },
+    {
+      "id": "ships_encryption",
+      "scope": "code",
+      "term": "Ships encryption",
+      "parent": null,
+      "reason": "It joins the list with the first law that turns on it."
+    },
+    {
+      "id": "serves_sanctioned_destination",
+      "scope": "deployment",
+      "term": "Serves a sanctioned destination",
+      "parent": null,
+      "reason": "It joins the list with the first law that turns on it."
+    },
+    {
+      "id": "provides_cloud_services",
+      "scope": "role",
+      "term": "Provides cloud services",
+      "parent": null,
+      "reason": "The laws the library tags with it bind any organization; the first that binds a cloud provider as such, the EU Data Act's cloud chapter, is researched next."
+    }
+  ]
+}

@@ -2,7 +2,7 @@ import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { main } from '../src/main.js';
 import { cacheDir } from '../src/engine/cache.js';
 import { pinnedEnginePath } from '../src/engine/fetch.js';
@@ -29,7 +29,11 @@ let out: string[];
 let err: string[];
 const io = () => ({ stdout: (s: string) => void out.push(s), stderr: (s: string) => void err.push(s) });
 
+// The bundled rules and component map keep growing; these tests run against a minimal rules home.
+const RULES_HOME = resolve(dirname(fileURLToPath(import.meta.url)), 'repos', 'rules-home');
+
 beforeEach(() => {
+  vi.stubEnv('LEXCODE_RULES_HOME', RULES_HOME);
   work = mkdtempSync(join(tmpdir(), 'lexcode-e2e-'));
   repo = join(work, 'basic');
   cpSync(FIXTURE, repo, { recursive: true });
@@ -37,6 +41,7 @@ beforeEach(() => {
   err = [];
 });
 afterEach(() => {
+  vi.unstubAllEnvs();
   rmSync(work, { recursive: true, force: true });
 });
 
@@ -50,6 +55,7 @@ describe.skipIf(!engineAvailable)('lexcode scan over test/repos/basic with the r
 
     const voice = rec.activities.find((a) => a.id === 'processes_voice' && a.mentioned === 'performs');
     expect(voice?.evidence.map((e) => `${e.rule} ${e.where}`)).toEqual([
+      'lexcode.voice.whisper-load app.py:4',
       'lexcode.voice.whisper-load src/voice.py:5',
       'lexcode.voice.browser-microphone web/App.vue:7',
     ]);
@@ -86,8 +92,8 @@ describe.skipIf(!engineAvailable)('lexcode scan over test/repos/basic with the r
     out.length = 0;
     expect(await main(['scan', repo, '--rules', RULES, '--json'], io())).toBe(0);
     const rec = JSON.parse(out.join('')) as EvidenceRecord;
-    // package.json, package-lock.json, src/voice.py, web/App.vue and the two rule files; never lexcode.json.
-    expect(rec.scope.files).toBe(6);
+    // package.json, package-lock.json, app.py, src/voice.py, web/App.vue and the two rule files; never lexcode.json.
+    expect(rec.scope.files).toBe(7);
   });
 });
 

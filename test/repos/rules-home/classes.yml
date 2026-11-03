@@ -1,0 +1,68 @@
+# One detection class per activity id in registry.snapshot.json (the activities
+# list and the held list both count). Kept complete by hand; test/release.test.ts
+# fails when an id is missing or extra. An id the snapshot does not know is
+# treated as declaration-only at run time.
+#
+# evidence: source rules and/or component-map entries exist; a match is evidence.
+# signal: weak hints only; a match is shown as a question and never fails CI.
+# declaration-only: never read from code.
+
+# evidence (relies_on_digital_identity, collects_e_signatures and ships_encryption
+# are in the snapshot's held list and are evidence all the same)
+crawls_web: evidence
+trains_models: evidence
+generates_content: evidence
+generates_text: evidence
+generates_images: evidence
+generates_video: evidence
+generates_audio: evidence
+deploys_chatbot: evidence
+automated_outreach: evidence
+processes_voice: evidence
+processes_biometrics: evidence
+processes_personal_data: evidence
+records_calls: evidence
+records_text_chat: evidence
+tracks_devices: evidence
+relies_on_digital_identity: evidence
+collects_e_signatures: evidence
+ships_encryption: evidence
+aggregates_content: evidence
+ships_mobile_app: evidence
+distributes_software_product: evidence
+
+# signal
+operates_social_platform: signal
+operates_app_store: signal
+ships_consumer_interface: signal
+statutory_requests: signal
+publishes_adult_content: signal
+
+# declaration-only (roles, decisions, deployment facts, the two chatbot kinds,
+# the retired id and the remaining held ids)
+high_risk_decisions: declaration-only
+employment_decisions: declaration-only
+credit_decisions: declaration-only
+insurance_decisions: declaration-only
+housing_decisions: declaration-only
+education_decisions: declaration-only
+health_care_decisions: declaration-only
+public_services_decisions: declaration-only
+justice_decisions: declaration-only
+deploys_companion_chatbot: declaration-only
+deploys_mental_health_chatbot: declaration-only
+serves_minors: declaration-only
+handles_health_records: declaration-only
+provides_financial_services: declaration-only
+operates_essential_service: declaration-only
+is_listed_company: declaration-only
+provides_telecom_services: declaration-only
+is_bank: declaration-only
+is_lender: declaration-only
+is_insurer: declaration-only
+is_securities_firm: declaration-only
+is_payment_provider: declaration-only
+is_crypto_asset_provider: declaration-only
+records_conversations: declaration-only
+serves_sanctioned_destination: declaration-only
+provides_cloud_services: declaration-only

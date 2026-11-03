@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { runExplainCommand } from '../../src/commands/explain.js';
 import { runRulesCommand } from '../../src/commands/rules.js';
 import { main } from '../../src/main.js';
@@ -15,9 +15,16 @@ const PKG = JSON.parse(readFileSync(resolve(here, '..', '..', 'package.json'), '
 let out: string[];
 let err: string[];
 const io = () => ({ stdout: (s: string) => void out.push(s), stderr: (s: string) => void err.push(s) });
+// The bundled rules keep growing; these tests read a minimal rules home.
+const RULES_HOME = resolve(here, '..', 'repos', 'rules-home');
 beforeEach(() => {
+  vi.stubEnv('LEXCODE_RULES_HOME', RULES_HOME);
   out = [];
   err = [];
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
 });
 
 describe('lexcode version', () => {
