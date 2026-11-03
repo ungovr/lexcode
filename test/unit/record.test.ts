@@ -201,7 +201,7 @@ describe('buildRecord', () => {
     it('removes the evidence under a directory and records how many it removed', () => {
       const r = buildRecord({ ...base, rs, matches, sidecar: sc([{ rule: 'lexcode.voice.whisper', where: 'src/voice/', reason: 'own note' }]) });
       expect(r.activities[0]?.evidence.map((e) => e.where)).toEqual(['src/other/c.py:3']);
-      expect(r.ignored).toEqual([{ rule: 'lexcode.voice.whisper', where: 'src/voice/', matched: 2 }]);
+      expect(r.ignored).toEqual([{ rule: 'lexcode.voice.whisper', where: 'src/voice/', matched: 2, activities: ['processes_voice'] }]);
     });
 
     it('matches a single file by its path, and a rule with no where everywhere', () => {
@@ -209,7 +209,7 @@ describe('buildRecord', () => {
       expect(one.ignored[0]?.matched).toBe(1);
       const all = buildRecord({ ...base, rs, matches, sidecar: sc([{ rule: 'lexcode.voice.whisper', reason: 'r' }]) });
       expect(all.activities).toEqual([]);
-      expect(all.ignored).toEqual([{ rule: 'lexcode.voice.whisper', matched: 3 }]);
+      expect(all.ignored).toEqual([{ rule: 'lexcode.voice.whisper', matched: 3, activities: ['processes_voice'] }]);
     });
 
     it('does not treat a longer directory name as the directory', () => {
@@ -267,6 +267,35 @@ describe('buildRecord', () => {
       { purl: 'pkg:npm/b@1', manifest: 'package.json:3', enables: ['tracks_devices'] },
       { purl: 'pkg:npm/c@1', manifest: 'package.json:4', enables: ['processes_voice'], unresolved: true },
     ]);
+  });
+
+  describe('a repository lexcode cannot read (S4)', () => {
+    const rs = ruleSetWith([{ id: 'lexcode.voice.whisper', activity: 'processes_voice' }]);
+    const noRead = /no file in scope is in a language lexcode reads \(TypeScript, JavaScript, Python, Go, and script blocks in HTML, Vue, Svelte and Jinja\); nothing was looked at/;
+
+    it('adds a notice when no code rule had a file to read', () => {
+      const rulesRun = countRulesRun(rs, rs.rules, ['app.rb', 'README.md'], new Set());
+      const r = buildRecord({ ...base, rs, rulesRun });
+      expect(r.notices.filter((n) => noRead.test(n))).toHaveLength(1);
+    });
+
+    it('adds no notice when a code rule ran', () => {
+      const rulesRun = countRulesRun(rs, rs.rules, ['app.py'], new Set());
+      expect(buildRecord({ ...base, rs, rulesRun }).notices.join('\n')).not.toMatch(noRead);
+    });
+
+    it('a settings file alone (a workflow, a package.json) does not count as code lexcode read', () => {
+      const withJson = ruleSetWith([{ id: 'lexcode.voice.whisper', activity: 'processes_voice' }, { id: 'lexcode.cfg.json', activity: 'tracks_devices', languages: ['json'] }]);
+      const rulesRun = countRulesRun(withJson, withJson.rules.filter((x) => x.id.startsWith('lexcode.cfg') || x.id === 'lexcode.voice.whisper'), ['app.rb', 'package.json'], new Set());
+      expect(buildRecord({ ...base, rs: withJson, rulesRun }).notices.join('\n')).toMatch(noRead);
+    });
+
+    it('a component map entry that ran does not stand in for a code rule', () => {
+      const withMap = ruleSetWith([{ id: 'lexcode.voice.whisper', activity: 'processes_voice' }]);
+      withMap.components.push({ ecosystem: 'npm', match: 'x', enables: ['processes_voice'], says: '', source: '' });
+      const rulesRun = countRulesRun(withMap, withMap.rules, ['app.rb', 'package.json'], new Set(['npm']));
+      expect(buildRecord({ ...base, rs: withMap, rulesRun }).notices.join('\n')).toMatch(noRead);
+    });
   });
 
   it('says so when the rule set holds no source rules', () => {

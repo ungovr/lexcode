@@ -118,10 +118,12 @@ function loadRegistry(file: string): Map<string, RegistryEntry> {
   const str = (v: unknown): string => (typeof v === 'string' ? v : '');
   for (const a of Array.isArray(doc['activities']) ? doc['activities'] : []) {
     if (!isObj(a) || typeof a['id'] !== 'string') continue;
+    const supersededBy = strList(a['superseded_by']);
     registry.set(a['id'], {
       id: a['id'],
       scope: a['scope'] as RegistryEntry['scope'],
       parent: typeof a['parent'] === 'string' ? a['parent'] : null,
+      ...(supersededBy.length > 0 ? { supersededBy } : {}),
       status: str(a['status']),
       term: str(a['term']),
       lint_definition: str(a['lint_definition']),

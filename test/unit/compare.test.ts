@@ -233,9 +233,10 @@ describe('compare: notices and ordering', () => {
   it('an id in the declaration unknown to the snapshot: one notice naming it and the pinned registry version, no row', () => {
     const r = compare(record(), decl({ brand_new_activity: 'performs' }, ['another_new_one']), rs, opts);
     expect(r.rows).toEqual([]);
-    expect(r.notices).toHaveLength(2);
-    expect(r.notices.some((n) => n.includes('brand_new_activity') && n.includes('1.15'))).toBe(true);
-    expect(r.notices.some((n) => n.includes('another_new_one') && n.includes('1.15'))).toBe(true);
+    expect(r.notices).toHaveLength(1);
+    expect(r.notices[0]).toContain('brand_new_activity');
+    expect(r.notices[0]).toContain('another_new_one');
+    expect(r.notices[0]).toContain('1.15');
   });
 
   it('a known id produces no notice', () => {

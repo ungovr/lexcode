@@ -73,6 +73,13 @@ function extensionsOf(rule: RuleMeta): string[] | 'all' {
   return out;
 }
 
+const SETTINGS_LANGUAGES = new Set(['json', 'yaml', 'yml', 'xml']);
+
+/** A rule that reads only configuration formats: a Ruby repository with a workflow file still has no code lexcode read. */
+function readsOnlySettingsFiles(rule: RuleMeta): boolean {
+  return rule.languages.length > 0 && rule.languages.every((l) => SETTINGS_LANGUAGES.has(l.toLowerCase()));
+}
+
 /** The files worth handing to the engine: every file when any rule reads any file, else those with a rule's extension. */
 export function engineTargets(rules: RuleMeta[], files: string[]): string[] {
   const wanted = new Set<string>();
@@ -84,20 +91,28 @@ export function engineTargets(rules: RuleMeta[], files: string[]): string[] {
   return files.filter((f) => wanted.has(posix.extname(f).toLowerCase()));
 }
 
+/** The per-activity counts, plus how many code rules (not map entries, not rules for json, yaml or xml settings files) had a file to read. */
+export class RulesRun extends Map<string, number> {
+  codeRulesRan = 0;
+}
+
 /**
  * Per activity: the source rules that had at least one in-scope file to read, plus the
  * component-map entries that enable it in an ecosystem whose manifests were found. `files`
  * lists in-scope files including extracted script blocks (`x.vue.lexcode.ts`). A `files`
  * entry reads the file list on every scan, so it always counts.
  */
-export function countRulesRun(rs: RuleSet, rules: RuleMeta[], files: string[], ecosystems: ReadonlySet<string>): Map<string, number> {
+export function countRulesRun(rs: RuleSet, rules: RuleMeta[], files: string[], ecosystems: ReadonlySet<string>): RulesRun {
   const present = new Set(files.map((f) => posix.extname(f).toLowerCase()));
-  const out = new Map<string, number>();
+  const out = new RulesRun();
   const bump = (id: string): void => void out.set(id, (out.get(id) ?? 0) + 1);
   for (const r of rules) {
     const exts = extensionsOf(r);
     const ran = files.length > 0 && (exts === 'all' || exts.some((e) => present.has(e)));
-    if (ran) bump(r.activity);
+    if (ran) {
+      bump(r.activity);
+      if (!readsOnlySettingsFiles(r)) out.codeRulesRan += 1;
+    }
   }
   for (const c of rs.components) {
     if (c.ecosystem !== 'files' && !ecosystems.has(c.ecosystem)) continue;
@@ -194,13 +209,16 @@ export function buildRecord(i: BuildInput): EvidenceRecord {
   const removed = new Set<Item>();
   for (const ig of i.sidecar?.ignore ?? []) {
     let matched = 0;
+    const hit = new Set<string>();
     for (const item of items) {
       const sameRule = item.ruleId === ig.rule || (ruleById.get(item.ruleId)?.replaces ?? []).includes(ig.rule);
       if (!sameRule || (ig.where !== undefined && !whereMatches(ig.where, item))) continue;
       matched += 1;
+      hit.add(item.id);
       removed.add(item);
     }
-    ignored.push(ig.where === undefined ? { rule: ig.rule, matched } : { rule: ig.rule, where: ig.where, matched });
+    const activities = [...hit].sort();
+    ignored.push({ rule: ig.rule, ...(ig.where === undefined ? {} : { where: ig.where }), matched, ...(matched > 0 ? { activities } : {}) });
     if (matched === 0) {
       notices.push(
         `the ignore for ${ig.rule}${ig.where === undefined ? '' : ` at ${ig.where}`} matched nothing; remove it from .lexcode.yml, or correct its rule id or path`,
@@ -256,6 +274,11 @@ export function buildRecord(i: BuildInput): EvidenceRecord {
   }
   if (rs.rules.length === 0) {
     notices.push('the rule set holds no source rules, so only dependency manifests and file names were read');
+  } else if (i.rulesRun instanceof RulesRun && i.rulesRun.codeRulesRan === 0) {
+    notices.push(
+      'no file in scope is in a language lexcode reads (TypeScript, JavaScript, Python, Go, and script blocks in HTML, Vue, Svelte and Jinja); nothing was looked at. ' +
+        'If your source is in one of those languages, check that the include and exclude lists in .lexcode.yml and lexlint.yml have not left it out; otherwise read this result as "not checked", not as "clean".',
+    );
   }
   if (i.fileErrors > 0) {
     notices.push(

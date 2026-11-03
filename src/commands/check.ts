@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs';
 import { isAbsolute, join, relative, resolve } from 'node:path';
-import { compare } from '../check/compare.js';
+import { compare, joinIgnored } from '../check/compare.js';
 import { renderHuman, renderJson } from '../check/report.js';
 import { loadSidecar } from '../config/sidecar.js';
 import { selectDeclaration } from '../declaration/select.js';
@@ -84,12 +84,15 @@ export async function runCheckCommand(argv: string[], io: Io = defaultIo()): Pro
   const declaration = sel.declaration;
   let final: CheckResult;
   if (declaration) {
-    const result = compare(record, declaration, rs, { failOnEnables: flag(p, 'fail-on-enables') || sidecar?.fail_on_enables === true });
+    const result = compare(record, declaration, rs, {
+      failOnEnables: flag(p, 'fail-on-enables') || sidecar?.fail_on_enables === true,
+      ...(sidecar ? { sidecar } : {}),
+    });
     const disagree: VerdictRow[] = sel.disagreements.map((id) => ({ verdict: 'WARN', id, kind: 'declarations-disagree', evidence: [], rulesTried: 0 }));
     const rows = [...result.rows, ...disagree].sort((a, b) => ORDER[a.verdict] - ORDER[b.verdict] || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
     final = { ...result, rows, notices: [...new Set([...result.notices, ...record.notices])] };
   } else {
-    final = { rows: [], signals: record.signals, notices: [...new Set(record.notices)], exitCode: 0 };
+    final = { rows: [], signals: record.signals, notices: [...new Set(record.notices)], exitCode: 0, ignored: joinIgnored(record, sidecar), scope: record.scope };
   }
 
   if (outPath !== undefined) await writeOutput(outPath, `${JSON.stringify(record, null, 2)}\n`);
@@ -101,7 +104,11 @@ export async function runCheckCommand(argv: string[], io: Io = defaultIo()): Pro
   } else if (declaration) {
     const rel = relative(root, declaration.file);
     const declarationFile = rel === '' || rel.startsWith('..') || isAbsolute(rel) ? declaration.file : rel.split('\\').join('/');
-    io.stderr(renderHuman(final, { declarationFile, record, quiet: flag(p, 'quiet'), registry: rs.registry }));
+    const scopeFrom = [
+      ...((sel.scope?.include.length ?? 0) + (sel.scope?.exclude.length ?? 0) > 0 ? ['lexlint.yml app.scope'] : []),
+      ...((sidecar?.include.length ?? 0) + (sidecar?.exclude.length ?? 0) > 0 ? ['.lexcode.yml'] : []),
+    ];
+    io.stderr(renderHuman(final, { declarationFile, record, quiet: flag(p, 'quiet'), registry: rs.registry, scopeFrom }));
   }
   return final.exitCode;
 }
