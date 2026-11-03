@@ -140,6 +140,8 @@ Behind a proxy, run the download under `NODE_USE_ENV_PROXY=1` (Node 22.21 or
 later), or fetch the engine on another machine. `LEXCODE_CACHE_DIR` moves the
 cache.
 
+`LEXCODE_RULES_HOME=<dir>` replaces the bundled `rules/` directory (it needs `ruleset.yml`, `classes.yml`, `registry.snapshot.json` and `components/`), for a vendored rule set or a test.
+
 CI: see [docs/ci.md](docs/ci.md).
 
 ## License

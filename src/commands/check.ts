@@ -48,16 +48,13 @@ export async function runCheckCommand(argv: string[], io: Io = defaultIo()): Pro
   const sidecar = loadSidecar(root, str(p, 'config'));
   const sel = selectDeclaration(root, declarationArg(root, str(p, 'declaration')), rs.registry);
 
-  // No declaration is settled before the engine runs: nothing to compare means nothing to scan for.
-  if (!sel.declaration) {
-    const msg =
-      `no declaration found under ${root}. lexcode check compares the code with ACTIVITIES.md or lexlint.yml at the repository root: ` +
-      'add one, name one with --declaration <file>, or pass --allow-undeclared to skip the comparison while you roll this out.';
-    if (flag(p, 'allow-undeclared')) {
-      io.stderr(`lexcode: warning: ${msg}\n`);
-      return 0;
-    }
-    io.stderr(`lexcode: ${msg}\n`);
+  // No declaration is settled before the engine runs: with nothing to compare against and no
+  // --allow-undeclared, there is nothing worth scanning for.
+  const undeclaredMessage =
+    `no declaration found under ${root}. lexcode check compares the code with ACTIVITIES.md or lexlint.yml at the repository root: ` +
+    'add one, name one with --declaration <file>, or pass --allow-undeclared to skip the comparison while you roll this out.';
+  if (!sel.declaration && !flag(p, 'allow-undeclared')) {
+    io.stderr(`lexcode: ${undeclaredMessage}\n`);
     return 3;
   }
 
@@ -82,20 +79,28 @@ export async function runCheckCommand(argv: string[], io: Io = defaultIo()): Pro
     skipFiles,
   });
 
-  const result = compare(record, sel.declaration, rs, { failOnEnables: flag(p, 'fail-on-enables') || sidecar?.fail_on_enables === true });
-  const disagree: VerdictRow[] = sel.disagreements.map((id) => ({ verdict: 'WARN', id, kind: 'declarations-disagree', evidence: [], rulesTried: 0 }));
-  const rows = [...result.rows, ...disagree].sort((a, b) => ORDER[a.verdict] - ORDER[b.verdict] || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-  const notices = [...new Set([...result.notices, ...record.notices])];
-  const final: CheckResult = { ...result, rows, notices };
+  // --allow-undeclared with no declaration: the record and SARIF are still written (a CI step that
+  // uploads the SARIF file must find it), the comparison is skipped, and the exit code is 0.
+  const declaration = sel.declaration;
+  let final: CheckResult;
+  if (declaration) {
+    const result = compare(record, declaration, rs, { failOnEnables: flag(p, 'fail-on-enables') || sidecar?.fail_on_enables === true });
+    const disagree: VerdictRow[] = sel.disagreements.map((id) => ({ verdict: 'WARN', id, kind: 'declarations-disagree', evidence: [], rulesTried: 0 }));
+    const rows = [...result.rows, ...disagree].sort((a, b) => ORDER[a.verdict] - ORDER[b.verdict] || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+    final = { ...result, rows, notices: [...new Set([...result.notices, ...record.notices])] };
+  } else {
+    final = { rows: [], signals: record.signals, notices: [...new Set(record.notices)], exitCode: 0 };
+  }
 
   if (outPath !== undefined) await writeOutput(outPath, `${JSON.stringify(record, null, 2)}\n`);
   if (sarifPath !== undefined) await writeOutput(sarifPath, `${JSON.stringify(toSarif(record, rs, { snippets: flag(p, 'snippets') }), null, 2)}\n`);
 
+  if (!declaration) io.stderr(`lexcode: warning: ${undeclaredMessage} The record was scanned and written as asked; nothing was compared.\n`);
   if (flag(p, 'json')) {
     io.stdout(renderJson(final));
-  } else {
-    const rel = relative(root, sel.declaration.file);
-    const declarationFile = rel === '' || rel.startsWith('..') || isAbsolute(rel) ? sel.declaration.file : rel.split('\\').join('/');
+  } else if (declaration) {
+    const rel = relative(root, declaration.file);
+    const declarationFile = rel === '' || rel.startsWith('..') || isAbsolute(rel) ? declaration.file : rel.split('\\').join('/');
     io.stderr(renderHuman(final, { declarationFile, record, quiet: flag(p, 'quiet'), registry: rs.registry }));
   }
   return final.exitCode;

@@ -2,7 +2,7 @@ import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } 
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { main } from '../src/main.js';
 import { cacheDir } from '../src/engine/cache.js';
 import { pinnedEnginePath } from '../src/engine/fetch.js';
@@ -20,6 +20,7 @@ function cachedEngine(): string | undefined {
 }
 const engineAvailable = Boolean(process.env.LEXCODE_ENGINE ?? cachedEngine());
 
+const STUB = resolve(dirname(fileURLToPath(import.meta.url)), 'stubs', 'fake-opengrep.mjs');
 const FIXTURE = resolve(dirname(fileURLToPath(import.meta.url)), 'repos', 'drift');
 
 let work: string;
@@ -29,7 +30,11 @@ let out: string[];
 let err: string[];
 const io = () => ({ stdout: (s: string) => void out.push(s), stderr: (s: string) => void err.push(s) });
 
+// The bundled rules and component map keep growing; these tests run against a minimal rules home.
+const RULES_HOME = resolve(dirname(fileURLToPath(import.meta.url)), 'repos', 'rules-home');
+
 beforeEach(() => {
+  vi.stubEnv('LEXCODE_RULES_HOME', RULES_HOME);
   work = mkdtempSync(join(tmpdir(), 'lexcode-check-'));
   repo = join(work, 'drift');
   cpSync(FIXTURE, repo, { recursive: true });
@@ -38,6 +43,7 @@ beforeEach(() => {
   err = [];
 });
 afterEach(() => {
+  vi.unstubAllEnvs();
   rmSync(work, { recursive: true, force: true });
 });
 
@@ -122,6 +128,14 @@ describe.skipIf(!engineAvailable)('lexcode check over test/repos/drift with the 
     expect(err.join('')).toBe('');
   });
 
+  it('writes the evidence record under --allow-undeclared with no declaration', async () => {
+    rmSync(join(repo, 'ACTIVITIES.md'));
+    const rec = join(work, 'rec.json');
+    expect(await main(['check', repo, '--rules', rules, '--allow-undeclared', '--out', rec], io())).toBe(0);
+    const record = JSON.parse(readFileSync(rec, 'utf8')) as { activities: { id: string }[] };
+    expect(record.activities.map((a) => a.id)).toContain('trains_models');
+  });
+
   it('applies the sidecar: an ignore removes the evidence and the FAIL with it', async () => {
     writeFileSync(
       join(repo, '.lexcode.yml'),
@@ -151,9 +165,22 @@ describe('lexcode check with no declaration', () => {
     expect(text).toContain('--allow-undeclared');
   });
 
-  it('exits 0 with a warning under --allow-undeclared', async () => {
+  it('still scans, writes --out and --sarif, warns and exits 0 under --allow-undeclared', async () => {
     const dir = bare();
-    expect(await main(['check', dir, '--rules', join(dir, '.rules'), '--engine', '/nonexistent/engine', '--allow-undeclared'], io())).toBe(0);
-    expect(err.join('')).toMatch(/warning: no declaration found/);
+    const rec = join(work, 'rec.json');
+    const sarif = join(work, 'out.sarif');
+    const code = await main(['check', dir, '--rules', join(dir, '.rules'), '--engine', STUB, '--allow-undeclared', '--out', rec, '--sarif', sarif], io());
+    expect(code).toBe(0);
+    expect(err.join('')).toMatch(/warning: no declaration found.*nothing was compared/);
+    expect(JSON.parse(readFileSync(rec, 'utf8')).schema).toBe('https://lexlint.io/lexcode/v1');
+    expect(JSON.parse(readFileSync(sarif, 'utf8')).version).toBe('2.1.0');
+  });
+
+  it('prints an empty comparison as JSON under --allow-undeclared --json', async () => {
+    const dir = bare();
+    expect(await main(['check', dir, '--rules', join(dir, '.rules'), '--engine', STUB, '--allow-undeclared', '--json'], io())).toBe(0);
+    const res = JSON.parse(out.join('')) as CheckResult;
+    expect(res.rows).toEqual([]);
+    expect(res.exitCode).toBe(0);
   });
 });

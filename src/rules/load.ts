@@ -21,8 +21,14 @@ function isObj(v: unknown): v is Obj {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
 }
 
-/** The package's rules/ directory. From src/rules/ and from dist/rules/ it is two levels up. */
+/**
+ * The rule set's home: the directory holding ruleset.yml, classes.yml, registry.snapshot.json and
+ * components/. LEXCODE_RULES_HOME replaces it (a rules home for tests, or a vendored rule set); unset,
+ * it is the package's rules/ directory, which from src/rules/ and from dist/rules/ is two levels up.
+ */
 export function bundledRulesDir(): string {
+  const override = process.env.LEXCODE_RULES_HOME;
+  if (override) return resolve(override);
   return resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', 'rules');
 }
 
