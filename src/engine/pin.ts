@@ -17,8 +17,9 @@ export interface EnginePin {
 
 /**
  * The one engine release lexcode runs. The sha256 values are the digests the GitHub
- * release API reported on 2026-11-03. Bumping the pin is a release of lexcode, and
- * `scripts/pin-engine.mjs` rewrites this file at that time.
+ * release API reported on 2026-11-03, each asset's cosign signature verified against the
+ * Opengrep release workflow by `scripts/pin-engine.mjs`. Bumping the pin is a release
+ * of lexcode, and that script rewrites this file at that time.
  */
 export const ENGINE_PIN: EnginePin = {
   name: 'opengrep',
