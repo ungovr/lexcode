@@ -16,6 +16,8 @@ type Runner = (argv: string[]) => Promise<number>;
 
 async function load(name: string): Promise<Runner | undefined> {
   switch (name) {
+    case 'engine':
+      return (await import('./commands/engine.js')).runEngineCommand;
     default:
       return undefined;
   }
