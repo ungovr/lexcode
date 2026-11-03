@@ -1,0 +1,36 @@
+# Builds and tests lexcode on every push and pull request. The fixture tests
+# download the pinned engine once per runner and cache it.
+name: ci
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-14]
+        node: ["20", "22"]
+    runs-on: ${{ matrix.os }}
+    env:
+      LEXCODE_CACHE_DIR: ${{ github.workspace }}/.lexcode-cache
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Install
+        run: npm ci
+      - name: Build
+        run: npm run build
+      - name: Engine
+        run: node dist/cli.js engine fetch || echo "engine command not built yet"
+      - name: Test
+        run: npm test

@@ -1,0 +1,27 @@
+lexcode
+Copyright (c) 2026 UnGovr. The code and the rule set are under the MIT License (LICENSE).
+
+The analysis engine
+-------------------
+lexcode runs Opengrep (https://github.com/opengrep/opengrep) as a separate
+program. Opengrep is licensed under the GNU Lesser General Public License,
+version 2.1 (LGPL-2.1). lexcode does not include, link or modify Opengrep: on
+first use it downloads the unmodified release binary pinned in
+src/engine/pin.ts from the Opengrep GitHub release and checks its sha256.
+
+The exact source of the pinned release is available at
+https://github.com/opengrep/opengrep/tree/v1.33.1 and
+https://github.com/opengrep/opengrep/archive/refs/tags/v1.33.1.tar.gz
+
+The full text of the LGPL-2.1 is at
+https://www.gnu.org/licenses/old-licenses/lgpl-2.1.html
+
+If UnGovr ever patches Opengrep, the patched source is published under the
+LGPL-2.1.
+
+The activity registry snapshot
+------------------------------
+rules/registry.snapshot.json is a copy of the LexLint activity registry
+(https://lexlint.io/activities/v1/registry.json), licensed under the Creative
+Commons Attribution 4.0 International License
+(https://creativecommons.org/licenses/by/4.0/). Credit: LexLint (UnGovr).

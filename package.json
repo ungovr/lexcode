@@ -1,0 +1,52 @@
+{
+  "name": "lexcode",
+  "version": "1.0.0",
+  "description": "Local evidence of what a repository's code does, in LexLint's activity vocabulary, and a drift check for CI.",
+  "license": "MIT",
+  "author": "UnGovr",
+  "homepage": "https://lexlint.io/lexcode",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ungovr/lexcode.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ungovr/lexcode/issues"
+  },
+  "keywords": [
+    "lexlint",
+    "static-analysis",
+    "opengrep",
+    "activities",
+    "ci"
+  ],
+  "type": "module",
+  "bin": {
+    "lexcode": "dist/cli.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "files": [
+    "dist",
+    "rules/**/*.yml",
+    "rules/registry.snapshot.json",
+    "rules/README.md",
+    "!rules/**/*.test.*",
+    "!rules/**/*.expect",
+    "NOTICE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "prepack": "npm run build"
+  },
+  "dependencies": {
+    "smol-toml": "1.9.1",
+    "yaml": "2.9.1"
+  },
+  "devDependencies": {
+    "@types/node": "20.19.43",
+    "typescript": "5.9.3",
+    "vitest": "4.1.12"
+  }
+}
