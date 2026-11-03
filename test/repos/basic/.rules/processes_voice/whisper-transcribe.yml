@@ -1,0 +1,12 @@
+rules:
+  - id: lexcode.voice.whisper-load
+    languages: [python]
+    severity: INFO
+    message: loads a Whisper speech-to-text model
+    pattern: whisper.load_model(...)
+    metadata:
+      activity: processes_voice
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes_voice
+      provenance: ungovr-original
+      license: MIT

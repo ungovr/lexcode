@@ -29,7 +29,7 @@ function isDevName(name: string): boolean {
     .some((t) => DEV_TOKENS.has(t));
 }
 
-function isRequirementsFile(rel: string): boolean {
+export function isRequirementsFile(rel: string): boolean {
   const base = baseName(rel).toLowerCase();
   if (/^requirements.*\.txt$/.test(base)) return true;
   const parent = baseName(dirOf(rel)).toLowerCase();

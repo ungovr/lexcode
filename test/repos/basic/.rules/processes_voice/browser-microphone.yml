@@ -1,0 +1,12 @@
+rules:
+  - id: lexcode.voice.browser-microphone
+    languages: [typescript, javascript]
+    severity: INFO
+    message: captures microphone audio in the browser
+    pattern: "navigator.mediaDevices.getUserMedia({audio: true, ...})"
+    metadata:
+      activity: processes_voice
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes_voice
+      provenance: ungovr-original
+      license: MIT
