@@ -1,0 +1,33 @@
+# An invented lexlint.yml with the shape of a real one: profile activities,
+# jurisdictions, domains and a lint section. No real application is described.
+version: 1
+app:
+  name: example
+  repo: https://github.com/example/example
+profile:
+  activities:
+    - crawls_web
+    - processes_personal_data
+    - automated_outreach
+    - tracks_devices
+    - processes_voice
+    - generates_content
+  jurisdictions:
+    - us
+    - us-ca
+    - eu
+  domains:
+    - example.org
+lint:
+  run_at: '2026-11-03'
+  tool: 'lexlint 1.0.0'
+  summary: 'An invented result with two findings.'
+  findings:
+    - id: example-1
+      jurisdiction: us-ca
+      level: warn
+      title: An invented finding
+    - id: example-2
+      jurisdiction: eu
+      level: info
+      title: Another invented finding
