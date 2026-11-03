@@ -51,13 +51,21 @@ describe('M4: an explicit not: beats what the family declares', () => {
     expect(r.rows[0]).toMatchObject({ verdict: 'FAIL', kind: 'declared-absent' });
   });
 
-  it('declares the child and lists the parent under not: FAIL declared-absent', () => {
+  it('declares the id itself and lists its parent under not: the exact declaration governs, PASS', () => {
     const r = compare(images, decl({ generates_images: 'performs' }, ['generates_content']), rs, opts);
-    expect(r.rows[0]).toMatchObject({ verdict: 'FAIL', kind: 'declared-absent' });
+    expect(r.rows[0]).toMatchObject({ verdict: 'PASS', kind: 'confirmed' });
   });
 
-  it('the same id declared in one component and listed under not: in another: FAIL declared-absent', () => {
+  it('the same id declared in one component and listed under not: in another: the union governs, PASS', () => {
+    // Design 6.6 compares a several-component ACTIVITIES.md as the union of its
+    // components: one component doing what another rules out is not drift.
     const r = compare(images, decl({ generates_images: 'performs' }, ['generates_images']), rs, opts);
+    expect(r.rows[0]).toMatchObject({ verdict: 'PASS', kind: 'confirmed' });
+    expect(r.exitCode).toBe(0);
+  });
+
+  it('declares only the parent and lists the id under not: still FAIL declared-absent', () => {
+    const r = compare(images, decl({ generates_content: 'declared' }, ['generates_images']), rs, opts);
     expect(r.rows[0]).toMatchObject({ verdict: 'FAIL', kind: 'declared-absent' });
   });
 

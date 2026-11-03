@@ -102,7 +102,11 @@ export function compare(
 
   for (const [id, { mentioned, evidence }] of byId) {
     const parent = rs.registry.get(id)?.parent ?? null;
-    const ruledOut = d.absent.has(id) || (parent !== null && d.absent.has(parent));
+    // A `not:` for the id or its parent rules it out, unless the declaration
+    // also carries the id itself: in a declaration of several components
+    // (compared as their union, design 6.6) one component can do what another
+    // says it does not, and the one that does it governs.
+    const ruledOut = !d.declared.has(id) && (d.absent.has(id) || (parent !== null && d.absent.has(parent)));
     const rulesTried = rulesFor(id, rs);
     const row = (verdict: Verdict, kind: VerdictRow['kind'], extra: Partial<VerdictRow> = {}): VerdictRow => ({
       verdict,
@@ -158,7 +162,8 @@ export function compare(
     if (ig.matched <= 0) continue;
     for (const id of ig.activities ?? []) {
       const parent = rs.registry.get(id)?.parent ?? null;
-      if (classOf(id, rs) !== 'evidence' || !(d.absent.has(id) || (parent !== null && d.absent.has(parent)))) continue;
+      const ruledOut = !d.declared.has(id) && (d.absent.has(id) || (parent !== null && d.absent.has(parent)));
+      if (classOf(id, rs) !== 'evidence' || !ruledOut) continue;
       const cur = setAside.get(id) ?? { evidence: [], reasons: [] };
       cur.evidence.push({ rule: ig.rule, where: ig.where ?? '.lexcode.yml' });
       if (ig.reason !== undefined && ig.reason !== '' && !cur.reasons.includes(ig.reason)) cur.reasons.push(ig.reason);
