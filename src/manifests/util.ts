@@ -78,11 +78,29 @@ export function resolveInside(dir: string, rel: string): string | undefined {
   return parts.join('/');
 }
 
-/** 1-based line number of the character at `index`. */
-export function lineAt(text: string, index: number): number {
-  let line = 1;
-  for (let i = 0; i < index && i < text.length; i++) if (text.charCodeAt(i) === 10) line++;
-  return line;
+/**
+ * Line numbers for offsets into one text. The line starts are found once, so each lookup is a binary
+ * search: a lookup that scanned from the top, repeated for every dependency, took minutes on a large
+ * manifest.
+ */
+export class LineIndex {
+  private readonly starts: number[] = [0];
+
+  constructor(text: string) {
+    for (let i = text.indexOf('\n'); i !== -1; i = text.indexOf('\n', i + 1)) this.starts.push(i + 1);
+  }
+
+  /** 1-based line number of the character at `index`. */
+  lineAt(index: number): number {
+    let lo = 0;
+    let hi = this.starts.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if ((this.starts[mid] as number) <= index) lo = mid;
+      else hi = mid - 1;
+    }
+    return lo + 1;
+  }
 }
 
 export function errMessage(e: unknown): string {

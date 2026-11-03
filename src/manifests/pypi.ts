@@ -209,31 +209,75 @@ class RequirementsReader {
   }
 }
 
-function headerLine(lines: string[], dotted: string): number {
-  const re = new RegExp(
-    `^\\s*\\[\\s*${dotted
-      .split('.')
-      .map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-      .join('\\s*\\.\\s*')}\\s*\\]\\s*(#.*)?$`,
-  );
-  return lines.findIndex((l) => re.test(l));
-}
+/**
+ * Line lookups for one pyproject.toml, answered from tables built in one pass. Looking each
+ * dependency up by scanning the lines (a regex per table header, a scan from the table's header to the
+ * key) made a manifest with thousands of dependencies quadratic.
+ */
+class TomlLines {
+  private headers: Map<string, number> | undefined;
+  private keys: Map<string, number[]> | undefined;
+  /** Misses allowed in `stringLine` before it stops looking: a spec TOML escapes is never on a line as parsed, and each miss reads to the end. */
+  private missesLeft = 100;
 
-function keyLine(lines: string[], from: number, key: string): number {
-  const esc = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const re = new RegExp(`^\\s*["']?${esc}["']?\\s*=`, 'i');
-  for (let i = Math.max(from, 0); i < lines.length; i++) if (re.test(lines[i] as string)) return i;
-  return -1;
-}
+  constructor(readonly lines: string[]) {}
 
-function stringLine(lines: string[], from: number, literal: string): number {
-  for (let i = Math.max(from, 0); i < lines.length; i++) if ((lines[i] as string).includes(literal)) return i;
-  return -1;
+  /** Index of the first `[a.b.c]` table header line, or -1. Spaces around dots are ignored. */
+  headerLine(dotted: string): number {
+    if (!this.headers) {
+      const headers = new Map<string, number>();
+      const re = /^\s*\[\s*([^[\]]+?)\s*\]\s*(#.*)?$/;
+      this.lines.forEach((l, i) => {
+        const m = re.exec(l);
+        if (!m) return;
+        const name = (m[1] as string).split('.').map((p) => p.trim()).join('.');
+        if (!headers.has(name)) headers.set(name, i);
+      });
+      this.headers = headers;
+    }
+    return this.headers.get(dotted) ?? -1;
+  }
+
+  /** Index of the first line at or after `from` that is `key =` (key optionally quoted, case-insensitive), or -1. */
+  keyLine(from: number, key: string): number {
+    if (!this.keys) {
+      const keys = new Map<string, number[]>();
+      const re = /^\s*["']?(.*?)["']?\s*=/;
+      this.lines.forEach((l, i) => {
+        const m = re.exec(l);
+        if (!m) return;
+        const k = (m[1] as string).toLowerCase();
+        const at = keys.get(k);
+        if (at) at.push(i);
+        else keys.set(k, [i]);
+      });
+      this.keys = keys;
+    }
+    const at = this.keys.get(key.toLowerCase());
+    if (!at) return -1;
+    const start = Math.max(from, 0);
+    let lo = 0;
+    let hi = at.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if ((at[mid] as number) < start) lo = mid + 1;
+      else hi = mid;
+    }
+    return lo < at.length ? (at[lo] as number) : -1;
+  }
+
+  /** Index of the first line at or after `from` containing `literal`, or -1. */
+  stringLine(from: number, literal: string): number {
+    if (this.missesLeft <= 0) return -1;
+    for (let i = Math.max(from, 0); i < this.lines.length; i++) if ((this.lines[i] as string).includes(literal)) return i;
+    this.missesLeft--;
+    return -1;
+  }
 }
 
 function readPyproject(rel: string, text: string): { found: Found[]; devCount: number } {
   const data = parseToml(text);
-  const lines = text.split('\n');
+  const toml = new TomlLines(text.split('\n'));
   const found: Found[] = [];
   let devCount = 0;
   const seen = new Set<string>();
@@ -246,33 +290,33 @@ function readPyproject(rel: string, text: string): { found: Found[]; devCount: n
 
   const project = isTable(data['project']) ? data['project'] : undefined;
   if (project) {
-    const projHeader = headerLine(lines, 'project');
+    const projHeader = toml.headerLine('project');
     const deps = Array.isArray(project['dependencies']) ? project['dependencies'] : [];
-    const depsKey = keyLine(lines, projHeader + 1, 'dependencies');
+    const depsKey = toml.keyLine(projHeader + 1, 'dependencies');
     let cursor = depsKey;
     for (const spec of deps) {
       if (typeof spec !== 'string') continue;
       const req = parseRequirement(spec);
       if (!req) continue;
-      const at = stringLine(lines, cursor, spec);
+      const at = toml.stringLine(cursor, spec);
       if (at >= 0) cursor = at;
       add(req, at, depsKey);
     }
     const optional = isTable(project['optional-dependencies']) ? project['optional-dependencies'] : {};
-    const optHeader = headerLine(lines, 'project.optional-dependencies');
+    const optHeader = toml.headerLine('project.optional-dependencies');
     for (const [group, specs] of Object.entries(optional)) {
       if (!Array.isArray(specs)) continue;
       if (isDevName(group)) {
         devCount += specs.filter((s) => typeof s === 'string' && parseRequirement(s)).length;
         continue;
       }
-      const groupKey = keyLine(lines, optHeader + 1, group);
+      const groupKey = toml.keyLine(optHeader + 1, group);
       let c = groupKey;
       for (const spec of specs) {
         if (typeof spec !== 'string') continue;
         const req = parseRequirement(spec);
         if (!req) continue;
-        const at = stringLine(lines, c, spec);
+        const at = toml.stringLine(c, spec);
         if (at >= 0) c = at;
         add(req, at, groupKey);
       }
@@ -294,7 +338,7 @@ function readPyproject(rel: string, text: string): { found: Found[]; devCount: n
   if (poetry) {
     const readTable = (table: unknown, header: string): void => {
       if (!isTable(table)) return;
-      const hdr = headerLine(lines, header);
+      const hdr = toml.headerLine(header);
       for (const [key, spec] of Object.entries(table)) {
         if (key.toLowerCase() === 'python') continue;
         let constraint: string | undefined;
@@ -305,10 +349,10 @@ function readPyproject(rel: string, text: string): { found: Found[]; devCount: n
           if (isTable(first)) constraint = first['version'] as string;
         }
         const pin = constraint === undefined ? undefined : poetryPin(constraint);
-        const sub = headerLine(lines, `${header}.${key}`);
+        const sub = toml.headerLine(`${header}.${key}`);
         add(
           { name: normalizePypiName(key), ...(pin ? { version: pin } : {}) },
-          keyLine(lines, hdr + 1, key),
+          toml.keyLine(hdr + 1, key),
           sub >= 0 ? sub : hdr,
         );
       }

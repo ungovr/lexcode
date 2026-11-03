@@ -192,3 +192,29 @@ describe('readNpm', () => {
     expect(readNpm(root, ['package.json']).deps.map((d) => d.name)).toEqual(['react']);
   });
 });
+
+describe('readNpm on a very large manifest', () => {
+  it('reads 20,000 dependencies in under 2 seconds, each with its own line', () => {
+    const deps: Record<string, string> = {};
+    for (let i = 0; i < 20_000; i++) deps[`pkg-${i}`] = `^1.${i}.0`;
+    const manifest = pkg(deps);
+    const root = tree({ 'package.json': manifest });
+    const t0 = performance.now();
+    const r = readNpm(root, ['package.json']);
+    const ms = performance.now() - t0;
+    expect(r.deps).toHaveLength(20_000);
+    const lines = manifest.split('\n');
+    for (const i of [0, 1, 9_999, 19_999]) {
+      const d = r.deps.find((x) => x.name === `pkg-${i}`);
+      expect(d?.manifest).toBe(`package.json:${lines.findIndex((l) => l.includes(`"pkg-${i}"`)) + 1}`);
+    }
+    expect(ms).toBeLessThan(2000);
+  });
+
+  it('keeps the first block that holds the key when a section name repeats', () => {
+    const manifest = '{\n  "overrides": {\n    "dependencies": {\n      "a": "1"\n    }\n  },\n  "dependencies": {\n    "a": "1",\n    "b": "2"\n  }\n}\n';
+    const r = readNpm(tree({ 'package.json': manifest }), ['package.json']);
+    expect(Object.fromEntries(r.deps.map((d) => [d.name, d.manifest]))).toEqual({ a: 'package.json:4', b: 'package.json:9' });
+  });
+});
+

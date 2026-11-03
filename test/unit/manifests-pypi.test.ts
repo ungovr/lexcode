@@ -195,3 +195,36 @@ describe('readPypi', () => {
     expect(r.notices[0]).toContain('pyproject.toml');
   });
 });
+
+describe('readPypi on very large manifests', () => {
+  it('reads 20,000 Poetry dependencies in under 2 seconds, each with its own line', () => {
+    const body = Array.from({ length: 20_000 }, (_, i) => `pkg-${i} = "^1.${i}"`);
+    const text = ['[tool.poetry.dependencies]', 'python = "^3.11"', ...body, ''].join('\n');
+    const root = tree({ 'pyproject.toml': text });
+    const t0 = performance.now();
+    const r = readPypi(root, ['pyproject.toml']);
+    const ms = performance.now() - t0;
+    expect(r.deps).toHaveLength(20_000);
+    expect(r.deps.find((d) => d.name === 'pkg-0')?.manifest).toBe('pyproject.toml:3');
+    expect(r.deps.find((d) => d.name === 'pkg-19999')?.manifest).toBe('pyproject.toml:20002');
+    expect(ms).toBeLessThan(2000);
+  });
+
+  it('still points a Poetry dependency written as its own table at that table', () => {
+    const text = ['[tool.poetry.dependencies]', 'python = "^3.11"', '', '[tool.poetry.dependencies.requests]', 'version = "2.31.0"', ''].join('\n');
+    const r = readPypi(tree({ 'pyproject.toml': text }), ['pyproject.toml']);
+    expect(r.deps).toEqual([{ ecosystem: 'pypi', name: 'requests', version: '2.31.0', manifest: 'pyproject.toml:4' }]);
+  });
+
+  it('reads 20,000 PEP 621 dependencies whose text cannot be found on any line in under 2 seconds', () => {
+    // A TOML escape means the parsed string is not a substring of the file.
+    const specs = Array.from({ length: 20_000 }, (_, i) => `"pkg-${i}\\u0041>=1"`);
+    const text = ['[project]', 'name = "x"', `dependencies = [${specs.join(', ')}]`, ''].join('\n');
+    const root = tree({ 'pyproject.toml': text });
+    const t0 = performance.now();
+    const r = readPypi(root, ['pyproject.toml']);
+    expect(r.deps).toHaveLength(20_000);
+    expect(performance.now() - t0).toBeLessThan(2000);
+  });
+});
+

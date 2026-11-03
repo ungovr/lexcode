@@ -94,15 +94,19 @@ function findScriptBlocks(text: string): ScriptBlock[] {
   const lower = text.toLowerCase();
   const blocks: ScriptBlock[] = [];
   let i = 0;
+  // Once a search for "-->" fails, no later one can succeed: without this, a file of nothing but "<!--" searched
+  // to its end at every opener, and 200 KB of them took 18 seconds.
+  let noMoreCommentEnds = false;
   while (i < text.length) {
     const lt = text.indexOf('<', i);
     if (lt === -1) break;
-    if (text.startsWith('<!--', lt)) {
+    if (!noMoreCommentEnds && text.startsWith('<!--', lt)) {
       const close = text.indexOf('-->', lt + 4);
       if (close !== -1) {
         i = close + 3;
         continue;
       }
+      noMoreCommentEnds = true;
       // An unterminated comment is not treated as one: a stray "<!--" must not hide the rest of the file.
     }
     if (lower.startsWith('<script', lt) && isTagEnd(text[lt + 7])) {
