@@ -1,0 +1,36 @@
+rules:
+  - id: lexcode.outreach.bulk-send
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Sends one message to many recipients in a single batch call or push multicast, which is sending automated outreach (automated_outreach).
+    pattern-either:
+      - pattern: $SG.sendMultiple(...)
+      - pattern: $P.sendEmailBatch(...)
+      - pattern: $P.sendEmailBatchWithTemplates(...)
+      - pattern: $R.batch.send(...)
+      - pattern: $S.sendBulkTemplatedEmail(...)
+      - pattern: $S.send(new SendBulkEmailCommand(...))
+      - pattern: $S.send(new SendBulkTemplatedEmailCommand(...))
+      - pattern: $E.sendPushNotificationsAsync(...)
+      - patterns:
+          - pattern-either:
+              - pattern: $A.messaging().$METHOD(...)
+              - pattern: getMessaging(...).$METHOD(...)
+              - pattern: messaging().$METHOD(...)
+          - metavariable-regex:
+              metavariable: $METHOD
+              regex: ^(sendEach|sendEachForMulticast|sendMulticast|sendToTopic|sendToDevice)$
+      - patterns:
+          - pattern: $M.$METHOD(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(\w*[mM]essaging|fcm|fcmClient)$
+          - metavariable-regex:
+              metavariable: $METHOD
+              regex: ^(sendEach|sendEachForMulticast|sendMulticast|sendToTopic|sendToDevice)$
+    metadata:
+      activity: automated_outreach
+      mentioned: performs
+      definition: https://lexlint.io/activities/automated-outreach
+      provenance: ungovr-original
+      license: MIT

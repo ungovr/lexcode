@@ -1,0 +1,70 @@
+rules:
+  - id: lexcode.outreach.send-in-scheduled-job
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Sends an email, text, call or push notification from a scheduled job that no user action triggers, which is sending automated outreach (automated_outreach).
+    patterns:
+      - pattern-either:
+          - pattern-inside: |
+              cron.schedule(...)
+          - pattern-inside: |
+              schedule.scheduleJob(...)
+          - pattern-inside: |
+              $SCH.scheduleJob(...)
+          - pattern-inside: |
+              new CronJob(...)
+          - pattern-inside: |
+              CronJob.from(...)
+          - pattern-inside: |
+              setInterval(...)
+          - pattern-inside: |
+              Deno.cron(...)
+          - pattern-inside: |
+              agenda.every(...)
+          - pattern-inside: |
+              { ..., async scheduled($EVENT, $ENV, $CTX) { ... }, ... }
+          - pattern-inside: |
+              { ..., scheduled($EVENT, $ENV, $CTX) { ... }, ... }
+          - pattern-inside: |
+              addEventListener("scheduled", ...)
+      - pattern-either:
+          - pattern: $T.sendMail(...)
+          - pattern: $R.emails.send(...)
+          - pattern: $P.sendEmail(...)
+          - pattern: $P.sendEmailWithTemplate(...)
+          - pattern: $S.sendTemplatedEmail(...)
+          - pattern: $S.sendRawEmail(...)
+          - pattern: $S.send(new SendEmailCommand(...))
+          - pattern: $S.send(new SendTemplatedEmailCommand(...))
+          - pattern: $S.send(new SendRawEmailCommand(...))
+          - patterns:
+              - pattern: $SG.send(...)
+              - metavariable-regex:
+                  metavariable: $SG
+                  regex: ^(sgMail|sendgrid|sendGrid|sg)$
+          - pattern: '$C.messages.create({..., to: $TO, ...})'
+          - pattern: '$C.calls.create({..., to: $TO, ...})'
+          - pattern: $W.sendNotification(...)
+          - pattern: $M.messaging().send(...)
+          - pattern: getMessaging(...).send(...)
+          - pattern: messaging().send(...)
+          - pattern: $X.sendSms(...)
+          - pattern: $X.sendSMS(...)
+          - patterns:
+              - pattern: $F(...)
+              - metavariable-regex:
+                  metavariable: $F
+                  regex: ^send(Email|Mail|SMS|Sms|Text|Push|PushNotification|Notification)s?$
+          - patterns:
+              - pattern-either:
+                  - pattern: fetch($URL, ...)
+                  - pattern: axios.post($URL, ...)
+              - metavariable-regex:
+                  metavariable: $URL
+                  regex: (?is).*(api\.resend\.com/emails|api\.sendgrid\.com/v3/mail/send|api\.postmarkapp\.com/email|api\.mailgun\.net/v3|mandrillapp\.com/api|api\.brevo\.com/v3/smtp/email|api\.twilio\.com/.*/Messages).*
+    metadata:
+      activity: automated_outreach
+      mentioned: performs
+      definition: https://lexlint.io/activities/automated-outreach
+      provenance: ungovr-original
+      license: MIT

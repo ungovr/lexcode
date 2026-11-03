@@ -1,0 +1,43 @@
+rules:
+  - id: lexcode.crawl.sitemap-walker-js
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Reads a sitemap and fetches each URL it lists, which is crawling the web (crawls_web).
+    mode: taint
+    pattern-sources:
+      - patterns:
+          - pattern-either:
+              - pattern: $S.matchAll($ARG)
+              - pattern: $S.match($ARG)
+          - metavariable-regex:
+              metavariable: $ARG
+              regex: (?is).*<loc.*
+      - pattern: $X.urlset.url
+      - pattern: $X.sitemapindex.sitemap
+      - patterns:
+          - pattern: $FN($ARG)
+          - metavariable-regex:
+              metavariable: $FN
+              regex: ^(\$|\$\$|cheerio|doc|root)$
+          - metavariable-regex:
+              metavariable: $ARG
+              regex: ^["'`]loc["'`]$
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: fetch($URL, ...)
+              - pattern: axios($URL, ...)
+              - pattern: axios.get($URL, ...)
+              - pattern: got($URL, ...)
+              - pattern: got.get($URL, ...)
+              - pattern: $C.goto($URL, ...)
+              - pattern: http.get($URL, ...)
+              - pattern: https.get($URL, ...)
+              - pattern: $C.get($URL, ...)
+          - focus-metavariable: $URL
+    metadata:
+      activity: crawls_web
+      mentioned: performs
+      definition: https://lexlint.io/activities/crawls-web
+      provenance: ungovr-original
+      license: MIT

@@ -1,0 +1,49 @@
+rules:
+  - id: lexcode.outreach.send-in-background-job
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Sends a message from a queue worker or a notifier function, where the code does not show whether a person asked for it, which may be sending automated outreach (automated_outreach).
+    patterns:
+      - pattern-either:
+          - pattern-inside: |
+              new Worker($Q, ...)
+          - pattern-inside: |
+              $Q.process(...)
+          - pattern-inside: |
+              agenda.define(...)
+          - pattern-inside: |
+              inngest.createFunction(...)
+          - pattern-inside: |
+              $B.work(...)
+          - patterns:
+              - pattern-either:
+                  - pattern-inside: |
+                      function $NAME(...) { ... }
+                  - pattern-inside: |
+                      async function $NAME(...) { ... }
+                  - pattern-inside: |
+                      const $NAME = (...) => { ... }
+                  - pattern-inside: |
+                      const $NAME = async (...) => { ... }
+              - metavariable-regex:
+                  metavariable: $NAME
+                  regex: '(?i)^(.*(notif|alert|digest|remind|newsletter|broadcast|campaign|announce|blast|outreach|weekly|daily|marketing|drip|statuschange|statusupdate|onstatus).*)$'
+      - pattern-either:
+          - pattern: $T.sendMail(...)
+          - pattern: $R.emails.send(...)
+          - patterns:
+              - pattern: $SG.send(...)
+              - metavariable-regex:
+                  metavariable: $SG
+                  regex: ^(sgMail|sendgrid|sendGrid|sg)$
+          - pattern: '$C.messages.create({..., to: $TO, ...})'
+          - pattern: sendEmail(...)
+          - pattern: sendMail(...)
+          - pattern: $X.sendEmail(...)
+    metadata:
+      activity: automated_outreach
+      mentioned: performs
+      definition: https://lexlint.io/activities/automated-outreach
+      provenance: ungovr-original
+      license: MIT
+      strength: signal

@@ -1,0 +1,57 @@
+rules:
+  - id: lexcode.outreach.send-in-background-job-py
+    languages: [python]
+    severity: INFO
+    message: Sends a message from a queue task or a notifier function, where the code does not show whether a person asked for it, which may be sending automated outreach (automated_outreach).
+    patterns:
+      - pattern-either:
+          - pattern-inside: |
+              @shared_task(...)
+              def $FN(...):
+                  ...
+          - pattern-inside: |
+              @shared_task
+              def $FN(...):
+                  ...
+          - pattern-inside: |
+              @$AT.task(...)
+              def $FN(...):
+                  ...
+          - pattern-inside: |
+              @$AT.task
+              def $FN(...):
+                  ...
+          - pattern-inside: |
+              @$AT.actor(...)
+              def $FN(...):
+                  ...
+          - pattern-inside: |
+              @job(...)
+              def $FN(...):
+                  ...
+          - patterns:
+              - pattern-either:
+                  - pattern-inside: |
+                      def $NAME(...):
+                          ...
+                  - pattern-inside: |
+                      async def $NAME(...):
+                          ...
+              - metavariable-regex:
+                  metavariable: $NAME
+                  regex: '(?i)^(.*(notif|alert|digest|remind|newsletter|broadcast|campaign|announce|blast|outreach|weekly|daily|marketing|drip|statuschange|statusupdate|status_change|status_update|on_status).*)$'
+      - pattern-either:
+          - pattern: $S.sendmail(...)
+          - pattern: send_mail(...)
+          - pattern: send_email(...)
+          - pattern: $X.send_email(...)
+          - pattern: sg.send(...)
+          - pattern: resend.Emails.send(...)
+          - pattern: $C.messages.create(..., to=$TO, ...)
+    metadata:
+      activity: automated_outreach
+      mentioned: performs
+      definition: https://lexlint.io/activities/automated-outreach
+      provenance: ungovr-original
+      license: MIT
+      strength: signal

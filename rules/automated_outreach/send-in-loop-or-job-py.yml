@@ -1,0 +1,101 @@
+rules:
+  - id: lexcode.outreach.send-in-loop-or-job-py
+    languages: [python]
+    severity: INFO
+    message: Sends an email, text, call or push notification once per recipient in a loop, or from a scheduled job or management command that no user action triggers, which is sending automated outreach (automated_outreach).
+    patterns:
+      - pattern-either:
+          - patterns:
+              - pattern-either:
+                  - pattern-inside: |
+                      for $LV in $LY:
+                          ...
+                  - pattern-inside: |
+                      async for $LV in $LY:
+                          ...
+              - metavariable-regex:
+                  metavariable: $LY
+                  regex: '(?is)^(?!.*(relay|host|server|retr|attempt|backoff|endpoint|smtp|fallback|provider|transport|mirror|failover|\bports?\b)|range\(\s*\d+(\s*,\s*\d+)?\s*\)).*$'
+              - metavariable-regex:
+                  metavariable: $LV
+                  regex: '(?is)^(?!.*(relay|host|server|retr|attempt|backoff|endpoint|smtp|fallback|provider|transport|mirror|failover|\bports?\b)).*$'
+          - patterns:
+              - pattern-either:
+                  - pattern-inside: |
+                      [$LE for $LV in $LY]
+                  - pattern-inside: |
+                      [$LE for $LV in $LY if $LCOND]
+              - metavariable-regex:
+                  metavariable: $LY
+                  regex: '(?is)^(?!.*(relay|host|server|retr|attempt|backoff|endpoint|smtp|fallback|provider|transport|mirror|failover|\bports?\b)|range\(\s*\d+(\s*,\s*\d+)?\s*\)).*$'
+          - pattern-inside: |
+              @$SCH.scheduled_job(...)
+              def $FN(...):
+                  ...
+          - pattern-inside: |
+              @$SCH.scheduled_job(...)
+              async def $FN(...):
+                  ...
+          - pattern-inside: |
+              @periodic_task(...)
+              def $FN(...):
+                  ...
+          - pattern-inside: |
+              @$HU.periodic_task(...)
+              def $FN(...):
+                  ...
+          - pattern-inside: |
+              @repeat_every(...)
+              async def $FN(...):
+                  ...
+          - pattern-inside: |
+              @repeat_every(...)
+              def $FN(...):
+                  ...
+          - patterns:
+              - pattern-inside: |
+                  $SCHD.do(...)
+              - metavariable-regex:
+                  metavariable: $SCHD
+                  regex: (?s)^schedule\.every.*
+          - pattern-inside: |
+              class $CL(BaseCommand):
+                  ...
+      - pattern-either:
+          - pattern: $S.sendmail(...)
+          - patterns:
+              - pattern: $S.send_message(...)
+              - pattern-not: $S.send_message(..., QueueUrl=..., ...)
+              - metavariable-regex:
+                  metavariable: $S
+                  regex: (?i)^(self\.)?(\w*smtp\w*|server|s|\w*mail\w*|\w*bot\w*|context\.bot|application\.bot)$
+          - pattern: send_mail(...)
+          - pattern: $X.send_email(...)
+          - pattern: $X.send_raw_email(...)
+          - pattern: $X.send_templated_email(...)
+          - pattern: resend.Emails.send(...)
+          - pattern: $C.emails.send(...)
+          - pattern: EmailMessage(...).send(...)
+          - pattern: EmailMultiAlternatives(...).send(...)
+          - pattern: sg.send(...)
+          - pattern: sendgrid.send(...)
+          - pattern: self.sg.send(...)
+          - pattern: $C.messages.create(..., to=$TO, ...)
+          - pattern: $C.calls.create(..., to=$TO, ...)
+          - pattern: webpush(...)
+          - pattern: messaging.send(...)
+          - pattern: $X.send_sms(...)
+          - pattern: send_email(...)
+          - pattern: send_emails(...)
+          - pattern: send_mail(...)
+          - pattern: send_sms(...)
+          - pattern: send_text(...)
+          - pattern: send_push(...)
+          - pattern: send_notification(...)
+          - pattern: send_notification_email(...)
+    metadata:
+      activity: automated_outreach
+      mentioned: performs
+      definition: https://lexlint.io/activities/automated-outreach
+      provenance: ungovr-original
+      license: MIT

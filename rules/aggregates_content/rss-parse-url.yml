@@ -1,0 +1,17 @@
+rules:
+  - id: lexcode.aggregate.rss-parse-url
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Reads another publisher's RSS or Atom feed with rss-parser, which is reusing other publishers' content (aggregates_content).
+    patterns:
+      - pattern: $P.parseURL($URL, ...)
+      - metavariable-regex:
+          metavariable: $URL
+          regex: ^(?!["'`](?!https?://)|["'`]https?://(localhost|127\.|0\.0\.0\.0|\[::1\])).*
+    metadata:
+      activity: aggregates_content
+      mentioned: performs
+      definition: https://lexlint.io/activities/aggregates-content
+      provenance: ungovr-original
+      license: MIT
+      host_metavar: $URL

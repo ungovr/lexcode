@@ -1,0 +1,27 @@
+rules:
+  - id: lexcode.crawl.crawlee-python-run
+    languages: [python]
+    severity: INFO
+    message: Runs a Crawlee for Python crawler that fetches the pages it is given and follows, which is crawling the web (crawls_web).
+    mode: taint
+    pattern-sources:
+      - pattern: BeautifulSoupCrawler(...)
+      - pattern: ParselCrawler(...)
+      - pattern: PlaywrightCrawler(...)
+      - pattern: HttpCrawler(...)
+      - pattern: AdaptivePlaywrightCrawler(...)
+      - pattern: AdaptivePlaywrightCrawler.with_beautifulsoup_static_parser(...)
+      - pattern: AdaptivePlaywrightCrawler.with_parsel_static_parser(...)
+    pattern-sinks:
+      - patterns:
+          - pattern: $C.run(...)
+          - focus-metavariable: $C
+      - patterns:
+          - pattern: $C.add_requests(...)
+          - focus-metavariable: $C
+    metadata:
+      activity: crawls_web
+      mentioned: performs
+      definition: https://lexlint.io/activities/crawls-web
+      provenance: ungovr-original
+      license: MIT

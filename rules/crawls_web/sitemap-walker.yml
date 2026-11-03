@@ -1,0 +1,36 @@
+rules:
+  - id: lexcode.crawl.sitemap-walker
+    languages: [python]
+    severity: INFO
+    message: Reads a sitemap and fetches each URL it lists, which is crawling the web (crawls_web).
+    mode: taint
+    pattern-sources:
+      - patterns:
+          - pattern-either:
+              - pattern: $R.findall($ARG, ...)
+              - pattern: $R.iter($ARG)
+              - pattern: $R.iterfind($ARG, ...)
+              - pattern: $R.find_all($ARG, ...)
+              - pattern: $R.select($ARG, ...)
+              - pattern: $R.xpath($ARG, ...)
+              - pattern: re.findall($ARG, ...)
+              - pattern: re.finditer($ARG, ...)
+          - metavariable-regex:
+              metavariable: $ARG
+              regex: (?is).*(<loc|[}:/]loc\b|["']loc["']|sitemap).*
+      - pattern: $T.all_pages()
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: requests.$M($URL, ...)
+              - pattern: httpx.$M($URL, ...)
+              - pattern: urllib.request.urlopen($URL, ...)
+              - pattern: urlopen($URL, ...)
+              - pattern: $S.get($URL, ...)
+          - focus-metavariable: $URL
+    metadata:
+      activity: crawls_web
+      mentioned: performs
+      definition: https://lexlint.io/activities/crawls-web
+      provenance: ungovr-original
+      license: MIT

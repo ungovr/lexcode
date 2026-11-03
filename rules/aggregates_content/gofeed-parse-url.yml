@@ -1,0 +1,19 @@
+rules:
+  - id: lexcode.aggregate.gofeed-parse-url
+    languages: [go]
+    severity: INFO
+    message: Reads another publisher's RSS or Atom feed with gofeed, which is reusing other publishers' content (aggregates_content).
+    patterns:
+      - pattern-either:
+          - pattern: $P.ParseURL($URL)
+          - pattern: $P.ParseURLWithContext($URL, $CTX)
+      - metavariable-regex:
+          metavariable: $URL
+          regex: (?s)^(?!"(?!https?://)|"https?://(localhost|127\.|0\.0\.0\.0|\[::1\])).*
+    metadata:
+      activity: aggregates_content
+      mentioned: performs
+      definition: https://lexlint.io/activities/aggregates-content
+      provenance: ungovr-original
+      license: MIT
+      host_metavar: $URL

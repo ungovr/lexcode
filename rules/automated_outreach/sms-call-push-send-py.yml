@@ -1,0 +1,22 @@
+rules:
+  - id: lexcode.outreach.sms-call-push-send-py
+    languages: [python]
+    severity: INFO
+    message: Sends a text, places a call or pushes a notification, where the code does not show whether a person just asked for it, which may be sending automated outreach (automated_outreach).
+    pattern-either:
+      - patterns:
+          - pattern: $C.messages.create(..., to=$TO, ..., body=$BODY, ...)
+          - metavariable-regex:
+              metavariable: $BODY
+              regex: (?is)^(?!.*(code|otp|verif|passcode|password|\bpin\b)).*$
+      - pattern: $C.calls.create(..., to=$TO, ...)
+      - pattern: webpush(...)
+      - pattern: messaging.send(...)
+      - pattern: $X.send_sms(...)
+    metadata:
+      activity: automated_outreach
+      mentioned: performs
+      definition: https://lexlint.io/activities/automated-outreach
+      provenance: ungovr-original
+      license: MIT
+      strength: signal

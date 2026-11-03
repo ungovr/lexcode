@@ -1,0 +1,19 @@
+rules:
+  - id: lexcode.crawl.colly-visit
+    languages: [go]
+    severity: INFO
+    message: Visits pages with a Colly collector, which is crawling the web (crawls_web).
+    mode: taint
+    pattern-sources:
+      - pattern: colly.NewCollector(...)
+    pattern-sinks:
+      - patterns:
+          - pattern: $C.Visit($URL)
+          - focus-metavariable: $C
+    metadata:
+      activity: crawls_web
+      mentioned: performs
+      definition: https://lexlint.io/activities/crawls-web
+      provenance: ungovr-original
+      license: MIT
+      host_metavar: $URL

@@ -1,0 +1,39 @@
+rules:
+  - id: lexcode.crawl.browser-goto-loop
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Drives a headless browser to open page after page in a loop, which is crawling the web (crawls_web).
+    mode: taint
+    pattern-sources:
+      - pattern: await $B.launch(...)
+      - pattern: await $B.connect(...)
+      - pattern: await $B.connectOverCDP(...)
+      - pattern: await $B.newPage(...)
+      - pattern: await $B.newContext(...)
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  for (... of ...) { ... }
+              - pattern-inside: |
+                  for (...;...;...) { ... }
+              - pattern-inside: |
+                  for ($K in $O) { ... }
+              - pattern-inside: |
+                  while (...) { ... }
+              - pattern-inside: |
+                  $LIST.forEach(...)
+              - pattern-inside: |
+                  $LIST.map(...)
+          - pattern: $P.goto($URL, ...)
+          - metavariable-regex:
+              metavariable: $URL
+              regex: '(?s)^(?!["''`]https?://(localhost|127\.|0\.0\.0\.0|\[::1\])).*$'
+          - focus-metavariable: $P
+    metadata:
+      activity: crawls_web
+      mentioned: performs
+      definition: https://lexlint.io/activities/crawls-web
+      provenance: ungovr-original
+      license: MIT
+      host_metavar: $URL
