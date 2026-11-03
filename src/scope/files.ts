@@ -69,14 +69,27 @@ function checkPattern(pattern: string, which: 'include' | 'exclude'): void {
   }
 }
 
+/**
+ * Config keys git would otherwise take from the scanned directory's own
+ * .git/config, which may have come from someone else (an unpacked archive, a
+ * shared folder). `core.fsmonitor` names a command git runs; `core.excludesFile`
+ * names a path git reads, and a FIFO there hangs the listing. `-c` outranks
+ * every config file. An empty `core.excludesFile` means "none" on every
+ * platform; the user's global ignore file is not applied either, so a scan lists
+ * the same files on a laptop and in CI.
+ */
+export const GIT_HARDENING = ['-c', 'core.fsmonitor=false', '-c', 'core.untrackedCache=false', '-c', 'core.excludesFile='];
+
 /** Paths git lists under `root` (tracked, plus untracked and not ignored), or null when `root` is not in a git work tree. */
 function gitListing(root: string): string[] | null {
   let out: Buffer;
   try {
-    out = execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], {
+    out = execFileSync('git', [...GIT_HARDENING, 'ls-files', '-z', '--cached', '--others', '--exclude-standard'], {
       cwd: root,
       env: { ...process.env, LC_ALL: 'C', LANG: 'C' },
       maxBuffer: 1024 * 1024 * 1024,
+      timeout: 300_000,
+      killSignal: 'SIGKILL',
       stdio: ['ignore', 'pipe', 'pipe'],
     });
   } catch (e) {

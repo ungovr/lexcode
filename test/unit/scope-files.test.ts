@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -259,6 +259,38 @@ describe('symlinks and large files', () => {
     expect(r.skippedLarge).toBe(1);
     expect(r.skippedSymlinks).toBe(0);
   });
+});
+
+describe.skipIf(process.platform === 'win32')('listFiles does not run or read what a repository configures for git', () => {
+  function setConfig(root: string, key: string, value: string): void {
+    git(root, 'config', key, value);
+  }
+
+  it('does not run a core.fsmonitor command planted in .git/config', () => {
+    const root = repo(['a.ts']);
+    const marker = path.join(tmp(), 'FSMONITOR_RAN');
+    const hook = path.join(tmp(), 'hook.sh');
+    writeFileSync(hook, `#!/bin/sh\ndate > '${marker}'\nexit 1\n`, { mode: 0o755 });
+    setConfig(root, 'core.fsmonitor', hook);
+    expect(listFiles(root, plain).files).toEqual(['a.ts']);
+    expect(existsSync(marker)).toBe(false);
+  });
+
+  it('does not read a core.excludesFile named in .git/config', () => {
+    const root = repo(['a.ts', 'b.secret']);
+    const ex = path.join(tmp(), 'exclude');
+    writeFileSync(ex, '*.secret\n');
+    setConfig(root, 'core.excludesFile', ex);
+    expect(listFiles(root, plain).files).toEqual(['a.ts', 'b.secret']);
+  });
+
+  it('does not hang on a core.excludesFile that is a FIFO', () => {
+    const root = repo(['a.ts']);
+    const fifo = path.join(tmp(), 'fifo');
+    execFileSync('mkfifo', [fifo]);
+    setConfig(root, 'core.excludesFile', fifo);
+    expect(listFiles(root, plain).files).toEqual(['a.ts']);
+  }, 20_000);
 });
 
 describe('toPosix', () => {
