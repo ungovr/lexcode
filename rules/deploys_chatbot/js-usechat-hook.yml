@@ -1,0 +1,29 @@
+rules:
+  - id: lexcode.chatbot.js-usechat-hook
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Runs the AI SDK chat hook, which keeps a conversation with a language model and sends the whole exchange on each turn, which is deploying a chatbot (deploys_chatbot).
+    patterns:
+      - pattern: useChat(...)
+      - pattern-either:
+          - pattern-inside: |
+              import { ..., useChat, ... } from "@ai-sdk/react";
+              ...
+          - pattern-inside: |
+              import { ..., useChat, ... } from "ai/react";
+              ...
+          - pattern-inside: |
+              import { ..., useChat, ... } from "@ai-sdk/vue";
+              ...
+          - pattern-inside: |
+              import { ..., useChat, ... } from "@ai-sdk/svelte";
+              ...
+          - pattern-inside: |
+              import { ..., useChat, ... } from "@ai-sdk/angular";
+              ...
+    metadata:
+      activity: deploys_chatbot
+      mentioned: performs
+      definition: https://lexlint.io/activities/deploys-chatbot
+      provenance: ungovr-original
+      license: MIT

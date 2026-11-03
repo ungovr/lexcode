@@ -1,0 +1,40 @@
+rules:
+  - id: lexcode.generate.js-genai-to-response
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Sends a Google Gemini response, whose kind the code does not fix, back in an HTTP response, which is generating content with AI that reaches users (generates_content).
+    mode: taint
+    pattern-sources:
+      - pattern: $M.generateContent(...)
+      - pattern: $M.generateContentStream(...)
+    pattern-sinks:
+      - patterns:
+          - pattern: $RES.$M(...)
+          - metavariable-regex:
+              metavariable: $RES
+              regex: ^(res|resp|response|reply|ctx|c|context)(\s*\.\s*(status|code|type|header|set|setHeader|contentType|append)\([^()]*\))*$
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(json|send|end|write|text|html|jsonp)$
+      - pattern: new Response(...)
+      - pattern: new NextResponse(...)
+      - pattern: Response.json(...)
+      - pattern: NextResponse.json(...)
+      - pattern: ctx.body = ...
+      - patterns:
+          - pattern: $WS.send(...)
+          - metavariable-regex:
+              metavariable: $WS
+              regex: ^(ws|socket|webSocket|websocket|conn|connection)$
+      - patterns:
+          - pattern: $S.pipe($R)
+          - metavariable-regex:
+              metavariable: $R
+              regex: ^(res|resp|response|reply)$
+          - focus-metavariable: $S
+    metadata:
+      activity: generates_content
+      mentioned: performs
+      definition: https://lexlint.io/activities/generates-content
+      provenance: ungovr-original
+      license: MIT

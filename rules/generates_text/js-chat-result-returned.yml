@@ -1,0 +1,69 @@
+rules:
+  - id: lexcode.text.js-chat-result-returned
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Returns text written by a chat or completion model from a function, which may be generating text with AI that reaches users (generates_text).
+    mode: taint
+    pattern-sources:
+      - pattern: $C.chat.completions.create(...)
+      - pattern: $C.chat.completions.parse(...)
+      - pattern: $C.chat.completions.stream(...)
+      - pattern: $C.beta.chat.completions.parse(...)
+      - pattern: "$C.responses.create({..., model: ..., ...})"
+      - pattern: "$C.responses.stream({..., model: ..., ...})"
+      - pattern: "$C.messages.create({..., max_tokens: ..., ...})"
+      - pattern: "$C.messages.stream({..., max_tokens: ..., ...})"
+      - patterns:
+          - pattern: generateText(...)
+          - pattern-inside: |
+              import { ..., generateText, ... } from "ai";
+              ...
+      - patterns:
+          - pattern: streamText(...)
+          - pattern-inside: |
+              import { ..., streamText, ... } from "ai";
+              ...
+      - patterns:
+          - pattern: generateObject(...)
+          - pattern-inside: |
+              import { ..., generateObject, ... } from "ai";
+              ...
+      - patterns:
+          - pattern: streamObject(...)
+          - pattern-inside: |
+              import { ..., streamObject, ... } from "ai";
+              ...
+    pattern-sinks:
+      - pattern: return $X
+    pattern-sanitizers:
+      - patterns:
+          - pattern: $RES.$M(...)
+          - metavariable-regex:
+              metavariable: $RES
+              regex: ^(res|resp|response|reply|ctx|c|context)(\s*\.\s*(status|code|type|header|set|setHeader|contentType|append)\([^()]*\))*$
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(json|send|end|write|text|html|jsonp)$
+      - pattern: new Response(...)
+      - pattern: new NextResponse(...)
+      - pattern: Response.json(...)
+      - pattern: NextResponse.json(...)
+      - pattern: ctx.body = ...
+      - patterns:
+          - pattern: $WS.send(...)
+          - metavariable-regex:
+              metavariable: $WS
+              regex: ^(ws|socket|webSocket|websocket|conn|connection)$
+      - patterns:
+          - pattern: $S.pipe($R)
+          - metavariable-regex:
+              metavariable: $R
+              regex: ^(res|resp|response|reply)$
+          - focus-metavariable: $S
+    metadata:
+      activity: generates_text
+      mentioned: performs
+      definition: https://lexlint.io/activities/generates-text
+      provenance: ungovr-original
+      license: MIT
+      strength: signal

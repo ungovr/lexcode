@@ -1,0 +1,20 @@
+rules:
+  - id: lexcode.train.py-keras-compile-fit
+    languages: [python]
+    severity: INFO
+    message: Compiles a Keras model and fits it to training data, which is training models (trains_models).
+    pattern-either:
+      - pattern: |
+          $M.compile(..., loss=..., ...)
+          ...
+          $M.fit(...)
+      - pattern: |
+          $M.compile(..., optimizer=..., ...)
+          ...
+          $M.fit(...)
+    metadata:
+      activity: trains_models
+      mentioned: performs
+      definition: https://lexlint.io/activities/trains-models
+      provenance: ungovr-original
+      license: MIT

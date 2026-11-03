@@ -1,0 +1,16 @@
+rules:
+  - id: lexcode.train.py-gbdt-train
+    languages: [python]
+    severity: INFO
+    message: Trains a gradient-boosted tree model with XGBoost or LightGBM, which is training models (trains_models).
+    pattern-either:
+      - pattern: xgb.train(...)
+      - pattern: xgboost.train(...)
+      - pattern: lgb.train(...)
+      - pattern: lightgbm.train(...)
+    metadata:
+      activity: trains_models
+      mentioned: performs
+      definition: https://lexlint.io/activities/trains-models
+      provenance: ungovr-original
+      license: MIT

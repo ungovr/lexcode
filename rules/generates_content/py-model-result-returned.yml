@@ -1,0 +1,74 @@
+rules:
+  - id: lexcode.generate.py-model-result-returned
+    languages: [python]
+    severity: INFO
+    message: Returns the output of a LangChain chat model or a Gemini call from a function, which may be generating content with AI that reaches users (generates_content).
+    mode: taint
+    pattern-sources:
+      - pattern: ChatOpenAI(...)
+      - pattern: $MOD.ChatOpenAI(...)
+      - pattern: AzureChatOpenAI(...)
+      - pattern: $MOD.AzureChatOpenAI(...)
+      - pattern: ChatAnthropic(...)
+      - pattern: $MOD.ChatAnthropic(...)
+      - pattern: ChatGoogleGenerativeAI(...)
+      - pattern: $MOD.ChatGoogleGenerativeAI(...)
+      - pattern: ChatVertexAI(...)
+      - pattern: $MOD.ChatVertexAI(...)
+      - pattern: ChatGroq(...)
+      - pattern: $MOD.ChatGroq(...)
+      - pattern: ChatMistralAI(...)
+      - pattern: $MOD.ChatMistralAI(...)
+      - pattern: ChatOllama(...)
+      - pattern: $MOD.ChatOllama(...)
+      - pattern: ChatBedrockConverse(...)
+      - pattern: $MOD.ChatBedrockConverse(...)
+      - pattern: ChatBedrock(...)
+      - pattern: $MOD.ChatBedrock(...)
+      - pattern: ChatCohere(...)
+      - pattern: $MOD.ChatCohere(...)
+      - pattern: ChatTogetherAI(...)
+      - pattern: $MOD.ChatTogetherAI(...)
+      - pattern: ChatFireworks(...)
+      - pattern: $MOD.ChatFireworks(...)
+      - pattern: ChatDeepSeek(...)
+      - pattern: $MOD.ChatDeepSeek(...)
+      - pattern: ChatXAI(...)
+      - pattern: $MOD.ChatXAI(...)
+      - pattern: ChatPerplexity(...)
+      - pattern: $MOD.ChatPerplexity(...)
+      - pattern: ChatNVIDIA(...)
+      - pattern: $MOD.ChatNVIDIA(...)
+      - pattern: ChatHuggingFace(...)
+      - pattern: $MOD.ChatHuggingFace(...)
+      - pattern: init_chat_model(...)
+      - pattern: $M.generate_content(...)
+      - pattern: $M.generate_content_async(...)
+      - pattern: $M.generate_content_stream(...)
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: return $X
+              - pattern: yield $X
+          - pattern-not-inside: |
+              @$A.$M(...)
+              def $F(...):
+                ...
+          - pattern-not-inside: |
+              @$A.$M(...)
+              async def $F(...):
+                ...
+          - focus-metavariable: $X
+    pattern-sanitizers:
+      - patterns:
+          - pattern: $FN(...)
+          - metavariable-regex:
+              metavariable: $FN
+              regex: ^(\w+\.)*(jsonify|JSONResponse|ORJSONResponse|UJSONResponse|HTMLResponse|PlainTextResponse|StreamingResponse|EventSourceResponse|Response|make_response|HttpResponse|JsonResponse|StreamingHttpResponse|render_template|send_file)$
+    metadata:
+      activity: generates_content
+      mentioned: performs
+      definition: https://lexlint.io/activities/generates-content
+      provenance: ungovr-original
+      license: MIT
+      strength: signal

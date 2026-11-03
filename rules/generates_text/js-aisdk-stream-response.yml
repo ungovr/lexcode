@@ -1,0 +1,22 @@
+rules:
+  - id: lexcode.text.js-aisdk-stream-response
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Streams a language model's output to the browser as an HTTP response with the AI SDK, which is generating text with AI that reaches users (generates_text).
+    patterns:
+      - pattern-either:
+          - pattern: $R.toDataStreamResponse(...)
+          - pattern: $R.toUIMessageStreamResponse(...)
+          - pattern: $R.toTextStreamResponse(...)
+          - pattern: $R.pipeDataStreamToResponse(...)
+          - pattern: $R.pipeUIMessageStreamToResponse(...)
+          - pattern: $R.pipeTextStreamToResponse(...)
+          - pattern: $R.toUIMessageStream(...)
+          - pattern: $R.toDataStream(...)
+          - pattern: $R.mergeIntoDataStream(...)
+    metadata:
+      activity: generates_text
+      mentioned: performs
+      definition: https://lexlint.io/activities/generates-text
+      provenance: ungovr-original
+      license: MIT

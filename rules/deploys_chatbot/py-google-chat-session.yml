@@ -1,0 +1,24 @@
+rules:
+  - id: lexcode.chatbot.py-google-chat-session
+    languages: [python]
+    severity: INFO
+    message: Sends a message into a Gemini chat session, which keeps the earlier turns, so this may be deploying a chatbot (deploys_chatbot).
+    mode: taint
+    pattern-sources:
+      - pattern: $M.start_chat(...)
+      - pattern: $C.chats.create(...)
+      - pattern: $C.aio.chats.create(...)
+    pattern-sinks:
+      - patterns:
+          - pattern: $S.send_message(...)
+          - focus-metavariable: $S
+      - patterns:
+          - pattern: $S.send_message_stream(...)
+          - focus-metavariable: $S
+    metadata:
+      activity: deploys_chatbot
+      mentioned: performs
+      definition: https://lexlint.io/activities/deploys-chatbot
+      provenance: ungovr-original
+      license: MIT
+      strength: signal

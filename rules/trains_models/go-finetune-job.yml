@@ -1,0 +1,15 @@
+rules:
+  - id: lexcode.train.go-finetune-job
+    languages: [go]
+    severity: INFO
+    message: Starts a hosted fine-tuning job that adapts a model to the caller's data, which is training models (trains_models).
+    pattern-either:
+      - pattern: $C.CreateFineTuningJob(...)
+      - pattern: $C.CreateFineTune(...)
+      - pattern: $C.FineTuning.Jobs.New(...)
+    metadata:
+      activity: trains_models
+      mentioned: performs
+      definition: https://lexlint.io/activities/trains-models
+      provenance: ungovr-original
+      license: MIT

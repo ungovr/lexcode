@@ -1,0 +1,79 @@
+rules:
+  - id: lexcode.generate.py-langchain-model-to-response
+    languages: [python]
+    severity: INFO
+    message: Sends the output of a LangChain chat model back in an HTTP response, which is generating content with AI that reaches users (generates_content).
+    mode: taint
+    pattern-sources:
+      - pattern: ChatOpenAI(...)
+      - pattern: $MOD.ChatOpenAI(...)
+      - pattern: AzureChatOpenAI(...)
+      - pattern: $MOD.AzureChatOpenAI(...)
+      - pattern: ChatAnthropic(...)
+      - pattern: $MOD.ChatAnthropic(...)
+      - pattern: ChatGoogleGenerativeAI(...)
+      - pattern: $MOD.ChatGoogleGenerativeAI(...)
+      - pattern: ChatVertexAI(...)
+      - pattern: $MOD.ChatVertexAI(...)
+      - pattern: ChatGroq(...)
+      - pattern: $MOD.ChatGroq(...)
+      - pattern: ChatMistralAI(...)
+      - pattern: $MOD.ChatMistralAI(...)
+      - pattern: ChatOllama(...)
+      - pattern: $MOD.ChatOllama(...)
+      - pattern: ChatBedrockConverse(...)
+      - pattern: $MOD.ChatBedrockConverse(...)
+      - pattern: ChatBedrock(...)
+      - pattern: $MOD.ChatBedrock(...)
+      - pattern: ChatCohere(...)
+      - pattern: $MOD.ChatCohere(...)
+      - pattern: ChatTogetherAI(...)
+      - pattern: $MOD.ChatTogetherAI(...)
+      - pattern: ChatFireworks(...)
+      - pattern: $MOD.ChatFireworks(...)
+      - pattern: ChatDeepSeek(...)
+      - pattern: $MOD.ChatDeepSeek(...)
+      - pattern: ChatXAI(...)
+      - pattern: $MOD.ChatXAI(...)
+      - pattern: ChatPerplexity(...)
+      - pattern: $MOD.ChatPerplexity(...)
+      - pattern: ChatNVIDIA(...)
+      - pattern: $MOD.ChatNVIDIA(...)
+      - pattern: ChatHuggingFace(...)
+      - pattern: $MOD.ChatHuggingFace(...)
+      - pattern: init_chat_model(...)
+    pattern-sinks:
+      - patterns:
+          - pattern: $FN(...)
+          - metavariable-regex:
+              metavariable: $FN
+              regex: ^(\w+\.)*(jsonify|JSONResponse|ORJSONResponse|UJSONResponse|HTMLResponse|PlainTextResponse|StreamingResponse|EventSourceResponse|Response|make_response|HttpResponse|JsonResponse|StreamingHttpResponse|render_template|send_file)$
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  @$A.$M(...)
+                  def $F(...):
+                    ...
+              - pattern-inside: |
+                  @$A.$M(...)
+                  async def $F(...):
+                    ...
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(get|post|put|patch|delete|route|api_route|head|options)$
+          - pattern: return $X
+          - focus-metavariable: $X
+      - patterns:
+          - pattern: $WS.$M(...)
+          - metavariable-regex:
+              metavariable: $WS
+              regex: ^(ws|websocket|socket)$
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(send_text|send_json|send_bytes)$
+    metadata:
+      activity: generates_content
+      mentioned: performs
+      definition: https://lexlint.io/activities/generates-content
+      provenance: ungovr-original
+      license: MIT
