@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { chmodSync, existsSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -202,6 +203,21 @@ describe('scan scope', () => {
     rs.rules = [];
     const rec = await scan({ root, rulesDirs: [], rs, includeTests: false, snippets: false, skipFiles: ['lexcode.json', 'out/r.json'] });
     expect(rec.scope.files).toBe(4);
+  });
+
+  it('adds a notice when the directory is not in a git work tree, and none when it is', async () => {
+    const rs = makeRuleSet();
+    rs.rules = [];
+    const plain = tree({ 'src/a.py': 'x\n', '.gitignore': '*.log\n!keep.log\n', 'b.log': 'x\n' });
+    const rec = await scan({ root: plain, rulesDirs: [], rs, includeTests: false, snippets: false });
+    const notice = rec.notices.find((n) => n.includes('not in a git work tree'));
+    expect(notice).toBeDefined();
+    expect(notice).toContain('1 .gitignore pattern');
+    expect(rec.scope.files).toBe(2); // b.log is left out by the root .gitignore
+    const repo = tree({ 'src/a.py': 'x\n' });
+    execFileSync('git', ['init', '-q'], { cwd: repo });
+    const inGit = await scan({ root: repo, rulesDirs: [], rs, includeTests: false, snippets: false });
+    expect(inGit.notices.some((n) => n.includes('git work tree'))).toBe(false);
   });
 
   it('counts symbolic links it skipped', async () => {

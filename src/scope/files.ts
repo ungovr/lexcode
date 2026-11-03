@@ -1,7 +1,8 @@
 import { execFileSync } from 'node:child_process';
-import { lstatSync, readdirSync } from 'node:fs';
+import { existsSync, lstatSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { ToolError } from '../errors.js';
+import { readRegularFile } from '../fsread.js';
 import { childEnv, gitExecutable } from '../proc.js';
 import type { ScopeInfo, ScopeSpec } from '../types.js';
 import { globToRegExp, globToRegExpSource } from './globs.js';
@@ -11,6 +12,81 @@ export const MAX_FILE_BYTES = 5_000_000;
 
 /** Directories never read, at any depth. */
 const ALWAYS_SKIPPED = new Set(['node_modules', 'vendor', 'dist', 'build', '.git']);
+/**
+ * Directories a walk (a directory with no git work tree) also skips, at any depth. Git would have left
+ * them out through .gitignore; a walk has no such list, and a third-party library under
+ * `.venv/lib/.../site-packages` once raised a FAIL for an activity the project never performs.
+ */
+const WALK_SKIPPED = new Set([
+  'site-packages',
+  '__pycache__',
+  '.tox',
+  '.nox',
+  '.mypy_cache',
+  '.pytest_cache',
+  '.next',
+  '.nuxt',
+  '.svelte-kit',
+  'target',
+  '.gradle',
+  'Pods',
+  '.terraform',
+]);
+/** Skipped by a walk only when the directory holds a `pyvenv.cfg`, which is what makes it a virtual environment. */
+const VENV_NAMES = new Set(['.venv', 'venv', 'env']);
+/** The largest root .gitignore a walk reads, and the most patterns it applies: every entry is tested against every pattern. */
+const MAX_GITIGNORE_BYTES = 1024 * 1024;
+const MAX_GITIGNORE_RULES = 5000;
+
+interface IgnoreRule {
+  re: RegExp;
+  dirOnly: boolean;
+  /** Matches the whole path from the root; otherwise the name alone, at any depth. */
+  anchored: boolean;
+}
+
+/**
+ * The simple patterns of a .gitignore: a name, `dir/` (directories only), a glob such as `*.ext`, and a
+ * leading `/` (anchored at the root); a pattern with a `/` inside is anchored too. Negations (`!`)
+ * are not supported, and neither are patterns past the first 5,000; both are only counted. Comments and
+ * blank lines are skipped. A .gitignore below the root is not read.
+ */
+export function parseGitignore(text: string): { rules: IgnoreRule[]; notApplied: number } {
+  const rules: IgnoreRule[] = [];
+  let notApplied = 0;
+  for (const raw of text.split(/\r?\n/)) {
+    let line = raw.replace(/(?<!\\)\s+$/, '');
+    if (line === '' || line.startsWith('#')) continue;
+    if (line.startsWith('!')) {
+      notApplied++;
+      continue;
+    }
+    if (line.startsWith('\\#') || line.startsWith('\\!')) line = line.slice(1);
+    const dirOnly = line.endsWith('/');
+    if (dirOnly) line = line.replace(/\/+$/, '');
+    if (line === '') continue;
+    const anchored = line.includes('/');
+    const body = line.replace(/^\/+/, '');
+    if (body === '') continue;
+    if (rules.length >= MAX_GITIGNORE_RULES) {
+      notApplied++;
+      continue;
+    }
+    rules.push({ re: globToRegExp(body), dirOnly, anchored });
+  }
+  return { rules, notApplied };
+}
+
+function ignoredBy(rules: IgnoreRule[], rel: string, isDir: boolean): boolean {
+  if (rules.length === 0) return false;
+  const name = rel.slice(rel.lastIndexOf('/') + 1);
+  for (const r of rules) {
+    if (r.dirOnly && !isDir) continue;
+    if (r.re.test(r.anchored ? rel : name)) return true;
+  }
+  return false;
+}
+
 /** Directories skipped unless `includeTests`. */
 const TEST_DIRS = new Set(['test', 'tests', '__tests__', 'spec', 'fixtures', 'testdata']);
 /**
@@ -113,7 +189,13 @@ function gitListing(root: string): string[] | null {
   return [...seen];
 }
 
-function walk(root: string): string[] {
+function walk(root: string): { found: string[]; gitignore: { rules: number; notApplied: number } } {
+  let ignore: ReturnType<typeof parseGitignore> = { rules: [], notApplied: 0 };
+  try {
+    ignore = parseGitignore(readRegularFile(path.join(root, '.gitignore'), { insideRoot: root, maxBytes: MAX_GITIGNORE_BYTES }));
+  } catch {
+    // no .gitignore, or one that is a link, a FIFO or too large: nothing is ignored by it
+  }
   const found: string[] = [];
   const visit = (dirRel: string): void => {
     const abs = dirRel === '' ? root : path.join(root, ...dirRel.split('/'));
@@ -127,14 +209,17 @@ function walk(root: string): string[] {
     for (const entry of entries) {
       const rel = dirRel === '' ? entry.name : `${dirRel}/${entry.name}`;
       if (entry.isDirectory()) {
-        if (!ALWAYS_SKIPPED.has(entry.name)) visit(rel);
-      } else {
+        if (ALWAYS_SKIPPED.has(entry.name) || WALK_SKIPPED.has(entry.name)) continue;
+        if (VENV_NAMES.has(entry.name) && existsSync(path.join(abs, entry.name, 'pyvenv.cfg'))) continue;
+        if (ignoredBy(ignore.rules, rel, true)) continue;
+        visit(rel);
+      } else if (!ignoredBy(ignore.rules, rel, false)) {
         found.push(rel); // files and symlinks alike; the caller sorts them out
       }
     }
   };
   visit('');
-  return found;
+  return { found, gitignore: { rules: ignore.rules.length, notApplied: ignore.notApplied } };
 }
 
 export interface ListFilesResult {
@@ -143,6 +228,10 @@ export interface ListFilesResult {
   skippedSymlinks: number;
   skippedLarge: number;
   skippedBundled: number;
+  /** True when `root` is not in a git work tree and the files were found by walking it. */
+  noGitWorkTree: boolean;
+  /** For a walk: how many simple root .gitignore patterns were applied, and how many (`!` negations, or beyond 5,000) were not. */
+  gitignore: { rules: number; notApplied: number };
 }
 
 export function listFiles(root: string, spec: ScopeSpec): ListFilesResult {
@@ -159,7 +248,9 @@ export function listFiles(root: string, spec: ScopeSpec): ListFilesResult {
     throw new ToolError(`${root} is not a directory.`);
   }
 
-  const listed = gitListing(root) ?? walk(root);
+  const viaGit = gitListing(root);
+  const walked = viaGit === null ? walk(root) : undefined;
+  const listed = viaGit ?? (walked as ReturnType<typeof walk>).found;
 
   let skippedSymlinks = 0;
   let skippedLarge = 0;
@@ -219,5 +310,7 @@ export function listFiles(root: string, spec: ScopeSpec): ListFilesResult {
     skippedSymlinks,
     skippedLarge,
     skippedBundled,
+    noGitWorkTree: viaGit === null,
+    gitignore: walked?.gitignore ?? { rules: 0, notApplied: 0 },
   };
 }

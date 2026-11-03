@@ -92,10 +92,73 @@ describe('listFiles outside git', () => {
     expect(listFiles(root, plain).files).toEqual(['a.ts', 'src/b.ts']);
   });
 
-  it('does not honor .gitignore', () => {
-    const root = repo(['a.ts', 'b.log', '.gitignore'], { git: false });
-    put(root, '.gitignore', '*.log\n');
-    expect(listFiles(root, plain).files).toEqual(['.gitignore', 'a.ts', 'b.log']);
+  it('says that no git work tree was found, and a git repository does not', () => {
+    expect(listFiles(repo(['a.ts'], { git: false }), plain).noGitWorkTree).toBe(true);
+    expect(listFiles(repo(['a.ts']), plain).noGitWorkTree).toBe(false);
+  });
+
+  it('skips a virtual environment only where a pyvenv.cfg says it is one', () => {
+    const root = repo(
+      [
+        'app.py',
+        '.venv/pyvenv.cfg',
+        '.venv/lib/python3.12/site-packages/whisper/a.py',
+        'venv/pyvenv.cfg',
+        'venv/bin/x.py',
+        'env/pyvenv.cfg',
+        'env/lib/y.py',
+        'sub/env/pyvenv.cfg',
+        'sub/env/z.py',
+        'src/env/real.py', // a source directory that happens to be called env
+        'src/venv/real.py',
+        'src/.venv/real.py',
+      ],
+      { git: false },
+    );
+    expect(listFiles(root, plain).files).toEqual(['app.py', 'src/.venv/real.py', 'src/env/real.py', 'src/venv/real.py']);
+  });
+
+  it('skips the dependency, cache and build directories a walk would otherwise read, at any depth', () => {
+    const dirs = ['site-packages', '__pycache__', '.tox', '.nox', '.mypy_cache', '.pytest_cache', '.next', '.nuxt', '.svelte-kit', 'target', '.gradle', 'Pods', '.terraform'];
+    const root = repo(['keep.py', ...dirs.flatMap((d) => [`${d}/x.py`, `deep/${d}/y.py`])], { git: false });
+    expect(listFiles(root, plain).files).toEqual(['keep.py']);
+  });
+
+  it('does not skip those directories in a git repository, where git decides', () => {
+    const root = repo(['keep.py', 'target/x.py', 'Pods/y.py']);
+    expect(listFiles(root, plain).files).toEqual(['Pods/y.py', 'keep.py', 'target/x.py']);
+  });
+
+  it('applies the simple patterns of the root .gitignore when there is no git work tree', () => {
+    const root = repo(
+      ['a.ts', 'b.log', 'sub/c.log', 'out/gen.ts', 'sub/out/gen.ts', 'only-root.txt', 'sub/only-root.txt', 'docs/build/x.md', 'logs', 'sub/logs/l.txt', '.gitignore'],
+      { git: false },
+    );
+    put(root, '.gitignore', ['# a comment', '', '*.log', 'out/', '/only-root.txt', 'docs/build', 'logs/', '!keep.log', ''].join('\n'));
+    const r = listFiles(root, plain);
+    // "logs/" names directories only, so the file called logs stays; "/only-root.txt" is the root's alone.
+    expect(r.files).toEqual(['.gitignore', 'a.ts', 'logs', 'sub/only-root.txt']);
+    expect(r.gitignore).toEqual({ rules: 5, notApplied: 1 });
+  });
+
+  it('reads a .gitignore only from the root, and not through a symbolic link', () => {
+    const root = repo(['a.log', 'sub/b.log', 'sub/.gitignore'], { git: false });
+    put(root, 'sub/.gitignore', '*.log\n');
+    expect(listFiles(root, plain).files).toEqual(['a.log', 'sub/.gitignore', 'sub/b.log']);
+    if (process.platform !== 'win32') {
+      const outside = tmp();
+      put(outside, 'ignore', '*.log\n');
+      symlinkSync(path.join(outside, 'ignore'), path.join(root, '.gitignore'));
+      expect(listFiles(root, plain).files).toContain('a.log');
+    }
+  });
+
+  it('applies at most 5,000 patterns and counts the rest as not applied', () => {
+    const root = repo(['a.ts', 'late.ts'], { git: false });
+    put(root, '.gitignore', `${Array.from({ length: 5001 }, (_, i) => (i === 5000 ? 'late.ts' : `never-${i}.ts`)).join('\n')}\n`);
+    const r = listFiles(root, plain);
+    expect(r.files).toEqual(['.gitignore', 'a.ts', 'late.ts']);
+    expect(r.gitignore).toEqual({ rules: 5000, notApplied: 1 });
   });
 });
 

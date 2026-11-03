@@ -98,6 +98,15 @@ export async function scan(o: ScanOptions): Promise<EvidenceRecord> {
   if (files.length === 0) throw new ToolError(`no files in scope under ${root}: every file was skipped, excluded or not included.`);
 
   const notices: string[] = [];
+  if (listed.noGitWorkTree) {
+    const neg = listed.gitignore.notApplied;
+    notices.push(
+      'this directory is not in a git work tree, so its files were found by walking it: common dependency and build directories ' +
+        '(virtual environments, site-packages, node_modules and the like) and the simple patterns of the root .gitignore were left out' +
+        (neg > 0 ? `, but ${neg.toLocaleString('en-US')} .gitignore ${neg === 1 ? 'pattern' : 'patterns'} (a negation with !, or one past the first 5,000) ${neg === 1 ? 'was' : 'were'} not applied` : '') +
+        '; a library that git would have ignored may have been read',
+    );
+  }
   if (listed.skippedSymlinks > 0) {
     notices.push(`skipped ${listed.skippedSymlinks} symbolic ${listed.skippedSymlinks === 1 ? 'link' : 'links'}; lexcode does not follow them`);
   }
