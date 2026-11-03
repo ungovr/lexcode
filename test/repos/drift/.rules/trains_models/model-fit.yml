@@ -1,0 +1,12 @@
+rules:
+  - id: lexcode.train.model-fit
+    languages: [python]
+    severity: INFO
+    message: fits a model to data
+    pattern: $M.fit(...)
+    metadata:
+      activity: trains_models
+      mentioned: performs
+      definition: https://lexlint.io/activities/trains-models
+      provenance: ungovr-original
+      license: MIT

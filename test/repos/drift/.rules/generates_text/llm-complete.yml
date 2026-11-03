@@ -1,0 +1,12 @@
+rules:
+  - id: lexcode.text.llm-complete
+    languages: [python]
+    severity: INFO
+    message: asks a language model to complete a prompt
+    pattern: llm.complete(...)
+    metadata:
+      activity: generates_text
+      mentioned: performs
+      definition: https://lexlint.io/activities/generates-text
+      provenance: ungovr-original
+      license: MIT

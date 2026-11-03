@@ -1,0 +1,12 @@
+rules:
+  - id: lexcode.crawl.spider-crawl
+    languages: [python]
+    severity: INFO
+    message: starts a crawler spider
+    pattern: spider.crawl(...)
+    metadata:
+      activity: crawls_web
+      mentioned: performs
+      definition: https://lexlint.io/activities/crawls-web
+      provenance: ungovr-original
+      license: MIT

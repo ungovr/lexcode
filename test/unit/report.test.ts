@@ -160,3 +160,12 @@ describe('renderJson', () => {
     expect(s.endsWith('\n')).toBe(true);
   });
 });
+
+describe('renderHuman header', () => {
+  it('names the declaration file, the file count, the engine, the rule set and the pinned registry version', () => {
+    const rec = { ...record(), scope: { ...record().scope, files: 6123 } };
+    const lines = renderHuman(result, { ...ctx, record: rec }).split('\n');
+    expect(lines[0]).toBe('lexcode check against ACTIVITIES.md');
+    expect(lines[1]).toBe('6,123 files read; rules 1.0.0; engine opengrep 1.33.1; registry 1.15');
+  });
+});

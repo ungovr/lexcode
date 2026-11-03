@@ -1,0 +1,13 @@
+rules:
+  - id: lexcode.social.feed-publish
+    languages: [python]
+    severity: INFO
+    message: publishes an item to a feed other users read
+    pattern: $F.publish(...)
+    metadata:
+      activity: operates_social_platform
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/operates-social-platform
+      provenance: ungovr-original
+      license: MIT

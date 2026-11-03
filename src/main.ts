@@ -10,6 +10,14 @@ async function load(name: string): Promise<Runner | undefined> {
   switch (name) {
     case 'scan':
       return (await import('./commands/scan.js')).runScanCommand;
+    case 'check':
+      return (await import('./commands/check.js')).runCheckCommand;
+    case 'explain':
+      return (await import('./commands/explain.js')).runExplainCommand;
+    case 'rules':
+      return (await import('./commands/rules.js')).runRulesCommand;
+    case 'version':
+      return (await import('./commands/version.js')).runVersionCommand;
     case 'engine': {
       const { runEngineCommand } = await import('./commands/engine.js');
       return (argv, io) => runEngineCommand(argv, { stdout: io.stdout, stderr: io.stderr });
@@ -26,7 +34,7 @@ export async function main(argv: string[], io: Io = defaultIo()): Promise<number
     io.stdout(USAGE);
     return 0;
   }
-  const run = await load(command);
+  const run = await load(command === '--version' || command === '-v' ? 'version' : command);
   if (!run) {
     io.stderr(`lexcode: unknown command "${command}"\n\n${USAGE}`);
     return 2;
