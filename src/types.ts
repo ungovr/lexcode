@@ -1,6 +1,4 @@
-// Every type more than one module uses. The plan (monorepo
-// docs/superpowers/plans/2026-11-03-lexcode-v1.md) fixes these names; change
-// them here and nowhere else.
+// Every type more than one module uses. Change them here and nowhere else.
 
 export type Mentioned = 'performs' | 'enables';
 export type DetectionClass = 'evidence' | 'signal' | 'declaration-only';

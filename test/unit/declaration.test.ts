@@ -9,7 +9,40 @@ import { selectDeclaration } from '../../src/declaration/select.js';
 import { ToolError } from '../../src/errors.js';
 import { makeRuleSet } from '../helpers/ruleset.js';
 
-const REAL = fileURLToPath(new URL('../repos/monorepo-decl/', import.meta.url));
+// An invented declaration pair with the shape of a real multi-component one.
+const EXAMPLE = fileURLToPath(new URL('../repos/example-decl/', import.meta.url));
+
+/** A lexlint.yml of about `lines` lines: six profile activities and a long lint section, the shape of a real one. */
+function largeLexlintYml(lines: number): string {
+  const out = [
+    'version: 1',
+    'app:',
+    '  name: large',
+    'profile:',
+    '  activities:',
+    ...['crawls_web', 'processes_personal_data', 'automated_outreach', 'tracks_devices', 'processes_voice', 'generates_content'].map(
+      (a) => `    - ${a}`,
+    ),
+    'lint:',
+    "  run_at: '2026-11-03'",
+    '  findings:',
+  ];
+  for (let i = 0; out.length < lines; i++) {
+    out.push(
+      `    - id: finding-${i}`,
+      `      jurisdiction: j-${i % 250}`,
+      `      level: ${i % 3 === 0 ? 'info' : 'warn'}`,
+      `      title: 'An invented finding, number ${i}, with a title about as long as a real one'`,
+      '      requires:',
+      `        - 'A duty line for finding ${i}, written out in full the way the lint writes it'`,
+      `        - 'A second duty line for finding ${i}'`,
+      '      cites:',
+      `        - instrument: inst-${i % 400}`,
+      `          section: '${i % 90}'`,
+    );
+  }
+  return out.join('\n') + '\n';
+}
 
 let dir: string;
 beforeEach(() => {
@@ -40,8 +73,8 @@ function lexlint(activities: string[], extra = ''): string {
 }
 
 describe('readActivitiesMd', () => {
-  it('reads the monorepo ACTIVITIES.md: performs and absent', () => {
-    const d = readActivitiesMd(join(REAL, 'ACTIVITIES.md'));
+  it('reads a multi-component ACTIVITIES.md: performs and absent', () => {
+    const d = readActivitiesMd(join(EXAMPLE, 'ACTIVITIES.md'));
     expect(d.source).toBe('ACTIVITIES.md');
     expect(d.declared.get('crawls_web')).toBe('performs');
     expect(d.absent.has('trains_models')).toBe(true);
@@ -131,17 +164,27 @@ describe('readActivitiesMd', () => {
 });
 
 describe('readLexlintYml', () => {
-  it('reads the monorepo 37,000-line lexlint.yml in under 2,000 ms', () => {
-    const t0 = performance.now();
-    const { declaration, scope } = readLexlintYml(join(REAL, 'lexlint.yml'));
-    const ms = performance.now() - t0;
-    expect(ms).toBeLessThan(2000);
+  it('reads the example lexlint.yml: profile activities declared, nothing absent, no scope', () => {
+    const { declaration, scope } = readLexlintYml(join(EXAMPLE, 'lexlint.yml'));
     expect(declaration.source).toBe('lexlint.yml');
     expect(declaration.declared.get('crawls_web')).toBe('declared');
-    expect(declaration.declared.size).toBeGreaterThan(5);
+    expect(declaration.declared.size).toBe(6);
     for (const v of declaration.declared.values()) expect(v).toBe('declared');
     expect(declaration.absent.size).toBe(0);
     expect(scope).toBeUndefined();
+  });
+
+  it('reads a 37,000-line lexlint.yml in under 2,000 ms', () => {
+    const f = join(dir, 'lexlint.yml');
+    const text = largeLexlintYml(37_000);
+    expect(text.split('\n').length).toBeGreaterThanOrEqual(37_000);
+    writeFileSync(f, text);
+    const t0 = performance.now();
+    const { declaration } = readLexlintYml(f);
+    const ms = performance.now() - t0;
+    expect(ms).toBeLessThan(2000);
+    expect(declaration.declared.size).toBe(6);
+    expect(declaration.declared.get('generates_content')).toBe('declared');
   });
 
   it('activities_left_out go to absent and app.scope is returned', () => {
@@ -261,9 +304,9 @@ describe('selectDeclaration', () => {
     expect(() => selectDeclaration(dir, 'lexlint.yml')).toThrow(ToolError);
   });
 
-  it('works on a copy of the monorepo pair', () => {
-    copyFileSync(join(REAL, 'ACTIVITIES.md'), join(dir, 'ACTIVITIES.md'));
-    copyFileSync(join(REAL, 'lexlint.yml'), join(dir, 'lexlint.yml'));
+  it('prefers ACTIVITIES.md when a repository carries both files', () => {
+    copyFileSync(join(EXAMPLE, 'ACTIVITIES.md'), join(dir, 'ACTIVITIES.md'));
+    copyFileSync(join(EXAMPLE, 'lexlint.yml'), join(dir, 'lexlint.yml'));
     const r = selectDeclaration(dir);
     expect(r.declaration?.source).toBe('ACTIVITIES.md');
     expect(r.declaration?.declared.get('crawls_web')).toBe('performs');
