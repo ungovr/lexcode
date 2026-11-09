@@ -73,6 +73,52 @@ function extensionsOf(rule: RuleMeta): string[] | 'all' {
   return out;
 }
 
+/**
+ * Code languages a repository may hold, by the name a notice gives them and their extensions. A
+ * language here that no rule reads is named in the record, so "not found" is never read as "not there"
+ * when the code was never looked at: Canvas holds 6,721 Ruby files lexcode has no rule for (#12745).
+ */
+const CODE_LANGUAGES: [string, string[]][] = [
+  ['Python', ['.py', '.pyi']],
+  ['JavaScript', ['.js', '.jsx', '.mjs', '.cjs']],
+  ['TypeScript', ['.ts', '.tsx', '.mts', '.cts']],
+  ['Go', ['.go']],
+  ['Ruby', ['.rb']],
+  ['PHP', ['.php']],
+  ['Java', ['.java']],
+  ['Kotlin', ['.kt', '.kts']],
+  ['Swift', ['.swift']],
+  ['C#', ['.cs']],
+  ['Rust', ['.rs']],
+  ['Elixir', ['.ex', '.exs']],
+  ['Scala', ['.scala']],
+  ['Dart', ['.dart']],
+  ['C and C++', ['.c', '.cc', '.cpp', '.cxx', '.h', '.hpp']],
+];
+
+/**
+ * Per code language with files in scope that no rule names among its languages, how many files: most
+ * first, then by name. A `generic` or `regex` rule reads every file as text and does not count as a
+ * rule for a language.
+ */
+export function unreadLanguages(rules: RuleMeta[], files: string[]): { language: string; files: number }[] {
+  const read = new Set<string>();
+  for (const r of rules) {
+    const exts = extensionsOf(r);
+    if (exts !== 'all') for (const e of exts) read.add(e);
+  }
+  const counts = new Map<string, number>();
+  for (const f of files) {
+    const ext = posix.extname(f).toLowerCase();
+    if (ext === '' || read.has(ext)) continue;
+    const lang = CODE_LANGUAGES.find(([, exts]) => exts.includes(ext));
+    if (lang) counts.set(lang[0], (counts.get(lang[0]) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([language, n]) => ({ language, files: n }))
+    .sort((a, b) => b.files - a.files || (a.language < b.language ? -1 : a.language > b.language ? 1 : 0));
+}
+
 const SETTINGS_LANGUAGES = new Set(['json', 'yaml', 'yml', 'xml']);
 
 /** A rule that reads only configuration formats: a Ruby repository with a workflow file still has no code lexcode read. */

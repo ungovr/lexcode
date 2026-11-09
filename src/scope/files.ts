@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, lstatSync, readdirSync } from 'node:fs';
+import { accessSync, constants, existsSync, lstatSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { ToolError } from '../errors.js';
 import { readRegularFile } from '../fsread.js';
@@ -228,6 +228,8 @@ export interface ListFilesResult {
   skippedSymlinks: number;
   skippedLarge: number;
   skippedBundled: number;
+  /** Files this user cannot open for reading (#12745): handed to the engine, one such file failed the whole scan. */
+  skippedUnreadable: number;
   /** True when `root` is not in a git work tree and the files were found by walking it. */
   noGitWorkTree: boolean;
   /** For a walk: how many simple root .gitignore patterns were applied, and how many (`!` negations, or beyond 5,000) were not. */
@@ -255,6 +257,7 @@ export function listFiles(root: string, spec: ScopeSpec): ListFilesResult {
   let skippedSymlinks = 0;
   let skippedLarge = 0;
   let skippedBundled = 0;
+  let skippedUnreadable = 0;
   const candidates: string[] = [];
   for (const rel of listed) {
     if (underSkippedDir(rel, spec.includeTests)) continue;
@@ -262,9 +265,10 @@ export function listFiles(root: string, spec: ScopeSpec): ListFilesResult {
       skippedBundled++;
       continue;
     }
+    const abs = path.join(root, ...rel.split('/'));
     let st;
     try {
-      st = lstatSync(path.join(root, ...rel.split('/')));
+      st = lstatSync(abs);
     } catch {
       continue; // listed by git, deleted from disk
     }
@@ -275,6 +279,12 @@ export function listFiles(root: string, spec: ScopeSpec): ListFilesResult {
     if (!st.isFile()) continue; // a submodule, a nested repository, a socket
     if (st.size > MAX_FILE_BYTES) {
       skippedLarge++;
+      continue;
+    }
+    try {
+      accessSync(abs, constants.R_OK);
+    } catch {
+      skippedUnreadable++; // another user's file, mode 600: the engine refuses the whole target list over one
       continue;
     }
     candidates.push(rel);
@@ -310,6 +320,7 @@ export function listFiles(root: string, spec: ScopeSpec): ListFilesResult {
     skippedSymlinks,
     skippedLarge,
     skippedBundled,
+    skippedUnreadable,
     noGitWorkTree: viaGit === null,
     gitignore: walked?.gitignore ?? { rules: 0, notApplied: 0 },
   };

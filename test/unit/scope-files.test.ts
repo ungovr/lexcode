@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -364,5 +364,30 @@ describe('toPosix', () => {
 
   it('leaves a backslash in a POSIX file name alone', () => {
     expect(toPosix('src/we\\ird.ts', path.posix)).toBe('src/we\\ird.ts');
+  });
+});
+
+const cannotDenyRead = process.platform === 'win32' || process.getuid?.() === 0;
+
+describe.skipIf(cannotDenyRead)('listFiles and a file the user cannot read (#12745)', () => {
+  for (const useGit of [true, false]) {
+    const label = useGit ? 'in a git repository' : 'in a walk';
+    it(`skips a file it cannot open for reading and counts it, ${label}`, () => {
+      const root = repo(['src/a.py', 'src/b.py', 'data/locked.json'], { git: useGit });
+      chmodSync(path.join(root, 'data', 'locked.json'), 0o000);
+      chmodSync(path.join(root, 'src', 'b.py'), 0o200);
+      const r = listFiles(root, plain);
+      expect(r.files).toEqual(['src/a.py']);
+      expect(r.skippedUnreadable).toBe(2);
+      expect(r.info.files).toBe(1);
+    });
+  }
+
+  it('lists a readable file whose permissions are otherwise narrow', () => {
+    const root = repo(['src/a.py']);
+    chmodSync(path.join(root, 'src', 'a.py'), 0o400);
+    const r = listFiles(root, plain);
+    expect(r.files).toEqual(['src/a.py']);
+    expect(r.skippedUnreadable).toBe(0);
   });
 });

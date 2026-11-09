@@ -232,3 +232,41 @@ describe('scan scope', () => {
     expect(rec.scope.files).toBe(2);
   });
 });
+
+describe('what a scan could not read (#12745)', () => {
+  it.skipIf(process.platform === 'win32' || process.getuid?.() === 0)(
+    'skips a file it cannot open for reading, never hands it to the engine, and says so',
+    async () => {
+      const root = tree({ 'src/a.py': 'x = 1\n', 'state/locked.py': 'x = 2\n' });
+      chmodSync(join(root, 'state', 'locked.py'), 0o000);
+      const rec = await scan({ root, rulesDirs: [], rs: stubRuleSet(), enginePath: STUB, includeTests: false, snippets: false });
+      const runs = readFileSync(argvLog, 'utf8').trim().split('\n').map((l) => JSON.parse(l) as { targets: string[] });
+      const targets = runs.flatMap((r) => r.targets);
+      expect(targets).toContain('scan-root/src/a.py');
+      expect(targets).not.toContain('scan-root/state/locked.py');
+      expect(rec.scope.files).toBe(1);
+      expect(rec.notices).toContain('skipped 1 file lexcode cannot open for reading; its evidence is missing from this record');
+    },
+  );
+
+  it('names each language it holds files in but has no rules for, with counts', async () => {
+    const root = tree({
+      'src/a.py': 'x = 1\n',
+      'app/models/user.rb': 'class User; end\n',
+      'app/models/post.rb': 'class Post; end\n',
+      'lib/x.php': '<?php\n',
+      'README.md': '# hi\n',
+      'config/app.yml': 'a: 1\n',
+    });
+    const rec = await scan({ root, rulesDirs: [], rs: stubRuleSet(), enginePath: STUB, includeTests: false, snippets: false });
+    expect(rec.notices).toContain(
+      'not read: 2 Ruby files, 1 PHP file; lexcode has no rules for Ruby or PHP, so any evidence in them is missing from this record',
+    );
+  });
+
+  it('says nothing about languages when every code file is in a language its rules read', async () => {
+    const root = tree({ 'src/a.py': 'x = 1\n', 'web/b.ts': 'const b = 1;\n', 'README.md': '# hi\n' });
+    const rec = await scan({ root, rulesDirs: [], rs: stubRuleSet(), enginePath: STUB, includeTests: false, snippets: false });
+    expect(rec.notices.some((n) => n.startsWith('not read:'))).toBe(false);
+  });
+});
