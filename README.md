@@ -47,13 +47,17 @@ so in a notice. Never
 `node_modules`, `vendor`, `dist`, `build` or `.git`, never minified or bundled
 files (including any named `*.min.js`, `*.bundle.js`, `vendor.*.js` or
 `*.vendor.js`), never a file with a line over 100,000 characters (generated
-code, counted in a notice), never symbolic links, never files over 5 MB, and never directories
+code, counted in a notice), never symbolic links, never files over 5 MB, never a
+file you cannot open for reading (counted in a notice), and never directories
 named `test`, `tests`, `__tests__`, `spec`, `fixtures` or `testdata` unless you
 pass `--include-tests`. `app.scope` in `lexlint.yml` narrows the read, as the
 lint reads it.
 
 Languages: TypeScript, JavaScript (with JSX and TSX), Python and Go, plus the
-`<script>` blocks of Vue, Svelte, HTML and Jinja files. Manifests: npm
+`<script>` blocks of Vue, Svelte, HTML and Jinja files. Code in any other
+language (Ruby, PHP, Java, Kotlin, Swift, C#, Rust and the like) is not read,
+and the scan names each such language with its file count in a notice, so a
+missing activity there reads as "not checked", never as "not there". Manifests: npm
 (`package.json` with `package-lock.json`, `pnpm-lock.yaml` or `yarn.lock`),
 PyPI (`pyproject.toml`, `requirements*.txt`, `uv.lock`, `poetry.lock`) and Go
 (`go.mod`).

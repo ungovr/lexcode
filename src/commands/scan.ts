@@ -13,7 +13,7 @@ import { readGo } from '../manifests/go.js';
 import { readNpm } from '../manifests/npm.js';
 import { isRequirementsFile, readPypi } from '../manifests/pypi.js';
 import { baseName } from '../manifests/util.js';
-import { buildRecord, countRulesRun, engineTargets } from '../record/build.js';
+import { buildRecord, countRulesRun, engineTargets, unreadLanguages } from '../record/build.js';
 import { toSarif } from '../record/sarif.js';
 import { loadRuleSet, writeMergedConfig } from '../rules/load.js';
 import { extractScripts } from '../scope/extract.js';
@@ -115,6 +115,22 @@ export async function scan(o: ScanOptions): Promise<EvidenceRecord> {
   }
   if (listed.skippedLarge > 0) {
     notices.push(`skipped ${listed.skippedLarge} ${listed.skippedLarge === 1 ? 'file' : 'files'} over 5 MB`);
+  }
+  if (listed.skippedUnreadable > 0) {
+    const n = listed.skippedUnreadable;
+    notices.push(
+      `skipped ${n.toLocaleString('en-US')} ${n === 1 ? 'file' : 'files'} lexcode cannot open for reading; ${n === 1 ? 'its' : 'their'} evidence is missing from this record`,
+    );
+  }
+  if (rs.rules.length > 0) {
+    const unread = unreadLanguages(rs.rules, files);
+    if (unread.length > 0) {
+      const total = unread.reduce((n, u) => n + u.files, 0);
+      const parts = unread.map((u) => `${u.files.toLocaleString('en-US')} ${u.language} ${u.files === 1 ? 'file' : 'files'}`).join(', ');
+      notices.push(
+        `not read: ${parts}; lexcode has no rules for ${unread.map((u) => u.language).join(' or ')}, so any evidence in ${total === 1 ? 'it' : 'them'} is missing from this record`,
+      );
+    }
   }
 
   // Manifests: what the code enables.
