@@ -1,0 +1,46 @@
+rules:
+  - id: lexcode.identity.selfie-and-id-document-py
+    languages: [python]
+    severity: INFO
+    message: 'Holds a face or selfie image beside an image of a photo ID, the shape of document-and-selfie identity verification, whose result the app acts on (relies_on_digital_identity). The verifier usually matches the face to the ID photo, so ask about processes_biometrics too.'
+    pattern-either:
+      - patterns:
+          - pattern-inside: |
+              class $C(...):
+                  ...
+          - pattern-either:
+              - pattern: $FACE = ...
+              - pattern: |
+                  $FACE: $T
+          - metavariable-regex:
+              metavariable: $FACE
+              regex: '(?i)^(?!["''`]?(?-i:[A-Z][A-Z0-9_]*)["''`]?$)["''`]?(?:selfie|liveness|face_?(?:image|photo|img|picture|pic|capture|snapshot|scan))\w*["''`]?$'
+          - pattern-either:
+              - pattern-inside: |
+                  class $C(...):
+                      ...
+                      $DOC = ...
+                      ...
+              - pattern-inside: |
+                  class $C(...):
+                      ...
+                      $DOC: $U
+                      ...
+          - metavariable-regex:
+              metavariable: $DOC
+              regex: '(?i)^(?!["''`]?(?-i:[A-Z][A-Z0-9_]*)["''`]?$)["''`]?(?:photo_?id_?(?:image|img|photo|card|doc|document|scan|front|back|upload|file)|id_?(?:document|doc|card|photo|image|img|scan|front|back)|identity_?(?:document|doc|card)|identification_?(?:image|photo|document|doc|card)|passport_?(?:image|photo|scan|page|front)|drivers?_?licen[cs]e_?(?:image|photo|scan|front|back)|document_?(?:image|photo|front|back|scan))\w*["''`]?$'
+      - patterns:
+          - pattern: '{..., "$FACE": $V, ...}'
+          - metavariable-regex:
+              metavariable: $FACE
+              regex: '(?i)^(?!["''`]?(?-i:[A-Z][A-Z0-9_]*)["''`]?$)["''`]?(?:selfie|liveness|face_?(?:image|photo|img|picture|pic|capture|snapshot|scan))\w*["''`]?$'
+          - pattern-inside: '{..., "$DOC": $W, ...}'
+          - metavariable-regex:
+              metavariable: $DOC
+              regex: '(?i)^(?!["''`]?(?-i:[A-Z][A-Z0-9_]*)["''`]?$)["''`]?(?:photo_?id_?(?:image|img|photo|card|doc|document|scan|front|back|upload|file)|id_?(?:document|doc|card|photo|image|img|scan|front|back)|identity_?(?:document|doc|card)|identification_?(?:image|photo|document|doc|card)|passport_?(?:image|photo|scan|page|front)|drivers?_?licen[cs]e_?(?:image|photo|scan|front|back)|document_?(?:image|photo|front|back|scan))\w*["''`]?$'
+    metadata:
+      activity: relies_on_digital_identity
+      mentioned: performs
+      definition: https://lexlint.io/glossary#relies-on-a-digital-identity
+      provenance: ungovr-original
+      license: MIT
