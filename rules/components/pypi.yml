@@ -375,6 +375,14 @@ entries:
     enables: [crawls_web]
     says: "A high-level API to automate web browsers"
     source: https://pypi.org/project/playwright/
+  - match: "playwright-stealth"
+    enables: [crawls_web]
+    says: "Make your playwright instance stealthy"
+    source: https://pypi.org/project/playwright-stealth/
+  - match: "cloudscraper"
+    enables: [crawls_web]
+    says: "A Python module to bypass Cloudflare's anti-bot page."
+    source: https://pypi.org/project/cloudscraper/
   - match: "pyppeteer"
     enables: [crawls_web]
     says: "Headless chrome/chromium automation library (unofficial port of puppeteer)"
@@ -427,6 +435,10 @@ entries:
     enables: [automated_outreach]
     says: "Resend Python SDK"
     source: https://pypi.org/project/resend/
+  - match: "emails"
+    enables: [automated_outreach]
+    says: "Modern python library for emails."
+    source: https://pypi.org/project/emails/
   - match: "postmarker"
     enables: [automated_outreach]
     says: "Python client library for Postmark API"

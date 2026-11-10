@@ -1,5 +1,5 @@
 import { spawn, spawnSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -119,3 +119,24 @@ describe.skipIf(skip)('lexcode scan stopped by a signal or a deadline', () => {
     expect(readdirSync(priv)).toEqual([]);
   }, 60_000);
 });
+
+describe.skipIf(skip)('a reader that closes the pipe early (#12745)', () => {
+  it('ends quietly with exit 0, as `lexcode deps | head -1` needs, instead of an unhandled EPIPE', async () => {
+    const deps: Record<string, string> = {};
+    for (let i = 0; i < 4000; i++) deps[`package-number-${i}`] = '1.0.0';
+    const dir = join(work, 'many');
+    mkdirSync(dir);
+    writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: 'many', version: '1.0.0', dependencies: deps }));
+    const child = spawn(process.execPath, [join(outDir, 'cli.js'), 'deps', dir], {
+      env: { ...process.env, LEXCODE_RULES_HOME: RULES_HOME },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    let stderr = '';
+    child.stderr.on('data', (d: Buffer) => (stderr += d.toString()));
+    child.stdout.once('data', () => child.stdout.destroy());
+    const code = await new Promise<number | null>((r) => child.on('close', (c) => r(c)));
+    expect(stderr).not.toMatch(/EPIPE|Unhandled|unexpected error/);
+    expect(code).toBe(0);
+  }, 30_000);
+});
+
