@@ -1,5 +1,9 @@
 # Releasing lexcode
 
+The package is `@ungovr/lexcode` while npm Support decides on the unscoped
+name `lexcode`. If the name is granted, the package moves there and every
+`@ungovr/lexcode` version is deprecated with a pointer to it.
+
 Releases go to npm from `.github/workflows/release.yml` by npm trusted
 publishing, with provenance. No npm token is stored anywhere. Each release
 waits for a reviewer to approve the `npm` environment.
@@ -20,8 +24,9 @@ waits for a reviewer to approve the `npm` environment.
 5. Commit, then tag `v<version>` (a prerelease such as `v1.1.0-rc.1` publishes
    under the `next` dist-tag; anything else under `latest`) and push the tag.
 6. Approve the `npm` environment when the build job is green.
-7. Verify: `npm view lexcode dist-tags`, the provenance statement on
-   https://www.npmjs.com/package/lexcode, and `npx lexcode@<version> version`
+7. Verify: `npm view @ungovr/lexcode dist-tags`, the provenance statement on
+   https://www.npmjs.com/package/@ungovr/lexcode, and
+   `npx @ungovr/lexcode@<version> version`
    from a clean directory.
 
 ## Bumping the engine
@@ -38,11 +43,11 @@ waits for a reviewer to approve the `npm` environment.
 
 In order, stopping at the first that is enough:
 
-1. `npm dist-tag add lexcode@<good> latest`: new installs get the good
+1. `npm dist-tag add @ungovr/lexcode@<good> latest`: new installs get the good
    version at once.
-2. `npm deprecate lexcode@<bad> "<what is wrong>; use <good>"`: anyone who
+2. `npm deprecate @ungovr/lexcode@<bad> "<what is wrong>; use <good>"`: anyone who
    pinned the bad version sees why on install.
 3. Release a fixed patch through this workflow.
-4. `npm unpublish lexcode@<bad>` only within 72 hours of the publish and only
+4. `npm unpublish @ungovr/lexcode@<bad>` only within 72 hours of the publish and only
    when the package itself must not exist. npm never lets a version number be
    reused.

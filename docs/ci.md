@@ -3,7 +3,7 @@
 One step checks the committed declaration against the code:
 
 ```yaml
-- run: npx lexcode@1 check --sarif lexcode.sarif
+- run: npx @ungovr/lexcode@1 check --sarif lexcode.sarif
 - uses: github/codeql-action/upload-sarif@v3   # optional: shows the evidence in code scanning
   if: always()
   with: { sarif_file: lexcode.sarif }
@@ -13,12 +13,12 @@ The step fails (exit 1) when the code performs an activity the declaration
 does not carry, or says it does not do. A dependency that only enables an
 activity warns, and fails only under `--fail-on-enables`.
 
-In CI, pin the major version (`lexcode@1`, as above) and run it from the
+In CI, pin the major version (`@ungovr/lexcode@1`, as above) and run it from the
 workspace root only for a repository you trust. To scan code you do not trust
 (a pull request from a fork, an unpacked archive), run it from outside that
-code: `cd ~ && npx lexcode@1 scan /path/to/repo`. npm honors a project's
-`.npmrc` `registry=` line and a local `lexcode` dependency, so `npx lexcode`
-run inside an untrusted repository may run something other than this package.
+code: `cd ~ && npx @ungovr/lexcode@1 scan /path/to/repo`. npm honors a
+project's `.npmrc` `registry=` line and a local `@ungovr/lexcode`
+dependency, so `npx @ungovr/lexcode` run inside an untrusted repository may run something other than this package.
 
 ## No declaration is a failure
 
@@ -36,8 +36,8 @@ The engine is downloaded once per machine. On hosted runners, cache it:
   with:
     path: ~/.cache/lexcode
     key: lexcode-engine-${{ runner.os }}-1.33.1
-- run: npx lexcode@1 engine fetch
-- run: npx lexcode@1 check
+- run: npx @ungovr/lexcode@1 engine fetch
+- run: npx @ungovr/lexcode@1 check
 ```
 
 Or set `LEXCODE_CACHE_DIR` to a cached directory of your choice.

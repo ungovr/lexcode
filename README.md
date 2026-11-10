@@ -16,9 +16,13 @@ advice and it never writes a declaration for you.
 ## Run it
 
 ```
-npx lexcode scan            # writes lexcode.json in the repository root
-npx lexcode check           # compares the code with your declaration
+npx @ungovr/lexcode scan    # writes lexcode.json in the repository root
+npx @ungovr/lexcode check   # compares the code with your declaration
 ```
+
+The package is `@ungovr/lexcode` on npm for now, while npm decides on the
+unscoped name `lexcode`; the command it installs is `lexcode` either way
+(`npm install -g @ungovr/lexcode`, then `lexcode scan`).
 
 Node 20 or later. On first run lexcode downloads the analysis engine it is
 pinned to (Opengrep, about 40 MB) from the Opengrep GitHub release, checks its
@@ -28,8 +32,9 @@ unpacks itself under lexcode's own cache directory the first time it runs
 
 To scan code you do not trust (a stranger's clone, a pull request, an unpacked
 archive), run lexcode from outside it, with a copy you chose:
-`cd ~ && npx lexcode@1 scan /path/to/repo`. npm honors a project's `.npmrc`
-`registry=` line and a local `lexcode` dependency, so `npx lexcode` run inside
+`cd ~ && npx @ungovr/lexcode@1 scan /path/to/repo`. npm honors a project's
+`.npmrc` `registry=` line and a local `@ungovr/lexcode` dependency, so
+`npx @ungovr/lexcode` run inside
 an untrusted repository may run something other than this package. lexcode
 itself never runs a program from the scanned directory (see Privacy).
 
