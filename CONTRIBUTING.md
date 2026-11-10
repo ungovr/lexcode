@@ -28,6 +28,28 @@ lexcode's rules are MIT, so anyone may use them for anything. One copied rule
 would end that for the whole set. Every rule says so in its metadata:
 `provenance: ungovr-original` and `license: MIT`.
 
+## Adding a package to the component map
+
+The component map (`rules/components/npm.yml`, `pypi.yml`, `go.yml`) says which
+activities a well-known package enables. It is written by hand, one entry per
+package, and nothing adds to it on its own:
+
+1. Find candidates with `lexcode deps <repo>... --unmapped`, run over several
+   repositories: it lists every package the map does not know, the ones most
+   repositories use first. A comparison with a hand-read lint, or a truth-set
+   miss, is the other source.
+2. Add an entry only when the package itself does the act: an analytics or
+   session-replay SDK enables `tracks_devices` and `processes_personal_data`, a
+   speech SDK `processes_voice`, a crawler library `crawls_web`. A UI kit, a
+   date library or an HTTP client enables nothing, however often it appears.
+3. `says` quotes the vendor's own description of the package, verbatim, and
+   `source` is the https page that holds it (the registry page, or the
+   package's README in its published tarball when the registry page says too
+   little). `enables` lists activity ids whose class in `classes.yml` is
+   `evidence`.
+4. `npm test` checks the shape of every entry: no duplicates, known evidence
+   ids, a quote and an https source.
+
 ## Running the tests
 
 ```

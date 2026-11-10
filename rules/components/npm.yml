@@ -38,6 +38,14 @@ entries:
     enables: [tracks_devices, processes_personal_data]
     says: "Posthog-js allows you to automatically capture usage and send events to PostHog."
     source: https://www.npmjs.com/package/posthog-js
+  - match: "@pendo/agent"
+    enables: [tracks_devices, processes_personal_data]
+    says: "This package is for Pendo customers who want to host the web SDK on their own infrastructure."
+    source: https://www.npmjs.com/package/@pendo/agent
+  - match: "@pendo/web-sdk"
+    enables: [tracks_devices, processes_personal_data]
+    says: "This package is for Pendo customers who want to host the web SDK on their own infrastructure."
+    source: https://www.npmjs.com/package/@pendo/web-sdk
   - match: "posthog-node"
     enables: [tracks_devices, processes_personal_data]
     says: "PostHog Node.js integration"

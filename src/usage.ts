@@ -7,6 +7,7 @@ export const USAGE = `lexcode: local evidence of what a repository's code does, 
                  [--rules <dir>]... [--engine <path>] [--json] [--quiet]
   lexcode explain <activity-id | rule-id | purl>... [--rules <dir>]... [--json]
   lexcode rules  [--rules <dir>]... [--json]
+  lexcode deps   [path]... [--unmapped] [--rules <dir>]... [--json]
   lexcode engine fetch | path | verify
   lexcode version
 
