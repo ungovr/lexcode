@@ -74,6 +74,10 @@ entries:
     enables: [tracks_devices, processes_personal_data]
     says: "React Google Analytics 4"
     source: https://www.npmjs.com/package/react-ga4
+  - match: "@vercel/analytics"
+    enables: [tracks_devices]
+    says: "Gain real-time traffic insights with Vercel Web Analytics"
+    source: https://www.npmjs.com/package/@vercel/analytics
   - match: "universal-analytics"
     enables: [tracks_devices, processes_personal_data]
     says: "A node module for Google's Universal Analytics tracking"
@@ -796,6 +800,10 @@ entries:
     enables: [processes_voice]
     says: "Kaldi in-browser speech recognition based on a WASM build of the Vosk library"
     source: https://www.npmjs.com/package/vosk-browser
+  - match: "expo-speech-recognition"
+    enables: [processes_voice]
+    says: "Speech Recognition for React Native Expo projects"
+    source: https://www.npmjs.com/package/expo-speech-recognition
   - match: "whisper-node"
     enables: [processes_voice]
     says: "Node.js bindings for OpenAI's Whisper. Runs local on CPU."
@@ -1196,6 +1204,10 @@ entries:
     enables: [ships_encryption]
     says: "JavaScript library of crypto standards."
     source: https://www.npmjs.com/package/crypto-js
+  - match: "crypto-es"
+    enables: [ships_encryption]
+    says: "A cryptography algorithms library"
+    source: https://www.npmjs.com/package/crypto-es
   - match: "node-forge"
     enables: [ships_encryption]
     says: "JavaScript implementations of network transports, cryptography, ciphers, PKI, message digests, and various utilities."
