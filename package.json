@@ -1,5 +1,5 @@
 {
-  "name": "lexcode",
+  "name": "@ungovr/lexcode",
   "version": "1.0.0-rc.2",
   "description": "Local evidence of what a repository's code does, in LexLint's activity vocabulary, and a drift check for CI.",
   "license": "MIT",

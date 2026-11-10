@@ -60,7 +60,7 @@ jobs:
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: package
-          path: lexcode-*.tgz
+          path: ungovr-lexcode-*.tgz
           if-no-files-found: error
 
   publish:
@@ -69,7 +69,7 @@ jobs:
     timeout-minutes: 30
     environment:
       name: npm
-      url: https://www.npmjs.com/package/lexcode
+      url: https://www.npmjs.com/package/@ungovr/lexcode
     permissions:
       id-token: write
     steps:
@@ -85,4 +85,4 @@ jobs:
       - name: Publish
         env:
           DIST_TAG: ${{ needs.build.outputs.dist_tag }}
-        run: npm publish ./lexcode-*.tgz --access public --provenance --tag "$DIST_TAG"
+        run: npm publish ./ungovr-lexcode-*.tgz --access public --provenance --tag "$DIST_TAG"
