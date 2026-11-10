@@ -182,9 +182,17 @@ lexcode check  [path] [--declaration lexlint.yml|ACTIVITIES.md] [--config .lexco
                [--include-tests] [--allow-undeclared] [--sarif out.sarif] [--out lexcode.json] [--json] [--quiet]
 lexcode explain <activity-id | rule-id | purl>... [--json]
 lexcode rules  [--json]
+lexcode deps   [path]... [--unmapped] [--json]
 lexcode engine fetch | path | verify
 lexcode version
 ```
+
+`lexcode deps` lists the packages lexcode read from the manifests of one or
+more repositories (the dependencies `scan` reads: same scope, development
+dependencies skipped), with the activities the component map gives each and
+the number of repositories each appears in, most first. `--unmapped` keeps
+only the packages the map gives no activity: the review list for new map
+entries (see [CONTRIBUTING.md](CONTRIBUTING.md)).
 
 `--engine <path>` or `LEXCODE_ENGINE` uses an engine you installed yourself; a
 relative path is resolved against the directory you ran lexcode from, never

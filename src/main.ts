@@ -14,6 +14,8 @@ async function load(name: string): Promise<Runner | undefined> {
       return (await import('./commands/check.js')).runCheckCommand;
     case 'explain':
       return (await import('./commands/explain.js')).runExplainCommand;
+    case 'deps':
+      return (await import('./commands/deps.js')).runDepsCommand;
     case 'rules':
       return (await import('./commands/rules.js')).runRulesCommand;
     case 'version':
