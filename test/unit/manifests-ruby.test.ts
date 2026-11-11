@@ -267,6 +267,51 @@ describe('readRuby', () => {
     expect(r.notices).toEqual([]);
   });
 
+  it('skips a gemspec development gem that Bundler also lists in DEPENDENCIES', () => {
+    const root = tree({
+      'foo.gemspec': [
+        'Gem::Specification.new do |spec|',
+        '  spec.name = "foo"',
+        '  spec.add_dependency "faraday", "~> 2.0"',
+        '  spec.add_development_dependency "rake", "~> 13.0"',
+        '  spec.add_development_dependency "rspec", "~> 3.0"',
+        'end',
+        '',
+      ].join('\n'),
+      Gemfile: 'source "https://rubygems.org"\ngemspec\n',
+      'Gemfile.lock': lock({
+        specs: ['faraday (2.9.0)', 'rake (13.1.0)', 'rspec (3.12.0)'],
+        deps: ['foo!', 'rake (~> 13.0)', 'rspec (~> 3.0)'],
+      }),
+    });
+    const r = readRuby(root, ['Gemfile', 'Gemfile.lock', 'foo.gemspec']);
+    expect(r.deps).toEqual([{ ecosystem: 'gem', name: 'faraday', version: '2.9.0', manifest: 'foo.gemspec:3' }]);
+    expect(r.devSkipped).toBe(2);
+    expect(r.notices).toEqual([]);
+  });
+
+  it('still records a lockfile gem that a gemspec names as a runtime dependency as well as a development one', () => {
+    const root = tree({
+      'foo.gemspec': 'Gem::Specification.new do |s|\n  s.add_dependency "both"\n  s.add_development_dependency "both"\nend\n',
+      Gemfile: 'gemspec\n',
+      'Gemfile.lock': lock({ specs: ['both (1.0.0)'], deps: ['foo!', 'both'] }),
+    });
+    const r = readRuby(root, ['Gemfile', 'Gemfile.lock', 'foo.gemspec']);
+    expect(r.deps.map((d) => d.name)).toEqual(['both']);
+    expect(r.devSkipped).toBe(0);
+  });
+
+  it('follows the path a gemspec line points at', () => {
+    const root = tree({
+      'sub/foo.gemspec': 'Gem::Specification.new do |s|\n  s.add_dependency "faraday"\n  s.add_development_dependency "rake"\nend\n',
+      Gemfile: 'gemspec path: "sub"\n',
+      'Gemfile.lock': lock({ specs: ['faraday (2.9.0)', 'rake (13.1.0)'], deps: ['foo!', 'rake'] }),
+    });
+    const r = readRuby(root, ['Gemfile', 'Gemfile.lock', 'sub/foo.gemspec']);
+    expect(r.deps).toEqual([{ ecosystem: 'gem', name: 'faraday', version: '2.9.0', manifest: 'sub/foo.gemspec:2' }]);
+    expect(r.devSkipped).toBe(1);
+  });
+
   it('reads a gemspec with no Gemfile beside it, taking versions from the nearest lockfile', () => {
     const root = tree({
       'gems/inner/inner.gemspec': 'Gem::Specification.new do |s|\n  s.add_dependency "faraday"\n  s.add_dependency "unlocked"\nend\n',

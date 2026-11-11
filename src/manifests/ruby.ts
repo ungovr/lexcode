@@ -59,11 +59,14 @@ interface ParsedGemfile {
   gems: GemRef[];
   /** Literal `eval_gemfile "path"` targets. */
   evals: string[];
+  /** Literal `path:` of a `gemspec` line: the directory whose gemspecs the Gemfile pulls in. */
+  gemspecPaths: string[];
 }
 
 function parseGemfile(rel: string, text: string): ParsedGemfile {
   const gems: GemRef[] = [];
   const evals: string[] = [];
+  const gemspecPaths: string[] = [];
   const lines = text.split(/\r?\n/);
   const stack: string[][] = [];
   let heredoc: string | undefined;
@@ -112,6 +115,12 @@ function parseGemfile(rel: string, text: string): ParsedGemfile {
       evals.push(ev[2] as string);
       continue;
     }
+    const gs = /^gemspec\b(.*)$/.exec(code);
+    if (gs) {
+      const p = /(?:\bpath\s*:|:path\s*=>)\s*(["'])([^"']+)\1/.exec(gs[1] as string);
+      if (p) gemspecPaths.push(p[2] as string);
+      continue;
+    }
     if (/^end\b/.test(code)) {
       stack.pop();
       continue;
@@ -121,7 +130,7 @@ function parseGemfile(rel: string, text: string): ParsedGemfile {
       stack.push(g ? groupNames(g[1] as string).filter((n) => n !== 'optional' && n !== 'true' && n !== 'false') : []);
     }
   }
-  return { gems, evals };
+  return { gems, evals, gemspecPaths };
 }
 
 interface ParsedGemspec {
@@ -247,6 +256,7 @@ export function readRuby(root: string, files: string[]): ReaderResult {
     }
     const seen = new Set<string>();
     const gems: GemRef[] = [];
+    const specDirs = new Set<string>([dir]);
     for (let q = 0; q < queue.length; q++) {
       const rel = queue[q] as string;
       if (seen.has(rel)) continue;
@@ -258,6 +268,10 @@ export function readRuby(root: string, files: string[]): ReaderResult {
       }
       const parsed = parseGemfile(rel, text);
       gems.push(...parsed.gems);
+      for (const p of parsed.gemspecPaths) {
+        const d = resolveInside(dirOf(rel), p);
+        if (d !== undefined) specDirs.add(d);
+      }
       for (const target of parsed.evals) {
         const abs = resolveInside(dirOf(rel), target);
         if (abs !== undefined && fileSet.has(abs)) queue.push(abs);
@@ -283,19 +297,31 @@ export function readRuby(root: string, files: string[]): ReaderResult {
       recorded.set(name, { ecosystem: 'gem', name, ...(version !== undefined ? { version } : {}), manifest: rec.prod.manifest });
     }
 
-    // The gemspecs beside this Gemfile belong to its group.
-    const specFiles = claimedDirs.has(dir) ? [] : (gemspecsByDir.get(dir) ?? []);
-    claimedDirs.add(dir);
+    // The gemspecs beside this Gemfile, and in any directory its `gemspec` line points at, belong to its group.
+    const specFiles: string[] = [];
+    for (const d of specDirs) {
+      if (claimedDirs.has(d)) continue;
+      claimedDirs.add(d);
+      specFiles.push(...(gemspecsByDir.get(d) ?? []));
+    }
+    // Bundler lists a gemspec's development dependencies in DEPENDENCIES, so they are known before the fallback.
     const own = new Set<string>();
+    const specDev = new Set<string>();
+    const specRuntime = new Set<string>();
     for (const f of specFiles) {
       const t = readText(root, f);
-      own.add((t === undefined ? undefined : parseGemspec(f, t).name) ?? baseName(f).slice(0, -'.gemspec'.length));
+      const parsedSpec = t === undefined ? undefined : parseGemspec(f, t);
+      own.add(parsedSpec?.name ?? baseName(f).slice(0, -'.gemspec'.length));
+      for (const n of parsedSpec?.dev ?? []) specDev.add(n);
+      for (const d of parsedSpec?.runtime ?? []) specRuntime.add(d.name);
     }
 
-    // The lockfile lists the direct gems a Gemfile computed in code; the gem a gemspec defines is not one.
+    // The lockfile lists the direct gems a Gemfile computed in code; the gem a gemspec defines is not one,
+    // and neither is a gem a gemspec names only as a development dependency.
     if (lock) {
       for (const d of lock.direct) {
         if (byName.has(d.name) || own.has(d.name) || recorded.has(d.name)) continue;
+        if (specDev.has(d.name) && !specRuntime.has(d.name)) continue;
         const version = lock.specs.get(d.name);
         recorded.set(d.name, { ecosystem: 'gem', name: d.name, ...(version !== undefined ? { version } : {}), manifest: `${lockRel}:${d.line}` });
       }
