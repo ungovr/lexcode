@@ -1,5 +1,4 @@
-# lexcode-expect: 7
-require "mechanize"
+# lexcode-expect: 5
 require "kimurai"
 require "vessel"
 require "wombat"
@@ -47,20 +46,4 @@ end
 
 def agent
   Spidr::Agent.new(delay: 1, user_agent: "pricewatch/1.0")
-end
-
-# Mechanize is a scriptable browser: it fetches pages, follows links and submits forms.
-class PortalReader
-  def initialize
-    @agent = Mechanize.new
-    @agent.user_agent_alias = "Mac Safari"
-  end
-
-  def titles(url)
-    @agent.get(url).search("h1").map(&:text)
-  end
-
-  def one_off(url)
-    Mechanize.start { |agent| agent.get(url).title }
-  end
 end

@@ -4,6 +4,10 @@ rules:
     severity: INFO
     message: Fetches each URL in a list held in a variable, which may be crawling sites the operator does not run (crawls_web).
     patterns:
+      # A pre-filter: the fetcher below is a metavariable with a regular expression, which has no
+      # literal of its own, so without this the engine parses every Ruby file. It names every
+      # library and client receiver the fetcher regular expression can accept.
+      - pattern-regex: '(Net::HTTP|URI\.open|URI(\.parse)?\([^)]*\)\.(open|read)|HTTParty|Faraday|RestClient|Typhoeus|\bHTTP\.(get|head)|\bopen\(|(client|conn|connection|http|session|agent|faraday)\w*\.(get|head)\b)'
       - pattern-either:
           - patterns:
               - pattern-either:

@@ -1,0 +1,24 @@
+rules:
+  - id: lexcode.crawl.rb-mechanize-fetch
+    languages: [ruby]
+    severity: INFO
+    message: Uses a Mechanize agent to fetch a page from a site the operator may not run, which is crawling the web (crawls_web).
+    patterns:
+      # The regular expression is a pre-filter and a scope: a `get` on a receiver has no literal of
+      # its own, so without it the engine parses every Ruby file, and it only reads the part of a
+      # file after a Mechanize agent is built.
+      - pattern-regex: '(?s)Mechanize\.(new|start).*'
+      - pattern: $A.get($URL, ...)
+      - metavariable-regex:
+          metavariable: $A
+          regex: ^(@{0,2}(\w*agent\w*|a|mech\w*|\w*mechanize\w*|browser|bot)|Mechanize\.new(\(.*\))?)$
+      - metavariable-regex:
+          metavariable: $URL
+          regex: (?s)^(?!["']https?://(localhost|127\.|0\.0\.0\.0|\[::1\])).*$
+    metadata:
+      activity: crawls_web
+      mentioned: performs
+      definition: https://lexlint.io/activities/crawls-web
+      provenance: ungovr-original
+      license: MIT
+      host_metavar: $URL

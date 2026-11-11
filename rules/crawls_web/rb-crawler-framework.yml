@@ -19,8 +19,6 @@ rules:
           end
       - pattern: Wombat.crawl { ... }
       - pattern: Spidr::Agent.new(...)
-      - pattern: Mechanize.new(...)
-      - pattern: Mechanize.start(...)
     metadata:
       activity: crawls_web
       mentioned: performs
