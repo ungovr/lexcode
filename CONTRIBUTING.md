@@ -55,7 +55,7 @@ would end that for the whole set. Every rule says so in its metadata:
 ## Adding a package to the component map
 
 The component map (`rules/components/npm.yml`, `pypi.yml`, `go.yml`,
-`gem.yml`) says which activities a well-known package enables. It is
+`gem.yml`, `maven.yml`) says which activities a well-known package enables. It is
 written by hand, one entry per package, and nothing adds to it on its own:
 
 1. Find candidates with `lexcode deps <repo>... --unmapped`, run over several
@@ -97,6 +97,66 @@ name. Ruby rules always carry a prefix:
 A Ruby rule is `lexcode.<activity-short>.rb-<what>`, file
 `rules/<activity>/rb-<what>.yml`, fixtures `rb-<what>.test.rb` and
 `rb-<what>.neg.test.rb`, and `languages: [ruby]`.
+
+Java, Kotlin and the JVM build files carry a prefix too:
+
+| Kind | Rule `<what>` part | File and fixtures |
+|---|---|---|
+| Java | `java-<what>` | `java-<what>.yml`, `.test.java`, `.neg.test.java`; `languages: [java]` |
+| Kotlin | `kt-<what>` | `kt-<what>.yml`, `.test.kt`, `.neg.test.kt`; `languages: [kotlin]` |
+| Maven | `maven-<what>` | `maven-<what>.yml`, fixtures `maven-<what>.test.xml` and `.neg.test.xml`; `languages: [xml]`, and `paths.include` lists `pom.xml` and `maven-<what>.*` so the fixture is scanned |
+| Gradle (Groovy) | `gradle-<what>` | `gradle-<what>.yml`, `.test.gradle`, `.neg.test.gradle`; `languages: [generic]` over `*.gradle` |
+| Gradle (Kotlin DSL) | `gradle-kts-<what>` | `gradle-kts-<what>.yml`, `.test.gradle.kts`, `.neg.test.gradle.kts`; `languages: [kotlin]` over `*.gradle.kts` |
+
+A Java or Kotlin fixture is a whole compilation unit: a `package` line,
+imports and a class, so it parses as a real file does.
+
+A negative fixture must cover every guard: strip any one guard from the rule
+and the negative has to start matching. Where a rule guards on a vendor import,
+write the lookalike the guard exists for: a generic method name called on a
+receiver of another type, in a file without the vendor's import. A rule that
+names several vendors keeps one `patterns:` branch per vendor, each with its own
+import guard, so one vendor's import cannot admit another's call. A wildcard
+import binds no class in the engine, so an import guard has one
+`pattern-inside` for the class's import and another for the vendor's wildcard
+(`import android.speech.*;`), and the positive fixture holds a call under each.
+The negative has neither import.
+
+### Cost
+
+An engine rule can lose the literal pre-filter that lets it skip files that
+cannot match: a very large `pattern-either`, or a key pattern that has no
+literal in it, is read against every file. On a large Java or Kotlin codebase
+that is the difference between seconds and minutes. Check a new rule with the
+engine's `--time` on a real app before it merges. When it is slow, split the
+rule, or add a `pattern-regex` conjunct that names the vendor's package or
+class so the engine can skip the file (see the anchor rules above).
+
+### Kotlin pattern notes
+
+Measured on Opengrep 1.33.1:
+
+- Method chains, constructors, imports, trailing lambdas (`$X.f($A) { ... }`),
+  and `fun` and `suspend fun` inside `pattern-inside` all work, and so does
+  `metavariable-regex`.
+- `class $K { ... }` does not match a class that has a primary constructor.
+  Write `class $K(...) {` on one line, `...` on the next and `}` on the third.
+- A lambda with a parameter needs `{ $P -> ... }`, or match the call that takes
+  it (`$L.forEach(...)`). A trailing lambda of one parameter and one of two are
+  different shapes: `$M { $P -> ... }` and `$M { $P, $Q -> ... }`, and a rule
+  that must not match a lambda with parameters excludes both.
+- A class literal in a pattern (`Foo::class`, `Foo::class.java`) matches every
+  class literal, so a rule cannot key on one; key on the import or the call.
+- `metavariable-regex` is anchored at the start, and a string metavariable
+  keeps its quotes, so write `.*gpt-` to find a model name inside a string.
+- The parser drops a few constructs (`value class`, `fun interface`, `..<`,
+  some `in` and `->` forms in `when`, soft keywords as identifiers,
+  `object : T by it`). A rule cannot match inside one; the scan reports the
+  file as partly read.
+- A path glob in `paths.exclude` also matches package directories
+  (`com/google/samples/apps/...`), so Java and Kotlin source rules exclude
+  `**/src/test/**` and the other test source sets and never a `samples`,
+  `example` or `demo` path.
 
 ## Performance tests
 
