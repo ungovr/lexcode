@@ -1,0 +1,15 @@
+rules:
+  - id: lexcode.social.rb-home-feed
+    languages: [ruby]
+    severity: INFO
+    message: Selects posts written by the accounts a user follows or befriends, which builds a feed of other users' posts for a social platform (operates_social_platform).
+    pattern-either:
+      - pattern-regex: '(?i)\bwhere\([^)\n]{0,200}\b(author|user|owner|creator|poster)(_id)?:\s*[^,)\n]{0,80}(follow(?!_?ups?(\b|_))|friend(s\b|_|ship|\b))'
+      - pattern-regex: '(?i)\bwhere\(\s*["''][^"''\n]{0,80}\b(author|user|owner|creator|poster)_id\s+IN\s*\([^"''\n]{0,80}(follow(?!_?ups?(\b|_))|friend(s\b|_|ship|\b))'
+    metadata:
+      activity: operates_social_platform
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/operates-social-platform
+      provenance: ungovr-original
+      license: MIT
