@@ -1,4 +1,4 @@
-# lexcode-expect: 6
+# lexcode-expect: 15
 require "gemini-ai"
 
 class AnswersController < ApplicationController
@@ -50,5 +50,56 @@ class Api < Sinatra::Base
   post "/caption" do
     result = GEMINI.generate_content(contents: [{ text: "Caption this: #{params[:text]}" }])
     halt 200, result.to_json
+  end
+end
+
+# The implicit view shows the answer (app/views/explainers/show.html.erb).
+class ExplainersController < ApplicationController
+  def show
+    result = GEMINI.generate_content({ contents: { role: "user", parts: { text: "Explain #{params[:term]}" } } })
+    @explanation = result.dig("candidates", 0, "content", "parts", 0, "text")
+  end
+end
+
+# The model's answer reaches the person through a partial, the response body, or a Turbo
+# broadcast from the record it was saved to.
+class GemPanelsController < ApplicationController
+  def show
+    result = GEMINI.generate_content({ contents: { role: "user", parts: { text: params[:q] } } })
+    render partial: "panels/panel", locals: { value: result.dig("candidates", 0, "content", "parts", 0, "text") }
+  end
+
+  def raw
+    result = GEMINI.generate_content({ contents: { role: "user", parts: { text: params[:q] } } })
+    response.body = result.dig("candidates", 0, "content", "parts", 0, "text")
+  end
+end
+
+class GemReplyJob < ApplicationJob
+  def perform(thread_id, params)
+    result = GEMINI.generate_content({ contents: { role: "user", parts: { text: params[:q] } } })
+    message = Message.create!(thread_id: thread_id, role: "assistant", content: result.dig("candidates", 0, "content", "parts", 0, "text"))
+    message.broadcast_append_to("thread_#{thread_id}", target: "messages")
+  end
+
+  def refresh(record, params)
+    result = GEMINI.generate_content({ contents: { role: "user", parts: { text: params[:q] } } })
+    record.update!(content: result.dig("candidates", 0, "content", "parts", 0, "text"))
+    record.broadcast_replace_later_to(record.thread)
+  end
+end
+
+# Sinatra: a route's value is the response body, and a template the route renders shows its
+# instance variables.
+class GemRoutes < Sinatra::Base
+  get "/gems/:id" do |id|
+    result = GEMINI.generate_content({ contents: { role: "user", parts: { text: params[:q] } } })
+    result.dig("candidates", 0, "content", "parts", 0, "text")
+  end
+
+  post "/gems" do
+    result = GEMINI.generate_content({ contents: { role: "user", parts: { text: params[:q] } } })
+    @value = result.dig("candidates", 0, "content", "parts", 0, "text")
+    erb :gems
   end
 end

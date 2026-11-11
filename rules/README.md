@@ -131,6 +131,69 @@ left. A tag ends at the first `%>`, as ERB ends it; one that never ends is
 blanked to the end of the block. The Ruby inside an ERB tag is never scanned,
 and an ERB file with no `<script>` block gives the scan nothing.
 
+### Model output a view, a partial or a broadcast shows
+
+The six Ruby rules that find model output sent back in a response (text,
+images, speech, video, and Gemini and Langchain.rb content) count these shapes
+beside the explicit `render json:`, `send_data`, stream and broadcast calls.
+The six share one set of these sinks, and a unit test holds them to it, so the
+negative fixtures beside the text rule stand for all six.
+
+- **An instance variable a Rails controller action sets**: `@summary =
+  response.dig(...)`, `||=`, `<<`, `+=`, or an attribute of one
+  (`@post.summary = ...`). Rails renders the action's template when the action
+  names no other response, and the template shows the variable. The class must
+  be named like a controller (`...Controller`, any namespace). A method that
+  calls `redirect_to`, `redirect_back`, `redirect_back_or_to` or `head`
+  anywhere in its body is skipped, since it renders no view on that path.
+- **An instance variable a Sinatra route sets** (`get`, `post`, `put`,
+  `patch` or `delete` with a block, with or without options after the path)
+  when the route renders a template (`erb`, `haml`, `slim`, `liquid`,
+  `markdown`, `builder`, `rabl` or `mustache`).
+- **A Sinatra route's value**: the block's last statement is the response
+  body. A last statement that only hands the text on has that call's value,
+  not the text, and does not count: a log call, `puts`, `print`, `p`, `pp` or
+  `warn`, and a `write`, `create`, `save`, `update`, `insert`, `upsert`,
+  `perform_later`, `perform_async`, `deliver`, `enqueue`, `publish`, `post`,
+  `append`, `push`, `notify` or `send_message` call.
+- **A partial**: `render partial:` or `render locals:`.
+- **The response body set directly**: `response.body =`, or
+  `self.response_body =` in `ActionController::Metal`.
+- **A broadcast**: a channel's `broadcast_to`, a Turbo `broadcast_append`,
+  `prepend`, `replace`, `update`, `before`, `after`, `render`, `action` or
+  `refresh` call (any `_to` or `_later` form), or any
+  `Turbo::StreamsChannel` broadcast. A record updated with the output
+  (`record.update(content: ...)` or `update!`) carries it, so a broadcast of
+  that record counts. A `broadcast_remove` shows nothing and does not count,
+  in either form.
+
+Views are not read, so lexcode does not check that a template uses the
+variable. A chat object or model client kept in an instance variable is not
+the output and does not count, whether it is built in the assignment
+(`@chat = RubyLLM.chat(...)`, `@llm = Langchain::LLM::OpenAI.new(...)`,
+`@assistant = Langchain::Assistant.new(...)`) or in a local variable of the
+same method first (`chat = RubyLLM.chat; @chat = chat`).
+
+Known residuals:
+
+- A helper method that sets an instance variable counts even when the action
+  that calls it redirects, since the redirect is in another method. Over 80
+  real Rails controllers, each of the 4 such cases saved the output to a
+  record that the redirect target shows, so the output reached the person,
+  but not through that variable.
+- An action that sets the variable and then renders something else
+  (`render json: { ok: true }`, `send_data`) still counts it.
+- A chat object built with a chain such as
+  `RubyLLM.chat.with_instructions(...)`, or returned from another method, and
+  kept in an instance variable still counts.
+- A Sinatra route whose value comes from an `if` or `case` branch is not read.
+- Output read with `dig` inside a hash, array or string literal
+  (`@r = { text: response.dig(...) }`) is not matched as an instance variable's
+  value, though `response.content` in the same place is.
+- A broadcast a model declares for itself (`broadcasts_to`, an
+  `after_create_commit` callback) is in another file and is not read, and
+  output saved to a record that a later request shows is not counted.
+
 ### A known residual: `rb-direct-message`
 
 `lexcode.social.rb-direct-message` (activity `operates_social_platform`) looks

@@ -104,3 +104,64 @@ class KnowledgeSearch
     found
   end
 end
+
+class DocsSearchController < ApplicationController
+  before_action :set_llm
+
+  # The view lists stored documents; the model only embeds the query.
+  def index
+    store = Langchain::Vectorsearch::Pgvector.new(url: ENV.fetch("DATABASE_URL"), index_name: "docs", llm: @llm)
+    @hits = store.similarity_search(query: params[:q], k: 5)
+  end
+
+  private
+
+  # A client held in an instance variable is not the model's output.
+  def set_llm
+    @llm = Langchain::LLM::OpenAI.new(api_key: ENV.fetch("OPENAI_API_KEY"))
+    @backup_llm ||= Langchain::LLM::Ollama.new(url: "http://localhost:11434")
+  end
+end
+
+class ModelInfoController < ApplicationController
+  # The client's configured defaults are settings, not output.
+  def show
+    llm = Langchain::LLM::OpenAI.new(api_key: ENV.fetch("OPENAI_API_KEY"), default_options: { chat_model: "gpt-4o" })
+    render json: { model: llm.defaults[:chat_model], temperature: llm.defaults[:temperature] }
+  end
+end
+
+class ModelSettings
+  def chat_model
+    llm = Langchain::LLM::Anthropic.new(api_key: ENV.fetch("ANTHROPIC_API_KEY"))
+    return llm.defaults[:chat_model]
+  end
+end
+
+class AssistantFormsController < ApplicationController
+  # An assistant built on the client, and the client from a local variable, held for the form.
+  def new
+    llm = Langchain::LLM::OpenAI.new(api_key: ENV.fetch("OPENAI_API_KEY"))
+    @assistant = Langchain::Assistant.new(llm: llm, instructions: "Be brief.")
+  end
+
+  def edit
+    llm = Langchain::LLM::OpenAI.new(api_key: ENV.fetch("OPENAI_API_KEY"))
+    @llm = llm
+  end
+end
+
+# A class method called ask with a question: keyword on an app's own model is not a vector store.
+class FaqsController < ApplicationController
+  def show
+    entry = Faq.ask(question: params[:q])
+    render json: { answer: entry }
+  end
+end
+
+class TriviaRound
+  def next_answer(question)
+    answer = Trivia.ask(question: question)
+    return answer
+  end
+end

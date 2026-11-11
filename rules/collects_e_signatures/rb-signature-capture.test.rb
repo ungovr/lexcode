@@ -1,4 +1,4 @@
-# lexcode-expect: 14
+# lexcode-expect: 18
 # Storing a signature a person drew or captured, as a record on the agreement.
 
 # Active Storage: the signature pad's image is attached to the waiver.
@@ -69,4 +69,21 @@ module Admin
       @waiver.signature.attach(io: StringIO.new(png), filename: "signature.png")
     end
   end
+end
+
+# Signing-workflow names, and the compact namespace form.
+class ESignature < ApplicationRecord
+  has_one_attached :signature
+end
+
+class SigningRequest < ApplicationRecord
+  has_one_attached :signer_signature
+end
+
+class Documents::SigningSession < ApplicationRecord
+  has_one_attached :signature_image
+end
+
+class Legal::Waiver < ApplicationRecord
+  has_one_attached :signature
 end

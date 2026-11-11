@@ -1,4 +1,4 @@
-# lexcode-expect: 7
+# lexcode-expect: 9
 # Controllers and middleware that write the visitor's address into a log or a table.
 class SessionsController < ApplicationController
   def create
@@ -43,5 +43,18 @@ class HitsController < ApplicationController
   def show
     Hit.insert_all([{ path: request.path, address: request.headers["X-Forwarded-For"] }])
     logger.warn("forwarded for #{request.headers['X-Forwarded-For']}")
+  end
+end
+
+# The values in an explicit braces hash, and a model on the older ActiveRecord::Base.
+class AuditController < ApplicationController
+  def create
+    AuditEntry.create!({ action: params[:action_name], client_ip: request.remote_ip })
+  end
+end
+
+class LegacyVisit < ActiveRecord::Base
+  def stamp(request)
+    self.last_ip = request.remote_ip
   end
 end
