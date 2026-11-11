@@ -1,0 +1,63 @@
+# lexcode-expect: 6
+require "base64"
+require "openai"
+
+class AvatarsController < ApplicationController
+  # ruby-openai: the generated picture's address is the response.
+  def create
+    client = OpenAI::Client.new(access_token: ENV.fetch("OPENAI_ACCESS_TOKEN"))
+    result = client.images.generate(parameters: { prompt: "Avatar of #{params[:name]}", size: "1024x1024" })
+    render json: { url: result.dig("data", 0, "url") }
+  end
+end
+
+class PostersController < ApplicationController
+  # The picture is decoded and sent back as the response body.
+  def show
+    client = OpenAI::Client.new
+    result = client.images.generate(parameters: { model: "gpt-image-1", prompt: params[:theme] })
+    png = Base64.decode64(result.dig("data", 0, "b64_json"))
+    send_data png, type: "image/png", disposition: "inline"
+  end
+end
+
+class RetouchController < ApplicationController
+  # The official openai gem: a model edits the visitor's photo.
+  def create
+    openai = OpenAI::Client.new(api_key: ENV["OPENAI_API_KEY"])
+    edited = openai.images.edit(
+      prompt: params[:prompt],
+      model: "gpt-image-1",
+      size: "1024x1024",
+      image: OpenAI::FilePart.new(Pathname(params[:photo].path), content_type: "image/jpeg")
+    )
+    render json: { image: edited.data.first.b64_json }
+  end
+end
+
+class VariationsController < ApplicationController
+  def show
+    client = OpenAI::Client.new
+    response = client.images.variations(parameters: { image: "tmp/base.png", n: 2 })
+    render json: response.dig("data")
+  end
+end
+
+class WatermarkedController < ApplicationController
+  # ruby_llm writes the picture to a file, and the file is what the user receives.
+  def show
+    image = RubyLLM.paint(params[:prompt])
+    path = Rails.root.join("tmp", "paint-#{SecureRandom.hex(6)}.png").to_s
+    image.save(path)
+    send_file path, type: "image/png"
+  end
+end
+
+class LogoJob < ApplicationJob
+  def perform(brand_id, prompt)
+    client = OpenAI::Client.new
+    result = client.images.generate(parameters: { prompt: prompt })
+    url = result.dig("data", 0, "url")
+    ActionCable.server.broadcast("brands_#{brand_id}", { logo: url })
+  end
+end

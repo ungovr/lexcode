@@ -1,0 +1,69 @@
+rules:
+  - id: lexcode.generate.rb-model-result-returned
+    languages: [ruby]
+    severity: INFO
+    message: Returns the output of a Langchain.rb model or a Gemini call from a method, which may be generating content with AI that reaches users (generates_content).
+    mode: taint
+    pattern-sources:
+      - pattern: Langchain::LLM::$K.new(...)
+      - pattern: '$C.generate_content(..., contents: ..., ...)'
+      - pattern: '$C.generate_content({ ..., contents: ..., ... })'
+      - pattern: '$C.stream_generate_content(..., contents: ..., ...)'
+      - pattern: '$C.stream_generate_content({ ..., contents: ..., ... })'
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  $C.stream_generate_content(...) do |$X, ...|
+                    ...
+                  end
+              - pattern-inside: '$C.stream_generate_content(...) { |$X, ...| ... }'
+          - pattern: $X
+    pattern-propagators:
+      - pattern: $OUT = <... $R.dig(...) ...>
+        from: $R
+        to: $OUT
+      - pattern: |
+          $S.each do |$X|
+            ...
+          end
+        from: $S
+        to: $X
+      - pattern: '$S.each { |$X| ... }'
+        from: $S
+        to: $X
+    pattern-sanitizers:
+      - pattern: $L.embed(...)
+      - pattern: Langchain::Vectorsearch::$K.new(...)
+      - pattern: $S.similarity_search(...)
+      - pattern: $S.similarity_search_by_vector(...)
+    pattern-sinks:
+      - pattern: yield $X
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  def $F(...)
+                    ...
+                  end
+              - pattern-inside: |
+                  def self.$F(...)
+                    ...
+                  end
+          - pattern-either:
+              - pattern: return $V
+              - pattern: return $V.$M(...)
+              - pattern: return $V.$M(...).$N
+              - pattern: return $V.$M(...).$N(...)
+              - pattern: return $V[...]
+              - pattern: 'return { ..., $K: $V, ... }'
+              - pattern: 'return { ..., $K: $V.$M(...), ... }'
+          - metavariable-regex:
+              metavariable: $V
+              regex: ^@?[a-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*[?!]?)*$
+          - focus-metavariable: $V
+    metadata:
+      activity: generates_content
+      mentioned: performs
+      definition: https://lexlint.io/activities/generates-content
+      provenance: ungovr-original
+      license: MIT
+      strength: signal

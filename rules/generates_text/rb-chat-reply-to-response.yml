@@ -1,0 +1,72 @@
+rules:
+  - id: lexcode.text.rb-chat-reply-to-response
+    languages: [ruby]
+    severity: INFO
+    message: Sends text written by a chat or completion model back in an HTTP response, which is generating text with AI that reaches users (generates_text).
+    mode: taint
+    pattern-sources:
+      - pattern: '$C.chat(parameters: ...)'
+      - pattern: '$C.completions(parameters: ...)'
+      - pattern: $C.chat.completions.create(...)
+      - pattern: '$C.responses.create(parameters: ...)'
+      - pattern: '$C.responses.create(..., model: ..., ...)'
+      - pattern: $C.responses.stream(...)
+      - pattern: '$C.messages.create(..., max_tokens: ..., ...)'
+      - pattern: '$C.messages.stream(..., max_tokens: ..., ...)'
+      - pattern: $C.converse(...)
+      - pattern: $C.converse_stream(...)
+      - pattern: '$C.chat(..., messages: ..., ...)'
+      - pattern: '$C.complete(..., prompt: ..., ...)'
+      - pattern: RubyLLM.chat(...)
+    pattern-propagators:
+      - pattern: $OUT = <... $R.dig(...) ...>
+        from: $R
+        to: $OUT
+      - pattern: |
+          $S.each do |$X|
+            ...
+          end
+        from: $S
+        to: $X
+      - pattern: '$S.each { |$X| ... }'
+        from: $S
+        to: $X
+      - pattern: |
+          $S.ask(...) do |$X|
+            ...
+          end
+        from: $S
+        to: $X
+      - pattern: '$S.ask(...) { |$X| ... }'
+        from: $S
+        to: $X
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern-inside: 'render(..., json: ..., ...)'
+              - pattern-inside: 'render(..., plain: ..., ...)'
+              - pattern-inside: 'render(..., text: ..., ...)'
+              - pattern-inside: 'render(..., html: ..., ...)'
+              - pattern-inside: 'render(..., body: ..., ...)'
+              - pattern-inside: 'render(..., xml: ..., ...)'
+              - pattern-inside: 'render(..., inline: ..., ...)'
+              - pattern-inside: 'render(..., turbo_stream: ..., ...)'
+              - pattern-inside: send_data(...)
+              - pattern-inside: respond_with(...)
+              - pattern-inside: halt(...)
+              - pattern-inside: json(...)
+              - pattern-inside: response.stream.write(...)
+              - pattern-inside: sse.write(...)
+              - pattern-inside: transmit(...)
+              - pattern-inside: ActionCable.server.broadcast(...)
+              - pattern-inside: Turbo::StreamsChannel.$M(...)
+          - pattern: $V
+          - metavariable-regex:
+              metavariable: $V
+              regex: ^@?[a-z_][A-Za-z0-9_]*$
+    metadata:
+      activity: generates_text
+      mentioned: performs
+      definition: https://lexlint.io/activities/generates-text
+      provenance: ungovr-original
+      license: MIT

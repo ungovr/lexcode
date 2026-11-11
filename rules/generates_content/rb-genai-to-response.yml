@@ -1,0 +1,62 @@
+rules:
+  - id: lexcode.generate.rb-genai-to-response
+    languages: [ruby]
+    severity: INFO
+    message: Sends a Google Gemini response, whose kind the code does not fix, back in an HTTP response, which is generating content with AI that reaches users (generates_content).
+    mode: taint
+    pattern-sources:
+      - pattern: '$C.generate_content(..., contents: ..., ...)'
+      - pattern: '$C.generate_content({ ..., contents: ..., ... })'
+      - pattern: '$C.stream_generate_content(..., contents: ..., ...)'
+      - pattern: '$C.stream_generate_content({ ..., contents: ..., ... })'
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  $C.stream_generate_content(...) do |$X, ...|
+                    ...
+                  end
+              - pattern-inside: '$C.stream_generate_content(...) { |$X, ...| ... }'
+          - pattern: $X
+    pattern-propagators:
+      - pattern: $OUT = <... $R.dig(...) ...>
+        from: $R
+        to: $OUT
+      - pattern: |
+          $S.each do |$X|
+            ...
+          end
+        from: $S
+        to: $X
+      - pattern: '$S.each { |$X| ... }'
+        from: $S
+        to: $X
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern-inside: 'render(..., json: ..., ...)'
+              - pattern-inside: 'render(..., plain: ..., ...)'
+              - pattern-inside: 'render(..., text: ..., ...)'
+              - pattern-inside: 'render(..., html: ..., ...)'
+              - pattern-inside: 'render(..., body: ..., ...)'
+              - pattern-inside: 'render(..., xml: ..., ...)'
+              - pattern-inside: 'render(..., inline: ..., ...)'
+              - pattern-inside: 'render(..., turbo_stream: ..., ...)'
+              - pattern-inside: send_data(...)
+              - pattern-inside: respond_with(...)
+              - pattern-inside: halt(...)
+              - pattern-inside: json(...)
+              - pattern-inside: response.stream.write(...)
+              - pattern-inside: sse.write(...)
+              - pattern-inside: transmit(...)
+              - pattern-inside: ActionCable.server.broadcast(...)
+              - pattern-inside: Turbo::StreamsChannel.$M(...)
+          - pattern: $V
+          - metavariable-regex:
+              metavariable: $V
+              regex: ^@?[a-z_][A-Za-z0-9_]*$
+    metadata:
+      activity: generates_content
+      mentioned: performs
+      definition: https://lexlint.io/activities/generates-content
+      provenance: ungovr-original
+      license: MIT

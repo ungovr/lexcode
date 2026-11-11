@@ -1,0 +1,60 @@
+rules:
+  - id: lexcode.image.rb-image-reply-to-response
+    languages: [ruby]
+    severity: INFO
+    message: Sends a picture drawn by an image model back in an HTTP response, which is generating images with AI that reach users (generates_images).
+    mode: taint
+    pattern-sources:
+      - pattern: $C.images.generate(...)
+      - pattern: $C.images.edit(...)
+      - pattern: $C.images.variations(...)
+      - pattern: $C.images.create_variation(...)
+      - pattern: RubyLLM.paint(...)
+    pattern-propagators:
+      - pattern: $OUT = <... $R.dig(...) ...>
+        from: $R
+        to: $OUT
+      - pattern: |
+          $S.each do |$X|
+            ...
+          end
+        from: $S
+        to: $X
+      - pattern: '$S.each { |$X| ... }'
+        from: $S
+        to: $X
+      - pattern: $SRC.save($DST)
+        from: $SRC
+        to: $DST
+        by-side-effect: true
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern-inside: 'render(..., json: ..., ...)'
+              - pattern-inside: 'render(..., plain: ..., ...)'
+              - pattern-inside: 'render(..., text: ..., ...)'
+              - pattern-inside: 'render(..., html: ..., ...)'
+              - pattern-inside: 'render(..., body: ..., ...)'
+              - pattern-inside: 'render(..., xml: ..., ...)'
+              - pattern-inside: 'render(..., inline: ..., ...)'
+              - pattern-inside: 'render(..., turbo_stream: ..., ...)'
+              - pattern-inside: send_data(...)
+              - pattern-inside: respond_with(...)
+              - pattern-inside: halt(...)
+              - pattern-inside: json(...)
+              - pattern-inside: response.stream.write(...)
+              - pattern-inside: sse.write(...)
+              - pattern-inside: transmit(...)
+              - pattern-inside: ActionCable.server.broadcast(...)
+              - pattern-inside: Turbo::StreamsChannel.$M(...)
+              - pattern-inside: send_file(...)
+          - pattern: $V
+          - metavariable-regex:
+              metavariable: $V
+              regex: ^@?[a-z_][A-Za-z0-9_]*$
+    metadata:
+      activity: generates_images
+      mentioned: performs
+      definition: https://lexlint.io/activities/generates-images
+      provenance: ungovr-original
+      license: MIT
