@@ -4,7 +4,19 @@ rules:
     severity: INFO
     message: Sends visits or events to a third-party analytics, attribution or crash-reporting service (Firebase Analytics and Crashlytics, Segment, Mixpanel, Amplitude, Pendo, AppsFlyer, Adjust, Meta app events, Sentry for Android or Google Analytics) that follows the device with its own id, which is tracking devices (tracks_devices). Starting an Android crash-reporting SDK counts too, because a crash-reporting service is one of the counterparties this activity names.
     patterns:
-      - pattern-regex: '(?s)\A(?=[\s\S]*?(?:Firebase|Mixpanel|com\.segment|Amplitude|Pendo|sdk\.pendo|AppsFlyerLib|AdjustConfig|AppEventsLogger|SentryAndroid|Bugsnag|google-analytics))[\s\S]*'
+      - pattern-either:
+          - pattern-regex: '(?s)\A(?=.*Firebase).*'
+          - pattern-regex: '(?s)\A(?=.*Mixpanel).*'
+          - pattern-regex: '(?s)\A(?=.*com\.segment).*'
+          - pattern-regex: '(?s)\A(?=.*Amplitude).*'
+          - pattern-regex: '(?s)\A(?=.*Pendo).*'
+          - pattern-regex: '(?s)\A(?=.*sdk\.pendo).*'
+          - pattern-regex: '(?s)\A(?=.*AppsFlyerLib).*'
+          - pattern-regex: '(?s)\A(?=.*AdjustConfig).*'
+          - pattern-regex: '(?s)\A(?=.*AppEventsLogger).*'
+          - pattern-regex: '(?s)\A(?=.*SentryAndroid).*'
+          - pattern-regex: '(?s)\A(?=.*Bugsnag).*'
+          - pattern-regex: '(?s)\A(?=.*google-analytics).*'
       - pattern-either:
           # Names that belong to one vendor.
           - pattern: FirebaseAnalytics.getInstance(...)

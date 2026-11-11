@@ -29,6 +29,44 @@ function evidenceIdsWithoutRule(accept: (r: RuleMeta) => boolean): string[] {
   return uncovered;
 }
 
+/** Every `pattern-regex` string in a parsed rule file, however deep. */
+function patternRegexes(node: unknown): string[] {
+  if (Array.isArray(node)) return node.flatMap(patternRegexes);
+  if (node === null || typeof node !== 'object') return [];
+  return Object.entries(node as Record<string, unknown>).flatMap(([k, v]) =>
+    k === 'pattern-regex' && typeof v === 'string' ? [v] : patternRegexes(v),
+  );
+}
+
+/** Why a whole-file lookahead pre-filter would lose matches in a large file, or null when it is fine or not one. */
+function wholeFileLookaheadProblem(rx: string): string | null {
+  const start = rx.search(/\\A\(\?=/);
+  if (start === -1) return null;
+  const lookaheads = rx.split('(?=').length - 1;
+  if (lookaheads > 1) return 'second lookahead';
+  // Walk the lookahead to its closing parenthesis, ignoring escapes and character classes.
+  let depth = 0;
+  let inClass = false;
+  for (let i = start + 2; i < rx.length; i++) {
+    const ch = rx[i] as string;
+    if (ch === '\\') {
+      i++;
+      continue;
+    }
+    if (inClass) {
+      if (ch === ']') inClass = false;
+      continue;
+    }
+    if (ch === '[') inClass = true;
+    else if (ch === '(') depth++;
+    else if (ch === ')') {
+      depth--;
+      if (depth === 0) return null;
+    } else if (ch === '|' && depth >= 1) return 'alternation';
+  }
+  return null;
+}
+
 describe('release: the rule set is complete and well formed', () => {
   it('every snapshot id has a class', () => {
     const classes = parse(readFileSync(join(rulesDir, 'classes.yml'), 'utf8')) as Record<string, string>;
@@ -132,6 +170,44 @@ describe('release: the rule set is complete and well formed', () => {
     };
     walk(rulesDir);
     expect(hits).toEqual([]);
+  });
+
+  // A whole-file pre-filter is a `pattern-regex` of the form (?s)\A(?=.*LITERAL).* whose range is the whole
+  // file, so the engine can skip a file without LITERAL. With more than one alternative in the lookahead, or
+  // two lookaheads, the engine's regex silently stops matching in a large file (measured on opengrep 1.33.1:
+  // post-model and direct-message from 160 KB, analytics-calls from 120 KB; one literal held to 950 KB)
+  // and the rule loses real matches with no error recorded. One literal per pattern-regex, joined with
+  // a `pattern-either` for "any of these".
+  it('no whole-file pre-filter lookahead holds an alternation or a second lookahead', () => {
+    const bad: string[] = [];
+    const walk = (dir: string): void => {
+      for (const e of readdirSync(dir)) {
+        const p = join(dir, e);
+        if (statSync(p).isDirectory()) walk(p);
+        else if (e.endsWith('.yml') && !e.endsWith('.test.yml')) {
+          const doc = parse(readFileSync(p, 'utf8')) as unknown;
+          for (const rx of patternRegexes(doc)) {
+            const why = wholeFileLookaheadProblem(rx);
+            if (why) bad.push(`${e}: ${why}: ${rx}`);
+          }
+        }
+      }
+    };
+    walk(rulesDir);
+    expect(bad).toEqual([]);
+  });
+
+  it('the pre-filter guard sees the shapes it exists for, and passes the one-literal form', () => {
+    expect(wholeFileLookaheadProblem('(?s)\\A(?=.*(Post|Tweet)).*')).toMatch(/alternation/);
+    expect(wholeFileLookaheadProblem('(?s)\\A(?=[\\s\\S]*?(?:A|B))[\\s\\S]*')).toMatch(/alternation/);
+    expect(wholeFileLookaheadProblem('(?is)\\A(?=.*a)(?=.*b).*')).toMatch(/second lookahead/);
+    expect(wholeFileLookaheadProblem('(?s)\\A(?=.*Post\\b).*')).toBeNull();
+    expect(wholeFileLookaheadProblem('(?s)\\A(?=.*com\\.openai\\.).*')).toBeNull();
+    // An alternation in an ordinary (not whole-file) regex is fine.
+    expect(wholeFileLookaheadProblem('\\b(find|exists)By(Follower|Followee)\\b')).toBeNull();
+    // An escaped bar, and a bar inside a character class, are not alternations.
+    expect(wholeFileLookaheadProblem('(?s)\\A(?=.*a\\|b).*')).toBeNull();
+    expect(wholeFileLookaheadProblem('(?s)\\A(?=.*[|]x).*')).toBeNull();
   });
 
   it('contributing forbids the three rule sets', () => {
