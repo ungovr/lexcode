@@ -6,6 +6,17 @@ rules:
     mode: taint
     pattern-sources:
       - pattern: Langchain::LLM::$K.new(...)
+      # A vector store's ask (question: is its keyword) retrieves passages and has its LLM
+      # write the answer: retrieval-augmented generation. The block form streams the answer.
+      - pattern: '$S.ask(..., question: ..., ...)'
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  $S.ask(..., question: ..., ...) do |$X|
+                    ...
+                  end
+              - pattern-inside: '$S.ask(..., question: ..., ...) { |$X| ... }'
+          - pattern: $X
       - pattern: '$C.generate_content(..., contents: ..., ...)'
       - pattern: '$C.generate_content({ ..., contents: ..., ... })'
       - pattern: '$C.stream_generate_content(..., contents: ..., ...)'
@@ -33,6 +44,8 @@ rules:
         to: $X
     pattern-sanitizers:
       - pattern: $L.embed(...)
+      # The client's configured defaults (model names, temperature) are settings, not output.
+      - pattern: $L.defaults
       - pattern: Langchain::Vectorsearch::$K.new(...)
       - pattern: $S.similarity_search(...)
       - pattern: $S.similarity_search_by_vector(...)

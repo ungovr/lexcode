@@ -1,4 +1,4 @@
-# lexcode-expect: 6
+# lexcode-expect: 7
 require "gemini-ai"
 require "langchain"
 
@@ -56,5 +56,14 @@ class TitlesController < ApplicationController
     llm = Langchain::LLM::OpenAI.new(api_key: ENV.fetch("OPENAI_API_KEY"))
     reply = llm.chat(messages: [{ role: "user", content: params[:topic] }])
     render json: { title: reply.chat_completion }
+  end
+end
+
+# Retrieval-augmented generation: the store's ask returns what its LLM wrote.
+class DocsAnswerer
+  def answer(question)
+    llm = Langchain::LLM::OpenAI.new(api_key: ENV.fetch("OPENAI_API_KEY"))
+    store = Langchain::Vectorsearch::Chroma.new(url: ENV.fetch("CHROMA_URL"), index_name: "docs", llm: llm)
+    return store.ask(question: question).chat_completion
   end
 end

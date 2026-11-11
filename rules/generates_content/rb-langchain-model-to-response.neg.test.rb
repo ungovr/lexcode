@@ -122,3 +122,18 @@ class DocsSearchController < ApplicationController
     @backup_llm ||= Langchain::LLM::Ollama.new(url: "http://localhost:11434")
   end
 end
+
+class ModelInfoController < ApplicationController
+  # The client's configured defaults are settings, not output.
+  def show
+    llm = Langchain::LLM::OpenAI.new(api_key: ENV.fetch("OPENAI_API_KEY"), default_options: { chat_model: "gpt-4o" })
+    render json: { model: llm.defaults[:chat_model], temperature: llm.defaults[:temperature] }
+  end
+end
+
+class ModelSettings
+  def chat_model
+    llm = Langchain::LLM::Anthropic.new(api_key: ENV.fetch("ANTHROPIC_API_KEY"))
+    return llm.defaults[:chat_model]
+  end
+end

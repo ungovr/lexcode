@@ -1,4 +1,4 @@
-# lexcode-expect: 14
+# lexcode-expect: 17
 require "langchain"
 
 class ArticlesController < ApplicationController
@@ -97,5 +97,39 @@ class ChainRoutes < Sinatra::Base
     result = llm.chat(messages: [{ role: "user", content: params[:q] }])
     @value = result.chat_completion
     erb :chains
+  end
+end
+
+# Retrieval-augmented generation: the store finds passages and its LLM writes the answer.
+class AskDocsController < ApplicationController
+  def show
+    llm = Langchain::LLM::OpenAI.new(api_key: ENV.fetch("OPENAI_API_KEY"))
+    store = Langchain::Vectorsearch::Pgvector.new(url: ENV.fetch("DATABASE_URL"), index_name: "docs", llm: llm)
+    answer = store.ask(question: params[:q])
+    render json: { answer: answer.chat_completion }
+  end
+
+  # The store is kept in an instance variable by a callback; the answer is shown by the view.
+  def summary
+    @answer = @store.ask(question: "Summarize #{params[:topic]}", k: 6).chat_completion
+  end
+end
+
+class AskStreamController < ApplicationController
+  include ActionController::Live
+
+  # The answer streams through a block given to ask.
+  def show
+    store = Langchain::Vectorsearch::Qdrant.new(
+      url: ENV.fetch("QDRANT_URL"),
+      api_key: ENV.fetch("QDRANT_API_KEY"),
+      index_name: "docs",
+      llm: Langchain::LLM::OpenAI.new(api_key: ENV.fetch("OPENAI_API_KEY"))
+    )
+    store.ask(question: params[:q]) do |chunk|
+      response.stream.write(chunk.dig("choices", 0, "delta", "content"))
+    end
+  ensure
+    response.stream.close
   end
 end
