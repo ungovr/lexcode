@@ -1,0 +1,56 @@
+rules:
+  - id: lexcode.crawl.java-fetch-loop-over-urls
+    languages: [java]
+    severity: INFO
+    message: Fetches each URL in a list held in a variable, which may be crawling sites the operator does not run (crawls_web).
+    patterns:
+      - pattern-either:
+          - pattern-inside: |
+              for ($T $URL : $L) {
+                ...
+              }
+          - pattern-inside: |
+              for (final $T $URL : $L) {
+                ...
+              }
+          - patterns:
+              - pattern-either:
+                  - pattern-inside: |
+                      $L.$M($URL -> $BODY)
+                  - pattern-inside: |
+                      $L.$M(($T $URL) -> $BODY)
+                  - pattern-inside: |
+                      $L.$M($URL -> { ... })
+                  - pattern-inside: |
+                      $L.$M(($T $URL) -> { ... })
+              - metavariable-regex:
+                  metavariable: $M
+                  regex: ^(forEach|forEachOrdered|map|flatMap|mapToObj|peek|filter|anyMatch|allMatch|noneMatch|ifPresent)$
+      - pattern-either:
+          - pattern: HttpRequest.newBuilder(URI.create($URL))
+          - pattern: $B.uri(URI.create($URL))
+          - pattern: new URL($URL).openStream()
+          - pattern: new URL($URL).openConnection()
+          - pattern: new URL($URL).getContent()
+          - pattern: $R.getForObject($URL, ...)
+          - pattern: $R.getForEntity($URL, ...)
+          - pattern: $R.headForHeaders($URL, ...)
+          - pattern: new Request.Builder().url($URL)
+          - pattern: $W.get().uri($URL, ...)
+          - pattern: new HttpGet($URL)
+          - pattern: new HttpHead($URL)
+          - pattern: Unirest.get($URL)
+          - pattern: Unirest.head($URL)
+          - patterns:
+              - pattern: $C.get($URL)
+              - metavariable-regex:
+                  metavariable: $C
+                  regex: ^(?!\w*([cC]ache|[sS]tore|[sS]torage|[rR]edis|[mM]emcache|[sS]3|[aA]ws))(\w*[cC]lient|\w*[hH]ttp\w*)$
+    metadata:
+      activity: crawls_web
+      mentioned: performs
+      definition: https://lexlint.io/activities/crawls-web
+      provenance: ungovr-original
+      license: MIT
+      strength: signal
+      host_metavar: $URL

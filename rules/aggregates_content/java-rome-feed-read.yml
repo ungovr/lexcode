@@ -1,0 +1,24 @@
+rules:
+  - id: lexcode.aggregate.java-rome-feed-read
+    languages: [java]
+    severity: INFO
+    message: Reads another publisher's RSS or Atom feed from its address with Rome, which is reusing other publishers' content (aggregates_content).
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: new SyndFeedInput().build($ARG)
+              - pattern: (SyndFeedInput $S).build($ARG)
+          - metavariable-regex:
+              metavariable: $ARG
+              regex: (?is)^(?!.*"https?://(localhost|127\.|0\.0\.0\.0|\[::1\]))(?!.*(request|multipart|upload)\w*\.getInputStream).*(new URL\(|\.toURL\(\)|openStream\(\)|getInputStream\(\)).*$
+      - patterns:
+          - pattern: $F.retrieveFeed($ARG, ...)
+          - metavariable-regex:
+              metavariable: $ARG
+              regex: (?s)^(?!new URL\("https?://(localhost|127\.|0\.0\.0\.0|\[::1\])).*$
+    metadata:
+      activity: aggregates_content
+      mentioned: performs
+      definition: https://lexlint.io/activities/aggregates-content
+      provenance: ungovr-original
+      license: MIT

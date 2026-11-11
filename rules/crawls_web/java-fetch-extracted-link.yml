@@ -1,0 +1,26 @@
+rules:
+  - id: lexcode.crawl.java-fetch-extracted-link
+    languages: [java]
+    severity: INFO
+    message: Fetches a link taken from a page it has read (an anchor's href, an image's src), which is following links from site to site, crawling the web (crawls_web).
+    patterns:
+      - pattern-either:
+          - pattern: HttpRequest.newBuilder(URI.create($LINK))
+          - pattern: $B.uri(URI.create($LINK))
+          - pattern: new URL($LINK).openStream()
+          - pattern: new URL($LINK).openConnection()
+          - pattern: $R.getForObject($LINK, ...)
+          - pattern: $R.getForEntity($LINK, ...)
+          - pattern: new Request.Builder().url($LINK)
+          - pattern: new HttpGet($LINK)
+          - pattern: new HttpHead($LINK)
+          - pattern: $W.get().uri($LINK, ...)
+      - metavariable-regex:
+          metavariable: $LINK
+          regex: ^[\w.]+\.(absUrl\("[^"]*"\)|attr\("(abs:)?(href|src)"\)|getAttribute\("(href|src)"\))$
+    metadata:
+      activity: crawls_web
+      mentioned: performs
+      definition: https://lexlint.io/activities/crawls-web
+      provenance: ungovr-original
+      license: MIT

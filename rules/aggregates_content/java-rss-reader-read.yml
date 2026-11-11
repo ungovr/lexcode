@@ -1,0 +1,21 @@
+rules:
+  - id: lexcode.aggregate.java-rss-reader-read
+    languages: [java]
+    severity: INFO
+    message: Reads other publishers' RSS or Atom feeds with the rssreader library, which is reusing other publishers' content (aggregates_content).
+    patterns:
+      # Scoped to a file that imports the library, so a project class with a `read` method of its own is not taken for it.
+      - pattern-regex: '(?s)import\s+com\.apptasticsoftware\.rssreader\..*'
+      - pattern-either:
+          - pattern: new RssReader().read($ARG)
+          - pattern: (RssReader $R).read($ARG)
+      - metavariable-regex:
+          metavariable: $ARG
+          regex: (?s)^(?!"https?://(localhost|127\.|0\.0\.0\.0|\[::1\])|(in|\w*[iI]nput|\w*[sS]tream)$).*$
+    metadata:
+      activity: aggregates_content
+      mentioned: performs
+      definition: https://lexlint.io/activities/aggregates-content
+      provenance: ungovr-original
+      license: MIT
+      host_metavar: $ARG
