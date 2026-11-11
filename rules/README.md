@@ -46,8 +46,14 @@ How lexcode reads Ruby, where the engine cannot, and what a gem manifest counts.
 nothing in it is run. The lockfile beside it (`Gemfile.lock`, or `gems.locked`)
 is the authority on which gems are direct and at what version: its
 `DEPENDENCIES` section lists every direct gem, however a Gemfile computed its
-list in code. Gems in the `development` and `test` groups are skipped and
-counted. A version with a platform suffix (`1.16.0-x86_64-linux`) is read as the
+list in code; a gem listed there that no Gemfile file names is recorded at its
+lockfile line. The Gemfile files read are `Gemfile` or `gems.rb`, the target of
+any `eval_gemfile` with a literal path, and every `Gemfile.d/*.rb` beside a
+Gemfile whose text names `Gemfile.d`. A Gemfile gem missing from an existing
+lockfile is recorded without a version, and one notice per Gemfile names those
+gems (the first 10, then a count); a Gemfile with no lockfile beside it gives
+one notice saying how many gems were recorded without a version. Gems in the
+`development` and `test` groups are skipped and counted. A version with a platform suffix (`1.16.0-x86_64-linux`) is read as the
 part before the first `-`, and variants of one gem collapse into one dependency.
 
 A `*.gemspec` counts too. Its `add_dependency` and `add_runtime_dependency`
