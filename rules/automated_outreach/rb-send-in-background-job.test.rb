@@ -1,4 +1,4 @@
-# lexcode-expect: 9
+# lexcode-expect: 10
 # Messages sent from a queue worker, an ActiveJob or a notifier method, where the code does not show
 # whether a person asked for each one.
 class StatusChangeJob < ApplicationJob
@@ -57,5 +57,13 @@ class Subscription < ApplicationRecord
 
   def broadcast_announcement(text)
     AnnouncementMailer.notice(self, text).deliver_later(wait: 5.minutes)
+  end
+end
+
+class ParenlessReminderWorker
+  include Sidekiq::Worker
+
+  def perform(appointment_id)
+    sms_client.messages.create from: "+15550100", to: Appointment.find(appointment_id).phone, body: "See you tomorrow."
   end
 end

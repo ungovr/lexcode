@@ -1,4 +1,4 @@
-# lexcode-expect: 6
+# lexcode-expect: 7
 # An assistant whose conversations are stored: each user turn and each model turn is written as a
 # record with a role.
 class AssistantMessagesController < ApplicationController
@@ -16,5 +16,11 @@ class ConversationTurns
     Message.create!(conversation: conversation, role: :assistant, content: answer)
     ChatMessage.create(chat_id: conversation.id, role: "assistant", content: answer)
     conversation.messages.build(role: "user", content: text)
+  end
+end
+
+class HashRocketTurns
+  def record(chat, text)
+    chat.messages.create!(:role => :user, :content => text)
   end
 end

@@ -1,4 +1,4 @@
-# lexcode-expect: 13
+# lexcode-expect: 16
 # Texts, calls and push notifications, where the code does not show whether a person just asked.
 class NotificationsController < ApplicationController
   def reminder
@@ -41,5 +41,13 @@ class OtherCarriers
     sns.publish(phone_number: user.phone, message: body)
     vonage.sms.send(from: "Example", to: user.phone, text: body)
     Telnyx::Message.create(from: "+15550100", to: user.phone, text: body)
+  end
+end
+
+class ParenlessCarriers
+  def run(user)
+    client.calls.create from: "+15550100", to: user.phone, url: "https://example.org/voice.xml"
+    sns.publish phone_number: user.phone, message: "Pool closed today."
+    vonage.sms.send from: "Example", to: user.phone, text: "Pool closed today."
   end
 end

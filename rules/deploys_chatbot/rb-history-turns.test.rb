@@ -1,4 +1,4 @@
-# lexcode-expect: 4
+# lexcode-expect: 7
 # A terminal chat and a session object that keep the conversation between calls: every user turn
 # and every model turn goes into one history, and the whole history is sent back each time.
 class TerminalChat
@@ -46,5 +46,27 @@ class Memory
     resp = bedrock.converse(model_id: "anthropic.claude-3-haiku", messages: @messages)
     @messages << resp.output.message.to_h
     resp.output.message.content.first.text
+  end
+end
+
+class OtherMethods
+  def stream_turn(text)
+    @history << { role: "user", content: text }
+    resp = bedrock.converse_stream(model_id: "anthropic.claude-3-haiku", messages: @history)
+    @history << resp.output.message.to_h
+  end
+
+  def multi_line_turn(text)
+    @history << { role: "user", content: text }
+    reply = client.messages(
+      parameters: { model: "claude-sonnet-4-5", max_tokens: 512, messages: @history }
+    )
+    @history << { role: "assistant", content: reply.dig("content", 0, "text") }
+  end
+
+  def paren_less_turn(text)
+    @history << { role: "user", content: text }
+    reply = openai.chat parameters: { model: "gpt-4o-mini", messages: @history }
+    @history << reply.dig("choices", 0, "message")
   end
 end

@@ -1,4 +1,4 @@
-# lexcode-expect: 21
+# lexcode-expect: 23
 # Mail and texts the program sends on its own: once per recipient in a loop, and from a rake task
 # or a scheduler block that no user action triggers.
 class DigestsController < ApplicationController
@@ -101,4 +101,16 @@ end
 
 Clockwork.every(1.day, "digest") do
   DigestMailer.weekly.deliver_now
+end
+
+# ---- calls written without parentheses ----
+class ParenlessSends
+  def run(phones, users)
+    phones.each do |phone|
+      client.messages.create from: "+15550100", to: phone, body: "Your trash pickup moves to Tuesday."
+    end
+    users.each do |user|
+      Net::SMTP.start("localhost", 25) { |smtp| smtp.send_message build(user), "hi@example.org", user.email }
+    end
+  end
 end

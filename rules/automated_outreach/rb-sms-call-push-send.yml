@@ -18,7 +18,7 @@ rules:
           - pattern: $V.sms.send(...)
           - pattern: Telnyx::Message.create(...)
       # Literal anchor inside the match: it lets the engine skip files with no send call.
-      - pattern-regex: '(\.(messages|calls)\.create\(|Webpush\.payload_send|Rpush::\w+::Notification\.create|send_sms|\.publish\(|\.sms\.send\(|Telnyx::Message\.create)'
+      - pattern-regex: '(\.(messages|calls)\s*\.create\b|Webpush\.payload_send|Rpush::\w+::Notification\.create|send_sms|\.publish\b|\.sms\s*\.send\b|Telnyx::Message\.create)'
     metadata:
       activity: automated_outreach
       mentioned: performs

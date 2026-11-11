@@ -1,4 +1,4 @@
-# lexcode-expect: 8
+# lexcode-expect: 11
 # Rails endpoints and an ActionCable channel that hand what a person typed, or the conversation so
 # far, to a language model.
 class ChatsController < ApplicationController
@@ -43,5 +43,22 @@ class SupportChannel < ApplicationCable::Channel
   def receive(data)
     reply = openai.chat(parameters: { model: "gpt-4o-mini", messages: data["messages"] })
     transmit(reply: reply.dig("choices", 0, "message", "content"))
+  end
+end
+
+class ShapedCalls < ApplicationController
+  def paren_less
+    openai.chat parameters: { model: "gpt-4o-mini", messages: params[:messages] }
+  end
+
+  def multi_line
+    openai.messages(
+      parameters: { model: "claude-sonnet-4-5", max_tokens: 512, messages: params[:history] }
+    )
+  end
+
+  def split_chain
+    client.messages
+      .create(model: "claude-sonnet-4-5", max_tokens: 512, messages: params[:history])
   end
 end
