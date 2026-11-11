@@ -1,0 +1,265 @@
+rules:
+  - id: lexcode.image.java-image-result-returned
+    languages: [java]
+    severity: INFO
+    message: Returns a picture drawn by an image model from a method, which may be generating images with AI that reach users (generates_images).
+    mode: taint
+    pattern-sources:
+      - pattern: $C.images().generate(...)
+      - pattern: $C.images().edit(...)
+      - pattern: $C.images().createVariation(...)
+      - pattern: $C.models.generateImages(...)
+      - pattern: $C.models.editImage(...)
+      - pattern: $C.models.upscaleImage(...)
+      - patterns:
+          - pattern-either:
+              - pattern: $C.invokeModel(InvokeModelRequest.builder(). ... .modelId($ID). ... .build())
+              - pattern: $C.invokeModelWithResponseStream(InvokeModelWithResponseStreamRequest.builder(). ... .modelId($ID). ... .build())
+          - metavariable-regex:
+              metavariable: $ID
+              regex: (?i)^"[^"]*(titan-image|nova-canvas|stability|stable-diffusion|stable-image|sd3)[^"]*"$
+      - patterns:
+          - pattern: ($T $M).$F(...)
+          - metavariable-regex:
+              metavariable: $T
+              regex: ^([\w.]+\.)?(\w*ImageModel|OpenAIClient|OpenAIAsyncClient)$
+          - metavariable-regex:
+              metavariable: $F
+              regex: ^(generate|edit|call|getImageGenerations|getImageGenerationsWithResponse)$
+      - pattern: $M.call(new ImagePrompt(...))
+      - pattern: $M.call((ImagePrompt $P))
+    pattern-propagators:
+      - pattern: $S.forEach($X -> ...)
+        from: $S
+        to: $X
+      - pattern: $S.forEachOrdered($X -> ...)
+        from: $S
+        to: $X
+      - pattern: $S.subscribe($X -> ...)
+        from: $S
+        to: $X
+      - pattern: $S.map($X -> ...)
+        from: $S
+        to: $X
+      - pattern: $S.flatMap($X -> ...)
+        from: $S
+        to: $X
+      - pattern: $S.doOnNext($X -> ...)
+        from: $S
+        to: $X
+      - pattern: $S.ifPresent($X -> ...)
+        from: $S
+        to: $X
+      - pattern: $S.thenApply($X -> ...)
+        from: $S
+        to: $X
+      - pattern: $S.thenAccept($X -> ...)
+        from: $S
+        to: $X
+      - pattern: $S.onPartialResponse($X -> ...)
+        from: $S
+        to: $X
+      - pattern: $S.onNext($X -> ...)
+        from: $S
+        to: $X
+    pattern-sinks:
+      - patterns:
+          - pattern: return $X;
+          - pattern-not-inside: |
+              @GetMapping(...)
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @GetMapping
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @PostMapping(...)
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @PostMapping
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @PutMapping(...)
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @PutMapping
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @PatchMapping(...)
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @PatchMapping
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @DeleteMapping(...)
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @DeleteMapping
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @RequestMapping(...)
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @RequestMapping
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @ResponseBody(...)
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @ResponseBody
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @SendTo(...)
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @SendTo
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @QueryMapping(...)
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @QueryMapping
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @MutationMapping(...)
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @MutationMapping
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @GET(...)
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @GET
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @POST(...)
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @POST
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @PUT(...)
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @PUT
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @DELETE(...)
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @DELETE
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @Get(...)
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @Get
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @Post(...)
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @Post
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @Put(...)
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @Put
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @Patch(...)
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @Patch
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @Delete(...)
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @Delete
+              $R $F(...) {
+                ...
+              }
+          - focus-metavariable: $X
+    metadata:
+      activity: generates_images
+      mentioned: performs
+      definition: https://lexlint.io/activities/generates-images
+      provenance: ungovr-original
+      license: MIT
+      strength: signal
