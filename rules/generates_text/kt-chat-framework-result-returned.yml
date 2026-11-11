@@ -29,7 +29,7 @@ rules:
               - pattern: llm.call(...)
       - patterns:
           - pattern-regex: (?s)\A(?=.*org\.springframework\.ai\.).*
-          - pattern: $M.stream(...)
+          - pattern: $M.stream($P, ...)
           - metavariable-regex:
               metavariable: $M
               regex: (?i)^(this\.)?_?\w*(model|llm|assistant|ollama|gpt)\w*$
@@ -95,7 +95,7 @@ rules:
                     metavariable: $A
                     regex: ^(GetMapping|PostMapping|PutMapping|PatchMapping|DeleteMapping|RequestMapping|ResponseBody|SendTo|SendToUser|QueryMapping|MutationMapping|SubscriptionMapping|GET|POST|PUT|DELETE|HEAD|Get|Post|Put|Patch|Delete|Route)$
           - pattern-not-inside: |
-              $C { ... }
+              $M { $P -> ... }
       - patterns:
           - pattern-either:
               - pattern-inside: |

@@ -17,10 +17,12 @@ rules:
           - pattern-either:
               - pattern: $O.imageURL(...)
               - pattern: $O.imageJSON(...)
-      - pattern-either:
-          - pattern: $C.models.generateImages(...)
-          - pattern: $C.models.editImage(...)
-          - pattern: $C.models.upscaleImage(...)
+      - patterns:
+          - pattern-regex: (?s)\A(?=.*com\.google\.genai\.).*
+          - pattern-either:
+              - pattern: $C.models.generateImages(...)
+              - pattern: $C.models.editImage(...)
+              - pattern: $C.models.upscaleImage(...)
       - patterns:
           - pattern-regex: (?s)\A(?=.*com\.google\.firebase\.vertexai\.).*
           - pattern: $M.generateImages(...)
@@ -92,7 +94,7 @@ rules:
               regex: ^(GetMapping|PostMapping|PutMapping|PatchMapping|DeleteMapping|RequestMapping|ResponseBody|SendTo|SendToUser|QueryMapping|MutationMapping|SubscriptionMapping|GET|POST|PUT|DELETE|HEAD|Get|Post|Put|Patch|Delete|Route)$
           - pattern: return $X
           - pattern-not-inside: |
-              $C { ... }
+              $M { $P -> ... }
           - focus-metavariable: $X
       - patterns:
           - pattern-either:

@@ -57,3 +57,25 @@ class Reach1(private val openai: OpenAIClient) {
   }
 }
 
+class ReachCallback(private val model: ChatModel) {
+  fun reach(q: String) {
+    model.chat(q) { t ->
+      mailer.send(t)
+      cache.addAttribute("a", t)
+      model.removeAttribute(t)
+      counter.value = t
+      file.writer.write(t)
+      response.writer.flush(t)
+      file.outputStream.write(t)
+      response.outputStream.flush(t)
+    }
+  }
+
+  fun servlet(q: String, response: HttpServletResponse) {
+    model.chat(q) { t ->
+      log.println(t)
+      out.flush(t)
+    }
+  }
+}
+

@@ -17,6 +17,8 @@ class Reach0(private val model: ChatModel) {
   redirect.addFlashAttribute("a", t)
   mav.addObject("a", t)
   request.setAttribute("a", t)
+  out.write(t)
+  pw.println(t)
   }
 }
 
@@ -30,6 +32,23 @@ class Reach1(private val openai: OpenAIClient) {
   redirect.addFlashAttribute("a", t)
   mav.addObject("a", t)
   request.setAttribute("a", t)
+  out.write(t)
+  pw.println(t)
+  }
+}
+
+class ReachCallback(private val model: ChatModel) {
+  fun reach(q: String) {
+    model.chat(q) { t ->
+      template.convertAndSend("queue", t)
+      template.convertAndSendToUser("u", "queue", t)
+      model.addAttribute("a", t)
+      redirect.addFlashAttribute("a", t)
+      mav.addObject("a", t)
+      request.setAttribute("a", t)
+      out.write(t)
+      pw.println(t)
+    }
   }
 }
 

@@ -37,3 +37,33 @@ class H2(private val acme: Acme) {
 class P2(private val acme: Acme) {
   fun plain(x: String): String = acme.startChat(x)
 }
+
+@RestController
+class H3(private val acme: Acme) {
+  @GetMapping("/h3")
+  fun reply(x: String): String = api.chats.create(x)
+}
+
+class P3(private val acme: Acme) {
+  fun plain(x: String): String = api.chats.create(x)
+}
+
+@RestController
+class H4(private val acme: Acme) {
+  @GetMapping("/h4")
+  fun reply(x: String): String = catalog.models.generateContent(x)
+}
+
+class P4(private val acme: Acme) {
+  fun plain(x: String): String = catalog.models.generateContent(x)
+}
+
+@RestController
+class H5(private val acme: Acme) {
+  @GetMapping("/h5")
+  fun reply(x: String): String = catalog.models.generateContentStream(x)
+}
+
+class P5(private val acme: Acme) {
+  fun plain(x: String): String = catalog.models.generateContentStream(x)
+}

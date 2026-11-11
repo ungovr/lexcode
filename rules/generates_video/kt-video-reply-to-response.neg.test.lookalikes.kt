@@ -17,41 +17,47 @@ class H0(private val acme: Acme) {
 @RestController
 class H1(private val acme: Acme) {
   @GetMapping("/h1")
-  fun reply(x: String): String = acme.videos().create(x)
+  fun reply(x: String): String = catalog.models.generateVideos(x)
 }
 
 @RestController
 class H2(private val acme: Acme) {
   @GetMapping("/h2")
-  fun reply(x: String): String = acme.videos().createAndPoll(x)
+  fun reply(x: String): String = acme.videos().create(x)
 }
 
 @RestController
 class H3(private val acme: Acme) {
   @GetMapping("/h3")
-  fun reply(x: String): String = acme.videos().remix(x)
+  fun reply(x: String): String = acme.videos().createAndPoll(x)
 }
 
 @RestController
 class H4(private val acme: Acme) {
   @GetMapping("/h4")
-  fun reply(x: String): String = acme.videos().downloadContent(x)
+  fun reply(x: String): String = acme.videos().remix(x)
 }
 
 @RestController
 class H5(private val acme: Acme) {
   @GetMapping("/h5")
-  fun reply(x: String): String = acme.startAsyncInvoke { modelId = "amazon.nova-reel-v1:0" }
+  fun reply(x: String): String = acme.videos().downloadContent(x)
 }
 
 @RestController
 class H6(private val acme: Acme) {
   @GetMapping("/h6")
-  fun reply(x: String): String = StartAsyncInvokeRequest { modelId = "amazon.nova-reel-v1:0" }
+  fun reply(x: String): String = acme.startAsyncInvoke { modelId = "amazon.nova-reel-v1:0" }
 }
 
 @RestController
 class H7(private val acme: Acme) {
   @GetMapping("/h7")
+  fun reply(x: String): String = StartAsyncInvokeRequest { modelId = "amazon.nova-reel-v1:0" }
+}
+
+@RestController
+class H8(private val acme: Acme) {
+  @GetMapping("/h8")
   fun reply(x: String): String = StartAsyncInvokeRequest.builder().modelId("amazon.nova-reel-v1:0").build()
 }

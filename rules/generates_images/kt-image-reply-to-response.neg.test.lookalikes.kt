@@ -197,3 +197,33 @@ class H18(private val acme: Acme) {
 class P18(private val acme: Acme) {
   fun plain(x: String): String = photos.models.lookup(x)
 }
+
+@RestController
+class H19(private val acme: Acme) {
+  @GetMapping("/h19")
+  fun reply(x: String): String = catalog.models.generateImages(x)
+}
+
+class P19(private val acme: Acme) {
+  fun plain(x: String): String = catalog.models.generateImages(x)
+}
+
+@RestController
+class H20(private val acme: Acme) {
+  @GetMapping("/h20")
+  fun reply(x: String): String = catalog.models.editImage(x)
+}
+
+class P20(private val acme: Acme) {
+  fun plain(x: String): String = catalog.models.editImage(x)
+}
+
+@RestController
+class H21(private val acme: Acme) {
+  @GetMapping("/h21")
+  fun reply(x: String): String = catalog.models.upscaleImage(x)
+}
+
+class P21(private val acme: Acme) {
+  fun plain(x: String): String = catalog.models.upscaleImage(x)
+}

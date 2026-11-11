@@ -6,10 +6,12 @@ rules:
     message: Returns the output of a Gemini call from a function, which may be generating content with AI that reaches users (generates_content).
     mode: taint
     pattern-sources:
-      - pattern-either:
-          - pattern: $C.models.generateContent(...)
-          - pattern: $C.models.generateContentStream(...)
-          - pattern: $C.chats.create(...)
+      - patterns:
+          - pattern-regex: (?s)\A(?=.*com\.google\.genai\.).*
+          - pattern-either:
+              - pattern: $C.models.generateContent(...)
+              - pattern: $C.models.generateContentStream(...)
+              - pattern: $C.chats.create(...)
       - patterns:
           - pattern-regex: (?s)\A(?=.*com\.google\.ai\.client\.generativeai\.).*
           - pattern-either:
@@ -75,7 +77,7 @@ rules:
                     metavariable: $A
                     regex: ^(GetMapping|PostMapping|PutMapping|PatchMapping|DeleteMapping|RequestMapping|ResponseBody|SendTo|SendToUser|QueryMapping|MutationMapping|SubscriptionMapping|GET|POST|PUT|DELETE|HEAD|Get|Post|Put|Patch|Delete|Route)$
           - pattern-not-inside: |
-              $C { ... }
+              $M { $P -> ... }
       - patterns:
           - pattern-either:
               - pattern-inside: |

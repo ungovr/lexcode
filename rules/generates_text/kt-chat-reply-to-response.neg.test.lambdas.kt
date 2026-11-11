@@ -40,6 +40,34 @@ class LambdaHandlers(private val model: ChatModel) {
     scope.async(Dispatchers.IO) { model.chat(q) }
     return "queued"
   }
+
+  @GetMapping("/l5")
+  fun five(q: String): String {
+    
+    File("out.txt").bufferedWriter().use { w -> w.write(model.chat(q)) }
+    return "ok"
+  }
+
+  @GetMapping("/l6")
+  fun six(q: String): String {
+    
+    model.chat(q).also { r -> repo.save(r) }
+    return "ok"
+  }
+
+  @GetMapping("/l7")
+  fun seven(q: String): String {
+    
+    listOf(model.chat(q)).forEach { s -> repo.save(s) }
+    return "ok"
+  }
+
+  @GetMapping("/l8")
+  fun eight(q: String): String {
+    
+    model.chat(q).let { c -> repo.save(c) }
+    return "ok"
+  }
 }
 
 class LambdaPlain(private val model: ChatModel) {
@@ -61,6 +89,26 @@ class LambdaPlain(private val model: ChatModel) {
   fun four(q: String) {
     
     scope.async(Dispatchers.IO) { model.chat(q) }
+  }
+
+  fun five(q: String) {
+    
+    File("out.txt").bufferedWriter().use { w -> w.write(model.chat(q)) }
+  }
+
+  fun six(q: String) {
+    
+    model.chat(q).also { r -> repo.save(r) }
+  }
+
+  fun seven(q: String) {
+    
+    listOf(model.chat(q)).forEach { s -> repo.save(s) }
+  }
+
+  fun eight(q: String) {
+    
+    model.chat(q).let { c -> repo.save(c) }
   }
 }
 
@@ -95,6 +143,34 @@ class LambdaHandlers1(private val openai: OpenAIClient) {
     scope.async(Dispatchers.IO) { openai.chat().completions().create(ChatCompletionCreateParams.builder().build()) }
     return "queued"
   }
+
+  @GetMapping("/l5")
+  fun five(q: String): String {
+    
+    File("out.txt").bufferedWriter().use { w -> w.write(openai.chat().completions().create(ChatCompletionCreateParams.builder().build())) }
+    return "ok"
+  }
+
+  @GetMapping("/l6")
+  fun six(q: String): String {
+    
+    openai.chat().completions().create(ChatCompletionCreateParams.builder().build()).also { r -> repo.save(r) }
+    return "ok"
+  }
+
+  @GetMapping("/l7")
+  fun seven(q: String): String {
+    
+    listOf(openai.chat().completions().create(ChatCompletionCreateParams.builder().build())).forEach { s -> repo.save(s) }
+    return "ok"
+  }
+
+  @GetMapping("/l8")
+  fun eight(q: String): String {
+    
+    openai.chat().completions().create(ChatCompletionCreateParams.builder().build()).let { c -> repo.save(c) }
+    return "ok"
+  }
 }
 
 class LambdaPlain1(private val openai: OpenAIClient) {
@@ -116,6 +192,26 @@ class LambdaPlain1(private val openai: OpenAIClient) {
   fun four(q: String) {
     
     scope.async(Dispatchers.IO) { openai.chat().completions().create(ChatCompletionCreateParams.builder().build()) }
+  }
+
+  fun five(q: String) {
+    
+    File("out.txt").bufferedWriter().use { w -> w.write(openai.chat().completions().create(ChatCompletionCreateParams.builder().build())) }
+  }
+
+  fun six(q: String) {
+    
+    openai.chat().completions().create(ChatCompletionCreateParams.builder().build()).also { r -> repo.save(r) }
+  }
+
+  fun seven(q: String) {
+    
+    listOf(openai.chat().completions().create(ChatCompletionCreateParams.builder().build())).forEach { s -> repo.save(s) }
+  }
+
+  fun eight(q: String) {
+    
+    openai.chat().completions().create(ChatCompletionCreateParams.builder().build()).let { c -> repo.save(c) }
   }
 }
 

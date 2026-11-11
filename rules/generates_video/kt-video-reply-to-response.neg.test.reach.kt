@@ -15,6 +15,8 @@ class Reach0(private val client: Client) {
   redirect.addFlashAttribute("a", t)
   mav.addObject("a", t)
   request.setAttribute("a", t)
+  out.write(t)
+  pw.println(t)
   }
 }
 

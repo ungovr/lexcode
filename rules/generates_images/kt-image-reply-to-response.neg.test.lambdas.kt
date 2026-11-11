@@ -39,6 +39,34 @@ class LambdaHandlers(private val client: OpenAIClient) {
     scope.async(Dispatchers.IO) { client.images().generate(ImageGenerateParams.builder().build()) }
     return "queued"
   }
+
+  @GetMapping("/l5")
+  fun five(q: String): String {
+    
+    File("out.txt").bufferedWriter().use { w -> w.write(client.images().generate(ImageGenerateParams.builder().build())) }
+    return "ok"
+  }
+
+  @GetMapping("/l6")
+  fun six(q: String): String {
+    
+    client.images().generate(ImageGenerateParams.builder().build()).also { r -> repo.save(r) }
+    return "ok"
+  }
+
+  @GetMapping("/l7")
+  fun seven(q: String): String {
+    
+    listOf(client.images().generate(ImageGenerateParams.builder().build())).forEach { s -> repo.save(s) }
+    return "ok"
+  }
+
+  @GetMapping("/l8")
+  fun eight(q: String): String {
+    
+    client.images().generate(ImageGenerateParams.builder().build()).let { c -> repo.save(c) }
+    return "ok"
+  }
 }
 
 class LambdaPlain(private val client: OpenAIClient) {
@@ -60,6 +88,26 @@ class LambdaPlain(private val client: OpenAIClient) {
   fun four(q: String) {
     
     scope.async(Dispatchers.IO) { client.images().generate(ImageGenerateParams.builder().build()) }
+  }
+
+  fun five(q: String) {
+    
+    File("out.txt").bufferedWriter().use { w -> w.write(client.images().generate(ImageGenerateParams.builder().build())) }
+  }
+
+  fun six(q: String) {
+    
+    client.images().generate(ImageGenerateParams.builder().build()).also { r -> repo.save(r) }
+  }
+
+  fun seven(q: String) {
+    
+    listOf(client.images().generate(ImageGenerateParams.builder().build())).forEach { s -> repo.save(s) }
+  }
+
+  fun eight(q: String) {
+    
+    client.images().generate(ImageGenerateParams.builder().build()).let { c -> repo.save(c) }
   }
 }
 

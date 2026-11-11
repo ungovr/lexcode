@@ -74,7 +74,7 @@ rules:
               regex: ^(GetMapping|PostMapping|PutMapping|PatchMapping|DeleteMapping|RequestMapping|ResponseBody|SendTo|SendToUser|QueryMapping|MutationMapping|SubscriptionMapping|GET|POST|PUT|DELETE|HEAD|Get|Post|Put|Patch|Delete|Route)$
           - pattern: return $X
           - pattern-not-inside: |
-              $C { ... }
+              $M { $P -> ... }
           - focus-metavariable: $X
       - patterns:
           - pattern-either:

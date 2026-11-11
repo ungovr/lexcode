@@ -119,59 +119,69 @@ class P9(private val acme: Acme) {
 @RestController
 class H10(private val acme: Acme) {
   @GetMapping("/h10")
-  fun reply(x: String): String = acme.invokeModel { modelId = "amazon.titan-embed-text-v2:0" }
+  fun reply(x: String): String = knownModels.stream().map { it.name }.toList()
 }
 
 class P10(private val acme: Acme) {
-  fun plain(x: String): String = acme.invokeModel { modelId = "amazon.titan-embed-text-v2:0" }
+  fun plain(x: String): String = knownModels.stream().map { it.name }.toList()
 }
 
 @RestController
 class H11(private val acme: Acme) {
   @GetMapping("/h11")
-  fun reply(x: String): String = acme.invokeModelWithResponseStream { modelId = "amazon.titan-embed-text-v2:0" }
+  fun reply(x: String): String = acme.invokeModel { modelId = "amazon.titan-embed-text-v2:0" }
 }
 
 class P11(private val acme: Acme) {
-  fun plain(x: String): String = acme.invokeModelWithResponseStream { modelId = "amazon.titan-embed-text-v2:0" }
+  fun plain(x: String): String = acme.invokeModel { modelId = "amazon.titan-embed-text-v2:0" }
 }
 
 @RestController
 class H12(private val acme: Acme) {
   @GetMapping("/h12")
-  fun reply(x: String): String = InvokeModelRequest { modelId = "amazon.titan-embed-text-v2:0" }
+  fun reply(x: String): String = acme.invokeModelWithResponseStream { modelId = "amazon.titan-embed-text-v2:0" }
 }
 
 class P12(private val acme: Acme) {
-  fun plain(x: String): String = InvokeModelRequest { modelId = "amazon.titan-embed-text-v2:0" }
+  fun plain(x: String): String = acme.invokeModelWithResponseStream { modelId = "amazon.titan-embed-text-v2:0" }
 }
 
 @RestController
 class H13(private val acme: Acme) {
   @GetMapping("/h13")
-  fun reply(x: String): String = InvokeModelRequest.builder().modelId("amazon.titan-embed-text-v2:0").build()
+  fun reply(x: String): String = InvokeModelRequest { modelId = "amazon.titan-embed-text-v2:0" }
 }
 
 class P13(private val acme: Acme) {
-  fun plain(x: String): String = InvokeModelRequest.builder().modelId("amazon.titan-embed-text-v2:0").build()
+  fun plain(x: String): String = InvokeModelRequest { modelId = "amazon.titan-embed-text-v2:0" }
 }
 
 @RestController
 class H14(private val acme: Acme) {
   @GetMapping("/h14")
-  fun reply(x: String): String = InvokeModelWithResponseStreamRequest { modelId = "amazon.titan-embed-text-v2:0" }
+  fun reply(x: String): String = InvokeModelRequest.builder().modelId("amazon.titan-embed-text-v2:0").build()
 }
 
 class P14(private val acme: Acme) {
-  fun plain(x: String): String = InvokeModelWithResponseStreamRequest { modelId = "amazon.titan-embed-text-v2:0" }
+  fun plain(x: String): String = InvokeModelRequest.builder().modelId("amazon.titan-embed-text-v2:0").build()
 }
 
 @RestController
 class H15(private val acme: Acme) {
   @GetMapping("/h15")
-  fun reply(x: String): String = InvokeModelWithResponseStreamRequest.builder().modelId("amazon.titan-embed-text-v2:0").build()
+  fun reply(x: String): String = InvokeModelWithResponseStreamRequest { modelId = "amazon.titan-embed-text-v2:0" }
 }
 
 class P15(private val acme: Acme) {
+  fun plain(x: String): String = InvokeModelWithResponseStreamRequest { modelId = "amazon.titan-embed-text-v2:0" }
+}
+
+@RestController
+class H16(private val acme: Acme) {
+  @GetMapping("/h16")
+  fun reply(x: String): String = InvokeModelWithResponseStreamRequest.builder().modelId("amazon.titan-embed-text-v2:0").build()
+}
+
+class P16(private val acme: Acme) {
   fun plain(x: String): String = InvokeModelWithResponseStreamRequest.builder().modelId("amazon.titan-embed-text-v2:0").build()
 }

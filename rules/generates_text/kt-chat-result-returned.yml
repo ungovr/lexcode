@@ -129,7 +129,7 @@ rules:
                     metavariable: $A
                     regex: ^(GetMapping|PostMapping|PutMapping|PatchMapping|DeleteMapping|RequestMapping|ResponseBody|SendTo|SendToUser|QueryMapping|MutationMapping|SubscriptionMapping|GET|POST|PUT|DELETE|HEAD|Get|Post|Put|Patch|Delete|Route)$
           - pattern-not-inside: |
-              $C { ... }
+              $M { $P -> ... }
       - patterns:
           - pattern-either:
               - pattern-inside: |

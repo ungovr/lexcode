@@ -39,6 +39,34 @@ class LambdaHandlers(private val client: Client) {
     scope.async(Dispatchers.IO) { client.models.generateContent("m", q, null) }
     return "queued"
   }
+
+  @GetMapping("/l5")
+  fun five(q: String): String {
+    
+    File("out.txt").bufferedWriter().use { w -> w.write(client.models.generateContent("m", q, null)) }
+    return "ok"
+  }
+
+  @GetMapping("/l6")
+  fun six(q: String): String {
+    
+    client.models.generateContent("m", q, null).also { r -> repo.save(r) }
+    return "ok"
+  }
+
+  @GetMapping("/l7")
+  fun seven(q: String): String {
+    
+    listOf(client.models.generateContent("m", q, null)).forEach { s -> repo.save(s) }
+    return "ok"
+  }
+
+  @GetMapping("/l8")
+  fun eight(q: String): String {
+    
+    client.models.generateContent("m", q, null).let { c -> repo.save(c) }
+    return "ok"
+  }
 }
 
 class LambdaPlain(private val client: Client) {
@@ -60,6 +88,26 @@ class LambdaPlain(private val client: Client) {
   fun four(q: String) {
     
     scope.async(Dispatchers.IO) { client.models.generateContent("m", q, null) }
+  }
+
+  fun five(q: String) {
+    
+    File("out.txt").bufferedWriter().use { w -> w.write(client.models.generateContent("m", q, null)) }
+  }
+
+  fun six(q: String) {
+    
+    client.models.generateContent("m", q, null).also { r -> repo.save(r) }
+  }
+
+  fun seven(q: String) {
+    
+    listOf(client.models.generateContent("m", q, null)).forEach { s -> repo.save(s) }
+  }
+
+  fun eight(q: String) {
+    
+    client.models.generateContent("m", q, null).let { c -> repo.save(c) }
   }
 }
 
@@ -94,6 +142,34 @@ class LambdaHandlers1(model: dev.langchain4j.model.chat.ChatModel) {
     scope.async(Dispatchers.IO) { assistant.answer(q) }
     return "queued"
   }
+
+  @GetMapping("/l5")
+  fun five(q: String): String {
+    val assistant = AiServices.create(Assistant::class.java, model)
+    File("out.txt").bufferedWriter().use { w -> w.write(assistant.answer(q)) }
+    return "ok"
+  }
+
+  @GetMapping("/l6")
+  fun six(q: String): String {
+    val assistant = AiServices.create(Assistant::class.java, model)
+    assistant.answer(q).also { r -> repo.save(r) }
+    return "ok"
+  }
+
+  @GetMapping("/l7")
+  fun seven(q: String): String {
+    val assistant = AiServices.create(Assistant::class.java, model)
+    listOf(assistant.answer(q)).forEach { s -> repo.save(s) }
+    return "ok"
+  }
+
+  @GetMapping("/l8")
+  fun eight(q: String): String {
+    val assistant = AiServices.create(Assistant::class.java, model)
+    assistant.answer(q).let { c -> repo.save(c) }
+    return "ok"
+  }
 }
 
 class LambdaPlain1(model: dev.langchain4j.model.chat.ChatModel) {
@@ -115,6 +191,26 @@ class LambdaPlain1(model: dev.langchain4j.model.chat.ChatModel) {
   fun four(q: String) {
     val assistant = AiServices.create(Assistant::class.java, model)
     scope.async(Dispatchers.IO) { assistant.answer(q) }
+  }
+
+  fun five(q: String) {
+    val assistant = AiServices.create(Assistant::class.java, model)
+    File("out.txt").bufferedWriter().use { w -> w.write(assistant.answer(q)) }
+  }
+
+  fun six(q: String) {
+    val assistant = AiServices.create(Assistant::class.java, model)
+    assistant.answer(q).also { r -> repo.save(r) }
+  }
+
+  fun seven(q: String) {
+    val assistant = AiServices.create(Assistant::class.java, model)
+    listOf(assistant.answer(q)).forEach { s -> repo.save(s) }
+  }
+
+  fun eight(q: String) {
+    val assistant = AiServices.create(Assistant::class.java, model)
+    assistant.answer(q).let { c -> repo.save(c) }
   }
 }
 

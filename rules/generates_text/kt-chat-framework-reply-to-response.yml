@@ -29,7 +29,7 @@ rules:
               - pattern: llm.call(...)
       - patterns:
           - pattern-regex: (?s)\A(?=.*org\.springframework\.ai\.).*
-          - pattern: $M.stream(...)
+          - pattern: $M.stream($P, ...)
           - metavariable-regex:
               metavariable: $M
               regex: (?i)^(this\.)?_?\w*(model|llm|assistant|ollama|gpt)\w*$
@@ -54,41 +54,6 @@ rules:
               - pattern: model.complete(...)
               - pattern: llamaModel.generate(...)
               - pattern: llamaModel.complete(...)
-      - patterns:
-          - pattern-regex: (?s)\A(?=.*dev\.langchain4j\.).*
-          - pattern: |
-              override fun onPartialResponse($T: String) {
-                ...
-              }
-          - focus-metavariable: $T
-      - patterns:
-          - pattern-regex: (?s)\A(?=.*dev\.langchain4j\.).*
-          - pattern: $TS.onPartialResponse { $T -> ... }
-          - focus-metavariable: $T
-      - patterns:
-          - pattern-regex: (?s)\A(?=.*dev\.langchain4j\.).*
-          - pattern: $TS.onPartialResponse { <... $IT ...> }
-          - metavariable-regex:
-              metavariable: $IT
-              regex: ^it$
-          - focus-metavariable: $IT
-      - patterns:
-          - pattern-regex: (?s)\A(?=.*dev\.langchain4j\.).*
-          - pattern-either:
-              - pattern: model.chat($Q) { $T -> ... }
-              - pattern: chatModel.chat($Q) { $T -> ... }
-          - focus-metavariable: $T
-      - patterns:
-          - pattern-regex: (?s)\A(?=.*dev\.langchain4j\.).*
-          - pattern: |
-              override fun onNext($T: String) {
-                ...
-              }
-          - pattern-inside: |
-              object : StreamingResponseHandler<$M> {
-                ...
-              }
-          - focus-metavariable: $T
     pattern-propagators:
       - pattern: $S.$M { $X -> ... }
         from: $S
@@ -128,7 +93,7 @@ rules:
               regex: ^(GetMapping|PostMapping|PutMapping|PatchMapping|DeleteMapping|RequestMapping|ResponseBody|SendTo|SendToUser|QueryMapping|MutationMapping|SubscriptionMapping|GET|POST|PUT|DELETE|HEAD|Get|Post|Put|Patch|Delete|Route)$
           - pattern: return $X
           - pattern-not-inside: |
-              $C { ... }
+              $M { $P -> ... }
           - focus-metavariable: $X
       - patterns:
           - pattern-either:

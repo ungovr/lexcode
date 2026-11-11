@@ -38,5 +38,33 @@ class LambdaHandlers(private val client: Client) {
     scope.async(Dispatchers.IO) { client.models.generateVideos("v", q, null, null) }
     return "queued"
   }
+
+  @GetMapping("/l5")
+  fun five(q: String): String {
+    
+    File("out.txt").bufferedWriter().use { w -> w.write(client.models.generateVideos("v", q, null, null)) }
+    return "ok"
+  }
+
+  @GetMapping("/l6")
+  fun six(q: String): String {
+    
+    client.models.generateVideos("v", q, null, null).also { r -> repo.save(r) }
+    return "ok"
+  }
+
+  @GetMapping("/l7")
+  fun seven(q: String): String {
+    
+    listOf(client.models.generateVideos("v", q, null, null)).forEach { s -> repo.save(s) }
+    return "ok"
+  }
+
+  @GetMapping("/l8")
+  fun eight(q: String): String {
+    
+    client.models.generateVideos("v", q, null, null).let { c -> repo.save(c) }
+    return "ok"
+  }
 }
 

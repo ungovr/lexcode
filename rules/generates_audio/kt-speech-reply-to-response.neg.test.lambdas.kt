@@ -38,5 +38,33 @@ class LambdaHandlers(private val openAI: OpenAI) {
     scope.async(Dispatchers.IO) { openAI.speech(null) }
     return "queued"
   }
+
+  @GetMapping("/l5")
+  fun five(q: String): String {
+    
+    File("out.txt").bufferedWriter().use { w -> w.write(openAI.speech(null)) }
+    return "ok"
+  }
+
+  @GetMapping("/l6")
+  fun six(q: String): String {
+    
+    openAI.speech(null).also { r -> repo.save(r) }
+    return "ok"
+  }
+
+  @GetMapping("/l7")
+  fun seven(q: String): String {
+    
+    listOf(openAI.speech(null)).forEach { s -> repo.save(s) }
+    return "ok"
+  }
+
+  @GetMapping("/l8")
+  fun eight(q: String): String {
+    
+    openAI.speech(null).let { c -> repo.save(c) }
+    return "ok"
+  }
 }
 
