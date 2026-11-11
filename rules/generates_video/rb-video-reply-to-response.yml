@@ -59,7 +59,12 @@ rules:
               - pattern-inside: sse.write(...)
               - pattern-inside: transmit(...)
               - pattern-inside: ActionCable.server.broadcast(...)
-              - pattern-inside: Turbo::StreamsChannel.$M(...)
+              # A Turbo stream broadcast, except a removal, which shows nothing.
+              - patterns:
+                  - pattern-inside: Turbo::StreamsChannel.$M(...)
+                  - metavariable-regex:
+                      metavariable: $M
+                      regex: ^(?!broadcast_remove)
               - pattern-inside: 'render(..., partial: ..., ...)'
               - pattern-inside: 'render(..., locals: ..., ...)'
               - pattern-inside: response.body = ...
@@ -121,13 +126,13 @@ rules:
               - patterns:
                   - pattern-either:
                       - pattern-inside: |
-                          $VERB $PATH do
+                          $VERB $PATH, ... do
                             ...
                             $TPL(...)
                             ...
                           end
                       - pattern-inside: |
-                          $VERB $PATH do |...|
+                          $VERB $PATH, ... do |...|
                             ...
                             $TPL(...)
                             ...
@@ -141,6 +146,9 @@ rules:
           - pattern-either:
               - pattern-inside: $IV = $RHS
               - pattern-inside: $IV ||= $RHS
+              - pattern-inside: $IV << $RHS
+              - pattern-inside: $IV += $RHS
+              - pattern-inside: $IV.$ATTR = $RHS
           - metavariable-regex:
               metavariable: $IV
               regex: ^@[a-z_][A-Za-z0-9_]*$
@@ -151,125 +159,130 @@ rules:
       - patterns:
           - pattern-either:
               - pattern: |
-                  get $PATH do
+                  get $PATH, ... do
                     ...
                     $LAST
                   end
               - pattern: |
-                  get $PATH do |...|
+                  get $PATH, ... do |...|
                     ...
                     $LAST
                   end
               - pattern: |
-                  post $PATH do
+                  post $PATH, ... do
                     ...
                     $LAST
                   end
               - pattern: |
-                  post $PATH do |...|
+                  post $PATH, ... do |...|
                     ...
                     $LAST
                   end
               - pattern: |
-                  put $PATH do
+                  put $PATH, ... do
                     ...
                     $LAST
                   end
               - pattern: |
-                  put $PATH do |...|
+                  put $PATH, ... do |...|
                     ...
                     $LAST
                   end
               - pattern: |
-                  patch $PATH do
+                  patch $PATH, ... do
                     ...
                     $LAST
                   end
               - pattern: |
-                  patch $PATH do |...|
+                  patch $PATH, ... do |...|
                     ...
                     $LAST
                   end
               - pattern: |
-                  delete $PATH do
+                  delete $PATH, ... do
                     ...
                     $LAST
                   end
               - pattern: |
-                  delete $PATH do |...|
+                  delete $PATH, ... do |...|
                     ...
                     $LAST
                   end
           - pattern-not: |
-              get $PATH do
+              get $PATH, ... do
                 ...
                 $LAST
                 $NEXT
                 ...
               end
           - pattern-not: |
-              get $PATH do |...|
+              get $PATH, ... do |...|
                 ...
                 $LAST
                 $NEXT
                 ...
               end
           - pattern-not: |
-              post $PATH do
+              post $PATH, ... do
                 ...
                 $LAST
                 $NEXT
                 ...
               end
           - pattern-not: |
-              post $PATH do |...|
+              post $PATH, ... do |...|
                 ...
                 $LAST
                 $NEXT
                 ...
               end
           - pattern-not: |
-              put $PATH do
+              put $PATH, ... do
                 ...
                 $LAST
                 $NEXT
                 ...
               end
           - pattern-not: |
-              put $PATH do |...|
+              put $PATH, ... do |...|
                 ...
                 $LAST
                 $NEXT
                 ...
               end
           - pattern-not: |
-              patch $PATH do
+              patch $PATH, ... do
                 ...
                 $LAST
                 $NEXT
                 ...
               end
           - pattern-not: |
-              patch $PATH do |...|
+              patch $PATH, ... do |...|
                 ...
                 $LAST
                 $NEXT
                 ...
               end
           - pattern-not: |
-              delete $PATH do
+              delete $PATH, ... do
                 ...
                 $LAST
                 $NEXT
                 ...
               end
           - pattern-not: |
-              delete $PATH do |...|
+              delete $PATH, ... do |...|
                 ...
                 $LAST
                 $NEXT
                 ...
               end
+          # A last statement that only hands the text on (a log line, printing, a file write, a
+          # save, a queued job, a notifier's post) has that call's value, not the text.
+          - metavariable-regex:
+              metavariable: $LAST
+              regex: '^(?!\s*(?:(?:puts|print|pp|p|warn)\b|(?:[A-Z]\w*(?:::[A-Z]\w*)*|@{0,2}[a-z_]\w*)(?:\s*&?\.\s*[a-z_]\w*)*\s*&?\.\s*(?:debug|info|warn|error|fatal|unknown|write|binwrite|create|create!|save|save!|update|update!|insert|insert_all|upsert|perform_later|perform_async|perform_in|perform_at|deliver_later|deliver_now|deliver|enqueue|publish|post|append|push|notify|send_message)\b))'
           - focus-metavariable: $LAST
     metadata:
       activity: generates_video
