@@ -1,0 +1,46 @@
+rules:
+  - id: lexcode.tracking.java-analytics-calls
+    languages: [java]
+    severity: INFO
+    message: Sends visits or events to a third-party analytics, attribution or crash-reporting service (Firebase Analytics and Crashlytics, Segment, Mixpanel, Amplitude, AppsFlyer, Adjust, Meta app events, Sentry for Android or Google Analytics) that follows the device with its own id, which is tracking devices (tracks_devices).
+    pattern-either:
+      - pattern: FirebaseAnalytics.getInstance(...)
+      - pattern: (FirebaseAnalytics $F).logEvent(...)
+      - pattern: (FirebaseAnalytics $F).setUserId(...)
+      - pattern: (FirebaseAnalytics $F).setUserProperty(...)
+      - pattern: SentryAndroid.init(...)
+      - pattern: Bugsnag.start(...)
+      - pattern: FirebaseCrashlytics.getInstance().setUserId(...)
+      - pattern: (FirebaseCrashlytics $C).setUserId(...)
+      - pattern: MixpanelAPI.getInstance(...)
+      - pattern: new MixpanelAPI(...)
+      - pattern: (MixpanelAPI $M).track(...)
+      - pattern: AppEventsLogger.newLogger(...)
+      - pattern: AppsFlyerLib.getInstance().init(...)
+      - pattern: AppsFlyerLib.getInstance().start(...)
+      - pattern: new AdjustConfig(...)
+      - pattern: TrackMessage.builder(...)
+      - pattern: IdentifyMessage.builder(...)
+      - pattern: ScreenMessage.builder(...)
+      - pattern: PageMessage.builder(...)
+      - pattern: (Amplitude $A).track(...)
+      - pattern: (Amplitude $A).logEvent(...)
+      - pattern: new Amplitude(...)
+      - pattern: '"=~/.*google-analytics\.com\/(g\/|mp\/)?collect.*/"'
+      - patterns:
+          - pattern-either:
+              - pattern: Analytics.with(...)
+              - pattern: new Analytics.Builder(...)
+              - pattern: Analytics.builder(...)
+              - pattern: (Analytics $A).track(...)
+              - pattern: (Analytics $A).identify(...)
+              - pattern: (Analytics $A).screen(...)
+          - pattern-inside: |
+              import com.segment.analytics.Analytics;
+              ...
+    metadata:
+      activity: tracks_devices
+      mentioned: performs
+      definition: https://lexlint.io/activities/tracks-devices
+      provenance: ungovr-original
+      license: MIT

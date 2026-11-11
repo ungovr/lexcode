@@ -1,0 +1,42 @@
+rules:
+  - id: lexcode.personal.java-entity-field
+    languages: [java]
+    severity: INFO
+    message: Declares a stored field for an email, phone number, date of birth, government identifier or IP address on a persistent class (JPA, Hibernate, Room or Spring Data MongoDB), which is processing personal data (processes_personal_data).
+    patterns:
+      - pattern: $T $F;
+      - pattern-either:
+          - pattern-inside: |
+              @Entity
+              class $C { ... }
+          - pattern-inside: |
+              @Entity(...)
+              class $C { ... }
+          - pattern-inside: |
+              @Embeddable
+              class $C { ... }
+          - pattern-inside: |
+              @MappedSuperclass
+              class $C { ... }
+          - pattern-inside: |
+              @Document
+              class $C { ... }
+          - pattern-inside: |
+              @Document(...)
+              class $C { ... }
+      - pattern-not-inside: |
+          $R $M(...) { ... }
+      - pattern-not: |
+          @Transient
+          $T $F;
+      - pattern-not: static $T $F;
+      - metavariable-regex:
+          metavariable: $F
+          regex: (?i)^(e_?mail|email_?(address|addr)?|(user|contact|work|primary|customer)_?e_?mail|phone(_?(number|no|num))?|mobile(_?(number|phone|no))?|telephone|date_?of_?birth|dob|birth_?(date|day)|birthday|ssn|social_?security(_?(number|no))?|national_?(id|insurance)(_?number)?|passport(_?(number|no))?|tax_?(id|number)|drivers?_?licen[sc]e(_?(number|no))?|ip_?(address|addr)?|last_?ip(_?address)?|client_?ip|remote_?(addr|ip|address))$
+      - focus-metavariable: $F
+    metadata:
+      activity: processes_personal_data
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-personal-data
+      provenance: ungovr-original
+      license: MIT
