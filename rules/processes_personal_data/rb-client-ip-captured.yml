@@ -1,0 +1,40 @@
+rules:
+  - id: lexcode.personal.rb-client-ip-captured
+    languages: [ruby]
+    severity: INFO
+    message: Writes the visitor's IP address into a log or a database, which is processing personal data (processes_personal_data).
+    mode: taint
+    pattern-sources:
+      - pattern: request.remote_ip
+      - pattern: request.ip
+      - pattern: request.remote_addr
+      - pattern: request.env["REMOTE_ADDR"]
+      - pattern: request.env["HTTP_X_FORWARDED_FOR"]
+      - pattern: request.headers["X-Forwarded-For"]
+      - pattern: request.headers["REMOTE_ADDR"]
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: Rails.logger.$M(...)
+              - pattern: logger.$M(...)
+              - pattern: "@logger.$M(...)"
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(debug|info|warn|error|fatal|unknown|add)$
+      - patterns:
+          - pattern: $C.$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(create|create!|insert|insert_all|insert_all!|upsert|upsert_all|update|update!|update_all|update_column|update_columns|update_attribute|find_or_create_by|find_or_create_by!)$
+      - patterns:
+          - pattern: "$O.$F = $V"
+          - metavariable-regex:
+              metavariable: $F
+              regex: ^(ip|ip_address|ip_addr|remote_ip|client_ip|last_ip|last_ip_address|last_sign_in_ip|current_sign_in_ip)$
+          - focus-metavariable: $V
+    metadata:
+      activity: processes_personal_data
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-personal-data
+      provenance: ungovr-original
+      license: MIT
