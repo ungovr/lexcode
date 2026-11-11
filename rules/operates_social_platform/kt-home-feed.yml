@@ -1,0 +1,30 @@
+# The regular expressions in this file repeat across its arms (each arm names the same properties,
+# classes or paths again). Edit every copy together, or an arm drifts from the others.
+rules:
+  - id: lexcode.social.kt-home-feed
+    languages: [kotlin]
+    severity: INFO
+    message: 'Selects posts written by the accounts a user follows or befriends (a query, a finder or a collection filter keyed on followed or friend accounts), which builds a feed of other users'' posts for a social platform (operates_social_platform).'
+    patterns:
+      - pattern-regex: '(?is)\A(?=.*(follow|friend)).*'
+      - pattern-either:
+            - pattern-regex: '(?is)@Query\(\s*(value\s*=\s*)?"{1,3}[^"]{0,500}\b(author|user|owner|creator|poster)\w*(\.id)?\s+in\s*\([^"]{0,300}\b(follow(?!_?ups?(\b|_|[A-Z]))|friend)'
+            - pattern-regex: '(?is)@Query\(\s*(value\s*=\s*)?"{1,3}[^"]{0,300}\bfrom\s+\w*(post|status|tweet)\w*[^"]{0,300}\bjoin\s+\w*(follow(?!_?ups?(\b|_|[A-Z]))|friend)'
+            - pattern-regex: '(?i)\b(find|get|list|load|fetch)\w{0,40}(Post|Tweet|Status|Message|Feed|Timeline|Update|By(Author|Poster|Creator|Owner|User)(Id)?In)\w{0,40}\([^)\n]{0,200}\b(following|followed|followees?|followingIds|followedIds|friends|friendIds)\b'
+            - patterns:
+                - pattern-either:
+                    - pattern: '$FOL.contains($P.$A)'
+                    - pattern: '$P.$A in $FOL'
+                - metavariable-regex:
+                    metavariable: $FOL
+                    regex: '(?i)^[\w.]*(following|followed|followees?|friends|friendIds)\w*$'
+                - metavariable-regex:
+                    metavariable: $A
+                    regex: '^(author|poster|creator|owner|user)(Id)?$'
+    metadata:
+      activity: operates_social_platform
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/operates-social-platform
+      provenance: ungovr-original
+      license: MIT

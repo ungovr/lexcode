@@ -1,0 +1,97 @@
+# The regular expressions in this file repeat across its arms (each arm names the same properties,
+# classes or paths again). Edit every copy together, or an arm drifts from the others.
+rules:
+  - id: lexcode.social.kt-direct-message
+    languages: [kotlin]
+    severity: INFO
+    message: 'Stores or sends a message addressed from one user account to another (a direct or private message class with a sender and a recipient, or a WebSocket send to one named user), which is how people talk on a social platform (operates_social_platform).'
+    patterns:
+      - pattern-regex: '(?s)\A(?=.*(recipient|receiver|toUser|convertAndSendToUser)).*'
+      - pattern-either:
+            - patterns:
+                - pattern-either:
+                    - pattern: 'class $C(..., val $G: $T2, ..., val $F: $T, ...)'
+                    - pattern: 'class $C(..., val $G: $T2, ..., var $F: $T, ...)'
+                    - pattern: 'class $C(..., var $G: $T2, ..., val $F: $T, ...)'
+                    - pattern: 'class $C(..., var $G: $T2, ..., var $F: $T, ...)'
+                    - pattern: 'class $C(..., val $F: $T2, ..., val $G: $T, ...)'
+                    - pattern: 'class $C(..., val $F: $T2, ..., var $G: $T, ...)'
+                    - pattern: 'class $C(..., var $F: $T2, ..., val $G: $T, ...)'
+                    - pattern: 'class $C(..., var $F: $T2, ..., var $G: $T, ...)'
+                - metavariable-regex:
+                    metavariable: $C
+                    regex: '^(?!.*(Email|Mail|Sms|Notification|Log|Event|Contact|Audit|Queue|Jms|Kafka)).*(DirectMessage|PrivateMessage|ChatMessage|UserMessage|InboxMessage|Dm|DM)$'
+                - metavariable-regex:
+                    metavariable: $G
+                    regex: '^(sender|fromUser|senderId|fromUserId|author|authorId)$'
+                - metavariable-regex:
+                    metavariable: $F
+                    regex: '^(recipient|receiver|toUser|recipientId|receiverId|toUserId)$'
+            - patterns:
+                - pattern-either:
+                    - pattern: 'val $G: $T'
+                    - pattern: 'var $G: $T'
+                    - pattern: 'val $G: $T = $V'
+                    - pattern: 'var $G: $T = $V'
+                - pattern-either:
+                    - pattern-inside: |
+                        class $C(...) {
+                          ...
+                          val $F: $T2
+                          ...
+                        }
+                    - pattern-inside: |
+                        class $C(...) {
+                          ...
+                          var $F: $T2
+                          ...
+                        }
+                    - pattern-inside: |
+                        class $C(...) {
+                          ...
+                          val $F: $T2 = $W
+                          ...
+                        }
+                    - pattern-inside: |
+                        class $C(...) {
+                          ...
+                          var $F: $T2 = $W
+                          ...
+                        }
+                - pattern-not-inside: |
+                    fun $FN(...) {
+                      ...
+                    }
+                - pattern-not-inside: |
+                    fun $FN(...) = $FE
+                - metavariable-regex:
+                    metavariable: $C
+                    regex: '^(?!.*(Email|Mail|Sms|Notification|Log|Event|Contact|Audit|Queue|Jms|Kafka)).*(DirectMessage|PrivateMessage|ChatMessage|UserMessage|InboxMessage|Dm|DM)$'
+                - metavariable-regex:
+                    metavariable: $G
+                    regex: '^(sender|fromUser|senderId|fromUserId|author|authorId)$'
+                - metavariable-regex:
+                    metavariable: $F
+                    regex: '^(recipient|receiver|toUser|recipientId|receiverId|toUserId)$'
+            - patterns:
+                - pattern: '$T.convertAndSendToUser($U, $D, ...)'
+                - pattern-either:
+                    - pattern-inside: |
+                        import org.springframework.messaging.simp.SimpMessagingTemplate
+                        ...
+                    - pattern-inside: |
+                        import org.springframework.messaging.simp.SimpMessageSendingOperations
+                        ...
+                    - pattern-inside: |
+                        import org.springframework.messaging.simp.*
+                        ...
+                - metavariable-regex:
+                    metavariable: $D
+                    regex: '(?i)^"([^"]*(message|chat|private|direct)[^"]*|([^"]*[/._-])?dms?([/._-][^"]*)?)"$'
+    metadata:
+      activity: operates_social_platform
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/operates-social-platform
+      provenance: ungovr-original
+      license: MIT
