@@ -1,6 +1,6 @@
 // lexcode-expect: 0
 // Not a public sign-up page: the same paths under an admin controller or an admin route, a
-// method restricted to a role, a route behind an authentication block, login and logout routes,
+// method restricted to a role (expression, block and typed bodies), Ktor login and logout routes, a route behind an authentication block, login and logout routes,
 // a vehicle registration path, and route calls whose handler never answers through a Ktor call.
 package demo.web
 
@@ -46,6 +46,30 @@ class RestrictedController {
     @PostMapping("/register")
     fun onboardRoles(): String = "ok"
 
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/register")
+    fun onboardBlock() {
+        println("ok")
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/register")
+    fun onboardTyped(): String {
+        return "ok"
+    }
+
+    @Secured("ROLE_ADMIN")
+    @PostMapping("/signup")
+    fun securedBlock() {
+        println("ok")
+    }
+
+    @RolesAllowed("admin")
+    @PostMapping("/register")
+    fun rolesBlock() {
+        println("ok")
+    }
+
     @PostMapping("/login")
     fun login(): String = "ok"
 
@@ -60,6 +84,11 @@ class RestrictedController {
 }
 
 class Service
+
+fun Route.sessionRoutes() {
+    get("/login") { call.respond("login") }
+    post("/logout") { call.respond("bye") }
+}
 
 fun Route.staffRoutes() {
     authenticate("staff") {

@@ -1,3 +1,5 @@
+# The regular expressions in this file repeat across its arms (each arm names the same properties,
+# classes or paths again). Edit every copy together, or an arm drifts from the others.
 rules:
   - id: lexcode.consumer.kt-signup-route
     languages: [kotlin]
@@ -11,53 +13,28 @@ rules:
               - pattern-regex: '@WebServlet\(\s*((value|urlPatterns)\s*=\s*)?[\[{]?\s*"/?(accounts/|auth/|users/)?(sign-?up|register|registration|create-account)/?"'
           - pattern-not-inside: |
               @PreAuthorize(...)
-              fun $M(...) {
+              fun $FN(...) {
                 ...
               }
           - pattern-not-inside: |
               @PreAuthorize(...)
-              fun $M(...): $R {
-                ...
-              }
-          - pattern-not-inside: |
-              @PreAuthorize(...)
-              fun $M(...) = $E
+              fun $FN(...) = $FE
           - pattern-not-inside: |
               @Secured(...)
-              fun $M(...) {
+              fun $FN(...) {
                 ...
               }
           - pattern-not-inside: |
               @Secured(...)
-              fun $M(...): $R {
-                ...
-              }
-          - pattern-not-inside: |
-              @Secured(...)
-              fun $M(...) = $E
+              fun $FN(...) = $FE
           - pattern-not-inside: |
               @RolesAllowed(...)
-              fun $M(...) {
+              fun $FN(...) {
                 ...
               }
           - pattern-not-inside: |
               @RolesAllowed(...)
-              fun $M(...): $R {
-                ...
-              }
-          - pattern-not-inside: |
-              @RolesAllowed(...)
-              fun $M(...) = $E
-          - pattern-not-inside:
-              patterns:
-                  - pattern: |
-                      @RequestMapping($...A)
-                      class $C {
-                        ...
-                      }
-                  - metavariable-regex:
-                      metavariable: $...A
-                      regex: '^((value|path)\s*=\s*)?\[?\s*"/?(api/)?(admin|staff|internal|manage|backoffice|operators?)(/[^"]*)?"'
+              fun $FN(...) = $FE
           - pattern-not-inside:
               patterns:
                   - pattern: |

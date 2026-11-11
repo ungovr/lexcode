@@ -1,7 +1,8 @@
 // lexcode-expect: 0
 // Not a follow relation between user accounts: a follow-up task on a support case, a Raft
 // follower node, a JDBC connection, a billing subscription, a follower in one class and the
-// followed side in another, and locals inside a method.
+// followed side in another, a following count beside an unrelated field, a follower beside a
+// leader, and locals inside a method (block, typed and expression bodies).
 package demo.social
 
 import jakarta.persistence.Entity
@@ -42,12 +43,34 @@ class FollowedSide {
     var followed: Role? = null
 }
 
+data class ProfileView(val name: String, val following: Int)
+
+class ProfileCard {
+    var name: String = ""
+    var following: Int = 0
+}
+
+class RaftMember {
+    var follower: Role? = null
+    var leader: Node? = null
+}
+
 class Scheduler {
     var following: Role? = null
 
     fun elect() {
         val follower: Node = Node()
         println(follower)
+    }
+
+    fun pick(): Node {
+        val follower: Node = Node()
+        return follower
+    }
+
+    fun lookup() = run {
+        val follower: Node = Node()
+        follower
     }
 }
 

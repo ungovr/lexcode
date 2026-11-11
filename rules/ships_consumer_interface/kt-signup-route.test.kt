@@ -1,6 +1,6 @@
-// lexcode-expect: 8
+// lexcode-expect: 10
 // Public sign-up pages and endpoints: Spring MVC mappings (plain, named value and array forms),
-// JAX-RS and servlet paths, and Ktor routes whose handler answers through the call.
+// a controller under a non-admin class mapping, JAX-RS and servlet paths, a Ktor route under /api, and Ktor routes whose handler answers through the call.
 package demo.web
 
 import io.ktor.server.application.call
@@ -29,6 +29,13 @@ class SignUpController {
     fun create(): String = "ok"
 }
 
+@RestController
+@RequestMapping("/api")
+class ApiSignUpController {
+    @PostMapping("/signup")
+    fun signUp(): String = "ok"
+}
+
 @Path("/registration")
 class RegistrationResource
 
@@ -47,6 +54,9 @@ fun Route.accountRoutes() {
     }
     route("/admin") {
         post("/signup") { call.respond("created by staff") }
+    }
+    route("/api") {
+        post("/signup") { call.respond("created") }
     }
     get("/login") { call.respond("login") }
     post("/accounts/register") {

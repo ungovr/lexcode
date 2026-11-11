@@ -1,3 +1,5 @@
+# The regular expressions in this file repeat across its arms (each arm names the same properties,
+# classes or paths again). Edit every copy together, or an arm drifts from the others.
 rules:
   - id: lexcode.consumer.kt-signup-screen
     languages: [kotlin]

@@ -1,3 +1,5 @@
+# The regular expressions in this file repeat across its arms (each arm names the same properties,
+# classes or paths again). Edit every copy together, or an arm drifts from the others.
 rules:
   - id: lexcode.social.kt-follow-relation
     languages: [kotlin]
@@ -30,30 +32,6 @@ rules:
                     - pattern: 'var $G: $T = $V'
                 - pattern-either:
                     - pattern-inside: |
-                        class $C {
-                          ...
-                          val $F: $T2
-                          ...
-                        }
-                    - pattern-inside: |
-                        class $C {
-                          ...
-                          var $F: $T2
-                          ...
-                        }
-                    - pattern-inside: |
-                        class $C {
-                          ...
-                          val $F: $T2 = $W
-                          ...
-                        }
-                    - pattern-inside: |
-                        class $C {
-                          ...
-                          var $F: $T2 = $W
-                          ...
-                        }
-                    - pattern-inside: |
                         class $C(...) {
                           ...
                           val $F: $T2
@@ -78,15 +56,11 @@ rules:
                           ...
                         }
                 - pattern-not-inside: |
-                    fun $M(...) {
+                    fun $FN(...) {
                       ...
                     }
                 - pattern-not-inside: |
-                    fun $M(...): $R {
-                      ...
-                    }
-                - pattern-not-inside: |
-                    fun $M(...) = $E
+                    fun $FN(...) = $FE
                 - metavariable-regex:
                     metavariable: $G
                     regex: '^follower(User|Account|Member|Profile)?(Id)?$'

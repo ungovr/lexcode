@@ -1,6 +1,6 @@
 // lexcode-expect: 0
 // Not a feed of the accounts a user follows: a user's own posts, a team's tasks, follow-up
-// tasks, an RSS feed lookup, and allow-list and block-list filters on an author.
+// tasks (also joined to a FollowUp table), an RSS feed lookup, and allow-list and block-list filters on an author.
 package demo.social
 
 import org.springframework.data.jpa.repository.JpaRepository
@@ -21,6 +21,9 @@ interface PostRepository : JpaRepository<Post, Long> {
 
     @Query("select t from Task t where t.owner in (select f.assignee from FollowUp f where f.followUpDone = false)")
     fun openFollowUps(): List<Post>
+
+    @Query("select p from Post p join FollowUp f on f.post = p where f.followUpDone = false")
+    fun withOpenFollowUps(): List<Post>
 
     @Query(value = "select * from tasks t where t.owner_id in (1, 2) and t.follow_up_date < :d", nativeQuery = true)
     fun overdue(d: String): List<Post>
