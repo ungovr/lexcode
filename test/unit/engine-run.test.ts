@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, readdir, rm, stat } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { availableParallelism, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -162,6 +162,43 @@ describe.skipIf(skipStub)('runEngine with the fake engine', () => {
     const r = await run({ engine: STUB, configFile: 'c.yml', targets: ['a.py'], root: dir });
     expect(r.fileErrors).toBe(2);
     expect(r.matches).toHaveLength(1);
+  });
+
+  describe('a partial parse of an XML file', () => {
+    const span = (line: number, col: number) => ({ file: 'pom.xml', start: { line, col, offset: 0 }, end: { line, col: col + 5, offset: 5 } });
+    const partial = (path: string, ...spans: unknown[]) =>
+      JSON.stringify([{ code: 3, level: 'warn', type: ['PartialParsing', spans], path, message: 'Syntax error', spans }]);
+    const pom = '<project>\n  <build>\n    <?m2e ignore?>\n    <name>x</name>\n      <?m2e execute?>\n  </build>\n</project>\n';
+
+    it('is not a file error when it dropped only processing instructions (a pom with <?m2e ...?>)', async () => {
+      await writeFile(join(dir, 'pom.xml'), pom);
+      setEnv('FAKE_OPENGREP_ERRORS', partial('scan-root/pom.xml', span(3, 5), span(5, 7)));
+      const r = await run({ engine: STUB, configFile: 'c.yml', targets: ['pom.xml'], root: dir });
+      expect(r.fileErrors).toBe(0);
+      expect(r.matches).toHaveLength(1);
+    });
+
+    it('is a file error when any dropped span is not a processing instruction', async () => {
+      await writeFile(join(dir, 'pom.xml'), pom);
+      setEnv('FAKE_OPENGREP_ERRORS', partial('scan-root/pom.xml', span(3, 5), span(4, 5)));
+      const r = await run({ engine: STUB, configFile: 'c.yml', targets: ['pom.xml'], root: dir });
+      expect(r.fileErrors).toBe(1);
+    });
+
+    it('is a file error when the file cannot be reread, or the engine named no span', async () => {
+      setEnv('FAKE_OPENGREP_ERRORS', partial('scan-root/missing.xml', span(3, 5)));
+      expect((await run({ engine: STUB, configFile: 'c.yml', targets: ['missing.xml'], root: dir })).fileErrors).toBe(1);
+      await writeFile(join(dir, 'pom.xml'), pom);
+      setEnv('FAKE_OPENGREP_ERRORS', partial('scan-root/pom.xml'));
+      expect((await run({ engine: STUB, configFile: 'c.yml', targets: ['pom.xml'], root: dir })).fileErrors).toBe(1);
+    });
+
+    it('stays a file error for a source file, even where the dropped text starts with <?', async () => {
+      await writeFile(join(dir, 'A.kt'), pom);
+      setEnv('FAKE_OPENGREP_ERRORS', partial('scan-root/A.kt', span(3, 5)));
+      const r = await run({ engine: STUB, configFile: 'c.yml', targets: ['A.kt'], root: dir });
+      expect(r.fileErrors).toBe(1);
+    });
   });
 
   it('throws a ToolError carrying the engine message for a fatal rule error', async () => {
