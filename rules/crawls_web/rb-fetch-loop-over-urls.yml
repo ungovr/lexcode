@@ -1,0 +1,67 @@
+rules:
+  - id: lexcode.crawl.rb-fetch-loop-over-urls
+    languages: [ruby]
+    severity: INFO
+    message: Fetches each URL in a list held in a variable, which may be crawling sites the operator does not run (crawls_web).
+    patterns:
+      # A pre-filter: the fetcher below is a metavariable with a regular expression, which has no
+      # literal of its own, so without this the engine parses every Ruby file. It names every
+      # library and client receiver the fetcher regular expression can accept, and the receiver
+      # words are matched in any case, as that regular expression matches them.
+      - pattern-regex: '(Net::HTTP|URI\.open|URI(\.parse)?\([^)]*\)\s*&?\.(open|read)|HTTParty|Faraday|RestClient|Typhoeus|\bHTTP\.(get|head)|\bopen[ (]|(?i:client|conn|http|session|agent|faraday)\w*\.(get|head)\b)'
+      - pattern-either:
+          - patterns:
+              - pattern-either:
+                  - pattern-inside: |
+                      $L.$M(...) do |$URL, ...|
+                        ...
+                      end
+                  - pattern-inside: |
+                      $L.$M(...) { |$URL, ...| ... }
+              - metavariable-regex:
+                  metavariable: $M
+                  regex: ^(each|each_with_index|each_with_object|map|collect|flat_map|collect_concat|filter_map|select|reject|find|detect|each_entry|each_slice|each_value|in_threads|in_processes|peach|pmap)$
+          - pattern-inside: |
+              for $URL in $L
+                ...
+              end
+          - pattern-inside: |
+              for $URL in $L do
+                ...
+              end
+      - pattern-either:
+          - patterns:
+              - pattern-either:
+                  - pattern: $F($URL, ...)
+                  - pattern: $F(URI($URL), ...)
+                  - pattern: $F(URI.parse($URL), ...)
+                  - patterns:
+                      - pattern-inside: |
+                          $U = URI.parse($URL)
+                          ...
+                      - pattern: $F($U, ...)
+                  - patterns:
+                      - pattern-inside: |
+                          $U = URI($URL)
+                          ...
+                      - pattern: $F($U, ...)
+              - metavariable-regex:
+                  metavariable: $F
+                  regex: ^(Net::HTTP\.(get|get_response|get_print)|URI\.open|HTTParty\.(get|head)|Faraday\.(get|head)|RestClient\.(get|head)|Typhoeus\.(get|head)|HTTP\.(get|head)|@{0,2}(?!\w*(redis|cache|dalli|memcache|store|storage|s3|aws))(\w*[cC]lient|conn|\w*[cC]onn(ection)?|\w*[hH]ttp\w*|\w*[sS]ession|agent|\w*[aA]gent|\w*[fF]araday\w*)\.(get|head))$
+          - pattern: URI.parse($URL).open(...)
+          - pattern: URI.parse($URL).read(...)
+          - pattern: URI($URL).open(...)
+          - pattern: URI($URL).read(...)
+          - patterns:
+              - pattern: open($URL, ...)
+              - metavariable-regex:
+                  metavariable: $URL
+                  regex: (?i)(url|uri|link|href|feed|site|page)
+    metadata:
+      activity: crawls_web
+      mentioned: performs
+      definition: https://lexlint.io/activities/crawls-web
+      provenance: ungovr-original
+      license: MIT
+      strength: signal
+      host_metavar: $URL

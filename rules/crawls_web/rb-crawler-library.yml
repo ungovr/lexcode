@@ -1,0 +1,19 @@
+rules:
+  - id: lexcode.crawl.rb-crawler-library
+    languages: [ruby]
+    severity: INFO
+    message: Starts a crawler library (Spidr, Anemone, Medusa) from a site, host or list of URLs, which is crawling the web (crawls_web).
+    pattern-either:
+      - pattern: Spidr.site($URL, ...)
+      - pattern: Spidr.host($URL, ...)
+      - pattern: Spidr.domain($URL, ...)
+      - pattern: Spidr.start_at($URL, ...)
+      - pattern: Anemone.crawl($URL, ...)
+      - pattern: Medusa.crawl($URL, ...)
+    metadata:
+      activity: crawls_web
+      mentioned: performs
+      definition: https://lexlint.io/activities/crawls-web
+      provenance: ungovr-original
+      license: MIT
+      host_metavar: $URL
