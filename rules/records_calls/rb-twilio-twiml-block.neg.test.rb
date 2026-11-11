@@ -33,7 +33,7 @@ end
 
 class NodeBuilder
   def bridge(number)
-    Twilio::TwiML::Dial.new(number, record: "do-not-record", timeout: 10)
+    Twilio::TwiML::Dial.new(number: number, record: "do-not-record", timeout: 10)
   end
 
   def room(name)

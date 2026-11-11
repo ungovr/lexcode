@@ -28,7 +28,7 @@ class CallerVerification
     )
   end
 
-  def score(domain_id, session_name, audio_bytes)
-    @voice_id.evaluate_session(domain_id: domain_id, session_name_or_id: session_name, audio: audio_bytes)
+  def score(domain_id, session_name)
+    @voice_id.evaluate_session(domain_id: domain_id, session_name_or_id: session_name)
   end
 end
