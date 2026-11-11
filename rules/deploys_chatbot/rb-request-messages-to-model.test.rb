@@ -1,4 +1,4 @@
-# lexcode-expect: 19
+# lexcode-expect: 25
 # Rails endpoints and an ActionCable channel that hand what a person typed, or the conversation so
 # far, to a language model.
 class ChatsController < ApplicationController
@@ -92,5 +92,19 @@ class ResidualShapesChats < ApplicationController
       .create(model: "claude-sonnet-4-5", max_tokens: 1024, messages: params[:history])
     msg = anthropic.messages parameters: { model: "claude-sonnet-4-5", max_tokens: 1024, messages: params[:history] }
     render json: { msg: msg }
+  end
+end
+
+# The conversation list itself, after a system message, spread into a list, mapped, or read
+# from nested params in the call.
+class ListShapesController < ApplicationController
+  def create
+    system = { role: "system", content: "You are the help desk assistant." }
+    openai.chat(parameters: { model: "gpt-4o-mini", messages: [system, *params[:history]] })
+    openai.chat(parameters: { model: "gpt-4o-mini", messages: params[:messages].map { |m| { role: m[:role], content: m[:content] } } })
+    anthropic.messages.create(model: "claude-sonnet-4-5", max_tokens: 1024, messages: params.dig(:chat, :messages))
+    client.responses.create(model: "gpt-5", input: request.params[:messages])
+    openai.chat(parameters: { model: "gpt-4o-mini", messages: params.fetch(:history, []) })
+    openai.chat(parameters: { model: "gpt-4o-mini", messages: params.require(:messages) })
   end
 end

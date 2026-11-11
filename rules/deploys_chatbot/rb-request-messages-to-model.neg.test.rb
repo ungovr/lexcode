@@ -91,3 +91,29 @@ class FaqsController < ApplicationController
     render html: "<dl><dt>How do I reset my password?</dt><dd>Use the link on the sign-in page.</dd></dl>".html_safe
   end
 end
+
+# A conversation pasted into a single prompt, to summarize or title it, is a one-shot tool: the
+# request carries text, not a list of turns for the model to continue.
+class ThreadToolsController < ApplicationController
+  def summary
+    response = openai.chat(parameters: { model: "gpt-4o-mini", messages: [{ role: "user", content: "Summarize: #{params[:conversation]}" }] })
+    render json: { summary: response.dig("choices", 0, "message", "content") }
+  end
+
+  def title
+    msg = anthropic.messages.create(model: "claude-sonnet-4-5", max_tokens: 64, messages: [{ role: "user", content: params[:history] }])
+    render json: { title: msg.content.first.text }
+  end
+
+  def digest
+    reply = client.responses.create(model: "gpt-5", input: "List the decisions in this thread: #{params[:messages]}")
+    render json: { digest: reply.output_text }
+  end
+end
+
+class ThreadToolsChannel < ApplicationCable::Channel
+  def summarize(data)
+    reply = client.messages.create(model: "claude-sonnet-4-5", max_tokens: 256, messages: [{ role: "user", content: "Summarize: #{data["conversation"]}" }])
+    transmit({ summary: reply.content.first.text })
+  end
+end
