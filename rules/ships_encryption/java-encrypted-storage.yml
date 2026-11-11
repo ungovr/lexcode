@@ -1,0 +1,24 @@
+rules:
+  - id: lexcode.crypto.java-encrypted-storage
+    languages: [java]
+    severity: INFO
+    message: Encrypts what an Android app stores with Jetpack Security (EncryptedSharedPreferences or EncryptedFile) or SQLCipher, which is shipping encryption (ships_encryption).
+    pattern-either:
+      - pattern: EncryptedSharedPreferences.create(...)
+      - pattern: new EncryptedFile.Builder(...)
+      - patterns:
+          - pattern: new SupportFactory(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import net.sqlcipher.database.SupportFactory;
+                  ...
+              - pattern-inside: |
+                  import net.sqlcipher.database.*;
+                  ...
+      - pattern: new SupportOpenHelperFactory(...)
+    metadata:
+      activity: ships_encryption
+      mentioned: performs
+      definition: https://lexlint.io/glossary#ships-encryption
+      provenance: ungovr-original
+      license: MIT

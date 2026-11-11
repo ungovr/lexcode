@@ -1,0 +1,78 @@
+// lexcode-expect: 0
+// Signing a person in is not checking who they are: a password login, ordinary OAuth and OpenID
+// Connect sign-in, Google Sign-In, Firebase email and password, and a biometric unlock prompt.
+// Stripe payments and Checkout sit next to Stripe Identity without being it. The vendor guard
+// is tested too: this file imports Stripe's Android identity sheet (unused, a different vendor
+// branch) and calls the generic names VerificationSession.create, Sdk.createLaunchIntent,
+// Inquiry.fromTemplate, DigitalIdentityClient.builder, JumioSDK and DefaultApi (the default
+// name of every OpenAPI-generated client) on classes of the project's own. Without each call's
+// own vendor import none of them is a vendor call.
+package demo.auth;
+
+import android.app.Activity;
+import androidx.biometric.BiometricPrompt;
+import com.google.android.gms.auth.api.signin.GoogleSignIn;
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
+import com.google.firebase.auth.FirebaseAuth;
+import com.stripe.model.PaymentIntent;
+import com.stripe.model.checkout.Session;
+import com.stripe.android.identity.IdentityVerificationSheet;
+import demo.camera.Sdk;
+import demo.generated.DefaultApi;
+import demo.kyc.DigitalIdentityClient;
+import demo.kyc.Inquiry;
+import demo.kyc.JumioSDK;
+import demo.sms.VerificationSession;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+
+public class SignIn {
+  public Object passwordLogin(FirebaseAuth auth, String email, String password) {
+    return auth.signInWithEmailAndPassword(email, password);
+  }
+
+  public Object googleSignIn(Activity activity) {
+    GoogleSignInOptions options =
+        new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN).requestEmail().build();
+    return GoogleSignIn.getClient(activity, options);
+  }
+
+  public Object oauthLogin(HttpSecurity http) throws Exception {
+    return http.oauth2Login(login -> login.defaultSuccessUrl("/home")).build();
+  }
+
+  public BiometricPrompt.PromptInfo unlock() {
+    return new BiometricPrompt.PromptInfo.Builder().setTitle("Unlock").setNegativeButtonText("Cancel").build();
+  }
+
+  public Object charge(com.stripe.param.PaymentIntentCreateParams params) throws Exception {
+    return PaymentIntent.create(params);
+  }
+
+  public Object checkout(com.stripe.param.checkout.SessionCreateParams params) throws Exception {
+    return Session.create(params);
+  }
+
+  public Object ownInquiry(String template) {
+    return Inquiry.fromTemplate(template);
+  }
+
+  public Object ownCamera(Activity activity, String url) {
+    return Sdk.createLaunchIntent(activity, url);
+  }
+
+  public Object ownIdentity() {
+    return DigitalIdentityClient.builder();
+  }
+
+  public Object ownJumio(android.content.Context context) {
+    return new JumioSDK(context);
+  }
+
+  public Object ownGeneratedClient(Object client) {
+    return new DefaultApi(client);
+  }
+
+  public Object ownVerification() {
+    return VerificationSession.create("sms");
+  }
+}
