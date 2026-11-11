@@ -1,0 +1,61 @@
+rules:
+  - id: lexcode.audio.rb-speech-reply-to-response
+    languages: [ruby]
+    severity: INFO
+    message: Sends speech synthesized by a text-to-speech model back in an HTTP response, which is generating audio with AI that reaches users (generates_audio).
+    mode: taint
+    pattern-sources:
+      - pattern: '$C.audio.speech(parameters: ...)'
+      - pattern: $C.audio.speech.create(...)
+      - pattern: $C.text_to_speech.convert(...)
+      - pattern: $C.text_to_speech.stream(...)
+      - pattern: $C.synthesize_speech(...)
+      - pattern: RubyLLM.speak(...)
+    pattern-propagators:
+      - pattern: $OUT = <... $R ...>
+        from: $R
+        to: $OUT
+      - pattern: |
+          $S.each do |$X|
+            ...
+          end
+        from: $S
+        to: $X
+      - pattern: '$S.each { |$X| ... }'
+        from: $S
+        to: $X
+      - pattern: $SRC.save($DST)
+        from: $SRC
+        to: $DST
+        by-side-effect: true
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern-inside: 'render(..., json: ..., ...)'
+              - pattern-inside: 'render(..., plain: ..., ...)'
+              - pattern-inside: 'render(..., text: ..., ...)'
+              - pattern-inside: 'render(..., html: ..., ...)'
+              - pattern-inside: 'render(..., body: ..., ...)'
+              - pattern-inside: 'render(..., xml: ..., ...)'
+              - pattern-inside: 'render(..., inline: ..., ...)'
+              - pattern-inside: 'render(..., turbo_stream: ..., ...)'
+              - pattern-inside: send_data(...)
+              - pattern-inside: respond_with(...)
+              - pattern-inside: halt(...)
+              - pattern-inside: json(...)
+              - pattern-inside: response.stream.write(...)
+              - pattern-inside: sse.write(...)
+              - pattern-inside: transmit(...)
+              - pattern-inside: ActionCable.server.broadcast(...)
+              - pattern-inside: Turbo::StreamsChannel.$M(...)
+              - pattern-inside: send_file(...)
+          - pattern: $V
+          - metavariable-regex:
+              metavariable: $V
+              regex: ^@?[a-z_][A-Za-z0-9_]*$
+    metadata:
+      activity: generates_audio
+      mentioned: performs
+      definition: https://lexlint.io/activities/generates-audio
+      provenance: ungovr-original
+      license: MIT

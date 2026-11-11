@@ -1,0 +1,37 @@
+# lexcode-expect: 5
+require "openai"
+
+class ClipsController < ApplicationController
+  # The Sora job started for the visitor is returned to them.
+  def create
+    client = OpenAI::Client.new(api_key: ENV["OPENAI_API_KEY"])
+    job = client.videos.create(model: "sora-2", prompt: params[:prompt], seconds: "4")
+    render json: { job_id: job.id, status: job.status }
+  end
+end
+
+class AnimationsController < ApplicationController
+  # ruby_llm writes the rendered clip to a file, and the file is what the user receives.
+  def show
+    clip = RubyLLM.animate(params[:prompt])
+    path = Rails.root.join("tmp", "clip-#{SecureRandom.hex(6)}.mp4").to_s
+    clip.save(path)
+    send_file path, type: "video/mp4"
+  end
+end
+
+class StatusController < ApplicationController
+  def show
+    client = OpenAI::Client.new
+    job = client.videos.create(parameters: { model: "sora-2", prompt: "A walk through a market" })
+    render plain: job.status
+  end
+end
+
+class TeaserJob < ApplicationJob
+  def perform(campaign_id, prompt)
+    client = OpenAI::Client.new
+    job = client.videos.create(model: "sora-2", prompt: prompt)
+    ActionCable.server.broadcast("campaigns_#{campaign_id}", { job: job.id })
+  end
+end

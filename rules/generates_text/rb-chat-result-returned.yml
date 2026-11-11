@@ -1,0 +1,116 @@
+rules:
+  - id: lexcode.text.rb-chat-result-returned
+    languages: [ruby]
+    severity: INFO
+    message: Returns text written by a chat or completion model from a method, which may be generating text with AI that reaches users (generates_text).
+    mode: taint
+    pattern-sources:
+      - pattern: '$C.chat(parameters: ...)'
+      - pattern: '$C.completions(parameters: ...)'
+      - pattern: $C.chat.completions.create(...)
+      - pattern: '$C.responses.create(parameters: ...)'
+      - pattern: '$C.responses.create(..., model: ..., ...)'
+      - pattern: $C.responses.stream(...)
+      - pattern: '$C.messages.create(..., max_tokens: ..., ...)'
+      - pattern: '$C.messages.stream(..., max_tokens: ..., ...)'
+      - pattern: $C.converse(...)
+      - pattern: $C.converse_stream(...)
+      - pattern: '$C.chat(..., messages: ..., ...)'
+      - pattern: '$C.complete(..., prompt: ..., ...)'
+      - pattern: RubyLLM.chat(...)
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  $C.ask(...) do |$X|
+                    ...
+                  end
+              - pattern-inside: '$C.ask(...) { |$X| ... }'
+          - pattern: $X
+    pattern-propagators:
+      - pattern: $OUT = <... $R ...>
+        from: $R
+        to: $OUT
+      - pattern: |
+          $S.each do |$X|
+            ...
+          end
+        from: $S
+        to: $X
+      - pattern: '$S.each { |$X| ... }'
+        from: $S
+        to: $X
+    pattern-sinks:
+      - pattern: yield $X
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  def $F(...)
+                    ...
+                  end
+              - pattern-inside: |
+                  def self.$F(...)
+                    ...
+                  end
+          - pattern-either:
+              - pattern: return $V
+              - pattern: return $V.$M(...)
+              - pattern: return $V.$M(...).$N
+              - pattern: return $V.$M(...).$N(...)
+              - pattern: return $V[...]
+              - pattern: 'return { ..., $K: $V, ... }'
+              - pattern: 'return { ..., $K: $V.$M(...), ... }'
+          - metavariable-regex:
+              metavariable: $V
+              regex: ^@?[a-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*[?!]?)*$
+          - focus-metavariable: $V
+      - patterns:
+          - pattern: |
+              def $F(...)
+                ...
+                $X
+              end
+          - pattern-not: |
+              def $F(...)
+                ...
+                $X
+                $Y
+              end
+          - metavariable-regex:
+              metavariable: $X
+              regex: ^@?[a-z_]\w*\.dig\(
+          - metavariable-pattern:
+              metavariable: $X
+              pattern-either:
+                - pattern: $V.dig(...)
+                - pattern: $V.dig(...).$N
+                - pattern: $V.dig(...).$N(...)
+          - focus-metavariable: $X
+      - patterns:
+          - pattern: |
+              def self.$F(...)
+                ...
+                $X
+              end
+          - pattern-not: |
+              def self.$F(...)
+                ...
+                $X
+                $Y
+              end
+          - metavariable-regex:
+              metavariable: $X
+              regex: ^@?[a-z_]\w*\.dig\(
+          - metavariable-pattern:
+              metavariable: $X
+              pattern-either:
+                - pattern: $V.dig(...)
+                - pattern: $V.dig(...).$N
+                - pattern: $V.dig(...).$N(...)
+          - focus-metavariable: $X
+    metadata:
+      activity: generates_text
+      mentioned: performs
+      definition: https://lexlint.io/activities/generates-text
+      provenance: ungovr-original
+      license: MIT
+      strength: signal

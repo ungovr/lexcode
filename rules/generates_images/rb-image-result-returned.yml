@@ -1,0 +1,100 @@
+rules:
+  - id: lexcode.image.rb-image-result-returned
+    languages: [ruby]
+    severity: INFO
+    message: Returns a picture drawn by an image model from a method, which may be generating images with AI that reach users (generates_images).
+    mode: taint
+    pattern-sources:
+      - pattern: $C.images.generate(...)
+      - pattern: $C.images.edit(...)
+      - pattern: $C.images.variations(...)
+      - pattern: $C.images.create_variation(...)
+      - pattern: RubyLLM.paint(...)
+    pattern-propagators:
+      - pattern: $OUT = <... $R ...>
+        from: $R
+        to: $OUT
+      - pattern: |
+          $S.each do |$X|
+            ...
+          end
+        from: $S
+        to: $X
+      - pattern: '$S.each { |$X| ... }'
+        from: $S
+        to: $X
+    pattern-sinks:
+      - pattern: yield $X
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  def $F(...)
+                    ...
+                  end
+              - pattern-inside: |
+                  def self.$F(...)
+                    ...
+                  end
+          - pattern-either:
+              - pattern: return $V
+              - pattern: return $V.$M(...)
+              - pattern: return $V.$M(...).$N
+              - pattern: return $V.$M(...).$N(...)
+              - pattern: return $V[...]
+              - pattern: 'return { ..., $K: $V, ... }'
+              - pattern: 'return { ..., $K: $V.$M(...), ... }'
+          - metavariable-regex:
+              metavariable: $V
+              regex: ^@?[a-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*[?!]?)*$
+          - focus-metavariable: $V
+      - patterns:
+          - pattern: |
+              def $F(...)
+                ...
+                $X
+              end
+          - pattern-not: |
+              def $F(...)
+                ...
+                $X
+                $Y
+              end
+          - metavariable-regex:
+              metavariable: $X
+              regex: ^@?[a-z_]\w*\.dig\(
+          - metavariable-pattern:
+              metavariable: $X
+              pattern-either:
+                - pattern: $V.dig(...)
+                - pattern: $V.dig(...).$N
+                - pattern: $V.dig(...).$N(...)
+          - focus-metavariable: $X
+      - patterns:
+          - pattern: |
+              def self.$F(...)
+                ...
+                $X
+              end
+          - pattern-not: |
+              def self.$F(...)
+                ...
+                $X
+                $Y
+              end
+          - metavariable-regex:
+              metavariable: $X
+              regex: ^@?[a-z_]\w*\.dig\(
+          - metavariable-pattern:
+              metavariable: $X
+              pattern-either:
+                - pattern: $V.dig(...)
+                - pattern: $V.dig(...).$N
+                - pattern: $V.dig(...).$N(...)
+          - focus-metavariable: $X
+    metadata:
+      activity: generates_images
+      mentioned: performs
+      definition: https://lexlint.io/activities/generates-images
+      provenance: ungovr-original
+      license: MIT
+      strength: signal
