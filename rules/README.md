@@ -78,6 +78,104 @@ printed, never gated.
 | `distributes_software_product` | include: `LICENSE:1` (AGPL), `Dockerfile.production:7`, `README.md:11` install section | signal only, 89 matches (58 `rb-gemspec`, 31 `rb-gem-tasks`) over 53 `gems/*` directories, from `gems/activesupport-suspend_callbacks` on | Signal only, from other code: the repository's internal gems, which Canvas loads by path. The rule's own message says a gemspec may never be published. The reading's evidence (license, production Dockerfile, install section) is still not read. The baseline's miss, now a signal |
 <!-- canvas:end -->
 
+<!-- sakai:start -->
+### Sakai, read with Java and the Maven manifest
+
+Measured 2026-11-11 over `sakaiproject/sakai` at commit `f86a5cb`, with lexcode
+`v1.2` (branch build at commit `28177a1`), against a person's reading of the same
+commit (a hand-made table written before anyone looked at the Java rules and
+kept unchanged). The reading includes 11 activities from code, marks 12 as
+absent and leaves 3 unsure. lexcode read 17,074 files (6,561 of them Java) and
+1,067 script copies drawn from HTML, JSP and Vue files, in 131 seconds and
+1.6 GB, and the check reports 0 FAIL.
+
+**Score: 7 of 11 found at evidence strength, 1 signal only, 3 missed. No
+evidence contradicts a row the reading marks absent, and the 3 unsure rows
+(`relies_on_digital_identity`, `aggregates_content`, `processes_biometrics`)
+drew nothing, so they are neither found nor missed.** Of the 7, 4 are found on
+the code the reading cites (`automated_outreach`, `records_text_chat`,
+`processes_voice`, `ships_encryption`) and 3 on other code in the same product
+(`processes_personal_data`, `crawls_web`, `distributes_software_product`). One
+of those 3 is found for a thin reason: the `crawls_web` row is a Playwright
+dependency in Sakai's browser-test module, not the calendar fetcher the reading
+cites. The Java rules read every Java file: the engine reported no Java parse
+error, and its 17 unread files are JavaScript (6 files read directly and 11
+script copies, mostly Thymeleaf and JSP markup left inside a script). Recall is
+printed, never gated.
+
+| Activity | The reading | lexcode | Verdict |
+|---|---|---|---|
+| `processes_personal_data` | include: `BaseUserDirectoryService.java:110`, `User.java:65`, `UserProfile.java:43`, `UsageSessionServiceAdaptor.java:195`, `ContentReviewServiceTurnitinOC.java:1020` (account, profile and session beans, Hibernate `.hbm.xml`) | found, performs, 43 matches: 41 `lexcode.personal.java-client-ip-captured` (for example `access/.../AccessServlet.java:470`) and 2 `lexcode.personal.java-entity-field` (`plus/api/.../Subject.java:76` email, `polls/api/.../Vote.java:59` ip) | Found, on other code. None of the five cited files is matched: the beans and the `.hbm.xml` mappings are not a shape a rule names. The matches hold personal data too (a visitor's address logged with a request, a stored email, a vote's address) |
+| `ships_consumer_interface` | include: `SkinnableCharonPortal.java:150`, `library/.../gateway/about.html`, `ContainerLogin.java`, `reset-pass/reset-pass/pom.xml` | missed (searched, not found); no signal either | Missed. The portal is a servlet (`extends HttpServlet implements Portal`), the gateway pages are static HTML and the sign-in is a container-login class; the Java signal rules (a sign-up route, screen or permit) matched nothing in Sakai |
+| `automated_outreach` | include: `AssignmentDueReminderServiceImpl.java:107` and `:158`, `BaseDigestService.java:663`, `UserMessagingServiceImpl.java:185`, `SignupNotifyJob.java:70` | found, performs 25 (20 `lexcode.outreach.java-send-in-loop`, 5 `java-send-in-scheduled-job`) and enables 1 (`pkg:maven/nl.martijndwars/web-push@5.1.1`, `kernel/kernel-impl/pom.xml:343`); signal `lexcode.outreach.java-sms-call-push-send` at `UserMessagingServiceImpl.java:689` | Found, on the same code the reading cites: `AssignmentDueReminderServiceImpl.java:158` exactly, `BaseDigestService.java:671`, `SignupNotifyJob.java:137`, and the web-push client and the push-send signal are the browser notifications the reading describes in `UserMessagingServiceImpl` |
+| `records_text_chat` | include: `chat/.../ChatMessage.java:58` and `:91` | found, performs, 1 match; `lexcode.chat.java-chat-message-entity` at `chat/chat-api/api/.../ChatMessage.java:69` | Found, on the same class: the match is the class declaration between the two lines the reading cites |
+| `tracks_devices` | include: `includeAnalytics.vm:1` and `:16`, `SkinnableCharonPortal.java:297`, `default.sakai.properties:90` and `:105` | missed (searched, not found) | Missed. The Google Analytics, GA4 and Tag Manager snippets are in a Velocity template (`#if (${googleUniversalAnalyticsId})`), which has no rules in this phase, and the Java side only reads a configuration property (`serverConfigurationService.getString(PROP_GOOGLE_ANALYTICS_ID, null)`). No analytics SDK or dependency is present, so the dependency route is empty too |
+| `processes_voice` | include: `SakaiAudioRecorder.js:44`, `SakaiAccount.js:575`, `ProfileController.java:253`, `AudioUploadActionListener.java:53`, `assignment/tool/.../video-recorder.js:24` | found, performs, 1 match; `lexcode.voice.mediarecorder-microphone` at `SakaiAudioRecorder.js:46`; 4 signals `lexcode.voice.getusermedia-audio` (`SakaiAudioRecorder.js:39` and `:44`, `assignment/tool/.../video-recorder.js:24`, `library/.../sakai-recorder.js:113`) | Found, on the same code: the recorder component the reading lists first, with the assignment video recorder as a signal. The Java handlers that receive the clip (`ProfileController`, `AudioUploadActionListener`) are not matched |
+| `records_calls` | include: `MicrosoftCommonServiceImpl.java:2421`, `:2533`, `:2543`, `:2566`, `MeetingsController.java:778` (the reading calls it a close call) | missed (searched, not found) | Missed. Sakai reads Teams recordings through the Microsoft Graph client (`getOnlineMeetingRecordings`); the Java meeting-recording rule names LiveKit, Chime, Connect, Vonage, Zoom, notetaker bots and Daily, and Graph is not among them |
+| `crawls_web` | include: `BaseExternalCalendarSubscriptionService.java:816` and `:824`, `LinkMigrationHelperImpl.java:291`, `GetArchivesJob.java:80` (the reading calls it a close call) | found, enables, 1 match; `pkg:maven/com.microsoft.playwright/playwright@1.64.0` at `e2e-tests/pom.xml:43` | Found, but not on the reading's code: the dependency belongs to Sakai's browser-test module (`e2e-tests`) and carries no test scope, so it counts. The calendar fetch, the link follower and the archive job are not matched. Counted as found because it is an evidence row for the activity, though a person would not call it the right reason |
+| `ships_encryption` | include: `PasswordService.java:166` and `:174` (PBKDF2), `EncryptionUtilityServiceImpl.java:29` (Jasypt AES-256), `SimpleEncryption.java:45`, `MicrosoftConfigurationServiceImpl.java:48` | found, performs 1 and enables 2; `lexcode.crypto.java-library-encryption` at `kernel/kernel-impl/.../EncryptionUtilityServiceImpl.java:29` (`new AES256TextEncryptor()`), `pkg:maven/org.jasypt/jasypt@1.9.3` (`kernel/kernel-impl/pom.xml:311`) and `pkg:maven/org.bouncycastle/bcprov-jdk18on@1.85` (`:348`) | Found, on a line the reading cites. The other cited locations use the JDK's own crypto (PBKDF2, `Cipher` AES-CBC and AES-GCM), which the rules treat as the platform's, by ruling, so they are not matched; the row is found through Jasypt |
+| `distributes_software_product` | include: `README.md:28` and `:41`, `pack/pack-bin/pom.xml:12`, `docker/Dockerfile.source:19`, `pom.xml:24` | found, performs, 50 matches: `lexcode.distribute.maven-publish-plugin` at `master/pom.xml:163` (the Sonatype central-publishing plugin) and 49 `lexcode.distribute.package-json-publish-config` over `webcomponents/.../packages/*/package.json` | Found, on other code. The Maven publishing plugin is the reading's "API artifacts others embed"; the 49 package files are Sakai's `@sakai-ui` npm packages, each with a public `publishConfig`. The README, the binary pack and the Dockerfile are not matched |
+| `operates_social_platform` | include: `commons/api/.../Post.java:38`, `ConversationsPost.java:40`, `MessageImpl.java:40`, `SocialNetworkingInfo.java:33` | signal only, 2 matches; `lexcode.social.java-post-model` at `commons/api/.../datamodel/Post.java:37` and `conversations/api/.../ConversationsPost.java:39` | Signal only, on two of the files the reading cites (the Commons wall post and the Conversations post). The forum message and the profile social links are not matched |
+
+Unsure in the reading, and not scored: `relies_on_digital_identity`,
+`aggregates_content` and `processes_biometrics`. lexcode reported nothing for
+any of the three.
+
+Scan notices, as printed: 8 minified files skipped, 1 PHP file not read, 2 Maven
+dependencies recorded without a version, and the engine could not read 17 files
+(none of them Java).
+<!-- sakai:end -->
+
+<!-- canvas-android:start -->
+### Canvas Student, Teacher and Parent for Android, read with Kotlin and Gradle
+
+Measured 2026-11-11 over `instructure/canvas-android` at commit `896f61f`, with
+lexcode `v1.2` (branch build at commit `28177a1`), against a person's reading of
+the same commit (a hand-made table written before anyone looked at the Kotlin
+rules and kept unchanged). The reading includes 11 activities from code, marks
+12 as absent and leaves 2 unsure. lexcode read 7,018 files (the `androidTest`
+files are not read by default, and 25 symbolic links are skipped) in 35 seconds
+and 2.0 GB, and the check reports 0 FAIL.
+
+**Score: 5 of 11 found at evidence strength, 1 signal only, 5 missed. One miss is
+the ruled miss for an Android app (`distributes_software_product`); the other 4
+(`generates_content`, `generates_text`, `deploys_chatbot`,
+`operates_social_platform`) are calls to Canvas's own web service, which no rule
+names. No evidence contradicts a row the reading marks absent, and the 2 unsure
+rows (`records_calls`, `records_text_chat`) drew nothing, so they are neither
+found nor missed.** Of the 5 found, 4 are on the code the reading cites
+(`tracks_devices`, `processes_voice`, `ships_encryption`, `ships_mobile_app`) and
+1 is on a related file (`processes_personal_data`). The engine could not read 9
+Kotlin files (0.2 percent of 4,983): 3 use a soft keyword as a name
+(`annotation`, `open`), 2 an `object : T by x` expression, 2 the `..<` range
+operator, 1 a trailing comma in a function type and 1 a parenthesized receiver
+at the start of a statement. The rest of each file is still matched. Recall is
+printed, never gated.
+
+| Activity | The reading | lexcode | Verdict |
+|---|---|---|---|
+| `processes_personal_data` | include: `canvasapi2/models/User.kt:25`, `ApiPrefs.kt:120`, `SetupPendoTrackingUseCase.kt:61`, `PushExternalReceiver.kt:40` | found, performs 2 and enables 13; `lexcode.personal.kt-entity-field` at `libs/pandautils/.../room/offline/entities/UserEntity.kt:33` and `:34` (`primaryEmail`, `email`); `pkg:maven/sdk.pendo.io/pendoIO` (4 manifest lines) and `pkg:maven/com.google.firebase/firebase-crashlytics` (9) | Found, on related code. The Room table that stores the signed-in user offline holds the email the reading describes; the reading's own four locations (the API model, the preferences, the Pendo setup, the push receiver) are not matched. The analytics and crash-report SDKs that receive the user id are the enables rows |
+| `tracks_devices` | include: `libs/pandautils/build.gradle:239`, `apps/teacher/build.gradle:284`, `apps/parent/build.gradle:236`, `SetupPendoTrackingUseCase.kt:69`, `Analytics.kt:35`, `apps/student/.../AndroidManifest.xml:82` | found, performs 7 and enables 13; `lexcode.tracking.kt-analytics-calls` at `SetupPendoTrackingUseCase.kt:70` and `:73` (`Pendo.setup`, `Pendo.startSession`), `Analytics.kt:35` and `:40` (`Pendo.track`), `WidgetLogger.kt:82` and `:87`, `AnalyticsConsentHandler.kt:54`; `pkg:maven/sdk.pendo.io/pendoIO@3.9.%2B` at the three `build.gradle` lines the reading cites | Found, on the same code, to the file and line for the three dependency declarations and the `Analytics.kt` call. The manifest line is not matched |
+| `processes_voice` | include: `FloatingRecordingView.kt:361` and `:362`, the student and teacher `AndroidManifest.xml` microphone permissions, `SpeedGraderCommentsSection.kt:277` | found, performs, 1 match; `lexcode.voice.kt-microphone-capture` at `libs/pandautils/.../views/FloatingRecordingView.kt:362` | Found, on a line the reading cites. The manifest permissions and the grading comment screen are not matched |
+| `generates_content` | include: `AiAssistRepository.kt:25`, `JourneyAssistAPI.kt:10`, `AiAssistFlashcardViewModel.kt:75`, `AiAssistQuizViewModel.kt:95` | missed (searched, not found) | Missed. The assistant is a Retrofit interface to Canvas's own service (`@POST("assist") suspend fun answerPrompt(...)`), called as `journeyAssistAPI.answerPrompt(...)`; no model SDK or dependency is present for a rule to name, which is the same shape as the Ruby Canvas misses |
+| `generates_text` | include: the same call sites, plus `AiAssistChatViewModel.kt:76` | missed (searched, not found) | Missed, for the same reason as `generates_content` |
+| `deploys_chatbot` | include: `AiAssistChatScreen.kt:52`, `AiAssistChatViewModel.kt:57`, `AiAssistMainViewModel.kt:73` | missed (searched, not found) | Missed, for the same reason: a chat screen over Canvas's own endpoint, with no chat-model call in the app |
+| `ships_encryption` | include: `FlutterAppMigration.kt:115` and `:117`, `apps/parent/build.gradle:234`, `GlobalDependencies.kt:86` | found, performs, 1 match; `lexcode.crypto.kt-encrypted-storage` at `apps/parent/.../util/FlutterAppMigration.kt:117` | Found, on a line the reading cites (the `EncryptedSharedPreferences` open). The `androidx.security:security-crypto` dependency is not an `enables` row, because the component map holds no entry for it |
+| `ships_mobile_app` | include: `README.md:34` and `:42`, `apps/student/build.gradle:38`, `apps/parent/build.gradle:41`, `apps/teacher/build.gradle:29`, `UpdateModule.kt:50` | found, performs 8; `lexcode.mobile.gradle-android-application` at `apps/student/build.gradle:17`, `apps/parent/build.gradle:19` and `apps/teacher/build.gradle:16`; `lexcode.mobile.android-manifest-launcher` (3, for example `apps/parent/.../AndroidManifest.xml:68`); `lexcode.mobile.kt-android-application-class` at `AppManager.kt:40`; `lexcode.mobile.kt-play-core-store-call` at `UpdateModule.kt:51` | Found, on the same code: the same three `build.gradle` files (the plugin line rather than the application id) and the Play in-app update call the reading cites |
+| `distributes_software_product` | include: `README.md:34`, `apps/student/build.gradle:38` and `:41`, `apps/parent/build.gradle:41` | missed (searched, not found) | Missed, by ruling: an Android app's store release is not read as distributing a software product, so this is a recall miss, not a rule defect |
+| `ships_consumer_interface` | include: `apps/student/.../AndroidManifest.xml:103`, the parent and teacher manifests, `BaseLoginSignInActivity.kt` | signal only, 3 matches; `lexcode.consumer.kt-signup-screen` at `apps/parent/.../createaccount/CreateAccountActivity.kt:34`, `CreateAccountFragment.kt:35` and `CreateAccountScreen.kt:82` | Signal only, from other code: the Parent app's self-registration screen, which shows the public can create an account. The manifests and the sign-in activity the reading cites are not matched |
+| `operates_social_platform` | include: `DiscussionAPI.kt:125` and `:129`, `InboxApi.kt:68` | missed (searched, not found); no signal | Missed. Discussion replies and inbox messages are Retrofit declarations to Canvas's own service (`@POST(".../discussion_topics/{topicId}/entries")`, `@POST("conversations?...")`), not a post model stored in the app, and the Kotlin post-model rule reads a post class with reactions or an author and replies |
+
+Unsure in the reading, and not scored: `records_calls` and `records_text_chat`.
+lexcode reported nothing for either.
+
+Scan notices, as printed: 25 symbolic links skipped, 1 Dart file not read, 24
+Gradle dependencies recorded without a version (a platform BOM, a plugin or a
+computed value), 18 Gradle dependencies named by a constant or variable that
+lexcode does not evaluate and so does not record, 1 file with a line over
+100,000 characters skipped, and the engine could not read 9 files.
+<!-- canvas-android:end -->
+
 ## Ruby, ERB views and gems
 
 How lexcode reads Ruby, where the engine cannot, and what a gem manifest counts.
