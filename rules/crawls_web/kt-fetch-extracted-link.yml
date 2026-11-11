@@ -31,7 +31,7 @@ rules:
                   regex: ^(get|head|prepareGet|request)$
               - metavariable-regex:
                   metavariable: $C
-                  regex: ^(this\.)?(?!\w*([cC]ache|[sS]tore|[sS]torage|[rR]edis|[mM]emcache|[sS]3|[aA]ws|[hH]eaders?|[cC]ookies?|[pP]arams?))(\w*[cC]lient|\w*[hH]ttp\w*)$
+                  regex: ^(this\.)?(?!\w*([cC]ache|[sS]tore|[sS]torage|[rR]edis|[sS]3|[aA]ws|[hH]eaders?|[cC]ookies?|[pP]arams?))(\w*[cC]lient|\w*[hH]ttp\w*)$
       - metavariable-regex:
           metavariable: $LINK
           regex: ^[\w.?]+\.(absUrl\("[^"]*"\)|attr\("(abs:)?(href|src)"\)|getAttribute\("(href|src)"\))$

@@ -1,4 +1,4 @@
-// lexcode-expect: 9
+// lexcode-expect: 8
 package example.feeds
 
 import com.apptasticsoftware.rssreader.RssReader
@@ -10,7 +10,6 @@ import java.io.InputStream
 class FeedDigest(
     private val rssReader: RssReader,
     private val parser: RssParser,
-    private val feedParser: RssParser,
 ) {
     // rssreader
     fun literal(): List<Any> = RssReader().read("https://example.com/feed.xml").toList()
@@ -26,8 +25,6 @@ class FeedDigest(
 
     suspend fun channel(url: String) = parser.getRssChannel(url)
 
-    suspend fun oldChannel(url: String) = feedParser.getChannel(url)
-
     suspend fun direct(url: String) = RssParser().getRssChannel(url)
 
     suspend fun literalChannel() = parser.getRssChannel("https://example.com/feed.xml")
@@ -41,12 +38,5 @@ class FeedDigest(
 
     suspend fun ownChannel() = parser.getRssChannel("http://127.0.0.1:8080/feed.xml")
 
-    // A store that happens to have a getChannel method, in a file that imports the library.
-    suspend fun other(store: ChannelStore) = store.getChannel("general")
-
     suspend fun parseText(xml: String) = parser.parse(xml)
-}
-
-class ChannelStore {
-    fun getChannel(id: String): String = id
 }

@@ -4,6 +4,8 @@ rules:
     severity: INFO
     message: Fetches each URL in a list held in a variable, which may be crawling sites the operator does not run (crawls_web).
     patterns:
+      # The call list below appears twice, once for a named loop variable and once for the implicit
+      # `it`; the two copies must be edited together.
       # A pre-filter: the HTTP client receiver below is a metavariable with a regular expression,
       # which has no literal of its own, so without this the engine parses every Kotlin file. It
       # names a token of every call the arms below can match.
@@ -61,7 +63,7 @@ rules:
                           regex: ^(get|head|prepareGet|request)$
                       - metavariable-regex:
                           metavariable: $C
-                          regex: ^(this\.)?(?!\w*([cC]ache|[sS]tore|[sS]torage|[rR]edis|[mM]emcache|[sS]3|[aA]ws|[hH]eaders?|[cC]ookies?|[pP]arams?))(\w*[cC]lient|\w*[hH]ttp\w*)$
+                          regex: ^(this\.)?(?!\w*([cC]ache|[sS]tore|[sS]torage|[rR]edis|[sS]3|[aA]ws|[hH]eaders?|[cC]ookies?|[pP]arams?))(\w*[cC]lient|\w*[hH]ttp\w*)$
           # The page address is the implicit lambda parameter `it`, alone as the argument. A scope
           # function (`let`, `also`) is one value, not a list, and is not read.
           - patterns:
@@ -106,7 +108,7 @@ rules:
                           regex: ^(get|head|prepareGet|request)$
                       - metavariable-regex:
                           metavariable: $C
-                          regex: ^(this\.)?(?!\w*([cC]ache|[sS]tore|[sS]torage|[rR]edis|[mM]emcache|[sS]3|[aA]ws|[hH]eaders?|[cC]ookies?|[pP]arams?))(\w*[cC]lient|\w*[hH]ttp\w*)$
+                          regex: ^(this\.)?(?!\w*([cC]ache|[sS]tore|[sS]torage|[rR]edis|[sS]3|[aA]ws|[hH]eaders?|[cC]ookies?|[pP]arams?))(\w*[cC]lient|\w*[hH]ttp\w*)$
     metadata:
       activity: crawls_web
       mentioned: performs

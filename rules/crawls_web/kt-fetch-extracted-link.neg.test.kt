@@ -45,6 +45,30 @@ class LinkReport(
         client.get(a.text())
     }
 
+    // Stores and lookups whose names also say client or http: the receiver is not an HTTP client.
+    fun clientLookalikes(
+        a: Element,
+        httpCache: Map<String, String>,
+        cacheClient: Map<String, String>,
+        httpStore: Map<String, String>,
+        storageClient: Map<String, String>,
+        redisClient: Map<String, String>,
+        s3Client: Map<String, String>,
+        awsClient: Map<String, String>,
+        httpCookies: Map<String, String>,
+        httpParams: Map<String, String>,
+    ) {
+        println(httpCache.get(a.absUrl("href")))
+        println(cacheClient.get(a.attr("href")))
+        println(httpStore.get(a.absUrl("href")))
+        println(storageClient.get(a.absUrl("href")))
+        println(redisClient.get(a.absUrl("href")))
+        println(s3Client.get(a.absUrl("href")))
+        println(awsClient.get(a.absUrl("href")))
+        println(httpCookies.get(a.absUrl("href")))
+        println(httpParams.get(a.absUrl("href")))
+    }
+
     // Lookups keyed by a link are not fetches.
     fun lookups(a: Element): String? {
         println(httpHeaders.get(a.attr("href")))

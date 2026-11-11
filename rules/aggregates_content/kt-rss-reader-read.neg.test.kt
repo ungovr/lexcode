@@ -13,11 +13,9 @@ class RssReader {
 
 class RssParser {
     suspend fun getRssChannel(url: String): String = url
-
-    suspend fun getChannel(url: String): String = url
 }
 
-class Digest(private val rssReader: RssReader, private val parser: RssParser, private val feedParser: RssParser) {
+class Digest(private val rssReader: RssReader, private val parser: RssParser) {
     fun fromLiteral(): List<String> = RssReader().read("https://example.com/feed.xml")
 
     fun fromVariable(url: String): List<String> = RssReader().read(url)
@@ -25,7 +23,7 @@ class Digest(private val rssReader: RssReader, private val parser: RssParser, pr
     fun viaField(url: String): List<String> = rssReader.read(url)
 
     suspend fun parserCalls(url: String): List<String> =
-        listOf(RssParser().getRssChannel(url), parser.getRssChannel(url), feedParser.getChannel(url))
+        listOf(RssParser().getRssChannel(url), parser.getRssChannel(url))
 
     // A plain reader of lines, not a feed reader.
     fun lines(reader: BufferedReader, stream: InputStream): Int = reader.read() + stream.read(ByteArray(8))

@@ -1,6 +1,7 @@
 // lexcode-expect: 0
 package example.pages
 
+import com.fleeksoft.ksoup.Ksoup
 import org.jsoup.Jsoup
 import org.jsoup.safety.Safelist
 import java.io.File
@@ -21,6 +22,10 @@ class Connector {
     fun ownApi(): String = Jsoup.connect("http://localhost:8080/health").get().text()
 
     fun ownLoopback(): String = Jsoup.connect("http://127.0.0.1:8080/health").get().text()
+
+    suspend fun ownKsoup(): String = Ksoup.parseGetRequest(url = "http://localhost:8080/health").title()
+
+    suspend fun ownKsoupPositional(): String = Ksoup.parseGetRequest("http://127.0.0.1:8080/health").title()
 
     fun ownIpv6(): String = Jsoup.connect("http://[::1]:8080/health").get().text()
 

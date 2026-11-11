@@ -11,6 +11,8 @@ rules:
           - pattern: Jsoup.parse(URI.create($URL).toURL(), ...)
           - pattern: Ksoup.parseGetRequest($URL)
           - pattern: Ksoup.parseGetRequestBlocking($URL)
+          - pattern: Ksoup.parseGetRequest(url = $URL)
+          - pattern: Ksoup.parseGetRequestBlocking(url = $URL)
       - metavariable-regex:
           metavariable: $URL
           regex: (?s)^(?!"https?://(localhost|127\.|0\.0\.0\.0|\[::1\])).*$

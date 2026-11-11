@@ -75,6 +75,34 @@ class OwnApiClient(
         urls.map { cache.get(it) }
     }
 
+    // Stores and lookups whose names also say client or http: the receiver is not an HTTP client.
+    fun clientLookalikes(
+        urls: List<String>,
+        httpCache: Map<String, String>,
+        cacheClient: Map<String, String>,
+        httpStore: Map<String, String>,
+        storageClient: Map<String, String>,
+        redisClient: Map<String, String>,
+        s3Client: Map<String, String>,
+        awsClient: Map<String, String>,
+        httpHeaders: Map<String, String>,
+        httpCookies: Map<String, String>,
+        httpParams: Map<String, String>,
+    ) {
+        for (u in urls) {
+            println(httpCache.get(u))
+            println(httpStore.get(u))
+            println(storageClient.get(u))
+            println(redisClient.get(u))
+            println(s3Client.get(u))
+            println(awsClient.get(u))
+            println(httpHeaders.get(u))
+            println(httpCookies.get(u))
+            println(httpParams.get(u))
+        }
+        urls.forEach { println(cacheClient.get(it)) }
+    }
+
     fun hosts(urls: List<String>) {
         urls.forEach { u -> println(URI.create(u).host) }
         urls.forEach { println(URI(it).host) }

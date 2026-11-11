@@ -5,7 +5,7 @@ rules:
     message: Reads other publishers' RSS or Atom feeds from their addresses with the rssreader or RSS-Parser library, which is reusing other publishers' content (aggregates_content).
     pattern-either:
       # Each library is read only in a file that imports it, so a project class with a `read` or
-      # `getChannel` method of its own is not taken for it. The regular expression is also the
+      # `getRssChannel` method of its own is not taken for it. The regular expression is also the
       # pre-filter: files without the import are not parsed.
       - patterns:
           - pattern-regex: '(?s)import\s+com\.apptasticsoftware\.rssreader\..*'
@@ -23,11 +23,6 @@ rules:
           - pattern-regex: '(?s)import\s+com\.prof18\.rssparser\..*'
           - pattern-either:
               - pattern: $P.getRssChannel($ARG)
-              - patterns:
-                  - pattern: $P.getChannel($ARG)
-                  - metavariable-regex:
-                      metavariable: $P
-                      regex: ^(this\.)?\w*[pP]arser\w*$
               - pattern: RssParser().getRssChannel($ARG)
           - metavariable-regex:
               metavariable: $ARG

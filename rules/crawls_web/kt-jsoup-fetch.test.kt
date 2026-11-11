@@ -1,4 +1,4 @@
-// lexcode-expect: 8
+// lexcode-expect: 12
 package example.pages
 
 import com.fleeksoft.ksoup.Ksoup
@@ -30,4 +30,12 @@ class PageDownloader {
     fun viaUri(url: String): Document = Jsoup.parse(URI.create(url).toURL(), 5000)
 
     suspend fun multiplatform(url: String): Document = Ksoup.parseGetRequest(url)
+
+    suspend fun multiplatformNamed(url: String): Document = Ksoup.parseGetRequest(url = url)
+
+    suspend fun multiplatformNamedLiteral(): Document = Ksoup.parseGetRequest(url = "https://example.com/prices")
+
+    fun multiplatformBlocking(url: String): Document = Ksoup.parseGetRequestBlocking(url = url)
+
+    fun multiplatformBlockingLiteral(): Document = Ksoup.parseGetRequestBlocking(url = "https://example.com/prices")
 }
