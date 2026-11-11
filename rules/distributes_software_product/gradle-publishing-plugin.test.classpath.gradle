@@ -1,0 +1,14 @@
+// lexcode-expect: 2
+// The older form: the publishing plugins on the buildscript classpath, applied by name, and
+// JReleaser's Gradle plugin.
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.vanniktech:gradle-maven-publish-plugin:0.28.0'
+        classpath "org.jreleaser:jreleaser-gradle-plugin:1.15.0"
+    }
+}
+
+apply plugin: 'java-library'

@@ -1,0 +1,23 @@
+rules:
+  - id: lexcode.distribute.gradle-desktop-installer
+    languages: [generic]
+    severity: INFO
+    message: Applies a Gradle plugin that builds a desktop installer or native launcher (jlink, jpackage, Launch4j, install4j, macAppBundle) or declares Compose Multiplatform native distributions, which is packaged software made for others to install (distributes_software_product).
+    pattern-regex: '(?m)^[ \t]*(?:(?:apply[ \t]+plugin[ \t]*:[ \t]*|id[ \t]*\(?[ \t]*)["'']\s*(?:org\.beryx\.jlink|org\.beryx\.runtime|org\.panteleyev\.jpackageplugin|edu\.sc\.seis\.launch4j|edu\.sc\.seis\.macAppBundle|com\.install4j\.gradle|io\.github\.fvarrui\.javapackager\.plugin)["'']|nativeDistributions[ \t]*\{)(?![^\n]*\bapply[ \t]+false\b)'
+    paths:
+      include:
+        - "*.gradle"
+        - "gradle-desktop-installer.*"
+      exclude:
+        - "**/example/**"
+        - "**/examples/**"
+        - "**/sample/**"
+        - "**/samples/**"
+        - "**/demo/**"
+        - "**/demos/**"
+    metadata:
+      activity: distributes_software_product
+      mentioned: performs
+      definition: https://lexlint.io/activities/distributes-software-product
+      provenance: ungovr-original
+      license: MIT

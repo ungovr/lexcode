@@ -1,0 +1,20 @@
+// lexcode-expect: 0
+// A server application's build: a boot jar, a container image and a shadow jar. The installer
+// plugins are named in a comment and a string, and declared apply false in a root file.
+plugins {
+    id 'org.springframework.boot' version '3.3.0'
+    id 'com.google.cloud.tools.jib' version '3.4.3'
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
+    id 'org.beryx.jlink' version '3.0.1' apply false
+}
+
+// If this became a desktop tool it would use org.panteleyev.jpackageplugin for installers.
+ext {
+    installerNote = "see edu.sc.seis.launch4j in the desktop build"
+}
+
+jib {
+    to {
+        image = 'registry.corp.example.com/billing-api'
+    }
+}

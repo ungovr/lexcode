@@ -1,0 +1,43 @@
+rules:
+  - id: lexcode.train.java-spark-ml-fit
+    languages: [java]
+    severity: INFO
+    message: Fits a Spark MLlib estimator, pipeline or cross-validator to a dataset, or calls an MLlib train method, which is training models (trains_models).
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: ($T $N).fit(...)
+              - pattern: new $T(...).fit(...)
+              - pattern: new $T(...).$X(...).fit(...)
+              - pattern: new $T(...).$X(...).$Y(...).fit(...)
+              - pattern: new $T(...).$X(...).$Y(...).$Z(...).fit(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import org.apache.spark.ml.$P.$T;
+                  ...
+              - pattern-inside: |
+                  import org.apache.spark.ml.$T;
+                  ...
+      - patterns:
+          - pattern: $C.$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^train(Classifier|Regressor)?$
+          - pattern-inside: |
+              import org.apache.spark.mllib.$P.$C;
+              ...
+    paths:
+      exclude:
+        - "**/example/**"
+        - "**/examples/**"
+        - "**/sample/**"
+        - "**/samples/**"
+        - "**/demo/**"
+        - "**/demos/**"
+        - "**/src/test/**"
+    metadata:
+      activity: trains_models
+      mentioned: performs
+      definition: https://lexlint.io/activities/trains-models
+      provenance: ungovr-original
+      license: MIT

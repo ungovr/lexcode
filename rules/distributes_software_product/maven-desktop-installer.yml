@@ -1,0 +1,33 @@
+rules:
+  - id: lexcode.distribute.maven-desktop-installer
+    languages: [xml]
+    severity: INFO
+    message: Configures a Maven plugin that builds a desktop installer or native launcher (jpackage, Launch4j, IzPack or an app bundle), which is packaged software made for others to install (distributes_software_product).
+    patterns:
+      - pattern: |
+          <plugin>
+            ...
+            <artifactId>$A</artifactId>
+            ...
+          </plugin>
+      - metavariable-regex:
+          metavariable: $A
+          regex: ^\s*(jpackage-maven-plugin|launch4j-maven-plugin|izpack-maven-plugin|appbundle-maven-plugin|nsis-maven-plugin)\s*$
+    paths:
+      include:
+        - "pom.xml"
+        - "maven-desktop-installer.*"
+      exclude:
+        - "**/example/**"
+        - "**/examples/**"
+        - "**/sample/**"
+        - "**/samples/**"
+        - "**/demo/**"
+        - "**/demos/**"
+        - "**/src/test/**"
+    metadata:
+      activity: distributes_software_product
+      mentioned: performs
+      definition: https://lexlint.io/activities/distributes-software-product
+      provenance: ungovr-original
+      license: MIT

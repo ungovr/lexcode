@@ -1,0 +1,31 @@
+// lexcode-expect: 1
+// The build file of an Android app module: it applies the application plugin, so Gradle builds
+// an installable package with an application id, signing and a version code.
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}
+
+android {
+    namespace 'org.example.fieldnotes'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "org.example.fieldnotes"
+        minSdk 24
+        targetSdk 34
+        versionCode 12
+        versionName "1.4.0"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+dependencies {
+    implementation 'androidx.core:core-ktx:1.13.1'
+}

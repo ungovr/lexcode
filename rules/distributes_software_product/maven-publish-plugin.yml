@@ -1,0 +1,51 @@
+rules:
+  - id: lexcode.distribute.maven-publish-plugin
+    languages: [xml]
+    severity: INFO
+    message: Configures a Maven plugin that publishes to a public registry (Sonatype's Central publishing plugin, the Nexus staging plugin aimed at Sonatype, or JReleaser), which makes the artifact available for others to depend on (distributes_software_product).
+    patterns:
+      - pattern-either:
+          - patterns:
+              - pattern: |
+                  <plugin>
+                    ...
+                    <artifactId>$A</artifactId>
+                    ...
+                  </plugin>
+              - metavariable-regex:
+                  metavariable: $A
+                  regex: ^\s*(central-publishing-maven-plugin|jreleaser-maven-plugin)\s*$
+          - patterns:
+              - pattern: |
+                  <plugin>
+                    ...
+                    <artifactId>nexus-staging-maven-plugin</artifactId>
+                    ...
+                    <configuration>
+                      ...
+                      <nexusUrl>$URL</nexusUrl>
+                      ...
+                    </configuration>
+                    ...
+                  </plugin>
+              - metavariable-regex:
+                  metavariable: $URL
+                  regex: (?i)^\s*(https?://)?([a-z0-9-]+\.)?(oss\.sonatype\.org|central\.sonatype\.com)(/|\s*$)
+    paths:
+      include:
+        - "pom.xml"
+        - "maven-publish-plugin.*"
+      exclude:
+        - "**/example/**"
+        - "**/examples/**"
+        - "**/sample/**"
+        - "**/samples/**"
+        - "**/demo/**"
+        - "**/demos/**"
+        - "**/src/test/**"
+    metadata:
+      activity: distributes_software_product
+      mentioned: performs
+      definition: https://lexlint.io/activities/distributes-software-product
+      provenance: ungovr-original
+      license: MIT
