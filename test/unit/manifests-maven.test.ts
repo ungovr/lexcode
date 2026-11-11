@@ -216,16 +216,34 @@ describe('readMaven', () => {
     expect(r.notices).toEqual(['1 Maven dependency takes its version from a parent POM or BOM outside this repository; recorded without a version']);
   });
 
-  it('does not count a first-party module toward the outside notice', () => {
-    const parent = pom({ head: gav('com.example', 'root', '1.0'), body: ['  <packaging>pom</packaging>'] });
+  it('does not record a dependency on a module of the same repository', () => {
+    const parent = pom({
+      head: [...gav('com.example', 'root', '1.0'), '  <packaging>pom</packaging>', '  <modules>', '    <module>lib</module>', '    <module>app</module>', '  </modules>'],
+    });
     const lib = pom({ head: [...parentOf('com.example', 'root', '1.0'), '  <artifactId>lib</artifactId>'] });
     const app = pom({
       head: [...parentOf('com.example', 'root', '1.0'), '  <artifactId>app</artifactId>'],
-      body: deps(dep('com.example', 'lib', { version: '${project.version}' })),
+      body: deps(
+        dep('com.example', 'lib', { version: '${project.version}' }),
+        dep('com.example', 'lib', { scope: 'test' }),
+        dep('com.twilio.sdk', 'twilio', { version: '10.1.0' }),
+      ),
     });
     const r = readMaven(tree({ 'pom.xml': parent, 'lib/pom.xml': lib, 'app/pom.xml': app }), ['pom.xml', 'lib/pom.xml', 'app/pom.xml']);
-    expect(r.deps).toEqual([expect.objectContaining({ name: 'com.example:lib', version: '1.0' })]);
+    expect(r.deps.map((d) => d.name)).toEqual(['com.twilio.sdk:twilio']);
+    expect(r.devSkipped).toBe(0);
     expect(r.notices).toEqual([]);
+  });
+
+  it('a versionless module dependency is not an outside-version notice either', () => {
+    const lib = pom({ head: gav('com.example', 'lib', '1.0') });
+    const app = pom({
+      head: [...parentOf('org.springframework.boot', 'spring-boot-starter-parent', '3.2.0'), '  <groupId>com.example</groupId>', '  <artifactId>app</artifactId>'],
+      body: deps(dep('com.example', 'lib'), dep('org.springframework.boot', 'spring-boot-starter-web')),
+    });
+    const r = readMaven(tree({ 'lib/pom.xml': lib, 'app/pom.xml': app }), ['lib/pom.xml', 'app/pom.xml']);
+    expect(r.deps.map((d) => d.name)).toEqual(['org.springframework.boot:spring-boot-starter-web']);
+    expect(r.notices).toEqual(['1 Maven dependency takes its version from a parent POM or BOM outside this repository; recorded without a version']);
   });
 
   it('does not read build plugins or reporting', () => {

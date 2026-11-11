@@ -317,6 +317,8 @@ export function readMaven(root: string, files: string[]): ReaderResult {
       const groupId = interp(d.groupId, ctx) ?? d.groupId;
       const artifactId = interp(d.artifactId, ctx) ?? d.artifactId;
       const dd: RawDep = { ...d, groupId, artifactId };
+      // A module of this same repository is the app's own code, not a component: not recorded, not counted.
+      if (byCoord.has(`${groupId}:${artifactId}`)) continue;
       let managed: Found | undefined;
       const managedFor = (): Found => (managed ??= findManaged(ctx, dd, false, 0, new Set()) ?? findManaged(ctx, dd, true, 0, new Set()) ?? {});
       const scope = (d.scope === undefined ? managedFor().scope : interp(d.scope, ctx) ?? d.scope) ?? 'compile';
@@ -334,8 +336,7 @@ export function readMaven(root: string, files: string[]): ReaderResult {
       seen.add(dedupe);
       deps.push({ ecosystem: 'maven', name, ...(version !== undefined ? { version } : {}), manifest: `${pom.rel}:${d.line}` });
 
-      // A module of this same repository is first-party: its missing version is not an outside one.
-      if (version === undefined && !byCoord.has(name)) {
+      if (version === undefined) {
         if (ctx.external || outsideBom(ctx)) outside++;
         else unresolved++;
       }
