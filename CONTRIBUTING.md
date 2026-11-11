@@ -111,8 +111,12 @@ Java, Kotlin and the JVM build files carry a prefix too:
 A Java or Kotlin fixture is a whole compilation unit: a `package` line,
 imports and a class, so it parses as a real file does.
 
-A negative fixture must cover every guard: strip any one guard from the rule
-and the negative has to start matching. Where a rule guards on a vendor import,
+A negative fixture covers the anchors on generic names: strip the guard that
+keeps a rule off a common name (a class called `Post`, a `get` on any
+receiver, an app's own `ActivityHandler`) and the negative has to start
+matching. Other guards, among them sink and propagator restrictions and some
+vendor import guards, are not each pinned by a negative yet, and a contribution
+that adds one is welcome. Where a rule guards on a vendor import,
 write the lookalike the guard exists for: a generic method name called on a
 receiver of another type, in a file without the vendor's import. A rule that
 names several vendors keeps one `patterns:` branch per vendor, each with its own
@@ -134,6 +138,24 @@ cache (`lexcode engine path` prints where it is) with only that rule over the
 app's source directory. When it is slow, split the
 rule, or add a `pattern-regex` conjunct that names the vendor's package or
 class so the engine can skip the file (see the anchor rules above).
+
+A conjunct that checks the whole file for a name has a reach. Write it as one
+greedy literal, `'(?s)\A(?=.*FirebaseAnalytics).*'`, one per `pattern-regex`,
+and join several with a `pattern-either` for "any of these". On Opengrep 1.33.1
+the lookahead stops matching after about a million backtracking steps and
+records no error. A greedy `.*` counts them from the end of the file, so a name
+used only near the top of the file is lost from about 1,050 KB, and one near the
+end still matches at 4.5 MB. A lazy `.*?` counts them from the start, and loses
+a name used only at the end from about 1,000 KB. An alternation tried at every
+step shortens the reach further: the JVM rules' first form,
+`[\s\S]*?(?:A|B|...)`, lost matches from 120 KB. The release test refuses a
+whole-file lookahead that holds a second lookahead, an alternation at its own
+level (`(?=.*A|.*B)`), an alternation in a group before its first literal
+(`(?=.*(A|B))`), or a lazy `.*?` or `[\s\S]*?` at its own level. A group after
+the first literal (`(?=.*Mechanize\s*\.(?:new|start))`) passes, since it is tried
+only where the literal matched. What the test passes still has the reach, so a
+scan says in a notice how many files it handed the engine are over 1,000,000
+bytes in a language with such a rule.
 
 ### Kotlin pattern notes
 

@@ -10,10 +10,10 @@ is measured against the truth sets, per activity.
 
 <!-- recall:start -->
 Measured 2026-11-11 over the UnGovr monorepo, 6 pinned starter templates and 2 real apps,
-against hand-read answer keys. Found counts evidence of either
-kind for the activity or its family; signal only counts the misses where
-lexcode showed a worth-a-look row and nothing stronger. Recall is printed,
-never gated.
+against answer keys read by an agent that had not seen the rules, unreviewed.
+Found counts evidence of either kind for the activity or its family; signal
+only counts the misses where lexcode showed a worth-a-look row and nothing
+stronger. Recall is printed, never gated.
 
 | Activity | Expected | Found | Signal only | Missed in |
 |---|---:|---:|---:|---|
@@ -311,6 +311,18 @@ engine kept inside a monolith can set either, with a `source_code_uri` that
 points into the monolith's own tree, and so reads as a distributed product.
 Telling an in-repo path gem from a published one is not done yet.
 
+### A known residual: mail to administrators
+
+The `automated_outreach` rules that find a message sent from a loop, a
+background job or a scheduled job cannot tell who receives it. A job that mails
+its own status or a report to the administrators who run the system has that
+shape, though it is not outreach to the people the app serves. In Ruby it is
+`lexcode.outreach.rb-send-in-background-job`, the job-status email in the Canvas
+LMS block above. In Java it is `lexcode.outreach.java-send-in-loop` and
+`lexcode.outreach.java-send-in-scheduled-job`: report mails to administrators
+were 4 of the 13 matches those two rules made in Sakai when they were reviewed.
+Read such a match against its recipient list before relying on it.
+
 ## Java, Kotlin, JSP and the Maven ecosystem
 
 How lexcode reads Java and Kotlin, where the engine cannot, and what a Maven or
@@ -353,7 +365,10 @@ app's own code and is not recorded.
 Every `build.gradle` and `build.gradle.kts` is read as tokens, with braces
 counted, and never evaluated. Only a declaration directly inside a
 `dependencies {}` block counts, and nothing inside `buildscript {}`,
-`plugins {}`, `pluginManagement {}` or `constraints {}` is a dependency. A
+`plugins {}`, `pluginManagement {}`, `constraints {}`, `components {}` or
+`modules {}` is a dependency (the last two configure or replace modules the
+build already has, such as `withModule("g:a") { ... }` and
+`module("g:old") { replacedBy("g:new") }`). A
 closure after a declaration (`implementation('g:a:v') { exclude group: 'x' }`)
 does not end the block, and its `exclude` is not read as a dependency.
 
@@ -413,6 +428,9 @@ neither are the dependency declarations of precompiled `*.gradle.kts` plugins
 string concatenation is not recorded. A dependency whose version comes from a
 BOM, or from a parent outside the repository, is recorded without a version.
 JVM Test Suite dependencies (`testing { suites { ... } }`) count as production.
+`gradle-maven-publication` reads only a `publishing {` block that starts at the
+beginning of a line (the top level of a build file), so one nested in
+`subprojects {}` or `allprojects {}` is missed.
 
 ### The Java gate exemption
 
@@ -423,7 +441,9 @@ JVM evidence lives in build files, is met by a `maven-` or `gradle-` rule.
 ### Java and Kotlin files
 
 Test source sets are left out like `test`: the directories `androidTest`,
-`testFixtures` and `integrationTest` are skipped unless `--include-tests`. The
+`testFixtures` and `integrationTest`, and the Kotlin Multiplatform test source
+sets `commonTest`, `jvmTest`, `androidUnitTest`, `androidInstrumentedTest`,
+`iosTest`, `jsTest` and `nativeTest`, are skipped unless `--include-tests`. The
 `samples`, `example` and `demo` path excludes some rules use are not used on
 Java or Kotlin source rules, because the engine's path globs also match package
 paths (`com.google.samples.apps`, `org.springframework.samples`,
@@ -471,3 +491,23 @@ tag with no closing `>` are left alone. A `<script>` inside a JSP comment is
 still read, because extraction finds the element before the comment is blanked.
 Thymeleaf templates are `.html` and already read; FreeMarker and Velocity
 templates are not read.
+
+## A known gap: a file over 1 MB
+
+Some rules first check the whole file for a name, with a `pattern-regex` of the
+form `(?s)\A(?=.*NAME).*`, so the engine can skip a file that cannot match. On
+Opengrep 1.33.1 that check stops matching after about a million backtracking
+steps and records no error. The rules write it with a greedy `.*`, which counts
+the steps from the end of the file: a name used only near the top of a file is
+missed from about 1,050 KB, while one near the end is still found in a 4.5 MB
+file. A lazy `.*?` counts from the start and misses a name used only at the end
+from about 1,000 KB, and an alternation tried at every step shortens the reach
+further. lexcode cannot lift the engine's limit, so a scan counts the files it
+hands the engine that are over 1,000,000 bytes and in a language with at least
+one such rule (in this rule set, Java, Kotlin and Ruby), and says so: `N files
+handed to the engine are over 1,000,000 bytes (Java); rules that first check a
+whole file for a name can miss matches in a file that large, so evidence in them
+may be missing from this record`. With files in more than one language, the
+parenthesis counts each (`2 Java, 1 Kotlin`). There is no notice when there is
+no such file. How a rule keeps the longest reach, and which forms the release
+test refuses, is in CONTRIBUTING.md under Cost.

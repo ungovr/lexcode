@@ -8,7 +8,7 @@ rules:
       # its own, so without it the engine parses every Ruby file. It reads the whole of a file that
       # builds a Mechanize agent anywhere, since an agent memoized in a method defined below its
       # use (`@agent ||= Mechanize.new`) is the usual service-object shape.
-      - pattern-regex: '(?s)\A(?=.*?Mechanize(?:\(\s*\))?(?:\s|\\|#[^\n]*+)*+&?\.(?:\s|\\|#[^\n]*+)*+(?:new|start)).*'
+      - pattern-regex: '(?s)\A(?=.*Mechanize(?:\(\s*\))?(?:\s|\\|#[^\n]*+)*+&?\.(?:\s|\\|#[^\n]*+)*+(?:new|start)).*'
       - pattern: $A.get($URL, ...)
       - metavariable-regex:
           metavariable: $A

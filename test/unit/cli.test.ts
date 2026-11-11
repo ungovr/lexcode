@@ -141,6 +141,27 @@ describe('lexcode explain', () => {
       ]);
     });
 
+    it('reads a Maven purl as <group>/<artifact>, the map\'s <group>:<artifact>', async () => {
+      const maven = makeRuleSet();
+      maven.components = [{ ecosystem: 'maven', match: 'com.twilio.sdk:twilio', enables: ['processes_voice'], says: 'a', source: 'https://example.org' }];
+      const purl = 'pkg:maven/com.twilio.sdk/twilio@10.1.0';
+      expect(await runExplainCommand([purl, '--json'], io(), { rs: maven })).toBe(0);
+      expect(JSON.parse(out.join(''))).toEqual({ purl, enables: ['processes_voice'] });
+      out.length = 0;
+      // The group is not read as part of the artifact, nor the artifact alone as the name.
+      expect(await runExplainCommand(['pkg:maven/com.twilio/sdk-twilio', '--json'], io(), { rs: maven })).toBe(0);
+      expect(JSON.parse(out.join('')).enables).toEqual([]);
+      out.length = 0;
+      expect(await runExplainCommand(['pkg:maven/twilio', '--json'], io(), { rs: maven })).toBe(0);
+      expect(JSON.parse(out.join('')).enables).toEqual([]);
+    });
+
+    it('answers a Maven purl from the bundled map through main', async () => {
+      vi.unstubAllEnvs(); // the bundled rules home, not the minimal one, holds the Maven map
+      expect(await main(['explain', 'pkg:maven/com.twilio.sdk/twilio@10.1.0', '--json'], io())).toBe(0);
+      expect(JSON.parse(out.join('')).enables).toContain('automated_outreach');
+    });
+
     it('rejects a malformed purl with exit 2 through main', async () => {
       expect(await main(['explain', 'pkg:npm', '--json'], io())).toBe(2);
       expect(err.join('')).toMatch(/not a valid package URL/);

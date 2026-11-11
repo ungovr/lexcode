@@ -35,6 +35,36 @@ function stubRuleSet(): RuleSet {
   return { ...base, rules: real.rules.filter((r) => r.id === 'lexcode.test.rule'), components: [] };
 }
 
+/** A rule set with one real rule over Python, with a whole-file lookahead pre-filter or without one. */
+function prefilterRuleSet(prefilter: boolean): RuleSet {
+  const dir = tree({
+    'processes_voice/stub.yml': [
+      'rules:',
+      '  - id: lexcode.test.rule',
+      '    languages: [python]',
+      '    severity: INFO',
+      '    message: stub',
+      '    patterns:',
+      ...(prefilter ? ["      - pattern-regex: '(?s)\\A(?=.*speak).*'"] : []),
+      '      - pattern: f(...)',
+      '    metadata:',
+      '      activity: processes_voice',
+      '      mentioned: performs',
+      '      definition: https://lexlint.io/activities/processes_voice',
+      '',
+    ].join('\n'),
+  });
+  const real = loadRuleSet([dir]);
+  const base = makeRuleSet();
+  return { ...base, rules: real.rules.filter((r) => r.id === 'lexcode.test.rule'), components: [] };
+}
+
+/** Python of about `bytes` bytes, in short lines. */
+function pythonOf(bytes: number): string {
+  const line = 'x = 1  # filler\n';
+  return line.repeat(Math.ceil(bytes / line.length));
+}
+
 let argvLog: string;
 beforeEach(() => {
   argvLog = join(tree({ 'keep.txt': '' }), 'argv.jsonl');
@@ -262,6 +292,24 @@ describe('what a scan could not read (#12745)', () => {
     expect(rec.notices).toContain(
       'not read: 2 Ruby files, 1 PHP file; lexcode has no rules for Ruby or PHP, so any evidence in them is missing from this record',
     );
+  });
+
+  it('counts the files over 1,000,000 bytes that a whole-file pre-filtered rule reads, in one notice', async () => {
+    const root = tree({ 'src/a.py': 'x = 1\n', 'gen/big.py': pythonOf(1_100_000), 'gen/other.py': pythonOf(1_050_000), 'gen/big.ts': pythonOf(1_100_000) });
+    const rec = await scan({ root, rulesDirs: [], rs: prefilterRuleSet(true), enginePath: STUB, includeTests: false, snippets: false });
+    expect(rec.notices).toContain(
+      '2 files handed to the engine are over 1,000,000 bytes (Python); rules that first check a whole file for a name ' +
+        'can miss matches in a file that large, so evidence in them may be missing from this record',
+    );
+  });
+
+  it('has no reach notice without a large file, or without a whole-file pre-filtered rule', async () => {
+    const small = tree({ 'src/a.py': 'x = 1\n', 'gen/near.py': pythonOf(990_000) });
+    const a = await scan({ root: small, rulesDirs: [], rs: prefilterRuleSet(true), enginePath: STUB, includeTests: false, snippets: false });
+    expect(a.notices.filter((n) => n.includes('1,000,000 bytes'))).toEqual([]);
+    const large = tree({ 'src/a.py': 'x = 1\n', 'gen/big.py': pythonOf(1_100_000) });
+    const b = await scan({ root: large, rulesDirs: [], rs: prefilterRuleSet(false), enginePath: STUB, includeTests: false, snippets: false });
+    expect(b.notices.filter((n) => n.includes('1,000,000 bytes'))).toEqual([]);
   });
 
   it('says nothing about languages when every code file is in a language its rules read', async () => {

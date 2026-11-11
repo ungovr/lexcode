@@ -48,3 +48,16 @@ class OrderHandler {
         // A class named like a handler, with no bot framework behind it.
     }
 }
+
+// The app's own base class that happens to be called ActivityHandler; this file does not import the
+// Bot Framework, so a subclass of it is not a bot.
+class ActivityHandler {
+    void onActivity(String name) {
+    }
+}
+
+class AuditTrail extends ActivityHandler {
+    void record(String name) {
+        onActivity(name);
+    }
+}

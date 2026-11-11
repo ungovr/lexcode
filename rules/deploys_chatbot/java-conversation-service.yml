@@ -5,7 +5,8 @@ rules:
     message: Sends what a person typed to a hosted dialogue service (Amazon Lex, Dialogflow) or answers it in a bot framework handler, which is deploying a chatbot (deploys_chatbot).
     # The receiver is named for the service (a Lex runtime client, a Dialogflow sessions client), so
     # recognizeText on an OCR engine and detectIntent on an app's own registry do not match. A class
-    # that extends the Microsoft Bot Framework's ActivityHandler is a bot by construction.
+    # that extends the Microsoft Bot Framework's ActivityHandler is a bot by construction, in a file
+    # that imports the framework.
     pattern-either:
       - patterns:
           - pattern-either:
@@ -21,10 +22,14 @@ rules:
           - metavariable-regex:
               metavariable: $S
               regex: (?i)^(this\.)?(\w*sessionsClient|\w*dialogflow\w*)$
-      - pattern: |
-          class $K extends ActivityHandler {
-            ...
-          }
+      # ActivityHandler is a name an app could define for itself, so the file must import the Bot
+      # Framework (the regular expression is also the pre-filter for this arm).
+      - patterns:
+          - pattern-regex: '(?s)import\s+com\.microsoft\.bot\..*'
+          - pattern: |
+              class $K extends ActivityHandler {
+                ...
+              }
     metadata:
       activity: deploys_chatbot
       mentioned: performs

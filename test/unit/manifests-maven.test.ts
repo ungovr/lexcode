@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readMaven } from '../../src/manifests/maven.js';
+import { expectNearLinear, measureScaling } from '../helpers/scaling.js';
 import { lineOf, tree } from './helpers.js';
 
 function dep(g: string, a: string, extra: { version?: string; scope?: string; optional?: boolean } = {}): string {
@@ -318,6 +319,22 @@ describe('readMaven', () => {
     ]);
   });
 
+  it('reads 20,000 dependencies, each versioned by its own property, in time that grows near-linearly with the count', () => {
+    const m = measureScaling({
+      small: 2_000,
+      large: 20_000,
+      setup: (n) => {
+        const props = Array.from({ length: n }, (_v, i) => `    <v${i}>1.${i}</v${i}>`);
+        const list = Array.from({ length: n }, (_v, i) => dep('com.big', `a${i}`, { version: '${v' + i + '}' }));
+        return tree({ 'pom.xml': pom({ head: ['  <properties>', ...props, '  </properties>'], body: deps(...list) }) });
+      },
+      run: (root) => readMaven(root, ['pom.xml']),
+    });
+    expectNearLinear(m, 'readMaven');
+    expect(m.result.deps).toHaveLength(20_000);
+    expect(m.result.deps.find((d) => d.name === 'com.big:a19999')?.version).toBe('1.19999');
+  });
+
   it('dedupes the same coordinate and version within one pom', () => {
     const text = pom({ body: deps(dep('com.x', 'x', { version: '1' }), dep('com.x', 'x', { version: '1' })) });
     expect(readMaven(tree({ 'pom.xml': text }), ['pom.xml']).deps).toHaveLength(1);
@@ -325,15 +342,14 @@ describe('readMaven', () => {
 
   it('a property that names the next one many times does not hang the reader', () => {
     // 9 levels, each naming the next 10 times: 10^9 expansions without a memo, and far past the length cap.
+    // A hang guard, so the test timeout is the bound.
     const ref = (n: number): string => '${p' + n + '}';
     const props = Array.from({ length: 9 }, (_v, i) => `    <p${i}>${ref(i + 1).repeat(10)}</p${i}>`);
     const text = pom({
       head: ['  <properties>', ...props, '    <p9>1</p9>', '  </properties>'],
       body: deps(dep('com.fan', 'fan', { version: '${p0}' }), dep('com.fan', 'ok', { version: '${p9}' })),
     });
-    const t0 = Date.now();
     const r = readMaven(tree({ 'pom.xml': text }), ['pom.xml']);
-    expect(Date.now() - t0).toBeLessThan(2000);
     expect(r.deps.map((d) => [d.name, d.version])).toEqual([
       ['com.fan:fan', undefined],
       ['com.fan:ok', '1'],

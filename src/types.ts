@@ -75,6 +75,8 @@ export interface RuleMeta {
   message: string;
   hostMetavar?: string;
   replaces: string[];
+  /** Set when a `pattern-regex` of the rule is a whole-file lookahead pre-filter (`\A(?=...)`). */
+  wholeFilePrefilter?: true;
 }
 
 export interface RegistryEntry {

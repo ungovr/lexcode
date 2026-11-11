@@ -103,7 +103,20 @@ function toRuleMeta(file: string, body: Obj): RuleMeta {
     replaces: strList(meta['replaces']),
   };
   if (typeof hostMetavar === 'string') rule.hostMetavar = hostMetavar;
+  if (hasWholeFilePrefilter(body)) rule.wholeFilePrefilter = true;
   return rule;
+}
+
+/**
+ * Whether any `pattern-regex` in a rule body, however deep, is a whole-file lookahead (`\A(?=...)`): a
+ * pre-filter the engine stops matching in a file over about a million bytes (rules/README.md, known gaps).
+ */
+export function hasWholeFilePrefilter(node: unknown): boolean {
+  if (Array.isArray(node)) return node.some(hasWholeFilePrefilter);
+  if (!isObj(node)) return false;
+  return Object.entries(node).some(([k, v]) =>
+    k === 'pattern-regex' && typeof v === 'string' ? /\\A\(\?=/.test(v) : hasWholeFilePrefilter(v),
+  );
 }
 
 function loadRegistry(file: string): Map<string, RegistryEntry> {

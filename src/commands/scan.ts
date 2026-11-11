@@ -1,3 +1,4 @@
+import { statSync } from 'node:fs';
 import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { isAbsolute, join, resolve } from 'node:path';
@@ -16,7 +17,7 @@ import { readGradle } from '../manifests/gradle.js';
 import { readMaven } from '../manifests/maven.js';
 import { readRuby } from '../manifests/ruby.js';
 import { baseName } from '../manifests/util.js';
-import { buildRecord, countRulesRun, engineTargets, unreadLanguages } from '../record/build.js';
+import { buildRecord, countRulesRun, engineTargets, largePrefilteredFiles, prefilterReachNotice, unreadLanguages } from '../record/build.js';
 import { toSarif } from '../record/sarif.js';
 import { loadRuleSet, writeMergedConfig } from '../rules/load.js';
 import { extractScripts } from '../scope/extract.js';
@@ -42,6 +43,15 @@ export interface ScanOptions {
   /** Repository-relative POSIX paths never read (the record and SARIF files lexcode itself wrote). */
   skipFiles?: string[];
   now?: Date;
+}
+
+/** A file's size in bytes, or 0 when it cannot be read. */
+function fileBytes(file: string): number {
+  try {
+    return statSync(file).size;
+  } catch {
+    return 0;
+  }
 }
 
 function union(...lists: string[][]): string[] {
@@ -175,6 +185,10 @@ export async function scan(o: ScanOptions): Promise<EvidenceRecord> {
       const configFile = join(tmp, 'rules.yml');
       writeMergedConfig(rs.rules, configFile);
       const targets = engineTargets(rs.rules, countedFiles);
+      // A whole-file pre-filter can stop matching in a file over about 1 MB; the engine records nothing, so say so.
+      const bytesOf = (f: string): number => fileBytes(isAbsolute(f) ? f : join(root, ...f.split('/')));
+      const reach = prefilterReachNotice(largePrefilteredFiles(rs.rules, targets, bytesOf));
+      if (reach !== undefined) notices.push(reach);
       if (targets.length > 0) {
         const ran = await runEngine({ engine: handle.path, configFile, targets, root });
         engineVersion = ran.version;

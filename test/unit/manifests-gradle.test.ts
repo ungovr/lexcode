@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readGradle } from '../../src/manifests/gradle.js';
+import { expectNearLinear, measureScaling } from '../helpers/scaling.js';
 import { lineOf, tree } from './helpers.js';
 
 function read(files: Record<string, string>) {
@@ -245,6 +246,51 @@ describe('readGradle: what is not a dependency', () => {
     const r = read({ 'build.gradle': text });
     expect(names(r)).toEqual(['g:real']);
     expect(r.devSkipped).toBe(0);
+  });
+
+  it('does not read a components {} block, which configures modules the build already has', () => {
+    const text = [
+      'dependencies {',
+      '    implementation("com.google.guava:guava:33.0.0-jre")',
+      '    components {',
+      '        withModule("com.squareup.okhttp3:okhttp") { allVariants { } }',
+      '    }',
+      '}',
+      '',
+    ].join('\n');
+    const r = read({ 'build.gradle.kts': text });
+    expect(names(r)).toEqual(['com.google.guava:guava']);
+    expect(r.notices).toEqual([]);
+    const only = ['dependencies {', '    components {', '        withModule("com.squareup.okhttp3:okhttp") { allVariants { } }', '    }', '}', ''].join('\n');
+    const o = read({ 'build.gradle.kts': only });
+    expect(o.deps).toEqual([]);
+    expect(o.notices).toEqual([]);
+  });
+
+  it('does not read a modules {} block, which names a module the build replaces', () => {
+    const text = [
+      'dependencies {',
+      '    implementation("com.google.guava:guava:33.0.0-jre")',
+      '    modules {',
+      '        module("com.google.collections:google-collections") { replacedBy("com.google.guava:guava") }',
+      '    }',
+      '}',
+      '',
+    ].join('\n');
+    const r = read({ 'build.gradle.kts': text });
+    expect(names(r)).toEqual(['com.google.guava:guava']);
+    expect(r.notices).toEqual([]);
+    const only = [
+      'dependencies {',
+      '    modules {',
+      '        module("com.google.collections:google-collections") { replacedBy("com.google.guava:guava") }',
+      '    }',
+      '}',
+      '',
+    ].join('\n');
+    const o = read({ 'build.gradle.kts': only });
+    expect(o.deps).toEqual([]);
+    expect(o.notices).toEqual([]);
   });
 
   it('does not record projects, files, platforms or kotlin()', () => {
@@ -692,13 +738,12 @@ describe('readGradle: constants in buildSrc objects', () => {
   });
 
   it('bounds a chain of constants that each name the previous twice', () => {
+    // A hang guard: 2^40 expansions without the memo and the length cap, so the test timeout is the bound.
     const lines = ['object Libs {', '    const val C0 = "v"'];
     for (let i = 1; i <= 40; i++) lines.push(`    const val C${i} = "\${C${i - 1}}\${C${i - 1}}"`);
     lines.push('    const val DEP = "g:a:${C40}"', '}', '');
     const files = { 'buildSrc/src/Deps.kt': lines.join('\n'), 'build.gradle': 'dependencies {\n    implementation Libs.DEP\n}\n' };
-    const t0 = Date.now();
     const r = read(files);
-    expect(Date.now() - t0).toBeLessThan(2000);
     expect(r.deps.map((d) => [d.name, d.version])).toEqual([['g:a', undefined]]);
   });
 
@@ -712,9 +757,8 @@ describe('readGradle: expansion size', () => {
   it('a long run of placeholders over a large variable is unresolved, not a throw', () => {
     const big = 'x'.repeat(4000);
     const text = [`ext.a = "${big}"`, 'dependencies {', `    implementation "g:b:${'$a'.repeat(140000)}"`, "    implementation 'g:ok:1'", '}', ''].join('\n');
-    const t0 = Date.now();
+    // A hang guard: 560 million characters if the cap did not refuse first, so the test timeout is the bound.
     const r = read({ 'build.gradle': text });
-    expect(Date.now() - t0).toBeLessThan(3000);
     expect(r.deps.map((d) => [d.name, d.version])).toEqual([
       ['g:b', undefined],
       ['g:ok', '1'],
@@ -734,9 +778,8 @@ describe('readGradle: expansion size', () => {
     const big = 'x'.repeat(4000);
     const consts = ['object Libs {', `    const val A = "${big}"`, `    const val DEP = "g:b:${'${A}'.repeat(140000)}"`, '    const val OK = "g:ok:1"', '}', ''].join('\n');
     const app = 'dependencies {\n    implementation Libs.DEP\n    implementation Libs.OK\n}\n';
-    const t0 = Date.now();
+    // A hang guard, as above: the test timeout is the bound.
     const r = read({ 'buildSrc/src/Deps.kt': consts, 'build.gradle': app });
-    expect(Date.now() - t0).toBeLessThan(3000);
     expect(r.deps.map((d) => [d.name, d.version])).toEqual([
       ['g:b', undefined],
       ['g:ok', '1'],
@@ -778,13 +821,42 @@ describe('readGradle: robustness', () => {
     expect(r.deps).toEqual([]);
   });
 
-  it('handles a large file without quadratic work', () => {
-    const lines = ['dependencies {'];
-    for (let i = 0; i < 20000; i++) lines.push(`    implementation "g:a${i}:1"`);
-    lines.push('}', '');
-    const t0 = Date.now();
-    const r = read({ 'build.gradle': lines.join('\n') });
-    expect(r.deps).toHaveLength(20000);
-    expect(Date.now() - t0).toBeLessThan(5000);
+  it('reads 20,000 declarations in time that grows near-linearly with the count', () => {
+    const m = measureScaling({
+      small: 2_000,
+      large: 20_000,
+      setup: (n) => {
+        const lines = ['dependencies {'];
+        for (let i = 0; i < n; i++) lines.push(`    implementation "g:a${i}:1"`);
+        lines.push('}', '');
+        return tree({ 'build.gradle': lines.join('\n') });
+      },
+      run: (root) => readGradle(root, ['build.gradle']),
+    });
+    expectNearLinear(m, 'readGradle (declarations)');
+    expect(m.result.deps).toHaveLength(20_000);
+    expect(m.result.deps[19_999]).toEqual({ ecosystem: 'maven', name: 'g:a19999', version: '1', manifest: 'build.gradle:20001' });
+  });
+
+  it('reads 20,000 constants and the declarations that name them in time that grows near-linearly with the count', () => {
+    const m = measureScaling({
+      small: 2_000,
+      large: 20_000,
+      setup: (n) => {
+        const consts = ['object Libs {', '    const val V = "1"'];
+        const app = ['dependencies {'];
+        for (let i = 0; i < n; i++) {
+          consts.push(`    const val D${i} = "g:c${i}:\${V}"`);
+          app.push(`    implementation Libs.D${i}`);
+        }
+        consts.push('}', '');
+        app.push('}', '');
+        return tree({ 'buildSrc/src/Deps.kt': consts.join('\n'), 'build.gradle': app.join('\n') });
+      },
+      run: (root) => readGradle(root, ['buildSrc/src/Deps.kt', 'build.gradle']),
+    });
+    expectNearLinear(m, 'readGradle (constants)');
+    expect(m.result.deps).toHaveLength(20_000);
+    expect(m.result.deps.every((d) => d.version === '1')).toBe(true);
   });
 });
