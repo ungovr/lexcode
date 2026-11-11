@@ -10,16 +10,16 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class ChatController {
     private final ChatMessageRepository chatMessageRepository;
-    private final ConversationRepository conversationRepository;
-    private final TranscriptDao transcriptDao;
+    private final ConversationMessageRepository conversationMessageRepository;
+    private final ChatTranscriptDao chatTranscriptDao;
     private final MessageStore store;
     private final javax.persistence.EntityManager entityManager;
 
-    public ChatController(ChatMessageRepository chatMessageRepository, ConversationRepository conversationRepository,
-                          TranscriptDao transcriptDao, MessageStore store, javax.persistence.EntityManager entityManager) {
+    public ChatController(ChatMessageRepository chatMessageRepository, ConversationMessageRepository conversationMessageRepository,
+                          ChatTranscriptDao chatTranscriptDao, MessageStore store, javax.persistence.EntityManager entityManager) {
         this.chatMessageRepository = chatMessageRepository;
-        this.conversationRepository = conversationRepository;
-        this.transcriptDao = transcriptDao;
+        this.conversationMessageRepository = conversationMessageRepository;
+        this.chatTranscriptDao = chatTranscriptDao;
         this.store = store;
         this.entityManager = entityManager;
     }
@@ -31,11 +31,11 @@ public class ChatController {
 
     @PostMapping("/chat/import")
     public void importAll(@RequestBody List<ChatMessage> messages) {
-        conversationRepository.saveAll(messages);
+        conversationMessageRepository.saveAll(messages);
     }
 
-    public void archive(TranscriptEntry entry) {
-        transcriptDao.insert(entry);
+    public void archive(ChatTranscript entry) {
+        chatTranscriptDao.insert(entry);
     }
 
     public void persistTurn(String room, String text) {

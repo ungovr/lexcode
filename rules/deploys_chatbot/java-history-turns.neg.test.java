@@ -47,6 +47,15 @@ public class OneShotTools {
         return results;
     }
 
+    // A list that names the current user and is rendered, not a conversation with a model: the word
+    // "user" in an added value is not a user turn, and generate() here is a mail renderer.
+    public void renderRecipients(User currentUser, MailRenderer mailRenderer) {
+        List<String> recipients = new ArrayList<>();
+        recipients.add(currentUser.getEmail());
+        mailRenderer.generate(recipients);
+        recipients.add("audit@example.org");
+    }
+
     // User messages collected for the audit trail, with no model call.
     public void record(String text) {
         List<Message> trail = new ArrayList<>();

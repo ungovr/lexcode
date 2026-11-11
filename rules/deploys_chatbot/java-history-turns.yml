@@ -25,10 +25,10 @@ rules:
                   $H.add($Z);
               - metavariable-regex:
                   metavariable: $U
-                  regex: '(?is)^.*user.*$'
+                  regex: '(?s)^.*(UserMessage|["\x27]user["\x27]|Role\.USER|MessageType\.USER).*$'
               - metavariable-regex:
                   metavariable: $Z
-                  regex: '(?is)^(?!.*user).*$'
+                  regex: '(?s)^(?!.*(UserMessage|["\x27]user["\x27]|Role\.USER|MessageType\.USER)).*$'
               # Literal anchor inside the match (the model call), so the engine skips files with no such call.
               - pattern-regex: '(\.call\(|\.chat\(|\.generate\(|\.stream\(|\.messages\()'
           - patterns:

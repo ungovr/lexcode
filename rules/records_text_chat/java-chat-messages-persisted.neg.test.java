@@ -14,11 +14,16 @@ public class FormsController {
     private final TicketRepository ticketRepository;
     private final ChatRoomRepository chatRoomRepository;
     private final OrderRepository orderRepository;
+    private final TranscriptRepository transcriptRepository;
+    private final ConversationRepository conversationRepository;
     private final javax.persistence.EntityManager entityManager;
 
     public FormsController(ContactMessageRepository contactMessageRepository, FeedbackRepository feedbackRepository,
                            TicketRepository ticketRepository, ChatRoomRepository chatRoomRepository,
-                           OrderRepository orderRepository, javax.persistence.EntityManager entityManager) {
+                           OrderRepository orderRepository, TranscriptRepository transcriptRepository,
+                           ConversationRepository conversationRepository, javax.persistence.EntityManager entityManager) {
+        this.transcriptRepository = transcriptRepository;
+        this.conversationRepository = conversationRepository;
         this.contactMessageRepository = contactMessageRepository;
         this.feedbackRepository = feedbackRepository;
         this.ticketRepository = ticketRepository;
@@ -46,6 +51,15 @@ public class FormsController {
     @PostMapping("/rooms")
     public void room(@RequestBody RoomForm form) {
         chatRoomRepository.save(new ChatRoom(form.getName()));
+    }
+
+    // An academic transcript is a student's record of courses and grades, and a bare Conversation record
+    // names who talked and when; neither holds text typed in a chat.
+    @PostMapping("/registrar")
+    public void registrar(@RequestBody StudentForm form) {
+        transcriptRepository.save(new Transcript(form.getStudentId()));
+        conversationRepository.save(new Conversation(form.getTopic()));
+        entityManager.persist(new TranscriptEntry(form.getStudentId(), "MATH 101", "A"));
     }
 
     @PostMapping("/orders")

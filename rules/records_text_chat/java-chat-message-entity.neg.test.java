@@ -45,3 +45,36 @@ class SupportTicket {
     private Long id;
     private String subject;
 }
+
+// An academic transcript: courses and grades, not chat text.
+@Entity
+@Table(name = "TRANSCRIPT")
+class Transcript {
+    @Id
+    private Long id;
+    private String studentId;
+}
+
+@Entity
+class TranscriptEntry {
+    @Id
+    private Long id;
+    private String course;
+    private String grade;
+}
+
+// A caption line of a recorded lecture.
+@Entity
+class TranscriptLine {
+    @Id
+    private Long id;
+    private String caption;
+}
+
+// A bare conversation record: who talked and when.
+@Entity
+class Conversation {
+    @Id
+    private Long id;
+    private String topic;
+}

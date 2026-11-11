@@ -26,7 +26,7 @@ rules:
       - focus-metavariable: $K
       - metavariable-regex:
           metavariable: $K
-          regex: ^\w*(Chat(Message|Msg|Turn|Entry|History|Log|Transcript)|Conversation(Message|Turn|Entry)|Transcript(Entry|Line))s?$
+          regex: ^\w*(Chat(Message|Msg|Turn|Entry|History|Log|Transcript)|Conversation(Message|Turn|Entry|Transcript))s?$
     metadata:
       activity: records_text_chat
       mentioned: performs
