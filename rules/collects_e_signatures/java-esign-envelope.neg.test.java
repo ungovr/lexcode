@@ -1,12 +1,18 @@
 // lexcode-expect: 0
 // Sending, signing and checking things that are not a person's electronic signature on a
 // document: an email message, a cryptographic signature over bytes, a JWT, a PDF built without a
-// signature, and a project class named EnvelopesApi that is not DocuSign's.
+// signature, and project classes that share a vendor's method names. The vendor guard is tested
+// too: this file imports Dropbox Sign's SignatureRequestApi (unused) and calls the other
+// vendors' generic names (createEnvelope, createAgreement, sendSignatureRequest) on project
+// objects. Without each call's own vendor import none of them is an e-signature call.
 package demo.docs;
 
+import com.dropbox.sign.api.SignatureRequestApi;
 import com.itextpdf.kernel.pdf.PdfDocument;
 import com.itextpdf.kernel.pdf.PdfWriter;
 import demo.mail.EnvelopesApi;
+import demo.mail.MailClient;
+import demo.sales.AgreementsApi;
 import io.jsonwebtoken.Jwts;
 import java.security.PrivateKey;
 import java.security.Signature;
@@ -35,5 +41,13 @@ public class Documents {
 
   public Object internalEnvelope(EnvelopesApi api, String body) {
     return api.createEnvelope("account", body);
+  }
+
+  public Object internalAgreement(AgreementsApi api, String body) {
+    return api.createAgreement("token", body, null, null);
+  }
+
+  public Object internalMail(MailClient client, String body) {
+    return client.sendSignatureRequest(body);
   }
 }

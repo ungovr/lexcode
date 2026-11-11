@@ -1,8 +1,11 @@
 // lexcode-expect: 0
 // Signing a person in is not checking who they are: a password login, ordinary OAuth and OpenID
 // Connect sign-in, Google Sign-In, Firebase email and password, and a biometric unlock prompt.
-// Stripe payments and Checkout sit next to Stripe Identity without being it, and a project class
-// named like a vendor's does not count without the vendor's import.
+// Stripe payments and Checkout sit next to Stripe Identity without being it. The vendor guard
+// is tested too: this file imports Stripe Identity's VerificationSession (unused) and calls the
+// generic names Sdk.createLaunchIntent, Inquiry.fromTemplate, DigitalIdentityClient.builder and
+// JumioSDK on classes of the project's own. Without each call's own vendor import none of them
+// is a vendor call.
 package demo.auth;
 
 import android.app.Activity;
@@ -12,7 +15,11 @@ import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
 import com.google.firebase.auth.FirebaseAuth;
 import com.stripe.model.PaymentIntent;
 import com.stripe.model.checkout.Session;
+import com.stripe.model.identity.VerificationSession;
+import demo.camera.Sdk;
+import demo.kyc.DigitalIdentityClient;
 import demo.kyc.Inquiry;
+import demo.kyc.JumioSDK;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
 public class SignIn {
@@ -44,5 +51,17 @@ public class SignIn {
 
   public Object ownInquiry(String template) {
     return Inquiry.fromTemplate(template);
+  }
+
+  public Object ownCamera(Activity activity, String url) {
+    return Sdk.createLaunchIntent(activity, url);
+  }
+
+  public Object ownIdentity() {
+    return DigitalIdentityClient.builder();
+  }
+
+  public Object ownJumio(android.content.Context context) {
+    return new JumioSDK(context);
   }
 }

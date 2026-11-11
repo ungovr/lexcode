@@ -3,29 +3,34 @@ rules:
     languages: [java]
     severity: INFO
     message: Sends a document to a person for electronic signature through DocuSign, Dropbox Sign, HelloSign or Adobe Acrobat Sign, which is collecting electronic signatures (collects_e_signatures).
-    patterns:
-      - pattern-either:
+    # One branch per vendor: each call is read only in a file that imports that vendor's own API class.
+    pattern-either:
+      - patterns:
           - pattern: $C.createEnvelope(...)
-          - pattern: $C.signatureRequestSend(...)
-          - pattern: $C.signatureRequestSendWithTemplate(...)
-          - pattern: $C.signatureRequestCreateEmbedded(...)
-          - pattern: $C.signatureRequestCreateEmbeddedWithTemplate(...)
-          - pattern: $C.sendSignatureRequest(...)
-          - pattern: $C.sendTemplateSignatureRequest(...)
-          - pattern: $C.createEmbeddedSignatureRequest(...)
-          - pattern: $C.createAgreement(...)
-      - pattern-either:
           - pattern-inside: |
               import com.docusign.esign.api.EnvelopesApi;
               ...
+      - patterns:
+          - pattern-either:
+              - pattern: $C.signatureRequestSend(...)
+              - pattern: $C.signatureRequestSendWithTemplate(...)
+              - pattern: $C.signatureRequestCreateEmbedded(...)
+              - pattern: $C.signatureRequestCreateEmbeddedWithTemplate(...)
           - pattern-inside: |
               import com.dropbox.sign.api.SignatureRequestApi;
               ...
+      - patterns:
+          - pattern-either:
+              - pattern: $C.sendSignatureRequest(...)
+              - pattern: $C.sendTemplateSignatureRequest(...)
+              - pattern: $C.createEmbeddedSignatureRequest(...)
           - pattern-inside: |
               import com.hellosign.sdk.HelloSignClient;
               ...
+      - patterns:
+          - pattern: $C.createAgreement(...)
           - pattern-inside: |
-              import com.adobe.sign.api.AgreementsApi;
+              import io.swagger.client.api.AgreementsApi;
               ...
     metadata:
       activity: collects_e_signatures

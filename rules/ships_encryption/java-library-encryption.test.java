@@ -1,8 +1,9 @@
-// lexcode-expect: 25
+// lexcode-expect: 27
 // Encryption and key agreement through libraries the product bundles: Bouncy Castle (block and
 // stream ciphers, key agreement, OpenPGP, CMS), Google Tink, libsodium bindings, Jasypt and
 // Spring Security Crypto, Nimbus JOSE JWE and JJWT encryption, the Signal protocol, Olm,
-// Apache Commons Crypto, the AWS Encryption SDK and PGPainless.
+// Apache Commons Crypto, the AWS Encryption SDK and PGPainless, and a JCA cipher built through
+// the Bouncy Castle provider.
 package demo.crypto;
 
 import com.amazonaws.encryptionsdk.AwsCrypto;
@@ -19,6 +20,7 @@ import com.nimbusds.jose.Payload;
 import com.nimbusds.jose.crypto.RSAEncrypter;
 import io.jsonwebtoken.Jwts;
 import java.util.Properties;
+import javax.crypto.Cipher;
 import org.abstractj.kalium.crypto.Box;
 import org.apache.commons.crypto.utils.Utils;
 import org.bouncycastle.cms.CMSEnvelopedDataGenerator;
@@ -27,6 +29,7 @@ import org.bouncycastle.crypto.engines.AESEngine;
 import org.bouncycastle.crypto.modes.ChaCha20Poly1305;
 import org.bouncycastle.crypto.modes.GCMBlockCipher;
 import org.bouncycastle.crypto.paddings.PaddedBufferedBlockCipher;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openpgp.PGPEncryptedDataGenerator;
 import org.jasypt.util.text.AES256TextEncryptor;
 import org.libsodium.jni.crypto.SecretBox;
@@ -149,5 +152,13 @@ public class Vault {
 
   public Object pgpainless() {
     return PGPainless.encryptAndOrSign();
+  }
+
+  public Cipher providerByName() throws Exception {
+    return Cipher.getInstance("AES/GCM/NoPadding", "BC");
+  }
+
+  public Cipher providerByConstant() throws Exception {
+    return Cipher.getInstance("ChaCha20-Poly1305", BouncyCastleProvider.PROVIDER_NAME);
   }
 }

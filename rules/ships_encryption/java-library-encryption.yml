@@ -3,6 +3,8 @@ rules:
     languages: [java]
     severity: INFO
     message: Encrypts data or agrees keys with a cryptography library the product bundles (Bouncy Castle, Tink, libsodium, Jasypt, Spring Security Crypto, JOSE encryption, the Signal protocol or the AWS Encryption SDK), which is shipping encryption (ships_encryption).
+    # The platform's own cryptography (javax.crypto Cipher and KeyAgreement, SecretKeyFactory,
+    # MessageDigest, Mac, TLS) is not evidence; a cipher built through a bundled provider is.
     pattern-either:
       # Bouncy Castle lightweight API, OpenPGP and CMS
       - pattern: new GCMBlockCipher(...)
@@ -17,13 +19,25 @@ rules:
       - pattern: new ECDHBasicAgreement()
       - pattern: new PGPEncryptedDataGenerator(...)
       - pattern: new CMSEnvelopedDataGenerator()
+      # A JCA cipher built through the Bouncy Castle provider
+      - patterns:
+          - pattern-either:
+              - pattern: Cipher.getInstance($A, "BC")
+              - pattern: Cipher.getInstance($A, BouncyCastleProvider.PROVIDER_NAME)
+          - pattern-either:
+              - pattern-inside: |
+                  import javax.crypto.Cipher;
+                  ...
+              - pattern-inside: |
+                  import javax.crypto.*;
+                  ...
       # Google Tink
       - pattern: AeadConfig.register()
       - pattern: $K.getPrimitive(Aead.class)
       - pattern: $K.getPrimitive(HybridEncrypt.class)
       - pattern: $K.getPrimitive(StreamingAead.class)
       - pattern: $K.getPrimitive(DeterministicAead.class)
-      # libsodium bindings: Lazysodium, libsodium-jni and Kalium
+      # libsodium bindings: Lazysodium (distinctive method names), libsodium-jni and Kalium
       - pattern: $S.cryptoSecretBoxEasy(...)
       - pattern: $S.cryptoBoxEasy(...)
       - pattern: $S.cryptoBoxSealEasy(...)
@@ -35,19 +49,16 @@ rules:
           - pattern-either:
               - pattern: new SecretBox(...)
               - pattern: new Box(...)
+          - pattern-inside: |
+              import org.libsodium.jni.crypto.$C;
+              ...
+      - patterns:
           - pattern-either:
-              - pattern-inside: |
-                  import org.libsodium.jni.crypto.SecretBox;
-                  ...
-              - pattern-inside: |
-                  import org.libsodium.jni.crypto.Box;
-                  ...
-              - pattern-inside: |
-                  import org.abstractj.kalium.crypto.SecretBox;
-                  ...
-              - pattern-inside: |
-                  import org.abstractj.kalium.crypto.Box;
-                  ...
+              - pattern: new SecretBox(...)
+              - pattern: new Box(...)
+          - pattern-inside: |
+              import org.abstractj.kalium.crypto.$C;
+              ...
       # Jasypt and Spring Security Crypto
       - pattern: new StandardPBEStringEncryptor()
       - pattern: new StandardPBEByteEncryptor()
@@ -67,7 +78,18 @@ rules:
       - pattern: new ECDHEncrypter(...)
       - pattern: new X25519Encrypter(...)
       - pattern: new PasswordBasedEncrypter(...)
-      - pattern: $B.encryptWith(...)
+      - patterns:
+          - pattern: $B.encryptWith(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import io.jsonwebtoken.Jwts;
+                  ...
+              - pattern-inside: |
+                  import io.jsonwebtoken.JwtBuilder;
+                  ...
+              - pattern-inside: |
+                  import io.jsonwebtoken.*;
+                  ...
       # End-to-end messaging: the Signal protocol and Olm
       - pattern: new SessionCipher(...)
       - pattern: new GroupCipher(...)
@@ -76,7 +98,11 @@ rules:
       - pattern: new OlmOutboundGroupSession()
       - pattern: new OlmInboundGroupSession(...)
       # Apache Commons Crypto, the AWS Encryption SDK and PGPainless
-      - pattern: Utils.getCipherInstance(...)
+      - patterns:
+          - pattern: Utils.getCipherInstance(...)
+          - pattern-inside: |
+              import org.apache.commons.crypto.utils.Utils;
+              ...
       - pattern: CryptoCipherFactory.getCryptoCipher(...)
       - pattern: new CryptoOutputStream(...)
       - pattern: AwsCrypto.builder()

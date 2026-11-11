@@ -13,9 +13,6 @@ rules:
                   import net.sqlcipher.database.SupportFactory;
                   ...
               - pattern-inside: |
-                  import net.zetetic.database.sqlcipher.SupportOpenHelperFactory;
-                  ...
-              - pattern-inside: |
                   import net.sqlcipher.database.*;
                   ...
       - pattern: new SupportOpenHelperFactory(...)
