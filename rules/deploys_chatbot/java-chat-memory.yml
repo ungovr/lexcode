@@ -1,0 +1,45 @@
+rules:
+  - id: lexcode.chatbot.java-chat-memory
+    languages: [java]
+    severity: INFO
+    message: Keeps the earlier turns of a conversation with a language model (a chat memory, a memory advisor or a chat session), where the code does not show who the conversation is with, which may be deploying a chatbot (deploys_chatbot).
+    # Signal strength, like acts_as_chat in the Ruby rules and the Gemini chat session in the Python
+    # rules: a model that remembers the last turn is conversational, but the code alone does not show
+    # a person on the other end. AiServices.builder(...).chatMemory(...) and .chatMemoryProvider(...)
+    # are LangChain4j; the *ChatMemoryAdvisor classes are Spring AI; startChat() is the Vertex AI
+    # Gemini chat session. A memory class handed straight to .chatMemory(...) reports once, on the call.
+    # Each branch has its own literal anchor (one hit per match, so a call is reported once).
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: $S.chatMemory(...)
+              - pattern: $S.chatMemoryProvider(...)
+          - pattern-regex: '\.chatMemory(Provider)?\('
+      - patterns:
+          - pattern-either:
+              - pattern: MessageWindowChatMemory.$F(...)
+              - pattern: TokenWindowChatMemory.$F(...)
+          - pattern-not-inside: $S.chatMemory(...)
+          - pattern-not-inside: $S.chatMemoryProvider(...)
+          - pattern-regex: '(Message|Token)WindowChatMemory\.'
+      - patterns:
+          - pattern-either:
+              - pattern: MessageChatMemoryAdvisor.builder(...)
+              - pattern: PromptChatMemoryAdvisor.builder(...)
+              - pattern: VectorStoreChatMemoryAdvisor.builder(...)
+              - pattern: new MessageChatMemoryAdvisor(...)
+              - pattern: new PromptChatMemoryAdvisor(...)
+              - pattern: new VectorStoreChatMemoryAdvisor(...)
+          - pattern-regex: 'ChatMemoryAdvisor[.(]'
+      - patterns:
+          - pattern-either:
+              - pattern: $M.startChat(...)
+              - pattern: $C.chats.create(...)
+          - pattern-regex: '(\.startChat\(|\.chats\.create\()'
+    metadata:
+      activity: deploys_chatbot
+      mentioned: performs
+      definition: https://lexlint.io/activities/deploys-chatbot
+      provenance: ungovr-original
+      license: MIT
+      strength: signal

@@ -1,0 +1,73 @@
+rules:
+  - id: lexcode.outreach.java-send-in-scheduled-job
+    languages: [java]
+    severity: INFO
+    message: Sends an email, text, call or push notification from a scheduled method, Quartz job or timer that no user action triggers, which is sending automated outreach (automated_outreach).
+    # The timer shapes are Spring's @Scheduled, a Quartz Job's execute(JobExecutionContext), a
+    # TimerTask, and a ScheduledExecutorService or TaskScheduler callback. A queue listener or an
+    # @Async method is java-send-in-queue-worker: the code does not show whether a person asked.
+    patterns:
+      - pattern-either:
+          - pattern-inside: |
+              @Scheduled(...)
+              $RET $F(...) {
+                ...
+              }
+          - pattern-inside: |
+              $RET execute(JobExecutionContext $C) {
+                ...
+              }
+          - pattern-inside: |
+              new TimerTask() {
+                ...
+              }
+          - pattern-inside: |
+              class $K extends TimerTask {
+                ...
+              }
+          - pattern-inside: |
+              $E.scheduleAtFixedRate(...)
+          - pattern-inside: |
+              $E.scheduleWithFixedDelay(...)
+      # A send from a catch block is an alert to the operator about the job, not a message to people.
+      - pattern-not-inside: |
+          catch ($T $E) {
+            ...
+          }
+      - pattern-either:
+          - pattern: Transport.send(...)
+          - patterns:
+              - pattern: $M.send(...)
+              - metavariable-regex:
+                  metavariable: $M
+                  regex: '(?i)^(this\.)?\w*(mail|smtp)\w*$'
+          - patterns:
+              - pattern-either:
+                  - pattern: $X.$N(...)
+                  - pattern: $N(...)
+              - metavariable-regex:
+                  metavariable: $N
+                  regex: ^send\w*(Email|Mail|RawEmail|TemplatedEmail|Sms|SMS|Text|TextMessage|Push|PushNotification|Notification|Reminder|Digest|Newsletter|Alert)s?$
+          - patterns:
+              - pattern: $SG.api(...)
+              - metavariable-regex:
+                  metavariable: $SG
+                  regex: (?i)^(this\.)?(sg|sendgrid\w*)$
+          - pattern: Message.creator(...).create(...)
+          - pattern: Call.creator(...).create(...)
+          - pattern: FirebaseMessaging.getInstance().send(...)
+          - patterns:
+              - pattern: $FM.send(...)
+              - metavariable-regex:
+                  metavariable: $FM
+                  regex: (?i)^(this\.)?(\w*firebase\w*|fcm\w*)$
+          - pattern: $R.emails().send(...)
+          - pattern: $P.deliverMessage(...)
+      # Literal anchor inside the match: it lets the engine skip files with no send call.
+      - pattern-regex: '(Transport\.send|\.send\(|\bsend\w*(Email|Mail|RawEmail|TemplatedEmail|Sms|SMS|Text|TextMessage|Push|PushNotification|Notification|Reminder|Digest|Newsletter|Alert)s?\(|\.api\(|\.creator\(|\.deliverMessage\()'
+    metadata:
+      activity: automated_outreach
+      mentioned: performs
+      definition: https://lexlint.io/activities/automated-outreach
+      provenance: ungovr-original
+      license: MIT

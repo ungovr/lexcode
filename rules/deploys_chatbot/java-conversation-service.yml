@@ -1,0 +1,33 @@
+rules:
+  - id: lexcode.chatbot.java-conversation-service
+    languages: [java]
+    severity: INFO
+    message: Sends what a person typed to a hosted dialogue service (Amazon Lex, Dialogflow) or answers it in a bot framework handler, which is deploying a chatbot (deploys_chatbot).
+    # The receiver is named for the service (a Lex runtime client, a Dialogflow sessions client), so
+    # recognizeText on an OCR engine and detectIntent on an app's own registry do not match. A class
+    # that extends the Microsoft Bot Framework's ActivityHandler is a bot by construction.
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: $L.recognizeText(...)
+              - pattern: $L.recognizeUtterance(...)
+              - pattern: $L.postText(...)
+              - pattern: $L.postContent(...)
+          - metavariable-regex:
+              metavariable: $L
+              regex: ^(this\.)?(lex|[a-z]*Lex)\w*$
+      - patterns:
+          - pattern: $S.detectIntent(...)
+          - metavariable-regex:
+              metavariable: $S
+              regex: (?i)^(this\.)?(\w*sessionsClient|\w*dialogflow\w*)$
+      - pattern: |
+          class $K extends ActivityHandler {
+            ...
+          }
+    metadata:
+      activity: deploys_chatbot
+      mentioned: performs
+      definition: https://lexlint.io/activities/deploys-chatbot
+      provenance: ungovr-original
+      license: MIT
