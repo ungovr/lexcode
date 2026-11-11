@@ -200,7 +200,7 @@ rules:
           metavariable: $Z
           regex: '(?s)^(?!\s*\{[^}]*(\brole:|["\x27:]role["\x27]?\s*=>)\s*["\x27]user["\x27]).*$'
       # Literal anchor inside the match (the model call), so the engine skips files with no such call.
-      - pattern-regex: '(&?\.\s*(chat|converse\w*|chat_completions?|complete)\b(?!\s*&?\.)|&?\.\s*messages\s*(\(|&?\.\s*(create|stream)\b|\s+parameters)|completions\s*&?\.\s*create\b|&?\.\s*responses\s*&?\.\s*create\b)'
+      - pattern-regex: '(&?\.(?:\s|\\|#[^\n]*+)*+(chat|converse\w*|chat_completions?|complete)\b(?!\s*&?\.)|&?\.(?:\s|\\|#[^\n]*+)*+messages(?:\s|\\|#[^\n]*+)*+(\(|&?\.(?:\s|\\|#[^\n]*+)*+(create|stream)\b|\s+parameters)|completions(?:\(\s*\))?(?:\s|\\|#[^\n]*+)*+&?\.(?:\s|\\|#[^\n]*+)*+create\b|&?\.(?:\s|\\|#[^\n]*+)*+responses(?:\(\s*\))?(?:\s|\\|#[^\n]*+)*+&?\.(?:\s|\\|#[^\n]*+)*+create\b)'
     metadata:
       activity: deploys_chatbot
       mentioned: performs

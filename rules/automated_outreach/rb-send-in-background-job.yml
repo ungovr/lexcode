@@ -49,7 +49,7 @@ rules:
           - pattern: Resend::Emails.send(...)
           - pattern: '$C.messages.create(..., to: $TO, ...)'
       # Literal anchor inside the match: it lets the engine skip files with no send call (without it the common words in the patterns make it read most large files).
-      - pattern-regex: '(&?\.\s*(deliver_now|deliver_later)\b|&?\.\s*deliver\b|\bsend_(templated_|raw_)?email\b|deliver_with_template|Resend::Emails\s*&?\.\s*send|&?\.\s*(messages|calls)\s*&?\.\s*create\b|&?\.\s*send_message\b)'
+      - pattern-regex: '(&?\.(?:\s|\\|#[^\n]*+)*+(deliver_now|deliver_later)\b|&?\.(?:\s|\\|#[^\n]*+)*+deliver\b|\bsend_(templated_|raw_)?email\b|deliver_with_template|Resend::Emails(?:\(\s*\))?(?:\s|\\|#[^\n]*+)*+&?\.(?:\s|\\|#[^\n]*+)*+send|&?\.(?:\s|\\|#[^\n]*+)*+(messages|calls)(?:\(\s*\))?(?:\s|\\|#[^\n]*+)*+&?\.(?:\s|\\|#[^\n]*+)*+create\b|&?\.(?:\s|\\|#[^\n]*+)*+send_message\b)'
     metadata:
       activity: automated_outreach
       mentioned: performs

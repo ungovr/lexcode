@@ -1,4 +1,4 @@
-# lexcode-expect: 14
+# lexcode-expect: 18
 # Messages sent from a queue worker, an ActiveJob or a notifier method, where the code does not show
 # whether a person asked for each one.
 class StatusChangeJob < ApplicationJob
@@ -86,5 +86,22 @@ class ChainShapesWorker
     sms_client
       .messages
       .create(from: "+15550100", to: ticket.phone, body: "Done.")
+  end
+end
+
+# Shapes the anchor must also admit: an empty () after a no-arg method, a comment line or a
+# backslash between the two tokens, and (schema, Mailchimp) text after or far from the key.
+class ResidualShapesWorker
+  include Sidekiq::Worker
+
+  def perform(ticket_id)
+    ticket = Ticket.find(ticket_id)
+    sms_client.messages().create(from: "+15550100", to: ticket.phone, body: "Done.")
+    sms_client.messages # the texting API
+      .create(from: "+15550100", to: ticket.phone, body: "Done.")
+    sms_client.messages \
+      .create(from: "+15550100", to: ticket.phone, body: "Done.")
+    TicketMailer.with(ticket: ticket).status_changed # tell the requester
+      .deliver_now
   end
 end

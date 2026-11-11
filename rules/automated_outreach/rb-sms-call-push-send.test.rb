@@ -1,4 +1,4 @@
-# lexcode-expect: 22
+# lexcode-expect: 27
 # Texts, calls and push notifications, where the code does not show whether a person just asked.
 class NotificationsController < ApplicationController
   def reminder
@@ -67,5 +67,20 @@ class ChainShapesCarriers
     vonage
       .sms
       .send(from: "Example", to: user.phone, text: "Hi")
+  end
+end
+
+# Shapes the anchor must also admit: an empty () after a no-arg method, a comment line or a
+# backslash between the two tokens, and (schema, Mailchimp) text after or far from the key.
+class ResidualShapesCarriers
+  def run(user, payload)
+    client.messages().create(from: "+15550100", to: user.phone, body: "Hi")
+    vonage.sms().send(from: "Example", to: user.phone, text: "Hi")
+    client.calls # voice
+      .create(from: "+15550100", to: user.phone, url: "https://example.org/voice.xml")
+    Webpush # browser push
+      .payload_send(message: payload, endpoint: user.endpoint)
+    client.messages \
+      .create(from: "+15550100", to: user.phone, body: "Hi")
   end
 end

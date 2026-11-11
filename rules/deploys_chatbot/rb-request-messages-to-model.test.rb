@@ -1,4 +1,4 @@
-# lexcode-expect: 15
+# lexcode-expect: 18
 # Rails endpoints and an ActionCable channel that hand what a person typed, or the conversation so
 # far, to a language model.
 class ChatsController < ApplicationController
@@ -78,5 +78,18 @@ class ChainShapesChats < ApplicationController
       .completions
       .create(model: "gpt-4o-mini", messages: params[:messages])
     render json: { reply: reply, msg: msg }
+  end
+end
+
+# Shapes the anchor must also admit: an empty () after a no-arg method, a comment line or a
+# backslash between the two tokens, and (schema, Mailchimp) text after or far from the key.
+class ResidualShapesChats < ApplicationController
+  def create
+    msg = anthropic.messages().create(model: "claude-sonnet-4-5", max_tokens: 1024, messages: params[:history])
+    msg = anthropic.messages # the model call
+      .create(model: "claude-sonnet-4-5", max_tokens: 1024, messages: params[:history])
+    msg = anthropic.messages \
+      .create(model: "claude-sonnet-4-5", max_tokens: 1024, messages: params[:history])
+    render json: { msg: msg }
   end
 end

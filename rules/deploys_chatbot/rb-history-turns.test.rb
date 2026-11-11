@@ -1,4 +1,4 @@
-# lexcode-expect: 10
+# lexcode-expect: 13
 # A terminal chat and a session object that keep the conversation between calls: every user turn
 # and every model turn goes into one history, and the whole history is sent back each time.
 class TerminalChat
@@ -88,6 +88,26 @@ class ChainShapesSession
     msg = anthropic.
       messages.
       create(model: "claude-sonnet-4-5", max_tokens: 1024, messages: @turns)
+    @turns.push({ role: "assistant", content: msg.content.first.text })
+  end
+end
+
+# Shapes the anchor must also admit: an empty () after a no-arg method, a comment line or a
+# backslash between the two tokens, and (schema, Mailchimp) text after or far from the key.
+class ResidualShapesSession
+  def initialize
+    @turns = []
+  end
+
+  def say(text)
+    @turns.push({ role: "user", content: text })
+    msg = anthropic.messages().create(model: "claude-sonnet-4-5", max_tokens: 1024, messages: @turns)
+    @turns.push({ role: "assistant", content: msg.content.first.text })
+    msg = anthropic.messages # the model call
+      .create(model: "claude-sonnet-4-5", max_tokens: 1024, messages: @turns)
+    @turns.push({ role: "assistant", content: msg.content.first.text })
+    msg = anthropic.messages \
+      .create(model: "claude-sonnet-4-5", max_tokens: 1024, messages: @turns)
     @turns.push({ role: "assistant", content: msg.content.first.text })
   end
 end

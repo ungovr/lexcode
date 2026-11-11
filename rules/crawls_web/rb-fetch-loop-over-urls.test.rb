@@ -1,4 +1,4 @@
-# lexcode-expect: 17
+# lexcode-expect: 19
 require "net/http"
 require "open-uri"
 require "faraday"
@@ -88,6 +88,19 @@ class ChainShapesFetch
       URI.parse(url)
         .open
         .read
+    end
+  end
+end
+
+# Shapes the anchor must also admit: an empty () after a no-arg method, a comment line or a
+# backslash between the two tokens, and (schema, Mailchimp) text after or far from the key.
+class ResidualShapesFetch
+  def run(urls)
+    urls.each do |url|
+      URI.parse(url) # the feed
+        .read
+      URI.parse(url) \
+        .open
     end
   end
 end

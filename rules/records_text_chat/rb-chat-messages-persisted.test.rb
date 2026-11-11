@@ -1,4 +1,4 @@
-# lexcode-expect: 12
+# lexcode-expect: 16
 # Chat endpoints and channels that keep the conversation: what a person typed is written to a
 # database.
 class MessagesController < ApplicationController
@@ -57,6 +57,21 @@ class ChainShapesMessages < ApplicationController
     ChatMessage
       .create!(room: @room, user: current_user, content: params[:message][:content])
     ChatMessage&.create!(room: @room, user: current_user, content: params[:message][:content])
+    head :created
+  end
+end
+
+# Shapes the anchor must also admit: an empty () after a no-arg method, a comment line or a
+# backslash between the two tokens, and (schema, Mailchimp) text after or far from the key.
+class ResidualShapesMessages < ApplicationController
+  def create
+    @message = @conversation.messages().create!(body: params[:body], user: current_user)
+    @conversation.messages # the thread
+      .create!(body: params[:body], user: current_user)
+    @conversation.messages \
+      .create!(body: params[:body], user: current_user)
+    ChatMessage # the model
+      .create!(room: @room, user: current_user, content: params[:message][:content])
     head :created
   end
 end

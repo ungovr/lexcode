@@ -6,7 +6,7 @@ rules:
     patterns:
       # A pre-filter: the driver `get` below is a metavariable with a regular expression, which has
       # no literal of its own, so without this the engine parses every Ruby file.
-      - pattern-regex: '(\bgoto\b|\bgo_to\b|\bvisit\b|navigate\s*&?\.\s*to|(driver|browser|\bwd)\w*\s*&?\.\s*get\b)'
+      - pattern-regex: '(\bgoto\b|\bgo_to\b|\bvisit\b|navigate(?:\(\s*\))?(?:\s|\\|#[^\n]*+)*+&?\.(?:\s|\\|#[^\n]*+)*+to|(driver|browser|\bwd)\w*(?:\(\s*\))?(?:\s|\\|#[^\n]*+)*+&?\.(?:\s|\\|#[^\n]*+)*+get\b)'
       - pattern-either:
           - patterns:
               - pattern-either:

@@ -1,5 +1,16 @@
-# lexcode-expect: 8
+# lexcode-expect: 9
 require "mechanize"
+
+# The first constructor in this file, split from its receiver by a comment line: the engine reads
+# only the part of a file after the first Mechanize constructor, so every line below depends on
+# the anchor admitting this one.
+class ResidualShapesMechanize
+  def run(url)
+    agent = Mechanize # a scriptable browser
+      .new
+    agent.get(url)
+  end
+end
 
 # Mechanize is a scriptable browser: it fetches pages, follows links and submits forms.
 class PortalReader

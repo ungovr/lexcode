@@ -18,7 +18,7 @@ rules:
           - pattern: $V.sms.send(...)
           - pattern: Telnyx::Message.create(...)
       # Literal anchor inside the match: it lets the engine skip files with no send call.
-      - pattern-regex: '(&?\.\s*(messages|calls)\s*&?\.\s*create\b|Webpush\s*&?\.\s*payload_send|Rpush::\w+::Notification\s*&?\.\s*create|send_sms|&?\.\s*publish\b|&?\.\s*sms\s*&?\.\s*send\b|Telnyx::Message\s*&?\.\s*create)'
+      - pattern-regex: '(&?\.(?:\s|\\|#[^\n]*+)*+(messages|calls)(?:\(\s*\))?(?:\s|\\|#[^\n]*+)*+&?\.(?:\s|\\|#[^\n]*+)*+create\b|Webpush(?:\(\s*\))?(?:\s|\\|#[^\n]*+)*+&?\.(?:\s|\\|#[^\n]*+)*+payload_send|Rpush::\w+::Notification(?:\(\s*\))?(?:\s|\\|#[^\n]*+)*+&?\.(?:\s|\\|#[^\n]*+)*+create|send_sms|&?\.(?:\s|\\|#[^\n]*+)*+publish\b|&?\.(?:\s|\\|#[^\n]*+)*+sms(?:\(\s*\))?(?:\s|\\|#[^\n]*+)*+&?\.(?:\s|\\|#[^\n]*+)*+send\b|Telnyx::Message(?:\(\s*\))?(?:\s|\\|#[^\n]*+)*+&?\.(?:\s|\\|#[^\n]*+)*+create)'
     metadata:
       activity: automated_outreach
       mentioned: performs

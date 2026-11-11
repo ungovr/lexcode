@@ -1,4 +1,4 @@
-# lexcode-expect: 15
+# lexcode-expect: 19
 require "ferrum"
 require "selenium-webdriver"
 require "watir"
@@ -99,6 +99,22 @@ class ChainShapesBrowser
         .navigate
         .to(url)
       @driver&.navigate&.to(url)
+    end
+  end
+end
+
+# Shapes the anchor must also admit: an empty () after a no-arg method, a comment line or a
+# backslash between the two tokens, and (schema, Mailchimp) text after or far from the key.
+class ResidualShapesBrowser
+  def run(urls)
+    urls.each do |url|
+      @driver.navigate().to(url)
+      @driver # headless Chrome
+        .get(url)
+      @driver \
+        .get(url)
+      @driver.navigate # follow
+        .to(url)
     end
   end
 end
