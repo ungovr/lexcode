@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, existsSync, writeFileSync
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { blankErbTags, blankOutsideScripts, extractScripts } from '../../src/scope/extract.js';
+import { blankErbTags, blankJspTags, blankOutsideScripts, extractScripts } from '../../src/scope/extract.js';
 
 const made: string[] = [];
 function tmp(): string {
@@ -312,6 +312,122 @@ describe('ERB views', () => {
     const byOriginal = new Map(pairs.map((p) => [p.originalPath, readFileSync(p.tempPath, 'utf8')]));
     expect(byOriginal.get('a.html')).toContain('<%= x %>');
     expect(byOriginal.get('b.erb')).not.toContain('<%');
+  });
+});
+
+describe('JSP views', () => {
+  function write(root: string, rel: string, body: string): void {
+    const full = path.join(root, ...rel.split('/'));
+    mkdirSync(path.dirname(full), { recursive: true });
+    writeFileSync(full, body);
+  }
+
+  it('extracts a script block from a JSP view', () => {
+    const root = tmp();
+    const out = tmp();
+    const view = [
+      '<%@ page contentType="text/html;charset=UTF-8" %>',
+      '<head>',
+      '<script>',
+      '  gtag("config", "<%= gaId %>");',
+      '</script>',
+      '</head>',
+      '',
+    ].join('\n');
+    write(root, 'WEB-INF/views/head.jsp', view);
+    const pairs = extractScripts(root, ['WEB-INF/views/head.jsp'], out);
+    expect(pairs).toHaveLength(1);
+    expect(pairs[0]!.originalPath).toBe('WEB-INF/views/head.jsp');
+    expect(pairs[0]!.tempPath.endsWith('head.jsp.lexcode.js')).toBe(true);
+    const text = readFileSync(pairs[0]!.tempPath, 'utf8');
+    sameShape(view, text);
+    expect(lines(text)[3]).toMatch(/^ {2}gtag\("config", "_ {10}"\);$/);
+  });
+
+  it('blanks JSP tags and EL inside a script', () => {
+    const el = 'var id = ${user.id};';
+    expect(blankJspTags(el)).toBe('var id = _' + ' '.repeat('${user.id}'.length - 1) + ';');
+    expect(blankJspTags(el).length).toBe(el.length);
+    expect(blankJspTags('v = #{bean.v};')).toBe('v = _' + ' '.repeat('#{bean.v}'.length - 1) + ';');
+    expect(blankJspTags('s = "<%= name %>";')).toBe('s = "_' + ' '.repeat('<%= name %>'.length - 1) + '";');
+    for (const tag of ['<% if (x) { %>', '<%! int n = 0; %>', '<%@ include file="a.jspf" %>']) {
+      expect(blankJspTags(`a(); ${tag} b();`)).toBe('a(); ' + ' '.repeat(tag.length) + ' b();');
+    }
+    // A comment runs to "--%>", not to the first "%>".
+    const comment = '<%-- a %> b --%>';
+    expect(blankJspTags(`a(); ${comment} b();`)).toBe('a(); ' + ' '.repeat(comment.length) + ' b();');
+    expect(blankJspTags('plain();')).toBe('plain();');
+  });
+
+  it('ends EL at its closing brace, past nested braces and quoted braces', () => {
+    const quoted = "x = ${fn:join(map['}'], \"{\")}; y();";
+    const inner = "${fn:join(map['}'], \"{\")}";
+    expect(blankJspTags(quoted)).toBe('x = _' + ' '.repeat(inner.length - 1) + '; y();');
+    const braces = 'k = ${a ? {1} : 2}; z();';
+    expect(blankJspTags(braces)).toBe('k = _' + ' '.repeat('${a ? {1} : 2}'.length - 1) + '; z();');
+  });
+
+  it('leaves an escaped EL opener as the literal it is', () => {
+    expect(blankJspTags('s = "\\${not el}";')).toBe('s = "\\${not el}";');
+  });
+
+  it('blanks an unterminated tag, comment or EL to the end of the block', () => {
+    expect(blankJspTags('a(); <% b(')).toBe('a(); ' + ' '.repeat('<% b('.length));
+    expect(blankJspTags('a(); <%-- b %>')).toBe('a(); ' + ' '.repeat('<%-- b %>'.length));
+    expect(blankJspTags('a(); ${b')).toBe('a(); _' + ' '.repeat('${b'.length - 1));
+  });
+
+  it('keeps line numbers across a multi-line JSP tag', () => {
+    const view = [
+      '<script>',
+      '  const a = <%= foo(',
+      '    bar) %>;',
+      '  <%-- a note',
+      '  over lines --%>',
+      '  const b = ${x',
+      '  .y};',
+      '  track("after");',
+      '</script>',
+      '',
+    ].join('\n');
+    const r = blankOutsideScripts(view, { jsp: true })!;
+    sameShape(view, r.text);
+    expect(lines(r.text)[1]).toBe('  const a = _' + ' '.repeat('<%= foo('.length - 1));
+    expect(lines(r.text)[2]).toBe(' '.repeat('    bar) %>'.length) + ';');
+    expect(lines(r.text)[3]).toBe(' '.repeat('  <%-- a note'.length));
+    expect(lines(r.text)[4]).toBe(' '.repeat('  over lines --%>'.length));
+    expect(lines(r.text)[5]).toBe('  const b = _' + ' '.repeat('${x'.length - 1));
+    expect(lines(r.text)[6]).toBe(' '.repeat('  .y}'.length) + ';');
+    expect(lines(r.text)[7]).toBe('  track("after");');
+  });
+
+  it('a .tag file and a .jspf fragment are extracted like a .jsp', () => {
+    const root = tmp();
+    const out = tmp();
+    write(root, 'WEB-INF/tags/ga.tag', '<script>ga("send", "${page}");</script>');
+    write(root, 'WEB-INF/views/foot.jspf', '<script>ga("send", "${page}");</script>');
+    const pairs = extractScripts(root, ['WEB-INF/tags/ga.tag', 'WEB-INF/views/foot.jspf'], out);
+    expect(pairs).toHaveLength(2);
+    expect(pairs[0]!.tempPath.endsWith('ga.tag.lexcode.js')).toBe(true);
+    expect(pairs[1]!.tempPath.endsWith('foot.jspf.lexcode.js')).toBe(true);
+    for (const p of pairs) {
+      const t = readFileSync(p.tempPath, 'utf8');
+      expect(t).toContain('ga("send", "_');
+      expect(t).not.toContain('${');
+    }
+  });
+
+  it('blanks JSP syntax only in JSP files, never in an .html file or an .erb file', () => {
+    const root = tmp();
+    const out = tmp();
+    write(root, 'a.html', '<script>var t = "${x}";</script>');
+    write(root, 'b.jsp', '<script>var t = "${x}";</script>');
+    write(root, 'c.erb', '<script>var t = "${x}";</script>');
+    const pairs = extractScripts(root, ['a.html', 'b.jsp', 'c.erb'], out);
+    const byOriginal = new Map(pairs.map((p) => [p.originalPath, readFileSync(p.tempPath, 'utf8')]));
+    expect(byOriginal.get('a.html')).toContain('${x}');
+    expect(byOriginal.get('c.erb')).toContain('${x}');
+    expect(byOriginal.get('b.jsp')).not.toContain('${');
   });
 });
 

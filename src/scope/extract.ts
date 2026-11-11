@@ -8,7 +8,19 @@ import { ToolError } from '../errors.js';
 // every other character is a space (line breaks kept), so a finding's line
 // number is the line in the original file, and scans that.
 
-const EXTRACT_EXTENSIONS = new Set(['.vue', '.svelte', '.html', '.htm', '.jinja', '.jinja2', '.j2', '.njk', '.erb']);
+const JSP_EXTENSIONS = new Set(['.jsp', '.jspf', '.tag']);
+const EXTRACT_EXTENSIONS = new Set([
+  '.vue',
+  '.svelte',
+  '.html',
+  '.htm',
+  '.jinja',
+  '.jinja2',
+  '.j2',
+  '.njk',
+  '.erb',
+  ...JSP_EXTENSIONS,
+]);
 
 // The engine takes only `.rb` as Ruby: given as explicit targets, an extension-less `Fastfile` and a `.rake`,
 // `.ru` or `.gemspec` file each read 0 files (opengrep 1.33.1, measured 2026-11-10). So these Ruby files are
@@ -191,6 +203,67 @@ export function blankErbTags(body: string): string {
   return out + body.slice(cursor);
 }
 
+/** Offset just past the `}` that closes the EL expression whose `{` is at `open`; `text.length` when it never closes. Quoted strings and nested braces are stepped over. */
+function elEnd(text: string, open: number): number {
+  let depth = 0;
+  let i = open;
+  while (i < text.length) {
+    const ch = text[i] as string;
+    if (ch === '"' || ch === "'") {
+      i++;
+      while (i < text.length && text[i] !== ch) i += text[i] === '\\' ? 2 : 1;
+      i++; // past the closing quote
+      continue;
+    }
+    if (ch === '{') depth++;
+    else if (ch === '}') {
+      depth--;
+      if (depth === 0) return i + 1;
+    }
+    i++;
+  }
+  return text.length;
+}
+
+/**
+ * Blanks the JSP syntax of a script body so the JavaScript parser can read it: an output tag (`<%=`) and an
+ * EL expression (`${...}`, `#{...}`) become `_` padded with spaces to their length, every other tag (`<%`,
+ * `<%!`, `<%@`) becomes spaces, and line breaks stay, so line and column numbers hold. A `<%--` comment runs
+ * to `--%>`, any other tag to the first `%>`, and an EL expression to its closing brace, past nested braces
+ * and quoted strings. A `\${` or `\#{` is a literal and is left. Anything that never ends is blanked to the
+ * end of the body.
+ */
+export function blankJspTags(body: string): string {
+  const opener = /<%|[$#]\{/g;
+  let out = '';
+  let cursor = 0;
+  for (let m = opener.exec(body); m !== null; m = opener.exec(body)) {
+    const open = m.index;
+    if (m[0] !== '<%' && body[open - 1] === '\\') continue;
+    let end: number;
+    let output: boolean;
+    if (m[0] === '<%') {
+      if (body.startsWith('<%--', open)) {
+        const close = body.indexOf('--%>', open + 4);
+        end = close === -1 ? body.length : close + 4;
+        output = false;
+      } else {
+        const close = body.indexOf('%>', open + 2);
+        end = close === -1 ? body.length : close + 2;
+        output = body[open + 2] === '=';
+      }
+    } else {
+      end = elEnd(body, open + 1);
+      output = true;
+    }
+    const tag = blank(body.slice(open, end));
+    out += body.slice(cursor, open) + (output && tag.length > 0 ? '_' + tag.slice(1) : tag);
+    cursor = end;
+    opener.lastIndex = end;
+  }
+  return out + body.slice(cursor);
+}
+
 /**
  * Keeps the body of each qualifying `<script>` element and replaces every
  * other character except line breaks with a space, so line and column numbers
@@ -198,7 +271,7 @@ export function blankErbTags(body: string): string {
  */
 export function blankOutsideScripts(
   text: string,
-  opts: { erb?: boolean } = {},
+  opts: { erb?: boolean; jsp?: boolean } = {},
 ): { text: string; lang: 'ts' | 'js' } | null {
   const blocks = findScriptBlocks(text).filter((b) => qualifies(b, text));
   if (blocks.length === 0) return null;
@@ -207,7 +280,7 @@ export function blankOutsideScripts(
   for (const b of blocks) {
     out += blank(text.slice(cursor, b.start));
     const body = text.slice(b.start, b.end);
-    out += opts.erb === true ? blankErbTags(body) : body;
+    out += opts.erb === true ? blankErbTags(body) : opts.jsp === true ? blankJspTags(body) : body;
     cursor = b.end;
   }
   out += blank(text.slice(cursor));
@@ -247,7 +320,7 @@ export function extractScripts(
       kept = text;
       suffix = 'rb';
     } else {
-      const blanked = blankOutsideScripts(text, { erb: ext === '.erb' });
+      const blanked = blankOutsideScripts(text, { erb: ext === '.erb', jsp: JSP_EXTENSIONS.has(ext) });
       if (blanked === null) continue;
       kept = blanked.text;
       suffix = blanked.lang;
