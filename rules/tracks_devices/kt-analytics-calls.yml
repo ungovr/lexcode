@@ -68,9 +68,13 @@ rules:
       # Mixpanel.
       - patterns:
           - pattern: $M.track(...)
-          - pattern-inside: |
-              import com.mixpanel.android.mpmetrics.MixpanelAPI
-              ...
+          - pattern-either:
+              - pattern-inside: |
+                  import com.mixpanel.android.mpmetrics.MixpanelAPI
+                  ...
+              - pattern-inside: |
+                  import com.mixpanel.android.mpmetrics.*
+                  ...
       # Segment: the server-side message builders.
       - patterns:
           - pattern-either:
@@ -97,6 +101,9 @@ rules:
           - pattern-either:
               - pattern-inside: |
                   import com.segment.analytics.Analytics
+                  ...
+              - pattern-inside: |
+                  import com.segment.analytics.*
                   ...
               - pattern-inside: |
                   import com.segment.analytics.kotlin.android.Analytics
@@ -126,6 +133,12 @@ rules:
               - pattern-inside: |
                   import com.amplitude.Amplitude
                   ...
+              - pattern-inside: |
+                  import com.amplitude.android.*
+                  ...
+              - pattern-inside: |
+                  import com.amplitude.api.*
+                  ...
       # Pendo.
       - patterns:
           - pattern-either:
@@ -133,9 +146,13 @@ rules:
               - pattern: Pendo.initSDK(...)
               - pattern: Pendo.startSession(...)
               - pattern: Pendo.track(...)
-          - pattern-inside: |
-              import sdk.pendo.io.Pendo
-              ...
+          - pattern-either:
+              - pattern-inside: |
+                  import sdk.pendo.io.Pendo
+                  ...
+              - pattern-inside: |
+                  import sdk.pendo.io.*
+                  ...
     metadata:
       activity: tracks_devices
       mentioned: performs

@@ -1,7 +1,8 @@
-// lexcode-expect: 11
+// lexcode-expect: 16
 // Reading an identifier that follows one Android device: the advertising id, the IMEI, MEID,
 // subscriber id and SIM serial (as properties and as getters), the hardware serial, and the Firebase
-// installation id (through the KTX property and the instance).
+// installation id (through the KTX property and the instance). The telephony receiver is declared as
+// a TelephonyManager in each of the ways an app does it.
 package demo.android
 
 import android.annotation.SuppressLint
@@ -29,4 +30,25 @@ class DeviceIds(private val context: Context, private val telephony: TelephonyMa
     fun installationId() = FirebaseInstallations.getInstance().id
 
     fun ktxInstallationId() = Firebase.installations.id
+}
+
+class PublicProperty(val tm: TelephonyManager) {
+    fun imei(): String? = tm.imei
+}
+
+class MutableProperty(var tm: TelephonyManager) {
+    fun meid(): String? = tm.meid
+}
+
+class Parameters {
+    fun imei(manager: TelephonyManager): String? = manager.imei
+
+    fun subscriber(manager: TelephonyManager) = manager.subscriberId
+}
+
+class Lookups(private val context: Context) {
+    fun literal(): String? {
+        val tm = context.getSystemService(TelephonyManager::class.java)
+        return tm.simSerialNumber
+    }
 }

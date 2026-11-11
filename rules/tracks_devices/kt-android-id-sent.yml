@@ -24,20 +24,32 @@ rules:
           - pattern-either:
               - pattern: $F.add(...)
               - pattern: $F.addEncoded(...)
-          - pattern-inside: |
-              import okhttp3.FormBody
-              ...
+          - pattern-either:
+              - pattern-inside: |
+                  import okhttp3.FormBody
+                  ...
+              - pattern-inside: |
+                  import okhttp3.*
+                  ...
       # A Ktor client request.
       - patterns:
           - pattern: header(...)
-          - pattern-inside: |
-              import io.ktor.client.request.header
-              ...
+          - pattern-either:
+              - pattern-inside: |
+                  import io.ktor.client.request.header
+                  ...
+              - pattern-inside: |
+                  import io.ktor.client.request.*
+                  ...
       - patterns:
           - pattern: parameter(...)
-          - pattern-inside: |
-              import io.ktor.client.request.parameter
-              ...
+          - pattern-either:
+              - pattern-inside: |
+                  import io.ktor.client.request.parameter
+                  ...
+              - pattern-inside: |
+                  import io.ktor.client.request.*
+                  ...
       # A user id handed to an analytics, attribution or crash SDK.
       - pattern: Firebase.analytics.setUserId(...)
       - pattern: Firebase.crashlytics.setUserId(...)
@@ -53,11 +65,24 @@ rules:
               - pattern-inside: |
                   import com.amplitude.android.Amplitude
                   ...
+              - pattern-inside: |
+                  import com.google.firebase.analytics.*
+                  ...
+              - pattern-inside: |
+                  import com.google.firebase.crashlytics.*
+                  ...
+              - pattern-inside: |
+                  import com.amplitude.android.*
+                  ...
       - patterns:
           - pattern: $M.identify(...)
-          - pattern-inside: |
-              import com.mixpanel.android.mpmetrics.MixpanelAPI
-              ...
+          - pattern-either:
+              - pattern-inside: |
+                  import com.mixpanel.android.mpmetrics.MixpanelAPI
+                  ...
+              - pattern-inside: |
+                  import com.mixpanel.android.mpmetrics.*
+                  ...
       - pattern: AppsFlyerLib.getInstance().setCustomerUserId(...)
     metadata:
       activity: tracks_devices

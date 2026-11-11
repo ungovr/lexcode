@@ -1,7 +1,8 @@
 // lexcode-expect: 0
 // Device information that does not follow one device: other secure settings, the model and carrier
 // name, SIM state, a random id made in the process, the installation token (not the id), an Android
-// id compared with a value on the device, and an app-owned class named like Google's.
+// id compared with a value on the device, an app-owned class named like Google's, and an app-owned
+// record read for deviceId, subscriberId and imei in a file that does import TelephonyManager.
 package demo.android
 
 import android.content.Context
@@ -14,6 +15,20 @@ import java.util.UUID
 // Not the advertising id client: the file imports neither Google's nor AndroidX's.
 object AdvertisingIdClient {
     fun getAdvertisingIdInfo(context: Context): String = "none"
+}
+
+// An app-owned handset record with the telephony names, in a file that imports TelephonyManager.
+class Handset(val deviceId: String, val subscriberId: String, val imei: String)
+
+class Fleet(private val telephony: TelephonyManager) {
+    fun owned(device: Handset): String = device.deviceId + device.subscriberId
+
+    fun network(manager: TelephonyManager, device: Handset): String = "${manager.networkType} ${device.imei}"
+
+    fun cast(context: Context, device: Handset): String {
+        val manager = context.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
+        return "${manager.networkType} ${device.deviceId}"
+    }
 }
 
 class DeviceInfo(private val context: Context, private val telephony: TelephonyManager) {
