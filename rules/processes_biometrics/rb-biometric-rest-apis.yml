@@ -1,0 +1,13 @@
+rules:
+  - id: lexcode.biometric.rb-biometric-rest-apis
+    languages: [ruby]
+    severity: INFO
+    message: Calls a face or voice matching API (Azure Face identify or verify, Face++ compare or search, VoiceIt enrollment or verification), which is recognizing people from face geometry or a voiceprint (processes_biometrics).
+    pattern-regex: |-
+      ["'][^"'\n]*(/face/v1\.\d+(-preview(\.\d+)?)?/(identify|verify|findsimilars|facelists|largefacelists|persongroups|largepersongroups|dynamicpersongroups)\b|\bfaceplusplus\.com/facepp/v3/(compare|search|faceset)|\bapi\.voiceit\.io/(enrollments|verification|identification)/)
+    metadata:
+      activity: processes_biometrics
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-biometrics
+      provenance: ungovr-original
+      license: MIT

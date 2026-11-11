@@ -1,0 +1,31 @@
+rules:
+  - id: lexcode.calls.rb-twilio-twiml-record
+    languages: [ruby]
+    severity: INFO
+    message: Answers a Twilio call with TwiML that records it, which is recording a call (records_calls).
+    mode: taint
+    pattern-sources:
+      - pattern: Twilio::TwiML::VoiceResponse.new(...)
+      - pattern: Twilio::TwiML::Dial.new(...)
+    pattern-sinks:
+      - patterns:
+          - pattern: $R.record(...)
+          - focus-metavariable: $R
+      - patterns:
+          - pattern: "$R.dial(..., record: $V, ...)"
+          - metavariable-regex:
+              metavariable: $V
+              regex: ^(?!\s*['"]do-not-record['"]\s*$)
+          - focus-metavariable: $R
+      - patterns:
+          - pattern: "$R.conference(..., record: $V, ...)"
+          - metavariable-regex:
+              metavariable: $V
+              regex: ^(?!\s*['"]do-not-record['"]\s*$)
+          - focus-metavariable: $R
+    metadata:
+      activity: records_calls
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-calls
+      provenance: ungovr-original
+      license: MIT

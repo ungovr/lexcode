@@ -1,0 +1,13 @@
+rules:
+  - id: lexcode.voice.rb-transcription-http
+    languages: [ruby]
+    severity: INFO
+    message: Posts recorded speech to a speech-to-text endpoint over HTTP from Ruby, which is transcribing human voices (processes_voice).
+    pattern-regex: |-
+      ["'][^"'\n]*\b(api\.deepgram\.com/v1/listen|api\.assemblyai\.com/v2/(transcript|upload)|api\.openai\.com/v1/audio/(transcriptions|translations)|api\.elevenlabs\.io/v1/speech-to-text|speech\.googleapis\.com/v1[a-z0-9]*/speech:(recognize|longrunningrecognize))
+    metadata:
+      activity: processes_voice
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-voice
+      provenance: ungovr-original
+      license: MIT
