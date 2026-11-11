@@ -1,0 +1,32 @@
+rules:
+  - id: lexcode.consumer.java-signup-route
+    languages: [java]
+    severity: INFO
+    message: Serves a public sign-up page or endpoint (a Spring MVC, JAX-RS or servlet route), a screen that members of the public use to reach a service (ships_consumer_interface).
+    patterns:
+      - pattern-either:
+          - pattern-regex: '@(Get|Post|Put|Request)Mapping\(\s*(value\s*=\s*|path\s*=\s*)?\{?\s*"/?(api/)?(v[0-9]+/)?(accounts/|auth/|users/)?(sign-?up|register|registration|create-account)/?"'
+          - pattern-regex: '@Path\(\s*(value\s*=\s*)?"/?(api/)?(v[0-9]+/)?(accounts/|auth/|users/)?(sign-?up|register|registration|create-account)/?"'
+          - pattern-regex: '@WebServlet\(\s*((value|urlPatterns)\s*=\s*)?\{?\s*"/?(accounts/|auth/|users/)?(sign-?up|register|registration|create-account)/?"'
+      - pattern-not-inside: |
+          @RequestMapping("=~/^/?(api/)?(admin|staff|internal|manage|backoffice|operators?)(/.*)?$/")
+          class $C { ... }
+      - pattern-not-inside: |
+          @RequestMapping(path = "=~/^/?(api/)?(admin|staff|internal|manage|backoffice|operators?)(/.*)?$/")
+          class $C { ... }
+      - pattern-not-inside: |
+          @PreAuthorize(...)
+          $RET $M(...) { ... }
+      - pattern-not-inside: |
+          @Secured(...)
+          $RET $M(...) { ... }
+      - pattern-not-inside: |
+          @RolesAllowed(...)
+          $RET $M(...) { ... }
+    metadata:
+      activity: ships_consumer_interface
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/ships-consumer-interface
+      provenance: ungovr-original
+      license: MIT
