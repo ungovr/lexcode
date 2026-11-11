@@ -12,6 +12,7 @@ import { runEngine } from '../engine/run.js';
 import { readGo } from '../manifests/go.js';
 import { readNpm } from '../manifests/npm.js';
 import { isRequirementsFile, readPypi } from '../manifests/pypi.js';
+import { readRuby } from '../manifests/ruby.js';
 import { baseName } from '../manifests/util.js';
 import { buildRecord, countRulesRun, engineTargets, unreadLanguages } from '../record/build.js';
 import { toSarif } from '../record/sarif.js';
@@ -59,6 +60,7 @@ function ecosystemsFound(files: string[]): Set<string> {
     const base = baseName(f);
     if (base === 'package.json') found.add('npm');
     else if (base === 'go.mod') found.add('golang');
+    else if (base === 'Gemfile' || base === 'gems.rb' || base.endsWith('.gemspec')) found.add('gem');
     else if (base === 'pyproject.toml' || isRequirementsFile(f)) found.add('pypi');
   }
   return found;
@@ -134,7 +136,7 @@ export async function scan(o: ScanOptions): Promise<EvidenceRecord> {
   }
 
   // Manifests: what the code enables.
-  const readers = [readNpm(root, files), readPypi(root, files), readGo(root, files)];
+  const readers = [readNpm(root, files), readPypi(root, files), readGo(root, files), readRuby(root, files)];
   const deps: Dependency[] = readers.flatMap((r) => r.deps);
   const devSkipped = readers.reduce((n, r) => n + r.devSkipped, 0);
   for (const r of readers) notices.push(...r.notices);
