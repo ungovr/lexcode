@@ -1,4 +1,4 @@
-// lexcode-expect: 16
+// lexcode-expect: 21
 // Reading an identifier that follows one Android device: the advertising id, the IMEI, MEID,
 // subscriber id and SIM serial (as properties and as getters), the hardware serial, and the Firebase
 // installation id (through the KTX property and the instance). The telephony receiver is declared as
@@ -51,4 +51,33 @@ class Lookups(private val context: Context) {
         val tm = context.getSystemService(TelephonyManager::class.java)
         return tm.simSerialNumber
     }
+}
+
+fun topLevel(tm: TelephonyManager): String? {
+    val x = tm.imei
+    return x
+}
+
+class BlockBody {
+    fun subscriber(manager: TelephonyManager): String? {
+        val id = manager.getSubscriberId()
+        return id
+    }
+}
+
+class LateInit {
+    lateinit var tm: TelephonyManager
+
+    fun serial(): String? = tm.simSerialNumber
+}
+
+class Nullable(private val context: Context) {
+    private val reader: TelephonyManager? = findReader()
+    private var cached: TelephonyManager? = null
+
+    private fun findReader(): TelephonyManager? = null
+
+    fun read(): String? = reader?.deviceId
+
+    fun again(): String? = cached?.meid
 }

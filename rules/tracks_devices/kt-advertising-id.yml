@@ -35,6 +35,16 @@ rules:
               - pattern: $T.getSubscriberId(...)
               - pattern: $T.simSerialNumber
               - pattern: $T.getSimSerialNumber(...)
+              - pattern: $T?.imei
+              - pattern: $T?.getImei(...)
+              - pattern: $T?.meid
+              - pattern: $T?.getMeid(...)
+              - pattern: $T?.deviceId
+              - pattern: $T?.getDeviceId(...)
+              - pattern: $T?.subscriberId
+              - pattern: $T?.getSubscriberId(...)
+              - pattern: $T?.simSerialNumber
+              - pattern: $T?.getSimSerialNumber(...)
           - pattern-either:
               - pattern-inside: |
                   class $C(..., val $T: TelephonyManager, ...) {
@@ -47,10 +57,30 @@ rules:
               - pattern-inside: |
                   fun $F(..., $T: TelephonyManager, ...) = $B
               - pattern-inside: |
+                  fun $F(..., $T: TelephonyManager, ...) {
+                    ...
+                  }
+              - pattern-inside: |
+                  lateinit var $T: TelephonyManager
+                  ...
+              - pattern-inside: |
+                  val $T: TelephonyManager? = $X
+                  ...
+              - pattern-inside: |
+                  var $T: TelephonyManager? = $X
+                  ...
+              - pattern-inside: |
                   val $T = $X as TelephonyManager
                   ...
               - pattern-inside: |
                   val $T: TelephonyManager = $X
+                  ...
+          - pattern-either:
+              - pattern-inside: |
+                  import android.telephony.TelephonyManager
+                  ...
+              - pattern-inside: |
+                  import android.telephony.*
                   ...
       # The same properties on a service looked up by class literal. A class literal in a pattern matches
       # every class literal, so the file has to look the telephony service up by that literal.
@@ -67,9 +97,26 @@ rules:
               - pattern: $T.getSubscriberId(...)
               - pattern: $T.simSerialNumber
               - pattern: $T.getSimSerialNumber(...)
+              - pattern: $T?.imei
+              - pattern: $T?.getImei(...)
+              - pattern: $T?.meid
+              - pattern: $T?.getMeid(...)
+              - pattern: $T?.deviceId
+              - pattern: $T?.getDeviceId(...)
+              - pattern: $T?.subscriberId
+              - pattern: $T?.getSubscriberId(...)
+              - pattern: $T?.simSerialNumber
+              - pattern: $T?.getSimSerialNumber(...)
           - pattern-inside: |
               val $T = $X.getSystemService($K)
               ...
+          - pattern-either:
+              - pattern-inside: |
+                  import android.telephony.TelephonyManager
+                  ...
+              - pattern-inside: |
+                  import android.telephony.*
+                  ...
       # Names that belong to one vendor or to Android.
       - pattern: Build.getSerial()
       - pattern: FirebaseInstallations.getInstance().id
