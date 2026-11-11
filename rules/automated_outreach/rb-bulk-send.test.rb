@@ -1,4 +1,4 @@
-# lexcode-expect: 8
+# lexcode-expect: 9
 # One call that sends a message to many recipients: SES bulk sends, Resend batches, Postmark
 # batches, a Mailgun batch, a Mailchimp campaign, Twilio Notify.
 class Newsletter
@@ -32,6 +32,13 @@ class Newsletter
 
   def mailchimp(campaign_id)
     mailchimp_client.campaigns.send(campaign_id)
+  end
+
+  # A client built inline, its constructor over several lines.
+  def mailchimp_inline(campaign_id)
+    MailchimpMarketing::Client.new(
+      api_key: ENV["MAILCHIMP_KEY"]
+    ).campaigns.send(campaign_id)
   end
 
   def notify(identities)

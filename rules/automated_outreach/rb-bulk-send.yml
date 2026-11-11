@@ -12,14 +12,14 @@ rules:
           - pattern: $P.deliver_messages(...)
           - metavariable-regex:
               metavariable: $P
-              regex: (?i)^.*(postmark|mailer).*$
+              regex: (?is)^.*(postmark|mailer).*$
       - pattern: Mailgun::BatchMessage.new(...)
       # Ruby's Object#send on a campaigns association is not a Mailchimp send: the receiver has to be a client.
       - patterns:
           - pattern: $M.campaigns.send(...)
           - metavariable-regex:
               metavariable: $M
-              regex: (?i)^.*(mailchimp|client).*$
+              regex: (?is)^.*(mailchimp|client).*$
       - pattern: $T.notify.services(...).notifications.create(...)
     metadata:
       activity: automated_outreach

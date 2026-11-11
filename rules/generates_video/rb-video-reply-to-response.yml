@@ -12,7 +12,7 @@ rules:
               - pattern: '$C.videos.create({ ..., prompt: ..., ... })'
           - metavariable-regex:
               metavariable: $C
-              regex: (?i)^.*(client|openai|llm|sora).*$
+              regex: (?is)^.*(client|openai|llm|sora).*$
       - pattern: RubyLLM.animate(...)
     pattern-propagators:
       - pattern: $OUT = <... $R.dig(...) ...>
