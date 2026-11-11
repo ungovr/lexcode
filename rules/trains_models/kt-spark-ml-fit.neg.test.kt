@@ -32,6 +32,8 @@ class Scorer(private val indexer: StringIndexer, private val scaler: StandardSca
     fun coefficients(model: LogisticRegressionModel) = model.coefficients()
 
     fun totals(df: Dataset<Row>) = df.groupBy("country").count()
+
+    fun reload() = NaiveBayesModel.load("/models/naive")
 }
 
 class Tailor {

@@ -8,206 +8,82 @@ rules:
           - pattern-either:
               - patterns:
                   - pattern: $N.fit(...)
-                  - metavariable-type:
-                      metavariable: $N
-                      type: MultiLayerNetwork
-              - patterns:
-                  - pattern: $N.fit(...)
-                  - pattern-inside: |
-                      val $N = MultiLayerNetwork(...)
-                      ...
-              - patterns:
-                  - pattern: $N.fit(...)
-                  - pattern-inside: |
-                      var $N = MultiLayerNetwork(...)
-                      ...
-              - patterns:
-                  - pattern: $N.fit(...)
-                  - pattern-inside: |
-                      class $C(...) {
-                        ...
-                        val $N = MultiLayerNetwork(...)
-                        ...
-                      }
-              - patterns:
-                  - pattern: $N.fit(...)
-                  - pattern-inside: |
-                      class $C {
-                        ...
-                        val $N = MultiLayerNetwork(...)
-                        ...
-                      }
-              - pattern: MultiLayerNetwork(...).fit(...)
+                  - pattern-either:
+                      - pattern-inside: |
+                          val $N = $T(...)
+                          ...
+                      - pattern-inside: |
+                          var $N = $T(...)
+                          ...
+                      - pattern-inside: |
+                          val $N: $T = $E
+                          ...
+                      - pattern-inside: |
+                          fun $F(..., $N: $T, ...) {
+                            ...
+                          }
+                      - pattern-inside: |
+                          class $C(..., $N: $T, ...) {
+                            ...
+                          }
+                      - pattern-inside: |
+                          class $C(...) {
+                            ...
+                            lateinit var $N: $T
+                            ...
+                          }
+                      - pattern-inside: |
+                          class $C(...) {
+                            ...
+                            val $N = $T(...)
+                            ...
+                          }
+                      - pattern-inside: |
+                          class $C(...) {
+                            ...
+                            val $N: $T = $E
+                            ...
+                          }
+              - pattern: $T(...).fit(...)
+          - metavariable-regex:
+              metavariable: $T
+              regex: ^(MultiLayerNetwork|ComputationGraph|SameDiff|EarlyStoppingTrainer|EarlyStoppingGraphTrainer|SparkDl4jMultiLayer|SparkComputationGraph)$
           - pattern-either:
               - pattern-inside: |
-                  import org.deeplearning4j.nn.multilayer.MultiLayerNetwork
+                  import org.deeplearning4j.nn.multilayer.$T
+                  ...
+              - pattern-inside: |
+                  import org.deeplearning4j.nn.graph.$T
+                  ...
+              - pattern-inside: |
+                  import org.nd4j.autodiff.samediff.$T
+                  ...
+              - pattern-inside: |
+                  import org.deeplearning4j.earlystopping.trainer.$T
+                  ...
+              - pattern-inside: |
+                  import org.deeplearning4j.spark.impl.multilayer.$T
+                  ...
+              - pattern-inside: |
+                  import org.deeplearning4j.spark.impl.graph.$T
                   ...
               - pattern-inside: |
                   import org.deeplearning4j.nn.multilayer.*
                   ...
-      - patterns:
-          - pattern-either:
-              - patterns:
-                  - pattern: $N.fit(...)
-                  - metavariable-type:
-                      metavariable: $N
-                      type: ComputationGraph
-              - patterns:
-                  - pattern: $N.fit(...)
-                  - pattern-inside: |
-                      val $N = ComputationGraph(...)
-                      ...
-              - patterns:
-                  - pattern: $N.fit(...)
-                  - pattern-inside: |
-                      var $N = ComputationGraph(...)
-                      ...
-              - patterns:
-                  - pattern: $N.fit(...)
-                  - pattern-inside: |
-                      class $C(...) {
-                        ...
-                        val $N = ComputationGraph(...)
-                        ...
-                      }
-              - patterns:
-                  - pattern: $N.fit(...)
-                  - pattern-inside: |
-                      class $C {
-                        ...
-                        val $N = ComputationGraph(...)
-                        ...
-                      }
-              - pattern: ComputationGraph(...).fit(...)
-          - pattern-either:
-              - pattern-inside: |
-                  import org.deeplearning4j.nn.graph.ComputationGraph
-                  ...
               - pattern-inside: |
                   import org.deeplearning4j.nn.graph.*
-                  ...
-      - patterns:
-          - pattern-either:
-              - patterns:
-                  - pattern: $N.fit(...)
-                  - metavariable-type:
-                      metavariable: $N
-                      type: SameDiff
-              - patterns:
-                  - pattern: $N.fit(...)
-                  - pattern-inside: |
-                      val $N = SameDiff(...)
-                      ...
-              - patterns:
-                  - pattern: $N.fit(...)
-                  - pattern-inside: |
-                      var $N = SameDiff(...)
-                      ...
-              - patterns:
-                  - pattern: $N.fit(...)
-                  - pattern-inside: |
-                      class $C(...) {
-                        ...
-                        val $N = SameDiff(...)
-                        ...
-                      }
-              - patterns:
-                  - pattern: $N.fit(...)
-                  - pattern-inside: |
-                      class $C {
-                        ...
-                        val $N = SameDiff(...)
-                        ...
-                      }
-              - pattern: SameDiff(...).fit(...)
-          - pattern-either:
-              - pattern-inside: |
-                  import org.nd4j.autodiff.samediff.SameDiff
                   ...
               - pattern-inside: |
                   import org.nd4j.autodiff.samediff.*
                   ...
-      - patterns:
-          - pattern-either:
-              - patterns:
-                  - pattern: $N.fit(...)
-                  - metavariable-type:
-                      metavariable: $N
-                      type: EarlyStoppingTrainer
-              - patterns:
-                  - pattern: $N.fit(...)
-                  - pattern-inside: |
-                      val $N = EarlyStoppingTrainer(...)
-                      ...
-              - patterns:
-                  - pattern: $N.fit(...)
-                  - pattern-inside: |
-                      var $N = EarlyStoppingTrainer(...)
-                      ...
-              - patterns:
-                  - pattern: $N.fit(...)
-                  - pattern-inside: |
-                      class $C(...) {
-                        ...
-                        val $N = EarlyStoppingTrainer(...)
-                        ...
-                      }
-              - patterns:
-                  - pattern: $N.fit(...)
-                  - pattern-inside: |
-                      class $C {
-                        ...
-                        val $N = EarlyStoppingTrainer(...)
-                        ...
-                      }
-              - pattern: EarlyStoppingTrainer(...).fit(...)
-          - pattern-either:
-              - pattern-inside: |
-                  import org.deeplearning4j.earlystopping.trainer.EarlyStoppingTrainer
-                  ...
               - pattern-inside: |
                   import org.deeplearning4j.earlystopping.trainer.*
                   ...
-      - patterns:
-          - pattern-either:
-              - patterns:
-                  - pattern: $N.fit(...)
-                  - metavariable-type:
-                      metavariable: $N
-                      type: SparkDl4jMultiLayer
-              - patterns:
-                  - pattern: $N.fit(...)
-                  - pattern-inside: |
-                      val $N = SparkDl4jMultiLayer(...)
-                      ...
-              - patterns:
-                  - pattern: $N.fit(...)
-                  - pattern-inside: |
-                      var $N = SparkDl4jMultiLayer(...)
-                      ...
-              - patterns:
-                  - pattern: $N.fit(...)
-                  - pattern-inside: |
-                      class $C(...) {
-                        ...
-                        val $N = SparkDl4jMultiLayer(...)
-                        ...
-                      }
-              - patterns:
-                  - pattern: $N.fit(...)
-                  - pattern-inside: |
-                      class $C {
-                        ...
-                        val $N = SparkDl4jMultiLayer(...)
-                        ...
-                      }
-              - pattern: SparkDl4jMultiLayer(...).fit(...)
-          - pattern-either:
-              - pattern-inside: |
-                  import org.deeplearning4j.spark.impl.multilayer.SparkDl4jMultiLayer
-                  ...
               - pattern-inside: |
                   import org.deeplearning4j.spark.impl.multilayer.*
+                  ...
+              - pattern-inside: |
+                  import org.deeplearning4j.spark.impl.graph.*
                   ...
     paths:
       exclude:

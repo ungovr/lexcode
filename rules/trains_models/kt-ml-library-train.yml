@@ -74,12 +74,38 @@ rules:
                   val $N = $T(...)
                   ...
               - pattern-inside: |
+                  var $N = $T(...)
+                  ...
+              - pattern-inside: |
                   val $N = $T(...).$X(...)
                   ...
+              - pattern-inside: |
+                  val $N: $T = $E
+                  ...
+              - pattern-inside: |
+                  fun $F(..., $N: $T, ...) {
+                    ...
+                  }
+              - pattern-inside: |
+                  class $C(..., $N: $T, ...) {
+                    ...
+                  }
+              - pattern-inside: |
+                  class $C(...) {
+                    ...
+                    lateinit var $N: $T
+                    ...
+                  }
               - pattern-inside: |
                   class $C(...) {
                     ...
                     val $N = $T(...)
+                    ...
+                  }
+              - pattern-inside: |
+                  class $C(...) {
+                    ...
+                    val $N: $T = $E
                     ...
                   }
           - metavariable-regex:
@@ -87,22 +113,19 @@ rules:
               regex: ^\w+Trainer$
           - pattern-either:
               - pattern-inside: |
-                  import org.tribuo.Trainer
+                  import org.tribuo.$P1.$T
                   ...
               - pattern-inside: |
-                  import org.tribuo.*
+                  import org.tribuo.$P1.$P2.$T
                   ...
               - pattern-inside: |
-                  import org.tribuo.$P1.$P2
+                  import org.tribuo.$P1.$P2.$P3.$T
                   ...
               - pattern-inside: |
-                  import org.tribuo.$P1.$P2.$P3
+                  import org.tribuo.$P1.$P2.$P3.$P4.$T
                   ...
               - pattern-inside: |
-                  import org.tribuo.$P1.$P2.$P3.$P4
-                  ...
-              - pattern-inside: |
-                  import org.tribuo.$P1.$P2.$P3.$P4.$P5
+                  import org.tribuo.$P1.$P2.$P3.$P4.$P5.$T
                   ...
               - pattern-inside: |
                   import org.tribuo.$P1.*
@@ -113,68 +136,104 @@ rules:
               - pattern-inside: |
                   import org.tribuo.$P1.$P2.$P3.*
                   ...
+              - pattern-inside: |
+                  import org.tribuo.*
+                  ...
       - patterns:
           - pattern: $C.fit(...)
-          - metavariable-regex:
-              metavariable: $C
-              regex: ^(RandomForest|GradientTreeBoost|LogisticRegression|SVM|DecisionTree|KNN|LDA|QDA|RDA|OLS|LASSO|RidgeRegression|ElasticNet|KMeans|XMeans|GMeans|DBSCAN|HierarchicalClustering|AdaBoost|NaiveBayes|Maxent|MLP)$
+          - pattern-either:
+              - pattern-inside: |
+                  import smile.classification.$C
+                  ...
+              - pattern-inside: |
+                  import smile.regression.$C
+                  ...
+              - pattern-inside: |
+                  import smile.clustering.$C
+                  ...
+      - patterns:
+          - pattern: $C.fit(...)
           - pattern-either:
               - pattern-inside: |
                   import smile.classification.*
                   ...
               - pattern-inside: |
-                  import smile.classification.$K
-                  ...
-              - pattern-inside: |
                   import smile.regression.*
-                  ...
-              - pattern-inside: |
-                  import smile.regression.$K
                   ...
               - pattern-inside: |
                   import smile.clustering.*
                   ...
+          - metavariable-regex:
+              metavariable: $C
+              regex: ^(RandomForest|GradientTreeBoost|LogisticRegression|SVM|DecisionTree|KNN|LDA|QDA|RDA|OLS|LASSO|RidgeRegression|ElasticNet|KMeans|XMeans|GMeans|DBSCAN|HierarchicalClustering|AdaBoost|NaiveBayes|Maxent|MLP)$
+      - patterns:
+          - pattern: $C.train(...)
+          - pattern-either:
               - pattern-inside: |
-                  import smile.clustering.$K
+                  import opennlp.tools.$P.$C
+                  ...
+              - pattern-inside: |
+                  import opennlp.tools.$P.$Q.$C
                   ...
       - patterns:
           - pattern: $C.train(...)
-          - metavariable-regex:
-              metavariable: $C
-              regex: ^\w+ME$
           - pattern-either:
               - pattern-inside: |
                   import opennlp.tools.*
                   ...
               - pattern-inside: |
-                  import opennlp.tools.$A.*
+                  import opennlp.tools.$P.*
                   ...
-              - pattern-inside: |
-                  import opennlp.tools.$A.$K
-                  ...
-              - pattern-inside: |
-                  import opennlp.tools.$A.$B.$K
-                  ...
+          - metavariable-regex:
+              metavariable: $C
+              regex: ^\w+ME$
       - patterns:
           - pattern: $N.learn(...)
-          - metavariable-type:
-              metavariable: $N
-              types: [NeuralNetwork, MultiLayerPerceptron, Perceptron, Adaline, Hopfield, Kohonen, CompetitiveNetwork]
           - pattern-either:
               - pattern-inside: |
-                  import org.neuroph.*
+                  val $N = $T(...)
                   ...
               - pattern-inside: |
-                  import org.neuroph.$A.$K
+                  var $N = $T(...)
                   ...
               - pattern-inside: |
-                  import org.neuroph.$A.*
+                  val $N = $T(...).$X(...)
                   ...
               - pattern-inside: |
-                  import org.neuroph.$A.$B.$K
+                  val $N: $T = $E
                   ...
               - pattern-inside: |
-                  import org.neuroph.$A.$B.*
+                  fun $F(..., $N: $T, ...) {
+                    ...
+                  }
+              - pattern-inside: |
+                  class $C(..., $N: $T, ...) {
+                    ...
+                  }
+              - pattern-inside: |
+                  class $C(...) {
+                    ...
+                    lateinit var $N: $T
+                    ...
+                  }
+              - pattern-inside: |
+                  class $C(...) {
+                    ...
+                    val $N = $T(...)
+                    ...
+                  }
+              - pattern-inside: |
+                  class $C(...) {
+                    ...
+                    val $N: $T = $E
+                    ...
+                  }
+          - pattern-either:
+              - pattern-inside: |
+                  import org.neuroph.$P.$T
+                  ...
+              - pattern-inside: |
+                  import org.neuroph.$P.$Q.$T
                   ...
       - patterns:
           - pattern: $N.learn(...)
@@ -183,30 +242,50 @@ rules:
                   val $N = $T(...)
                   ...
               - pattern-inside: |
+                  var $N = $T(...)
+                  ...
+              - pattern-inside: |
+                  val $N = $T(...).$X(...)
+                  ...
+              - pattern-inside: |
+                  val $N: $T = $E
+                  ...
+              - pattern-inside: |
+                  fun $F(..., $N: $T, ...) {
+                    ...
+                  }
+              - pattern-inside: |
+                  class $C(..., $N: $T, ...) {
+                    ...
+                  }
+              - pattern-inside: |
+                  class $C(...) {
+                    ...
+                    lateinit var $N: $T
+                    ...
+                  }
+              - pattern-inside: |
                   class $C(...) {
                     ...
                     val $N = $T(...)
                     ...
                   }
-          - metavariable-regex:
-              metavariable: $T
-              regex: ^(NeuralNetwork|MultiLayerPerceptron|Perceptron|Adaline|Hopfield|Kohonen|CompetitiveNetwork)$
+              - pattern-inside: |
+                  class $C(...) {
+                    ...
+                    val $N: $T = $E
+                    ...
+                  }
           - pattern-either:
               - pattern-inside: |
                   import org.neuroph.*
                   ...
               - pattern-inside: |
-                  import org.neuroph.$A.$K
+                  import org.neuroph.$P.*
                   ...
-              - pattern-inside: |
-                  import org.neuroph.$A.*
-                  ...
-              - pattern-inside: |
-                  import org.neuroph.$A.$B.$K
-                  ...
-              - pattern-inside: |
-                  import org.neuroph.$A.$B.*
-                  ...
+          - metavariable-regex:
+              metavariable: $T
+              regex: ^(NeuralNetwork|MultiLayerPerceptron|Perceptron|Adaline|Hopfield|Kohonen|CompetitiveNetwork)$
     paths:
       exclude:
         - "**/example/**"

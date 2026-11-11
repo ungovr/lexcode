@@ -8,12 +8,6 @@ rules:
           - pattern-either:
               - patterns:
                   - pattern: $N.fit(...)
-                  - metavariable-type:
-                      metavariable: $N
-                      types: [LogisticRegression, DecisionTreeClassifier, RandomForestClassifier, GBTClassifier, NaiveBayes, LinearSVC, MultilayerPerceptronClassifier, FMClassifier, OneVsRest, LinearRegression, GeneralizedLinearRegression, DecisionTreeRegressor, RandomForestRegressor, GBTRegressor, IsotonicRegression, AFTSurvivalRegression, FMRegressor, KMeans, BisectingKMeans, GaussianMixture, LDA, ALS, FPGrowth, Pipeline, CrossValidator, TrainValidationSplit]
-              - patterns:
-                  - pattern-either:
-                      - pattern: $N.fit(...)
                   - pattern-either:
                       - pattern-inside: |
                           val $N = $T(...)
@@ -31,114 +25,179 @@ rules:
                           val $N = $T(...).$X(...).$Y(...).$Z(...)
                           ...
                       - pattern-inside: |
+                          val $N: $T = $E
+                          ...
+                      - pattern-inside: |
+                          fun $F(..., $N: $T, ...) {
+                            ...
+                          }
+                      - pattern-inside: |
+                          class $C(..., $N: $T, ...) {
+                            ...
+                          }
+                      - pattern-inside: |
+                          class $C(...) {
+                            ...
+                            lateinit var $N: $T
+                            ...
+                          }
+                      - pattern-inside: |
                           class $C(...) {
                             ...
                             val $N = $T(...)
                             ...
                           }
-                  - metavariable-regex:
-                      metavariable: $T
-                      regex: ^(LogisticRegression|DecisionTreeClassifier|RandomForestClassifier|GBTClassifier|NaiveBayes|LinearSVC|MultilayerPerceptronClassifier|FMClassifier|OneVsRest|LinearRegression|GeneralizedLinearRegression|DecisionTreeRegressor|RandomForestRegressor|GBTRegressor|IsotonicRegression|AFTSurvivalRegression|FMRegressor|KMeans|BisectingKMeans|GaussianMixture|LDA|ALS|FPGrowth|Pipeline|CrossValidator|TrainValidationSplit)$
-              - patterns:
-                  - pattern-either:
-                      - pattern: $T(...).fit(...)
-                      - pattern: $T(...).$X(...).fit(...)
-                      - pattern: $T(...).$X(...).$Y(...).fit(...)
-                      - pattern: $T(...).$X(...).$Y(...).$Z(...).fit(...)
-                  - metavariable-regex:
-                      metavariable: $T
-                      regex: ^(LogisticRegression|DecisionTreeClassifier|RandomForestClassifier|GBTClassifier|NaiveBayes|LinearSVC|MultilayerPerceptronClassifier|FMClassifier|OneVsRest|LinearRegression|GeneralizedLinearRegression|DecisionTreeRegressor|RandomForestRegressor|GBTRegressor|IsotonicRegression|AFTSurvivalRegression|FMRegressor|KMeans|BisectingKMeans|GaussianMixture|LDA|ALS|FPGrowth|Pipeline|CrossValidator|TrainValidationSplit)$
+                      - pattern-inside: |
+                          class $C(...) {
+                            ...
+                            val $N = $T(...).$X(...)
+                            ...
+                          }
+                      - pattern-inside: |
+                          class $C(...) {
+                            ...
+                            val $N: $T = $E
+                            ...
+                          }
+              - pattern: $T(...).fit(...)
+              - pattern: $T(...).$X(...).fit(...)
+              - pattern: $T(...).$X(...).$Y(...).fit(...)
+              - pattern: $T(...).$X(...).$Y(...).$Z(...).fit(...)
           - pattern-either:
               - pattern-inside: |
-                  import org.apache.spark.ml.Pipeline
+                  import org.apache.spark.ml.$P.$T
                   ...
+              - pattern-inside: |
+                  import org.apache.spark.ml.$T
+                  ...
+      
+          - pattern-not-inside: |
+              import org.apache.spark.ml.feature.$T
+              ...
+      - patterns:
+          - pattern-either:
+              - patterns:
+                  - pattern: $N.fit(...)
+                  - pattern-either:
+                      - pattern-inside: |
+                          val $N = $T(...)
+                          ...
+                      - pattern-inside: |
+                          var $N = $T(...)
+                          ...
+                      - pattern-inside: |
+                          val $N = $T(...).$X(...)
+                          ...
+                      - pattern-inside: |
+                          val $N = $T(...).$X(...).$Y(...)
+                          ...
+                      - pattern-inside: |
+                          val $N = $T(...).$X(...).$Y(...).$Z(...)
+                          ...
+                      - pattern-inside: |
+                          val $N: $T = $E
+                          ...
+                      - pattern-inside: |
+                          fun $F(..., $N: $T, ...) {
+                            ...
+                          }
+                      - pattern-inside: |
+                          class $C(..., $N: $T, ...) {
+                            ...
+                          }
+                      - pattern-inside: |
+                          class $C(...) {
+                            ...
+                            lateinit var $N: $T
+                            ...
+                          }
+                      - pattern-inside: |
+                          class $C(...) {
+                            ...
+                            val $N = $T(...)
+                            ...
+                          }
+                      - pattern-inside: |
+                          class $C(...) {
+                            ...
+                            val $N = $T(...).$X(...)
+                            ...
+                          }
+                      - pattern-inside: |
+                          class $C(...) {
+                            ...
+                            val $N: $T = $E
+                            ...
+                          }
+              - pattern: $T(...).fit(...)
+              - pattern: $T(...).$X(...).fit(...)
+              - pattern: $T(...).$X(...).$Y(...).fit(...)
+              - pattern: $T(...).$X(...).$Y(...).$Z(...).fit(...)
+          - pattern-either:
               - pattern-inside: |
                   import org.apache.spark.ml.*
-                  ...
-              - pattern-inside: |
-                  import org.apache.spark.ml.classification.$K
                   ...
               - pattern-inside: |
                   import org.apache.spark.ml.classification.*
                   ...
               - pattern-inside: |
-                  import org.apache.spark.ml.regression.$K
-                  ...
-              - pattern-inside: |
                   import org.apache.spark.ml.regression.*
-                  ...
-              - pattern-inside: |
-                  import org.apache.spark.ml.clustering.$K
                   ...
               - pattern-inside: |
                   import org.apache.spark.ml.clustering.*
                   ...
               - pattern-inside: |
-                  import org.apache.spark.ml.recommendation.$K
-                  ...
-              - pattern-inside: |
                   import org.apache.spark.ml.recommendation.*
-                  ...
-              - pattern-inside: |
-                  import org.apache.spark.ml.fpm.$K
                   ...
               - pattern-inside: |
                   import org.apache.spark.ml.fpm.*
                   ...
               - pattern-inside: |
-                  import org.apache.spark.ml.tuning.$K
-                  ...
-              - pattern-inside: |
                   import org.apache.spark.ml.tuning.*
                   ...
-      - patterns:
-          - pattern-either:
-              - pattern: $C.train(...)
-              - pattern: $C.trainClassifier(...)
-              - pattern: $C.trainRegressor(...)
           - metavariable-regex:
-              metavariable: $C
-              regex: ^(NaiveBayes|DecisionTree|RandomForest|GradientBoostedTrees|KMeans|ALS|SVMWithSGD|LogisticRegressionWithSGD|LogisticRegressionWithLBFGS|LinearRegressionWithSGD|RidgeRegressionWithSGD|LassoWithSGD|LDA|GaussianMixture|BisectingKMeans|IsotonicRegression)$
+              metavariable: $T
+              regex: ^(LogisticRegression|DecisionTreeClassifier|RandomForestClassifier|GBTClassifier|NaiveBayes|LinearSVC|MultilayerPerceptronClassifier|FMClassifier|OneVsRest|LinearRegression|GeneralizedLinearRegression|DecisionTreeRegressor|RandomForestRegressor|GBTRegressor|IsotonicRegression|AFTSurvivalRegression|FMRegressor|KMeans|BisectingKMeans|GaussianMixture|LDA|ALS|FPGrowth|Pipeline|CrossValidator|TrainValidationSplit)$
+      
+      - patterns:
+          - pattern: $C.$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^train(Classifier|Regressor)?$
+          - pattern-either:
+              - pattern-inside: |
+                  import org.apache.spark.mllib.$P.$C
+                  ...
+              - pattern-inside: |
+                  import org.apache.spark.mllib.$C
+                  ...
+      - patterns:
+          - pattern: $C.$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^train(Classifier|Regressor)?$
           - pattern-either:
               - pattern-inside: |
                   import org.apache.spark.mllib.*
                   ...
               - pattern-inside: |
-                  import org.apache.spark.mllib.classification.$K
-                  ...
-              - pattern-inside: |
                   import org.apache.spark.mllib.classification.*
-                  ...
-              - pattern-inside: |
-                  import org.apache.spark.mllib.regression.$K
                   ...
               - pattern-inside: |
                   import org.apache.spark.mllib.regression.*
                   ...
               - pattern-inside: |
-                  import org.apache.spark.mllib.clustering.$K
-                  ...
-              - pattern-inside: |
                   import org.apache.spark.mllib.clustering.*
-                  ...
-              - pattern-inside: |
-                  import org.apache.spark.mllib.recommendation.$K
                   ...
               - pattern-inside: |
                   import org.apache.spark.mllib.recommendation.*
                   ...
               - pattern-inside: |
-                  import org.apache.spark.mllib.tree.$K
-                  ...
-              - pattern-inside: |
                   import org.apache.spark.mllib.tree.*
                   ...
-              - pattern-inside: |
-                  import org.apache.spark.mllib.fpm.$K
-                  ...
-              - pattern-inside: |
-                  import org.apache.spark.mllib.fpm.*
-                  ...
+          - metavariable-regex:
+              metavariable: $C
+              regex: ^(NaiveBayes|DecisionTree|RandomForest|GradientBoostedTrees|KMeans|ALS|SVMWithSGD|LogisticRegressionWithSGD|LogisticRegressionWithLBFGS|LinearRegressionWithSGD|RidgeRegressionWithSGD|LassoWithSGD|LDA|GaussianMixture|BisectingKMeans|IsotonicRegression)$
     paths:
       exclude:
         - "**/example/**"
