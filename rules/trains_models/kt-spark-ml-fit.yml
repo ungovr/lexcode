@@ -200,11 +200,6 @@ rules:
               regex: ^(NaiveBayes|DecisionTree|RandomForest|GradientBoostedTrees|KMeans|ALS|SVMWithSGD|LogisticRegressionWithSGD|LogisticRegressionWithLBFGS|LinearRegressionWithSGD|RidgeRegressionWithSGD|LassoWithSGD|LDA|GaussianMixture|BisectingKMeans|IsotonicRegression)$
     paths:
       exclude:
-        - "**/example/**"
-        - "**/examples/**"
-        - "**/sample/**"
-        - "**/demo/**"
-        - "**/demos/**"
         - "**/src/test/**"
     metadata:
       activity: trains_models

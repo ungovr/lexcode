@@ -73,11 +73,6 @@ rules:
               ...
     paths:
       exclude:
-        - "**/example/**"
-        - "**/examples/**"
-        - "**/sample/**"
-        - "**/demo/**"
-        - "**/demos/**"
         - "**/src/test/**"
         - "**/src/androidTest/**"
     metadata:

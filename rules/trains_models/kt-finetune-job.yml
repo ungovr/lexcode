@@ -158,11 +158,6 @@ rules:
                   ...
     paths:
       exclude:
-        - "**/example/**"
-        - "**/examples/**"
-        - "**/sample/**"
-        - "**/demo/**"
-        - "**/demos/**"
         - "**/src/test/**"
     metadata:
       activity: trains_models

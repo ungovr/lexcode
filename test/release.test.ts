@@ -68,6 +68,31 @@ describe('release: the rule set is complete and well formed', () => {
     expect(evidenceIdsWithoutRule((r) => r.languages.includes('ruby'))).toEqual([]);
   });
 
+  // The engine's `paths` excludes are unanchored globs, so `**/samples/**`
+  // also drops a JVM package path (com/google/samples/apps/..., org/springframework/
+  // samples/petclinic, every com/example package). A Java or Kotlin source rule
+  // therefore carries none of them; build-file and config rules name real
+  // directories and keep theirs.
+  it('no Java or Kotlin source rule excludes a sample, example or demo path', () => {
+    const hits: string[] = [];
+    const walk = (dir: string): void => {
+      for (const e of readdirSync(dir)) {
+        const p = join(dir, e);
+        if (statSync(p).isDirectory()) walk(p);
+        else if (/^(java|kt)-.*\.yml$/.test(e) && !/\.test\.yml$/.test(e)) {
+          const doc = parse(readFileSync(p, 'utf8')) as { rules?: { id: string; paths?: { exclude?: string[] } }[] };
+          for (const rule of doc.rules ?? []) {
+            for (const glob of rule.paths?.exclude ?? []) {
+              if (/\/(samples?|examples?|demos?)\//.test(glob)) hits.push(`${rule.id}: ${glob}`);
+            }
+          }
+        }
+      }
+    };
+    walk(rulesDir);
+    expect(hits).toEqual([]);
+  });
+
   it('contributing forbids the three rule sets', () => {
     const text = readFileSync(join(root, 'CONTRIBUTING.md'), 'utf8');
     for (const phrase of ['semgrep-rules', 'opengrep-rules', 'privado-rules', 'Commons Clause']) {

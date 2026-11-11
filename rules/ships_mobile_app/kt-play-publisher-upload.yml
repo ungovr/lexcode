@@ -20,11 +20,6 @@ rules:
               ...
     paths:
       exclude:
-        - "**/example/**"
-        - "**/examples/**"
-        - "**/sample/**"
-        - "**/demo/**"
-        - "**/demos/**"
         - "**/src/test/**"
     metadata:
       activity: ships_mobile_app

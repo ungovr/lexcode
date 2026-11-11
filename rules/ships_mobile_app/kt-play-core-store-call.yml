@@ -26,11 +26,6 @@ rules:
       - pattern: com.google.android.play.core.review.ReviewManagerFactory.create(...)
     paths:
       exclude:
-        - "**/example/**"
-        - "**/examples/**"
-        - "**/sample/**"
-        - "**/demo/**"
-        - "**/demos/**"
         - "**/src/test/**"
         - "**/src/androidTest/**"
     metadata:
