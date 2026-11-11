@@ -1,0 +1,12 @@
+rules:
+  - id: lexcode.voice.rb-whisper-local
+    languages: [ruby]
+    severity: INFO
+    message: Loads a local whisper.cpp model with the whispercpp gem to transcribe recorded speech, which is processing human voices (processes_voice).
+    pattern: Whisper::Context.new(...)
+    metadata:
+      activity: processes_voice
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-voice
+      provenance: ungovr-original
+      license: MIT

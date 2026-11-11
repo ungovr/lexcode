@@ -1,0 +1,13 @@
+rules:
+  - id: lexcode.calls.rb-meeting-recording-apis
+    languages: [ruby]
+    severity: INFO
+    message: Reads recorded Zoom meetings, sends a notetaker bot into video meetings, or turns on Daily cloud recording, which is recording or handling recorded calls (records_calls).
+    pattern-regex: |-
+      ["'][^"'\n]*\bapi\.zoom\.us/v2/(meetings|users|accounts)/[^"'\n]*recordings|["'][^"'\n]*(\brecall\.ai/api/v\d+|\bapi\.meetingbaas\.com/bots|\bapp\.attendee\.dev/api/v\d+/bots)|\benable_recording["']?\s*(:|=>)\s*["'](cloud|local|raw-tracks|cloud-audio-only|rtp-tracks)["']
+    metadata:
+      activity: records_calls
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-calls
+      provenance: ungovr-original
+      license: MIT

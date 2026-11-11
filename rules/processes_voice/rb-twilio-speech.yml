@@ -1,0 +1,22 @@
+rules:
+  - id: lexcode.voice.rb-twilio-speech
+    languages: [ruby]
+    severity: INFO
+    message: Takes a caller's speech through Twilio TwiML, with speech recognition or a transcribed voicemail, which is processing human voices (processes_voice).
+    patterns:
+      - pattern-either:
+          - patterns:
+              - pattern-either:
+                  - pattern: "$R.gather(..., input: $V, ...)"
+                  - pattern: "Twilio::TwiML::Gather.new(..., input: $V, ...)"
+              - metavariable-regex:
+                  metavariable: $V
+                  regex: (?i).*speech
+          - pattern: "$R.record(..., transcribe: true, ...)"
+          - pattern: "Twilio::TwiML::Record.new(..., transcribe: true, ...)"
+    metadata:
+      activity: processes_voice
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-voice
+      provenance: ungovr-original
+      license: MIT

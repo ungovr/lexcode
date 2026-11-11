@@ -1,0 +1,15 @@
+rules:
+  - id: lexcode.biometric.rb-voice-id
+    languages: [ruby]
+    severity: INFO
+    message: Enrolls or matches a speaker with Amazon Connect Voice ID, which is processing a voiceprint (processes_biometrics).
+    pattern-either:
+      - pattern: $C.start_speaker_enrollment_job(...)
+      - pattern: $C.start_fraudster_registration_job(...)
+      - pattern: "$C.evaluate_session(..., domain_id: $D, ...)"
+    metadata:
+      activity: processes_biometrics
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-biometrics
+      provenance: ungovr-original
+      license: MIT

@@ -1,0 +1,23 @@
+rules:
+  - id: lexcode.calls.rb-bigbluebutton-record
+    languages: [ruby]
+    severity: INFO
+    message: Creates a BigBlueButton web conference with recording turned on, which is recording a call (records_calls).
+    patterns:
+      - pattern-either:
+          - pattern: "$A.create_meeting(..., record: $V, ...)"
+          - pattern: "$A.create_meeting(..., { ..., record: $V, ... })"
+          # The regular expression is a pre-filter: a hash pattern has no literal of its own, so
+          # without it the engine parses every Ruby file to look for one.
+          - patterns:
+              - pattern-regex: meetingID
+              - pattern: "{ ..., meetingID: $K, ..., record: $V, ... }"
+      - metavariable-regex:
+          metavariable: $V
+          regex: ^(?!\s*(false|nil|['"]false['"])\s*$)
+    metadata:
+      activity: records_calls
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-calls
+      provenance: ungovr-original
+      license: MIT

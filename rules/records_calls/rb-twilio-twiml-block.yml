@@ -1,0 +1,38 @@
+rules:
+  - id: lexcode.calls.rb-twilio-twiml-block
+    languages: [ruby]
+    severity: INFO
+    message: Builds TwiML that records a Twilio call, in block form or as a node, which is recording a call (records_calls).
+    patterns:
+      - pattern-either:
+          - patterns:
+              - pattern-either:
+                  - pattern: $X.record(...)
+                  - patterns:
+                      - pattern-either:
+                          - pattern: "$X.dial(..., record: $V, ...)"
+                          - pattern: "$X.conference(..., record: $V, ...)"
+                      - metavariable-regex:
+                          metavariable: $V
+                          regex: ^(?!\s*['"]do-not-record['"]\s*$)
+              - pattern-either:
+                  - pattern-inside: |
+                      Twilio::TwiML::VoiceResponse.new do |$R|
+                        ...
+                      end
+                  - pattern-inside: |
+                      Twilio::TwiML::VoiceResponse.new { |$R| ... }
+          - pattern: Twilio::TwiML::Record.new(...)
+          - patterns:
+              - pattern-either:
+                  - pattern: "Twilio::TwiML::Dial.new(..., record: $V, ...)"
+                  - pattern: "Twilio::TwiML::Conference.new(..., record: $V, ...)"
+              - metavariable-regex:
+                  metavariable: $V
+                  regex: ^(?!\s*['"]do-not-record['"]\s*$)
+    metadata:
+      activity: records_calls
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-calls
+      provenance: ungovr-original
+      license: MIT
