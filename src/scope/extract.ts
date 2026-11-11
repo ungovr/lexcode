@@ -260,18 +260,19 @@ function tagEnd(text: string, from: number): number {
 /**
  * Blanks the JSP syntax of a script body so the JavaScript parser can read it: an output tag (`<%=`), an
  * EL expression (`${...}`, `#{...}`) and a namespaced tag (`<h:outputText .../>`, `</f:view>`, `<c:out>`,
- * `<jsp:expression>`: `<` or `</`, a word, a colon, a name) become `_` padded with spaces to their length, so
+ * `<jsp:expression>`: `<` or `</`, a word, a colon, a name that ends at whitespace, `/` or `>`) become `_` padded with spaces to their length, so
  * they stay a valid JavaScript expression in a string and out of one; every other tag (`<%`, `<%!`, `<%@`)
  * and the `<![CDATA[` and `]]>` markers of a CDATA section become spaces. Line breaks stay, so line and column
  * numbers hold. A `<%--` comment runs to `--%>`, any other tag to the first `%>`, an EL expression to its
  * closing brace, past nested braces and quoted strings, and a namespaced tag to its `>`, past quoted values.
  * A `\${` or `\#{` is a literal and is left. A JSP tag that never ends is blanked to the end of the body; a
  * namespaced tag that never ends is not a tag and is left, as is `a < b:c` (a tag name follows the `<`
- * directly) and an HTML tag without a prefix. A `]]>` is blanked only after a `<![CDATA[` opened in the body,
+ * directly), an unspaced ternary `c?a<b:d;` (the name must end at whitespace, `/` or `>`) and an HTML tag
+ * without a prefix. A `]]>` is blanked only after a `<![CDATA[` opened in the body,
  * so `a[b[0]]>c` is left.
  */
 export function blankJspTags(body: string): string {
-  const opener = /<%|[$#]\{|<\/?\w+:[A-Za-z_]|<!\[CDATA\[|\]\]>/g;
+  const opener = /<%|[$#]\{|<\/?\w+:[A-Za-z_][\w.-]*(?=[\s/>])|<!\[CDATA\[|\]\]>/g;
   let out = '';
   let cursor = 0;
   let inCdata = false;

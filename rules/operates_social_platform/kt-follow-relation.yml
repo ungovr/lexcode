@@ -6,7 +6,9 @@ rules:
     severity: INFO
     message: 'Defines a follow or friendship relation between user accounts (a follower and followed pair, a friendship class, or a finder keyed on the follower), which is how people connect on a social platform (operates_social_platform).'
     patterns:
-      - pattern-regex: '(?is)\A(?=.*(follow|friend)).*'
+      - pattern-either:
+          - pattern-regex: '(?is)\A(?=.*follow).*'
+          - pattern-regex: '(?is)\A(?=.*friend).*'
       - pattern-either:
             - patterns:
                 - pattern-either:

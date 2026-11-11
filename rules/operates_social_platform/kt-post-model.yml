@@ -6,7 +6,23 @@ rules:
     severity: INFO
     message: 'Declares a post that a user writes and other users react to (a post, tweet or reply class with likes, upvotes or reactions, or with an author and comments or replies), which is how content is shared on a social platform (operates_social_platform).'
     patterns:
-      - pattern-regex: '(?s)\A(?=.*(Post|Tweet|Toot|Reply|StatusUpdate))(?=.*(?i:like|reaction|upvote|downvote|favorite|retweet|share|boost|comment|replies)).*'
+      - pattern-either:
+          - pattern-regex: '(?s)\A(?=.*Post).*'
+          - pattern-regex: '(?s)\A(?=.*Tweet).*'
+          - pattern-regex: '(?s)\A(?=.*Toot).*'
+          - pattern-regex: '(?s)\A(?=.*Reply).*'
+          - pattern-regex: '(?s)\A(?=.*StatusUpdate).*'
+      - pattern-either:
+          - pattern-regex: '(?is)\A(?=.*like).*'
+          - pattern-regex: '(?is)\A(?=.*reaction).*'
+          - pattern-regex: '(?is)\A(?=.*upvote).*'
+          - pattern-regex: '(?is)\A(?=.*downvote).*'
+          - pattern-regex: '(?is)\A(?=.*favorite).*'
+          - pattern-regex: '(?is)\A(?=.*retweet).*'
+          - pattern-regex: '(?is)\A(?=.*share).*'
+          - pattern-regex: '(?is)\A(?=.*boost).*'
+          - pattern-regex: '(?is)\A(?=.*comment).*'
+          - pattern-regex: '(?is)\A(?=.*replies).*'
       - pattern-either:
             - patterns:
                 - pattern-either:

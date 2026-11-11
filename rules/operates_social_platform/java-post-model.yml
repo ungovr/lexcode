@@ -4,7 +4,12 @@ rules:
     severity: INFO
     message: Declares a post that a user writes and other users react to (a post, tweet or reply class with likes, upvotes or reactions, or with an author and comments or replies), which is how content is shared on a social platform (operates_social_platform).
     patterns:
-      - pattern-regex: '(?s)\A(?=[\s\S]*?(?:Post|Tweet|Toot|Reply|ForumPost|WallPost|StatusUpdate)\b)[\s\S]*'
+      - pattern-either:
+          - pattern-regex: '(?s)\A(?=.*Post\b).*'
+          - pattern-regex: '(?s)\A(?=.*Tweet\b).*'
+          - pattern-regex: '(?s)\A(?=.*Toot\b).*'
+          - pattern-regex: '(?s)\A(?=.*Reply\b).*'
+          - pattern-regex: '(?s)\A(?=.*StatusUpdate\b).*'
       - pattern: class $C { ... }
       - metavariable-regex:
           metavariable: $C
