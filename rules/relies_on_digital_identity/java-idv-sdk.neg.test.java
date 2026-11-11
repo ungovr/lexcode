@@ -2,10 +2,11 @@
 // Signing a person in is not checking who they are: a password login, ordinary OAuth and OpenID
 // Connect sign-in, Google Sign-In, Firebase email and password, and a biometric unlock prompt.
 // Stripe payments and Checkout sit next to Stripe Identity without being it. The vendor guard
-// is tested too: this file imports Stripe Identity's VerificationSession (unused) and calls the
-// generic names Sdk.createLaunchIntent, Inquiry.fromTemplate, DigitalIdentityClient.builder and
-// JumioSDK on classes of the project's own. Without each call's own vendor import none of them
-// is a vendor call.
+// is tested too: this file imports Stripe's Android identity sheet (unused, a different vendor
+// branch) and calls the generic names VerificationSession.create, Sdk.createLaunchIntent,
+// Inquiry.fromTemplate, DigitalIdentityClient.builder, JumioSDK and DefaultApi (the default
+// name of every OpenAPI-generated client) on classes of the project's own. Without each call's
+// own vendor import none of them is a vendor call.
 package demo.auth;
 
 import android.app.Activity;
@@ -15,11 +16,13 @@ import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
 import com.google.firebase.auth.FirebaseAuth;
 import com.stripe.model.PaymentIntent;
 import com.stripe.model.checkout.Session;
-import com.stripe.model.identity.VerificationSession;
+import com.stripe.android.identity.IdentityVerificationSheet;
 import demo.camera.Sdk;
+import demo.generated.DefaultApi;
 import demo.kyc.DigitalIdentityClient;
 import demo.kyc.Inquiry;
 import demo.kyc.JumioSDK;
+import demo.sms.VerificationSession;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
 public class SignIn {
@@ -63,5 +66,13 @@ public class SignIn {
 
   public Object ownJumio(android.content.Context context) {
     return new JumioSDK(context);
+  }
+
+  public Object ownGeneratedClient(Object client) {
+    return new DefaultApi(client);
+  }
+
+  public Object ownVerification() {
+    return VerificationSession.create("sms");
   }
 }
