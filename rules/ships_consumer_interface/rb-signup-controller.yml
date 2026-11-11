@@ -1,0 +1,60 @@
+rules:
+  - id: lexcode.consumer.rb-signup-controller
+    languages: [ruby]
+    severity: INFO
+    message: Handles public account registration, a sign-up flow that members of the public use to reach a service (ships_consumer_interface).
+    pattern-either:
+      - patterns:
+          - pattern: $M.$N(...)
+          - pattern-inside: |
+              def create
+                ...
+              end
+          - pattern-either:
+              - pattern-inside: |
+                  class $C < $P
+                    ...
+                  end
+              - pattern-inside: |
+                  class $C
+                    ...
+                  end
+          - metavariable-regex:
+              metavariable: $M
+              regex: '^(::)?(User|Account|Member|Customer|Person|Student|Profile)$'
+          - metavariable-regex:
+              metavariable: $N
+              regex: '^(new|create|create!|build)$'
+          - metavariable-regex:
+              metavariable: $C
+              regex: '^(?!.*(Admin|Staff|Internal|Backoffice)).*(^|::)(Registrations?|Signups?|SignUps?)Controller$'
+      - patterns:
+          - pattern: |
+              class $C < Devise::RegistrationsController
+                ...
+              end
+          - metavariable-regex:
+              metavariable: $C
+              regex: '^(?!.*(Admin|Staff|Employee|Operator|Internal|Support|Manager)).*$'
+      - patterns:
+          - pattern: |
+              devise ..., :registerable, ...
+          - pattern-either:
+              - pattern-inside: |
+                  class $C < $P
+                    ...
+                  end
+              - pattern-inside: |
+                  class $C
+                    ...
+                  end
+          - metavariable-regex:
+              metavariable: $C
+              regex: '^(?!.*(Admin|Staff|Employee|Operator|Internal|Support|Manager)).*$'
+    metadata:
+      activity: ships_consumer_interface
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/ships-consumer-interface
+      provenance: ungovr-original
+      license: MIT

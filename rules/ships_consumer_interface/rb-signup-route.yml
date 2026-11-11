@@ -1,0 +1,82 @@
+rules:
+  - id: lexcode.consumer.rb-signup-route
+    languages: [ruby]
+    severity: INFO
+    message: Routes a public sign-up page or endpoint, a screen that members of the public use to reach a service (ships_consumer_interface).
+    patterns:
+      - pattern-either:
+          - pattern-regex: '(?m)^[ \t]*(get|post|match)[ \t(]+(["'']/?(accounts/|auth/|users/)?(sign-?up|sign_up|register|registration|create-account)/?["'']|:(sign_?up|register|registration)\b)'
+          - pattern-regex: '(?m)^[ \t]*devise_for[ \t(]+:(?!admin|staff|employee|operator|internal|support|manager)\w+(?![^\n]*\b(skip|only)\b)'
+          - pattern-regex: '(?m)^[ \t]*resources?[ \t(]+:(registrations?|signups?|sign_ups?)\b'
+          - pattern-regex: '(?m)^[ \t]*resources[ \t(]+:(users|accounts|members|customers)\b[^\n]*\bonly:\s*\[[^\]\n]*:(new|create)'
+      - pattern-not-inside: |
+          namespace :admin do
+            ...
+          end
+      - pattern-not-inside: |
+          namespace :staff do
+            ...
+          end
+      - pattern-not-inside: |
+          namespace :internal do
+            ...
+          end
+      - pattern-not-inside: |
+          namespace :manage do
+            ...
+          end
+      - pattern-not-inside: |
+          namespace :backoffice do
+            ...
+          end
+      - pattern-not-inside: |
+          namespace "admin" do
+            ...
+          end
+      - pattern-not-inside: |
+          namespace "/admin" do
+            ...
+          end
+      - pattern-not-inside: |
+          namespace "staff" do
+            ...
+          end
+      - pattern-not-inside: |
+          scope :admin do
+            ...
+          end
+      - pattern-not-inside: |
+          scope :staff do
+            ...
+          end
+      - pattern-not-inside: |
+          scope :internal do
+            ...
+          end
+      - pattern-not-inside: |
+          scope :manage do
+            ...
+          end
+      - pattern-not-inside: |
+          scope :backoffice do
+            ...
+          end
+      - pattern-not-inside: |
+          scope "admin" do
+            ...
+          end
+      - pattern-not-inside: |
+          scope "/admin" do
+            ...
+          end
+      - pattern-not-inside: |
+          scope "staff" do
+            ...
+          end
+    metadata:
+      activity: ships_consumer_interface
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/ships-consumer-interface
+      provenance: ungovr-original
+      license: MIT
