@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, existsSync, writeFileSync
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { blankOutsideScripts, extractScripts } from '../../src/scope/extract.js';
+import { blankErbTags, blankOutsideScripts, extractScripts } from '../../src/scope/extract.js';
 
 const made: string[] = [];
 function tmp(): string {
@@ -233,3 +233,130 @@ describe('blankOutsideScripts on hostile input', () => {
   });
 });
 
+
+describe('ERB views', () => {
+  function write(root: string, rel: string, body: string): void {
+    const full = path.join(root, ...rel.split('/'));
+    mkdirSync(path.dirname(full), { recursive: true });
+    writeFileSync(full, body);
+  }
+
+  it('extracts a script block from an html.erb view', () => {
+    const root = tmp();
+    const out = tmp();
+    const view = [
+      '<head>',
+      '<script>',
+      '  gtag("config", "<%= ga_id %>");',
+      '</script>',
+      '</head>',
+      '',
+    ].join('\n');
+    write(root, 'app/views/layouts/_head.html.erb', view);
+    const pairs = extractScripts(root, ['app/views/layouts/_head.html.erb'], out);
+    expect(pairs).toHaveLength(1);
+    expect(pairs[0]!.originalPath).toBe('app/views/layouts/_head.html.erb');
+    expect(pairs[0]!.tempPath.endsWith('_head.html.erb.lexcode.js')).toBe(true);
+    const text = readFileSync(pairs[0]!.tempPath, 'utf8');
+    sameShape(view, text);
+    expect(lines(text)[2]).toMatch(/^ {2}gtag\("config", "_ {11}"\);$/);
+  });
+
+  it('blanks ERB tags inside a script', () => {
+    const output = 'const d = <%= raw @json %>;';
+    expect(blankErbTags(output)).toBe('const d = _' + ' '.repeat('<%= raw @json %>'.length - 1) + ';');
+    expect(blankErbTags(output).length).toBe(output.length);
+    expect(blankErbTags('<%== raw x %>')).toBe('_' + ' '.repeat('<%== raw x %>'.length - 1));
+    for (const tag of ['<% if x %>', '<%- if x -%>', '<%# a comment %>']) {
+      expect(blankErbTags(`a(); ${tag} b();`)).toBe('a(); ' + ' '.repeat(tag.length) + ' b();');
+    }
+    // `<%%` is a literal and stays; the text after it is not a tag.
+    expect(blankErbTags('s = "<%% not a tag %>";')).toBe('s = "<%% not a tag %>";');
+    expect(blankErbTags('plain();')).toBe('plain();');
+  });
+
+  it('blanks an unterminated tag to the end of the block rather than leaving a stray "<%"', () => {
+    expect(blankErbTags('a(); <% b(')).toBe('a(); ' + ' '.repeat('<% b('.length));
+  });
+
+  it('keeps line numbers across a multi-line ERB tag', () => {
+    const view = [
+      '<script>',
+      '  const a = <%= foo(',
+      '    bar) %>;',
+      '  track("after");',
+      '</script>',
+      '',
+    ].join('\n');
+    const r = blankOutsideScripts(view, { erb: true })!;
+    sameShape(view, r.text);
+    expect(lines(r.text)[3]).toBe('  track("after");');
+    expect(lines(r.text)[1]).toBe('  const a = _' + ' '.repeat('<%= foo('.length - 1));
+    expect(lines(r.text)[2]).toBe(' '.repeat('    bar) %>'.length) + ';');
+  });
+
+  it('keeps line numbers when a %> sits inside a Ruby string in the tag, as ERB itself ends the tag there', () => {
+    const view = ['<script>', '  var a = <%= "50%>" %>;', '  track("after");', '</script>'].join('\n');
+    const r = blankOutsideScripts(view, { erb: true })!;
+    sameShape(view, r.text);
+    expect(lines(r.text)[2]).toBe('  track("after");');
+  });
+
+  it('blanks ERB tags only in an .erb file, never in an .html file', () => {
+    const root = tmp();
+    const out = tmp();
+    write(root, 'a.html', '<script>var t = "<%= x %>";</script>');
+    write(root, 'b.erb', '<script>var t = "<%= x %>";</script>');
+    const pairs = extractScripts(root, ['a.html', 'b.erb'], out);
+    expect(pairs).toHaveLength(2);
+    const byOriginal = new Map(pairs.map((p) => [p.originalPath, readFileSync(p.tempPath, 'utf8')]));
+    expect(byOriginal.get('a.html')).toContain('<%= x %>');
+    expect(byOriginal.get('b.erb')).not.toContain('<%');
+  });
+});
+
+describe('extension-less Ruby files', () => {
+  function write(root: string, rel: string, body: string): void {
+    const full = path.join(root, ...rel.split('/'));
+    mkdirSync(path.dirname(full), { recursive: true });
+    writeFileSync(full, body);
+  }
+
+  it('copies an extension-less Ruby file whole', () => {
+    const root = tmp();
+    const out = tmp();
+    const fastfile = 'lane :beta do\n  upload_to_testflight\nend\n';
+    write(root, 'fastlane/Fastfile', fastfile);
+    write(root, 'Gemfile', 'source "https://rubygems.org"\n');
+    const pairs = extractScripts(root, ['fastlane/Fastfile', 'Gemfile'], out);
+    expect(pairs).toHaveLength(1);
+    expect(pairs[0]!.originalPath).toBe('fastlane/Fastfile');
+    expect(pairs[0]!.tempPath).toBe(path.join(path.resolve(out), 'fastlane', 'Fastfile.lexcode.rb'));
+    expect(readFileSync(pairs[0]!.tempPath, 'utf8')).toBe(fastfile);
+    expect(existsSync(path.join(out, 'Gemfile.lexcode.rb'))).toBe(false);
+  });
+
+  it('copies Rakefile, Appfile and Capfile as well, and only by the exact base name', () => {
+    const root = tmp();
+    const out = tmp();
+    const names = ['Rakefile', 'fastlane/Appfile', 'Capfile', 'rakefile', 'docs/Fastfile.md', 'Fastfiles', 'MyFastfile'];
+    for (const n of names) write(root, n, 'x = 1\n');
+    const pairs = extractScripts(root, names, out);
+    expect(pairs.map((p) => p.originalPath).sort()).toEqual(['Capfile', 'Rakefile', 'fastlane/Appfile']);
+  });
+
+  it('copies a .rake, .ru or .gemspec file whole too, since the engine reads only .rb as Ruby', () => {
+    const root = tmp();
+    const out = tmp();
+    const names = ['lib/tasks/a.rake', 'config.ru', 'x.gemspec', 'lib/b.rb', 'lib/c.rakefile'];
+    for (const n of names) write(root, n, 'x = 1\n');
+    const pairs = extractScripts(root, names, out);
+    expect(pairs.map((p) => p.originalPath).sort()).toEqual(['config.ru', 'lib/tasks/a.rake', 'x.gemspec']);
+    expect(pairs.every((p) => p.tempPath.endsWith('.lexcode.rb'))).toBe(true);
+    expect(pairs.every((p) => readFileSync(p.tempPath, 'utf8') === 'x = 1\n')).toBe(true);
+  });
+
+  it('skips an extension-less Ruby file that has gone since it was listed', () => {
+    expect(extractScripts(tmp(), ['Fastfile'], tmp())).toEqual([]);
+  });
+});

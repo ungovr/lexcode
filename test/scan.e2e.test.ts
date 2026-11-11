@@ -1,4 +1,4 @@
-import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -94,6 +94,60 @@ describe.skipIf(!engineAvailable)('lexcode scan over test/repos/basic with the r
     const rec = JSON.parse(out.join('')) as EvidenceRecord;
     // package.json, package-lock.json, app.py, src/voice.py, web/App.vue and the two rule files; never lexcode.json.
     expect(rec.scope.files).toBe(7);
+  });
+});
+
+describe.skipIf(!engineAvailable)('lexcode scan over Ruby files and ERB views with the real engine', () => {
+  function put(rel: string, body: string): void {
+    const full = join(repo, ...rel.split('/'));
+    mkdirSync(dirname(full), { recursive: true });
+    writeFileSync(full, body);
+  }
+
+  it('reaches a Fastfile, a Rakefile, .rake and .gemspec files, and the script in an html.erb view, reporting the original path and line', async () => {
+    rmSync(join(repo, 'app.py'));
+    rmSync(join(repo, 'src'), { recursive: true });
+    rmSync(join(repo, 'web'), { recursive: true });
+    put('fastlane/Fastfile', 'default_platform(:ios)\n\nlane :talk do\n  Whisper.transcribe("a.wav")\nend\n');
+    put('Rakefile', 'task :talk do\n  Whisper.transcribe("b.wav")\nend\n');
+    put('lib/tasks/talk.rake', 'task :t do\n  Whisper.transcribe("c.wav")\nend\n');
+    put('talk.gemspec', 'Gem::Specification.new do |s|\n  Whisper.transcribe("d.wav")\nend\n');
+    put('lib/plain.rb', '\nWhisper.transcribe("e.wav")\n');
+    put(
+      'app/views/layouts/_head.html.erb',
+      '<head>\n<script>\n  var ga = "<%= ga_id %>";\n  <% if flag %>\n  navigator.mediaDevices.getUserMedia({audio: true});\n  <% end %>\n</script>\n</head>\n',
+    );
+    put(
+      '.rules/processes_voice/rb-whisper.yml',
+      [
+        'rules:',
+        '  - id: lexcode.voice.rb-whisper',
+        '    languages: [ruby]',
+        '    severity: INFO',
+        '    message: transcribes audio',
+        '    pattern: Whisper.transcribe(...)',
+        '    metadata:',
+        '      activity: processes_voice',
+        '      mentioned: performs',
+        '      definition: https://lexlint.io/activities/processes_voice',
+        '      provenance: ungovr-original',
+        '      license: MIT',
+        '',
+      ].join('\n'),
+    );
+    const code = await main(['scan', repo, '--rules', join(repo, '.rules'), '--json'], io());
+    expect(code).toBe(0);
+    const rec = JSON.parse(out.join('')) as EvidenceRecord;
+    const voice = rec.activities.find((a) => a.id === 'processes_voice' && a.mentioned === 'performs');
+    expect(voice?.evidence.map((e) => `${e.rule} ${e.where}`).sort()).toEqual([
+      'lexcode.voice.browser-microphone app/views/layouts/_head.html.erb:5',
+      'lexcode.voice.rb-whisper Rakefile:2',
+      'lexcode.voice.rb-whisper fastlane/Fastfile:4',
+      'lexcode.voice.rb-whisper lib/plain.rb:2',
+      'lexcode.voice.rb-whisper lib/tasks/talk.rake:2',
+      'lexcode.voice.rb-whisper talk.gemspec:2',
+    ]);
+    expect(rec.scope.extracted).toBe(5); // the ERB view, the Fastfile, the Rakefile, the .rake and the .gemspec; lib/plain.rb is read as it is
   });
 });
 
