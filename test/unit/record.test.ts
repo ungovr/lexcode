@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { buildRecord, countRulesRun, engineTargets, READ_LANGUAGES, unreadLanguages } from '../../src/record/build.js';
+import {
+  buildRecord,
+  countRulesRun,
+  engineTargets,
+  largePrefilteredFiles,
+  PREFILTER_REACH_BYTES,
+  prefilterReachNotice,
+  READ_LANGUAGES,
+  unreadLanguages,
+} from '../../src/record/build.js';
 import { loadRuleSet } from '../../src/rules/load.js';
 import type { Sidecar } from '../../src/types.js';
 import { NOW, SCOPE, match, ruleSetWith } from '../helpers/record.js';
@@ -396,5 +405,83 @@ describe('unreadLanguages for Ruby', () => {
     expect(engineTargets(only(rs), [...all, 'z.py'])).toEqual(all);
     const py = ruleSetWith([{ id: 'lexcode.a.py', activity: 'trains_models', languages: ['python'] }]);
     expect(unreadLanguages(only(py), all)).toEqual([{ language: 'Ruby', files: 3 }]);
+  });
+});
+
+describe('the notice for files past a whole-file pre-filter\'s reach', () => {
+  /** The rules of the test alone: the helper's rule set carries others as well. */
+  const only = (rs: ReturnType<typeof ruleSetWith>) => rs.rules.filter((r) => r.id.startsWith('lexcode.a.'));
+  const big = PREFILTER_REACH_BYTES + 1;
+  const sizes: Record<string, number> = {
+    'A.java': big,
+    'B.java': big,
+    'C.kt': big,
+    'small.java': PREFILTER_REACH_BYTES,
+    'large.rb': big,
+    'large.py': big,
+  };
+  const bytesOf = (f: string): number => sizes[f] ?? 0;
+  const files = Object.keys(sizes);
+
+  it('counts the files over 1,000,000 bytes in the languages whose rules pre-filter the whole file', () => {
+    const rs = ruleSetWith([
+      { id: 'lexcode.a.java', languages: ['java'], wholeFilePrefilter: true },
+      { id: 'lexcode.a.kt', languages: ['kotlin'], wholeFilePrefilter: true },
+      { id: 'lexcode.a.rb', languages: ['ruby'] },
+      { id: 'lexcode.a.py', languages: ['python'] },
+    ]);
+    const large = largePrefilteredFiles(only(rs), files, bytesOf);
+    expect(large).toEqual([
+      { language: 'Java', files: 2 },
+      { language: 'Kotlin', files: 1 },
+    ]);
+    expect(prefilterReachNotice(large)).toBe(
+      '3 files handed to the engine are over 1,000,000 bytes (2 Java, 1 Kotlin); rules that first check a whole file for a name ' +
+        'can miss matches in a file that large, so evidence in them may be missing from this record',
+    );
+  });
+
+  it('follows the rules: the language set is what the loaded rules pre-filter, never a fixed list', () => {
+    const ruby = ruleSetWith([
+      { id: 'lexcode.a.java', languages: ['java'] },
+      { id: 'lexcode.a.rb', languages: ['ruby'], wholeFilePrefilter: true },
+    ]);
+    const large = largePrefilteredFiles(only(ruby), files, bytesOf);
+    expect(large).toEqual([{ language: 'Ruby', files: 1 }]);
+    expect(prefilterReachNotice(large)).toBe(
+      '1 file handed to the engine is over 1,000,000 bytes (Ruby); rules that first check a whole file for a name ' +
+        'can miss matches in a file that large, so evidence in it may be missing from this record',
+    );
+    const python = ruleSetWith([{ id: 'lexcode.a.py', languages: ['python'], wholeFilePrefilter: true }]);
+    expect(largePrefilteredFiles(only(python), files, bytesOf)).toEqual([{ language: 'Python', files: 1 }]);
+    // A rule over every file (generic) makes every large file count.
+    const every = ruleSetWith([{ id: 'lexcode.a.g', languages: ['generic'], wholeFilePrefilter: true }]);
+    expect(largePrefilteredFiles(only(every), files, bytesOf).reduce((n, l) => n + l.files, 0)).toBe(5);
+  });
+
+  it('has no notice when no file is past the reach, or no rule pre-filters the whole file', () => {
+    const rs = ruleSetWith([{ id: 'lexcode.a.java', languages: ['java'], wholeFilePrefilter: true }]);
+    expect(largePrefilteredFiles(only(rs), ['small.java', 'large.py'], bytesOf)).toEqual([]);
+    expect(prefilterReachNotice(largePrefilteredFiles(only(rs), ['small.java', 'large.py'], bytesOf))).toBeUndefined();
+    const none = ruleSetWith([{ id: 'lexcode.a.java', languages: ['java'] }]);
+    const asked: string[] = [];
+    expect(largePrefilteredFiles(only(none), files, (f) => (asked.push(f), bytesOf(f)))).toEqual([]);
+    expect(asked).toEqual([]);
+  });
+
+  it('asks the size only of files in a pre-filtered language', () => {
+    const rs = ruleSetWith([{ id: 'lexcode.a.rb', languages: ['ruby'], wholeFilePrefilter: true }]);
+    const asked: string[] = [];
+    largePrefilteredFiles(only(rs), files, (f) => (asked.push(f), bytesOf(f)));
+    expect(asked).toEqual(['large.rb']);
+  });
+
+  it('marks the bundled rules that carry a whole-file lookahead, in Java, Kotlin and Ruby', () => {
+    const rs = loadRuleSet();
+    const marked = rs.rules.filter((r) => r.wholeFilePrefilter);
+    expect(marked.some((r) => r.id === 'lexcode.crawl.rb-mechanize-fetch')).toBe(true);
+    expect(rs.rules.find((r) => r.id === 'lexcode.social.java-direct-message')?.wholeFilePrefilter).toBe(true);
+    expect(rs.rules.find((r) => r.id.startsWith('lexcode.') && r.languages.includes('python'))?.wholeFilePrefilter).toBeUndefined();
+    expect(new Set(marked.flatMap((r) => r.languages))).toEqual(new Set(['java', 'kotlin', 'ruby']));
   });
 });

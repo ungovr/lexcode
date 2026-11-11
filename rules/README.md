@@ -471,3 +471,23 @@ tag with no closing `>` are left alone. A `<script>` inside a JSP comment is
 still read, because extraction finds the element before the comment is blanked.
 Thymeleaf templates are `.html` and already read; FreeMarker and Velocity
 templates are not read.
+
+## A known gap: a file over 1 MB
+
+Some rules first check the whole file for a name, with a `pattern-regex` of the
+form `(?s)\A(?=.*NAME).*`, so the engine can skip a file that cannot match. On
+Opengrep 1.33.1 that check stops matching after about a million backtracking
+steps and records no error. The rules write it with a greedy `.*`, which counts
+the steps from the end of the file: a name used only near the top of a file is
+missed from about 1,050 KB, while one near the end is still found in a 4.5 MB
+file. A lazy `.*?` counts from the start and misses a name used only at the end
+from about 1,000 KB, and an alternation tried at every step shortens the reach
+further. lexcode cannot lift the engine's limit, so a scan counts the files it
+hands the engine that are over 1,000,000 bytes and in a language with at least
+one such rule (in this rule set, Java, Kotlin and Ruby), and says so: `N files
+handed to the engine are over 1,000,000 bytes (Java); rules that first check a
+whole file for a name can miss matches in a file that large, so evidence in them
+may be missing from this record`. With files in more than one language, the
+parenthesis counts each (`2 Java, 1 Kotlin`). There is no notice when there is
+no such file. How a rule keeps the longest reach, and which forms the release
+test refuses, is in CONTRIBUTING.md under Cost.

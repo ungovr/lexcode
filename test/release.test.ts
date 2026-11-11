@@ -38,41 +38,78 @@ function patternRegexes(node: unknown): string[] {
   );
 }
 
-/** Why a whole-file lookahead pre-filter would lose matches in a large file, or null when it is fine or not one. */
+/**
+ * Why a whole-file lookahead pre-filter would lose matches in a large file, or null when it is fine or not one.
+ *
+ * Measured on opengrep 1.33.1: a whole-file lookahead stops matching, with no error recorded, after about a
+ * million backtracking steps. A greedy `.*` counts them from the end of the file, so the one-literal form
+ * `(?s)\A(?=.*LITERAL).*` keeps an only occurrence at the end of a 4.5 MB file but loses an only occurrence
+ * near the top from about 1,050 KB. A lazy `.*?` counts them from the start, so it loses an occurrence at the
+ * end from about 1,000 KB. An alternation tried at every step shortens the reach: under a lazy wildcard, one
+ * before the lookahead's first literal lost an occurrence at the end at 940 KB (`.*?q?(?:A|B)`), and the
+ * `[\s\S]*?(?:A|B|...)` shape the JVM rules first used lost matches from 120 KB. With the occurrence at
+ * the end, a greedy alternation before the first literal and a second lookahead held to 4.5 MB; the guard
+ * refuses them anyway, with an alternation at the lookahead's own level (`(?=.*A|.*B)`) and a top-level lazy
+ * `.*?` or `[\s\S]*?`, because only the one-literal greedy form was measured from both ends. What it passes
+ * still has the reach above; a scan notices each file over 1,000,000 bytes in a language with a whole-file
+ * pre-filtered rule.
+ */
 function wholeFileLookaheadProblem(rx: string): string | null {
   const start = rx.search(/\\A\(\?=/);
   if (start === -1) return null;
   const lookaheads = rx.split('(?=').length - 1;
   if (lookaheads > 1) return 'second lookahead';
-  // Walk the lookahead to its closing parenthesis, ignoring escapes and character classes. An alternation
-  // at the lookahead's own level is always the failing shape (`(?=.*A|.*B)`). One inside a group fails only
-  // when it comes before the lookahead's first literal (`(?=.*(A|B))`): the engine then tries every
-  // alternative at every position of the file. After a leading literal (`(?=.*?Mechanize(?:\s|#)*\.new)`)
-  // it runs only where the literal matched, which held to 940 KB on opengrep 1.33.1.
+  // Walk the lookahead to its closing parenthesis, ignoring escapes and reading character classes whole. An
+  // alternation at the lookahead's own level is always refused. One inside a group is refused only when it
+  // comes before the lookahead's first literal (`(?=.*(A|B))`); after a leading literal
+  // (`(?=.*Mechanize(?:\s|#)*\.new)`) the engine tries it only where the literal matched.
+  const problems = new Set<string>();
   let depth = 1;
   let inClass = false;
+  let classText = '';
   let seenLiteral = false;
+  /** Whether the atom just read at the lookahead's own level matches any character (`.` or `[\s\S]`). */
+  let lastWildcard = false;
   for (let i = start + '\\A(?='.length; i < rx.length; i++) {
     const ch = rx[i] as string;
     if (ch === '\\') {
       const next = rx[i + 1] ?? '';
-      if (depth === 1 && !/[sSwWdDbBAzZ]/.test(next)) seenLiteral = true;
+      if (inClass) classText += ch + next;
+      else if (depth === 1) {
+        if (!/[sSwWdDbBAzZ]/.test(next)) seenLiteral = true;
+        lastWildcard = false;
+      }
       i++;
       continue;
     }
     if (inClass) {
-      if (ch === ']') inClass = false;
+      if (ch !== ']') classText += ch;
+      else {
+        inClass = false;
+        if (depth === 1) lastWildcard = classText === '\\s\\S' || classText === '\\S\\s';
+      }
       continue;
     }
-    if (ch === '[') inClass = true;
-    else if (ch === '(') depth++;
+    if (ch === '[') {
+      inClass = true;
+      classText = '';
+    } else if (ch === '(') depth++;
     else if (ch === ')') {
       depth--;
-      if (depth === 0) return null;
-    } else if (ch === '|' && (depth === 1 || !seenLiteral)) return 'alternation';
-    else if (depth === 1 && !'.*+?{}^$'.includes(ch) && !/[\d,]/.test(ch)) seenLiteral = true;
+      if (depth === 0) break;
+      if (depth === 1) lastWildcard = false;
+    } else if (ch === '|' && (depth === 1 || !seenLiteral)) problems.add('alternation');
+    else if (depth !== 1) continue;
+    else if (ch === '*' && rx[i + 1] === '?' && lastWildcard) {
+      problems.add('lazy wildcard');
+      i++;
+    } else if (ch === '.') lastWildcard = true;
+    else if (!'*+?{}^$'.includes(ch) && !/[\d,]/.test(ch)) {
+      seenLiteral = true;
+      lastWildcard = false;
+    }
   }
-  return null;
+  return problems.size > 0 ? [...problems].join(', ') : null;
 }
 
 describe('release: the rule set is complete and well formed', () => {
@@ -181,12 +218,13 @@ describe('release: the rule set is complete and well formed', () => {
   });
 
   // A whole-file pre-filter is a `pattern-regex` of the form (?s)\A(?=.*LITERAL).* whose range is the whole
-  // file, so the engine can skip a file without LITERAL. With more than one alternative in the lookahead, or
-  // two lookaheads, the engine's regex silently stops matching in a large file (measured on opengrep 1.33.1:
-  // post-model and direct-message from 160 KB, analytics-calls from 120 KB; one literal held to 950 KB)
-  // and the rule loses real matches with no error recorded. One literal per pattern-regex, joined with
-  // a `pattern-either` for "any of these".
-  it('no whole-file pre-filter lookahead holds an alternation or a second lookahead', () => {
+  // file, so the engine can skip a file without LITERAL. Every such lookahead stops matching after about a
+  // million backtracking steps on opengrep 1.33.1, with no error recorded (see wholeFileLookaheadProblem for
+  // the measurements): the greedy one-literal form loses an only occurrence near the top of a file from about
+  // 1,050 KB, a lazy `.*?` loses one at the end from about 1,000 KB, and an alternation before the first literal
+  // shortens the reach (the JVM rules' first shape, `[\s\S]*?(?:A|B|...)`, lost matches from 120 KB). The safe
+  // form is one greedy literal per pattern-regex, joined with a `pattern-either` for "any of these".
+  it('no whole-file pre-filter lookahead holds an alternation, a second lookahead or a lazy wildcard', () => {
     const bad: string[] = [];
     const walk = (dir: string): void => {
       for (const e of readdirSync(dir)) {
@@ -220,9 +258,31 @@ describe('release: the rule set is complete and well formed', () => {
     // lookahead's first literal runs only where that literal matched, and passes.
     expect(wholeFileLookaheadProblem('(?s)\\A(?=.*Post|.*Tweet).*')).toMatch(/alternation/);
     expect(wholeFileLookaheadProblem('(?s)\\A(?=.*?(?:Post|Tweet)Model).*')).toMatch(/alternation/);
-    expect(wholeFileLookaheadProblem('(?s)\\A(?=.*?Mechanize(?:\\s|#)*\\.(?:new|start)).*')).toBeNull();
+    expect(wholeFileLookaheadProblem('(?s)\\A(?=.*Mechanize(?:\\s|#)*\\.(?:new|start)).*')).toBeNull();
     expect(wholeFileLookaheadProblem('(?s)\\A(?=.*com\\.(?:openai|anthropic)).*')).toBeNull();
     expect(wholeFileLookaheadProblem('(?s)\\A(?=.*\\b(?:A|B)).*')).toMatch(/alternation/);
+  });
+
+  it('the pre-filter guard refuses a top-level lazy wildcard, and only that', () => {
+    // Refused: a lazy `.*?` or `[\s\S]*?` at the lookahead's own level counts its steps from the top.
+    expect(wholeFileLookaheadProblem('(?s)\\A(?=.*?Post\\b).*')).toBe('lazy wildcard');
+    expect(wholeFileLookaheadProblem('\\A(?=[\\s\\S]*?Post\\b)[\\s\\S]*')).toBe('lazy wildcard');
+    expect(wholeFileLookaheadProblem('\\A(?=[\\S\\s]*?Post)[\\s\\S]*')).toBe('lazy wildcard');
+    expect(wholeFileLookaheadProblem('(?s)\\A(?=.*?Mechanize(?:\\s|#)*\\.(?:new|start)).*')).toBe('lazy wildcard');
+    expect(wholeFileLookaheadProblem('(?s)\\A(?=import.*?Post).*')).toBe('lazy wildcard');
+    // Both problems are named when both are there.
+    expect(wholeFileLookaheadProblem('(?s)\\A(?=[\\s\\S]*?(?:A|B))[\\s\\S]*')).toBe('lazy wildcard, alternation');
+    // Passed: the greedy forms, a lazy quantifier on something other than a wildcard, a lazy wildcard inside
+    // a group or after the lookahead, and an escaped dot.
+    expect(wholeFileLookaheadProblem('(?s)\\A(?=.*Post\\b).*')).toBeNull();
+    expect(wholeFileLookaheadProblem('\\A(?=[\\s\\S]*Post\\b)[\\s\\S]*')).toBeNull();
+    expect(wholeFileLookaheadProblem('(?s)\\A(?=.*Po\\w*?st).*')).toBeNull();
+    expect(wholeFileLookaheadProblem('(?s)\\A(?=.*[ab]*?Post).*')).toBeNull();
+    expect(wholeFileLookaheadProblem('(?s)\\A(?=.*Post(?:x.*?y)?).*')).toBeNull();
+    expect(wholeFileLookaheadProblem('(?s)\\A(?=.*Post).*?')).toBeNull();
+    expect(wholeFileLookaheadProblem('(?s)\\A(?=.*a\\.*?b).*')).toBeNull();
+    // A lazy wildcard in an ordinary (not whole-file) regex is fine.
+    expect(wholeFileLookaheadProblem('(?s)import.*?Post')).toBeNull();
   });
 
   it('contributing forbids the three rule sets', () => {
