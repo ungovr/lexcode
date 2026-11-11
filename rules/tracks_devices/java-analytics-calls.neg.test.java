@@ -7,6 +7,7 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.messaging.FirebaseMessaging;
 import io.micrometer.core.instrument.MeterRegistry;
+import lombok.Builder;
 import io.sentry.Sentry;
 
 public class Telemetry {
@@ -66,5 +67,39 @@ class Usage {
     Analytics.with(this).track("jobs_run");
     trail.logEvent("export");
     trail.setUserId("batch");
+  }
+}
+
+// App-owned Lombok builders that share the names of Segment's message classes.
+@Builder
+class TrackMessage {
+  String name;
+}
+
+@Builder
+class PageMessage {
+  String title;
+}
+
+// An audio app's own value class named Amplitude, with methods named like the vendor's.
+class Amplitude {
+  private final double level;
+
+  Amplitude(double level) {
+    this.level = level;
+  }
+
+  void track(double next) {}
+
+  void logEvent(String name) {}
+}
+
+class Mixer {
+  void run() {
+    TrackMessage.builder().name("intro").build();
+    PageMessage.builder().title("home").build();
+    Amplitude peak = new Amplitude(0.8);
+    peak.track(0.9);
+    peak.logEvent("clipped");
   }
 }

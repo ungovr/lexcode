@@ -1,0 +1,33 @@
+rules:
+  - id: lexcode.tracking.java-android-id-sent
+    languages: [java]
+    severity: INFO
+    message: Reads the Android id, which identifies one device for the life of the app signing key, and sends it to another host or to an analytics or crash SDK, which is tracking devices (tracks_devices).
+    mode: taint
+    pattern-sources:
+      - pattern: Settings.Secure.getString(..., Settings.Secure.ANDROID_ID)
+      - patterns:
+          - pattern: Secure.getString(..., Secure.ANDROID_ID)
+          - pattern-inside: |
+              import android.provider.Settings.Secure;
+              ...
+    pattern-sinks:
+      # An HTTP header, form field, query parameter or request property.
+      - pattern: $B.addHeader(...)
+      - pattern: $B.header(...)
+      - pattern: $C.setRequestProperty(...)
+      - pattern: (FormBody.Builder $F).add(...)
+      - pattern: (FormBody.Builder $F).addEncoded(...)
+      - pattern: $U.appendQueryParameter(...)
+      - pattern: $U.addQueryParameter(...)
+      # A user id handed to an analytics, attribution or crash SDK.
+      - pattern: (FirebaseAnalytics $F).setUserId(...)
+      - pattern: (FirebaseCrashlytics $C).setUserId(...)
+      - pattern: (MixpanelAPI $M).identify(...)
+      - pattern: AppsFlyerLib.getInstance().setCustomerUserId(...)
+    metadata:
+      activity: tracks_devices
+      mentioned: performs
+      definition: https://lexlint.io/activities/tracks-devices
+      provenance: ungovr-original
+      license: MIT

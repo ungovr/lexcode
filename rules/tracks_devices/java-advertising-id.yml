@@ -2,7 +2,7 @@ rules:
   - id: lexcode.tracking.java-advertising-id
     languages: [java]
     severity: INFO
-    message: Reads an identifier that follows one Android device across visits or apps (the advertising id, the Android id, the IMEI or subscriber id, the hardware serial or the Firebase installation id), which is tracking devices (tracks_devices).
+    message: Reads an identifier that follows one Android device (the advertising id, the IMEI, MEID or subscriber id, the hardware serial or the Firebase installation id), which is tracking devices (tracks_devices).
     pattern-either:
       - patterns:
           - pattern: AdvertisingIdClient.getAdvertisingIdInfo(...)
@@ -13,7 +13,6 @@ rules:
               - pattern-inside: |
                   import androidx.ads.identifier.AdvertisingIdClient;
                   ...
-      - pattern: Settings.Secure.getString(..., Settings.Secure.ANDROID_ID)
       - pattern: (TelephonyManager $T).getImei(...)
       - pattern: (TelephonyManager $T).getMeid(...)
       - pattern: (TelephonyManager $T).getDeviceId(...)

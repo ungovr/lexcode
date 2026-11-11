@@ -27,6 +27,16 @@ public class DiagnosticsActivity extends Activity {
     return input + brightness + model + carrier + session;
   }
 
+  // The Android id compared, or used as a key in the app's own cache, and never sent.
+  boolean isLabDevice() {
+    String id = Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID);
+    return "test-lab-device".equals(id);
+  }
+
+  String cacheKey() {
+    return "cache-" + Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID);
+  }
+
   void refreshToken() {
     // The installation token for the app's own backend calls, not the installation id.
     FirebaseInstallations.getInstance().getToken(false);

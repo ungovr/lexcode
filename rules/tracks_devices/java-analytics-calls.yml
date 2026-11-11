@@ -2,7 +2,7 @@ rules:
   - id: lexcode.tracking.java-analytics-calls
     languages: [java]
     severity: INFO
-    message: Sends visits or events to a third-party analytics, attribution or crash-reporting service (Firebase Analytics and Crashlytics, Segment, Mixpanel, Amplitude, AppsFlyer, Adjust, Meta app events, Sentry for Android or Google Analytics) that follows the device with its own id, which is tracking devices (tracks_devices).
+    message: Sends visits or events to a third-party analytics, attribution or crash-reporting service (Firebase Analytics and Crashlytics, Segment, Mixpanel, Amplitude, AppsFlyer, Adjust, Meta app events, Sentry for Android or Google Analytics) that follows the device with its own id, which is tracking devices (tracks_devices). Starting an Android crash-reporting SDK counts too, because a crash-reporting service is one of the counterparties this activity names.
     pattern-either:
       - pattern: FirebaseAnalytics.getInstance(...)
       - pattern: (FirebaseAnalytics $F).logEvent(...)
@@ -19,14 +19,31 @@ rules:
       - pattern: AppsFlyerLib.getInstance().init(...)
       - pattern: AppsFlyerLib.getInstance().start(...)
       - pattern: new AdjustConfig(...)
-      - pattern: TrackMessage.builder(...)
-      - pattern: IdentifyMessage.builder(...)
-      - pattern: ScreenMessage.builder(...)
-      - pattern: PageMessage.builder(...)
-      - pattern: (Amplitude $A).track(...)
-      - pattern: (Amplitude $A).logEvent(...)
-      - pattern: new Amplitude(...)
       - pattern: '"=~/.*google-analytics\.com\/(g\/|mp\/)?collect.*/"'
+      - patterns:
+          - pattern-either:
+              - pattern: TrackMessage.builder(...)
+              - pattern: IdentifyMessage.builder(...)
+              - pattern: ScreenMessage.builder(...)
+              - pattern: PageMessage.builder(...)
+          - pattern-inside: |
+              import com.segment.analytics.messages.$X;
+              ...
+      - patterns:
+          - pattern-either:
+              - pattern: new Amplitude(...)
+              - pattern: (Amplitude $A).track(...)
+              - pattern: (Amplitude $A).logEvent(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import com.amplitude.android.Amplitude;
+                  ...
+              - pattern-inside: |
+                  import com.amplitude.api.Amplitude;
+                  ...
+              - pattern-inside: |
+                  import com.amplitude.Amplitude;
+                  ...
       - patterns:
           - pattern-either:
               - pattern: Analytics.with(...)
