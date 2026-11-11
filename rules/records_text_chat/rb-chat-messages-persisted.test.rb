@@ -1,4 +1,4 @@
-# lexcode-expect: 7
+# lexcode-expect: 12
 # Chat endpoints and channels that keep the conversation: what a person typed is written to a
 # database.
 class MessagesController < ApplicationController
@@ -41,5 +41,22 @@ class RoomChannel < ApplicationCable::Channel
 
   def speak(data)
     @room.messages.create(body: data.fetch("body"), user: current_user)
+  end
+end
+
+# Shapes the anchor must admit: a leading-dot chain, a trailing dot and safe navigation.
+class ChainShapesMessages < ApplicationController
+  def create
+    @message = @conversation&.messages&.create!(body: params[:body], user: current_user)
+    @conversation
+      .messages
+      .create!(body: params[:body], user: current_user)
+    @conversation.
+      messages.
+      create!(body: params[:body], user: current_user)
+    ChatMessage
+      .create!(room: @room, user: current_user, content: params[:message][:content])
+    ChatMessage&.create!(room: @room, user: current_user, content: params[:message][:content])
+    head :created
   end
 end

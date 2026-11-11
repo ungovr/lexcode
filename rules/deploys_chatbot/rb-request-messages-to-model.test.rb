@@ -1,4 +1,4 @@
-# lexcode-expect: 11
+# lexcode-expect: 15
 # Rails endpoints and an ActionCable channel that hand what a person typed, or the conversation so
 # far, to a language model.
 class ChatsController < ApplicationController
@@ -60,5 +60,23 @@ class ShapedCalls < ApplicationController
   def split_chain
     client.messages
       .create(model: "claude-sonnet-4-5", max_tokens: 512, messages: params[:history])
+  end
+end
+
+# Shapes the anchor must admit: a leading-dot chain, a trailing dot and safe navigation.
+class ChainShapesChats < ApplicationController
+  def create
+    msg = anthropic&.messages&.create(model: "claude-sonnet-4-5", max_tokens: 1024, messages: params[:history])
+    msg = anthropic
+      .messages
+      .create(model: "claude-sonnet-4-5", max_tokens: 1024, messages: params[:history])
+    msg = anthropic.
+      messages.
+      create(model: "claude-sonnet-4-5", max_tokens: 1024, messages: params[:history])
+    reply = client
+      .chat
+      .completions
+      .create(model: "gpt-4o-mini", messages: params[:messages])
+    render json: { reply: reply, msg: msg }
   end
 end

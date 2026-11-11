@@ -1,4 +1,4 @@
-# lexcode-expect: 14
+# lexcode-expect: 17
 require "net/http"
 require "open-uri"
 require "faraday"
@@ -74,5 +74,20 @@ class PagePuller
 
   def in_parallel(urls)
     Parallel.map(urls, in_threads: 4) { |u| HTTParty.get(u) }
+  end
+end
+
+# Shapes the anchor must admit: a leading-dot chain, a trailing dot and safe navigation.
+class ChainShapesFetch
+  def run(urls)
+    urls.each do |url|
+      URI&.parse(url)&.open&.read
+      URI.parse(url).
+        open.
+        read
+      URI.parse(url)
+        .open
+        .read
+    end
   end
 end

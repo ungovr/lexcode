@@ -1,4 +1,4 @@
-# lexcode-expect: 9
+# lexcode-expect: 10
 # Services and jobs that hand a person's email address to an outside vendor.
 class BillingService
   def create_customer(user)
@@ -42,5 +42,12 @@ class Avatars
   # A hash of the address leaves for Gravatar's servers when the browser loads the image.
   def url(user, size = 80)
     "https://secure.gravatar.com/avatar/#{Digest::MD5.hexdigest(user.email)}?s=#{size}"
+  end
+end
+
+# Shapes the anchor must admit: a leading-dot chain, a trailing dot and safe navigation.
+class ChainShapesNewsletter
+  def subscribe(user)
+    gibbon.lists(list_id).members.create(:body => { :email_address => user.email, :status => "subscribed" })
   end
 end

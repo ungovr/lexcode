@@ -27,7 +27,7 @@ rules:
               - pattern: '"https://secure.gravatar.com/avatar/#{$H}..."'
               - pattern: '"https://www.gravatar.com/avatar/#{$H}..."'
       - patterns:
-          - pattern-regex: '(?s)\bmembers\b.{0,300}?\bemail_address\s*:'
+          - pattern-regex: '(?s)\bmembers\b.{0,300}?\bemail_address\s*(:|=>)'
           - pattern-either:
               - pattern: "$G.members.create(..., body: {..., email_address: $E, ...}, ...)"
               - pattern: "$G.members(...).upsert(..., body: {..., email_address: $E, ...}, ...)"

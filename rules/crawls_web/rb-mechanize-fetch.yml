@@ -7,7 +7,7 @@ rules:
       # The regular expression is a pre-filter and a scope: a `get` on a receiver has no literal of
       # its own, so without it the engine parses every Ruby file, and it only reads the part of a
       # file after a Mechanize agent is built.
-      - pattern-regex: '(?s)Mechanize\.(new|start).*'
+      - pattern-regex: '(?s)Mechanize\s*&?\.\s*(new|start).*'
       - pattern: $A.get($URL, ...)
       - metavariable-regex:
           metavariable: $A

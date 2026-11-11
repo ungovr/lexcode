@@ -1,4 +1,4 @@
-# lexcode-expect: 7
+# lexcode-expect: 10
 # A terminal chat and a session object that keep the conversation between calls: every user turn
 # and every model turn goes into one history, and the whole history is sent back each time.
 class TerminalChat
@@ -68,5 +68,26 @@ class OtherMethods
     @history << { role: "user", content: text }
     reply = openai.chat parameters: { model: "gpt-4o-mini", messages: @history }
     @history << reply.dig("choices", 0, "message")
+  end
+end
+
+# Shapes the anchor must admit: a leading-dot chain, a trailing dot and safe navigation.
+class ChainShapesSession
+  def initialize
+    @turns = []
+  end
+
+  def say(text)
+    @turns.push({ role: "user", content: text })
+    msg = anthropic&.messages&.create(model: "claude-sonnet-4-5", max_tokens: 1024, messages: @turns)
+    @turns.push({ role: "assistant", content: msg.content.first.text })
+    msg = anthropic
+      .messages
+      .create(model: "claude-sonnet-4-5", max_tokens: 1024, messages: @turns)
+    @turns.push({ role: "assistant", content: msg.content.first.text })
+    msg = anthropic.
+      messages.
+      create(model: "claude-sonnet-4-5", max_tokens: 1024, messages: @turns)
+    @turns.push({ role: "assistant", content: msg.content.first.text })
   end
 end

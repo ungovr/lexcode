@@ -110,7 +110,7 @@ rules:
                   metavariable: $K
                   regex: '^:?["\x27]?(messages|chat_messages|history|chat_history|conversation|conversation_history)["\x27]?$'
       # Literal anchor inside the match (the model call), so the engine skips files with no such call.
-      - pattern-regex: '(\.chat\b(?!\s*\.)|\.converse\b|\.messages\s*(\(|\.(create|stream)\b|\s+parameters)|completions\s*\.create\b|\.responses\s*\.create\b)'
+      - pattern-regex: '(&?\.\s*chat\b(?!\s*&?\.)|&?\.\s*converse\b|&?\.\s*messages\s*(\(|&?\.\s*(create|stream)\b|\s+parameters)|completions\s*&?\.\s*create\b|&?\.\s*responses\s*&?\.\s*create\b)'
     metadata:
       activity: deploys_chatbot
       mentioned: performs

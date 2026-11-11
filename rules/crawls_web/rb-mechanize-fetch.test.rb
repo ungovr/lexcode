@@ -1,4 +1,4 @@
-# lexcode-expect: 5
+# lexcode-expect: 8
 require "mechanize"
 
 # Mechanize is a scriptable browser: it fetches pages, follows links and submits forms.
@@ -30,5 +30,18 @@ class OneOffs
 
   def block_style(url)
     Mechanize.start { |agent| agent.get(url).title }
+  end
+end
+
+# Shapes the anchor must admit: a leading-dot chain, a trailing dot and safe navigation.
+class ChainShapesMechanize
+  def run(url)
+    agent = Mechanize
+      .new
+    agent&.get(url)
+    agent
+      .get(url)
+    agent.
+      get(url)
   end
 end

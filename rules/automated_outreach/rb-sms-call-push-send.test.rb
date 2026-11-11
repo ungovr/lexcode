@@ -1,4 +1,4 @@
-# lexcode-expect: 16
+# lexcode-expect: 22
 # Texts, calls and push notifications, where the code does not show whether a person just asked.
 class NotificationsController < ApplicationController
   def reminder
@@ -49,5 +49,23 @@ class ParenlessCarriers
     client.calls.create from: "+15550100", to: user.phone, url: "https://example.org/voice.xml"
     sns.publish phone_number: user.phone, message: "Pool closed today."
     vonage.sms.send from: "Example", to: user.phone, text: "Pool closed today."
+  end
+end
+
+# Shapes the anchor must admit: a leading-dot chain, a trailing dot and safe navigation.
+class ChainShapesCarriers
+  def run(user, payload)
+    client&.messages&.create(from: "+15550100", to: user.phone, body: "Hi")
+    client
+      .calls
+      .create(from: "+15550100", to: user.phone, url: "https://example.org/voice.xml")
+    Webpush
+      .payload_send(message: payload, endpoint: user.endpoint)
+    Rpush::Apns2::Notification
+      .create!(app: Rpush::Apns2::App.find_by_name("ios"), device_token: user.token, alert: "Hi")
+    sns&.publish(phone_number: user.phone, message: "Hi")
+    vonage
+      .sms
+      .send(from: "Example", to: user.phone, text: "Hi")
   end
 end

@@ -10,6 +10,17 @@ with the fixtures first: a positive fixture showing the act, and a negative
 fixture for every exclusion the definition names. A rule that fires on a
 negative fixture cannot merge.
 
+A `pattern-regex` conjunct is an anchor: it lets the engine skip files that
+cannot match, which on a large Ruby codebase is the difference between seconds
+and minutes. It must admit every shape the rule's own patterns match, so it is
+never narrower than the rule: no required `(` after a method name, no fixed
+list of method names where the rule takes any, receiver words in any case, `&.`
+as well as `.`, and a line break on either side of a dot (`\s*&?\.\s*`). The
+positive fixture carries one paren-less line and one multi-line line (arguments
+over several lines, or a chain split on its dots) for each call the anchor
+names, because a fixture written with parentheses on one line cannot see a
+narrow anchor.
+
 ## Never copy a rule from another rule set
 
 Do not copy, translate or adapt any rule, pattern, fixture or message from

@@ -8,7 +8,7 @@ rules:
       # literal of its own, so without this the engine parses every Ruby file. It names every
       # library and client receiver the fetcher regular expression can accept, and the receiver
       # words are matched in any case, as that regular expression matches them.
-      - pattern-regex: '(Net::HTTP|URI\.open|URI(\.parse)?\([^)]*\)\s*&?\.(open|read)|HTTParty|Faraday|RestClient|Typhoeus|\bHTTP\.(get|head)|\bopen[ (]|(?i:client|conn|http|session|agent|faraday)\w*\.(get|head)\b)'
+      - pattern-regex: '(Net::HTTP|URI\s*&?\.\s*open|URI(\s*&?\.\s*parse)?\([^)]*\)\s*&?\.\s*(open|read)|HTTParty|Faraday|RestClient|Typhoeus|\bHTTP\s*&?\.\s*(get|head)|\bopen[ \t(]|(?i:client|conn|http|session|agent|faraday)\w*\s*&?\.\s*(get|head)\b)'
       - pattern-either:
           - patterns:
               - pattern-either:

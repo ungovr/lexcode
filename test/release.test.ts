@@ -55,6 +55,20 @@ describe('release: the rule set is complete and well formed', () => {
     expect(uncovered).toEqual([]);
   });
 
+  // The per-language gate (v1.1): Ruby joins the languages lexcode reads, so
+  // every evidence-class id also has a Ruby rule at evidence strength.
+  it('every evidence-class id has a Ruby rule', () => {
+    const rs = loadRuleSet();
+    const uncovered: string[] = [];
+    for (const [id, cls] of rs.classes) {
+      if (cls !== 'evidence') continue;
+      if (!rs.rules.some((r) => r.activity === id && r.strength === 'evidence' && r.languages.includes('ruby'))) {
+        uncovered.push(id);
+      }
+    }
+    expect(uncovered).toEqual([]);
+  });
+
   it('contributing forbids the three rule sets', () => {
     const text = readFileSync(join(root, 'CONTRIBUTING.md'), 'utf8');
     for (const phrase of ['semgrep-rules', 'opengrep-rules', 'privado-rules', 'Commons Clause']) {
