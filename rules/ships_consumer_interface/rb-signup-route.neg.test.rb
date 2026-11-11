@@ -5,6 +5,17 @@ Rails.application.routes.draw do
   devise_for :users, only: [:sessions, :passwords]
   devise_for :staff_members
 
+  # Login machinery without public registration: SSO-only internal tool, a bare
+  # login route, and a multi-line call that skips registrations.
+  devise_for :users, controllers: { omniauth_callbacks: "users/omniauth_callbacks" }
+  devise_for :employees
+  devise_for :members,
+             controllers: {
+               sessions: "members/sessions",
+               omniauth_callbacks: "members/omniauth_callbacks"
+             },
+             skip: :registrations
+
   namespace :admin do
     resources :users, only: [:new, :create]
     resources :registrations

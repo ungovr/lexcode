@@ -1,6 +1,10 @@
 # lexcode-expect: 8
 Rails.application.routes.draw do
-  devise_for :users
+  devise_for :users,
+             controllers: {
+               sessions: "users/sessions",
+               registrations: "users/registrations"
+             }
   devise_for :members, controllers: { registrations: "members/registrations" }
 
   get "signup", to: "users#new"

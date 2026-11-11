@@ -6,7 +6,8 @@ rules:
     patterns:
       - pattern-either:
           - pattern-regex: '(?m)^[ \t]*(get|post|match)[ \t(]+(["'']/?(accounts/|auth/|users/)?(sign-?up|sign_up|register|registration|create-account)/?["'']|:(sign_?up|register|registration)\b)'
-          - pattern-regex: '(?m)^[ \t]*devise_for[ \t(]+:(?!admin|staff|employee|operator|internal|support|manager)\w+(?![^\n]*\b(skip|only)\b)'
+          - pattern: |
+              devise_for ..., controllers: { ..., registrations: $X, ... }, ...
           - pattern-regex: '(?m)^[ \t]*resources?[ \t(]+:(registrations?|signups?|sign_ups?)\b'
           - pattern-regex: '(?m)^[ \t]*resources[ \t(]+:(users|accounts|members|customers)\b[^\n]*\bonly:\s*\[[^\]\n]*:(new|create)'
       - pattern-not-inside: |
