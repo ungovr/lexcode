@@ -1,0 +1,38 @@
+rules:
+  - id: lexcode.calls.java-twilio-twiml-record
+    languages: [java]
+    severity: INFO
+    message: Builds TwiML that records a Twilio call, with a Record verb or a Dial or Conference that records, which is recording a call (records_calls).
+    patterns:
+      - pattern-either:
+          - patterns:
+              - pattern: new Record.Builder(...)
+              - pattern-either:
+                  - pattern-inside: |
+                      import com.twilio.twiml.voice.Record;
+                      ...
+                  - pattern-inside: |
+                      import com.twilio.twiml.voice.*;
+                      ...
+          # A recording mode named in place (RECORD_FROM_ANSWER and the like; DO_NOT_RECORD is the off setting)
+          - patterns:
+              - pattern: $B.record($V)
+              - metavariable-regex:
+                  metavariable: $V
+                  regex: ^(Dial|Conference)\.Record\.RECORD_[A-Z_]+$
+          # A mode the code carries in a variable of Twilio's own enum type
+          - patterns:
+              - pattern: $B.record($V)
+              - metavariable-type:
+                  metavariable: $V
+                  types:
+                    - Dial.Record
+                    - Conference.Record
+              - pattern-not: $B.record(Dial.Record.DO_NOT_RECORD)
+              - pattern-not: $B.record(Conference.Record.DO_NOT_RECORD)
+    metadata:
+      activity: records_calls
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-calls
+      provenance: ungovr-original
+      license: MIT

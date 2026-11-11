@@ -1,0 +1,23 @@
+rules:
+  - id: lexcode.voice.java-twilio-speech
+    languages: [java]
+    severity: INFO
+    message: Takes a caller's speech through Twilio TwiML, with speech recognition or a transcribed voicemail, which is processing human voices (processes_voice).
+    patterns:
+      - pattern-either:
+          - pattern: $B.input(..., Gather.Input.SPEECH, ...)
+          - patterns:
+              - pattern: $B.transcribe(true)
+              - pattern-either:
+                  - pattern-inside: |
+                      import com.twilio.twiml.voice.Record;
+                      ...
+                  - pattern-inside: |
+                      import com.twilio.twiml.voice.*;
+                      ...
+    metadata:
+      activity: processes_voice
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-voice
+      provenance: ungovr-original
+      license: MIT

@@ -1,0 +1,24 @@
+rules:
+  - id: lexcode.voice.java-microphone-capture
+    languages: [java]
+    severity: INFO
+    message: Opens the microphone to capture sound, which is recording a human voice (processes_voice).
+    patterns:
+      - pattern-either:
+          # Android MediaRecorder, AudioRecord.Builder and AudioRecord: a microphone-type source
+          - patterns:
+              - pattern-either:
+                  - pattern: $R.setAudioSource($S)
+                  - pattern: new AudioRecord($S, ...)
+              - metavariable-regex:
+                  metavariable: $S
+                  regex: ^(MediaRecorder\.)?AudioSource\.(MIC|DEFAULT|CAMCORDER|UNPROCESSED|VOICE_RECOGNITION|VOICE_COMMUNICATION|VOICE_PERFORMANCE)$
+          # javax.sound.sampled on a desktop or server JVM
+          - pattern: AudioSystem.getTargetDataLine(...)
+          - pattern: new DataLine.Info(TargetDataLine.class, ...)
+    metadata:
+      activity: processes_voice
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-voice
+      provenance: ungovr-original
+      license: MIT
