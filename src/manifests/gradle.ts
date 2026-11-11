@@ -27,6 +27,53 @@ const MAX_LOOKAHEAD = 5000;
 const MAX_LOOKBACK = 400;
 const PLACEHOLDER_RE = /\$\{([^{}]*)\}|\$([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)/g;
 
+/**
+ * Replace every `$name` and `${expr}` in `raw`, or give undefined when one cannot be replaced. Shared by the
+ * variable and the constant resolvers, so the bounds live in one place: a text already longer than the cap is
+ * refused before any work, the output length is counted as it grows and the expansion stops the moment it
+ * passes the cap (N placeholders of a large value never build N copies of it), and the depth is capped.
+ * `lookup` resolves a dotted name; `lookupExpr` resolves a braced expression that is not a plain name.
+ */
+function expandPlaceholders(
+  raw: string,
+  depth: number,
+  lookup: (name: string) => string | undefined,
+  lookupExpr?: (expr: string) => string | undefined,
+): string | undefined {
+  if (raw.includes('\u0001')) return undefined;
+  if (!raw.includes('$')) return raw;
+  if (depth > MAX_VAR_DEPTH || raw.length > MAX_EXPANDED) return undefined;
+  const pieces: string[] = [];
+  let length = 0;
+  let last = 0;
+  for (const m of raw.matchAll(PLACEHOLDER_RE)) {
+    const braced = m[1];
+    const bare = m[2];
+    let value: string | undefined;
+    if (braced !== undefined) {
+      const e = braced.trim();
+      value = /^[A-Za-z_][\w.]*$/.test(e) ? lookup(e) : lookupExpr?.(e);
+    } else if (bare !== undefined) {
+      // `$a.b.c`: the longest dotted name that exists, the rest stays text (Kotlin).
+      const parts = bare.split('.');
+      for (let k = parts.length; k >= 1 && value === undefined; k--) {
+        const v = lookup(parts.slice(0, k).join('.'));
+        if (v !== undefined) value = v + parts.slice(k).map((p) => `.${p}`).join('');
+      }
+    }
+    if (value === undefined) return undefined;
+    const before = raw.slice(last, m.index);
+    length += before.length + value.length;
+    if (length > MAX_EXPANDED) return undefined;
+    pieces.push(before, value);
+    last = (m.index as number) + m[0].length;
+  }
+  const tail = raw.slice(last);
+  if (length + tail.length > MAX_EXPANDED) return undefined;
+  const out = pieces.join('') + tail;
+  return out.includes('$') ? undefined : out;
+}
+
 // ---------------------------------------------------------------------------------------------------------
 // Tokens
 // ---------------------------------------------------------------------------------------------------------
@@ -464,6 +511,13 @@ export function readGradle(root: string, files: string[]): ReaderResult {
   let catalogMissing = 0;
 
   const fileSet = new Set(files);
+  /** One notice per file that could not be read, however many passes tried it. */
+  const unreadableFiles = new Set<string>();
+  const unreadable = (rel: string): void => {
+    if (unreadableFiles.has(rel)) return;
+    unreadableFiles.add(rel);
+    notices.push(`${rel}: could not be read; skipped`);
+  };
 
   // ---- version catalogs, parsed once up front so a broken one is always reported ----
   const catalogsByDir = new Map<string, Catalog[]>();
@@ -472,7 +526,7 @@ export function readGradle(root: string, files: string[]): ReaderResult {
     if (!m) continue;
     const text = readText(root, rel);
     if (text === undefined) {
-      notices.push(`${rel}: could not be read; skipped`);
+      unreadable(rel);
       continue;
     }
     try {
@@ -561,13 +615,17 @@ export function readGradle(root: string, files: string[]): ReaderResult {
   for (const rel of files) {
     const b = baseName(rel);
     if (!(b.endsWith('.kt') || b.endsWith('.kts')) || b === 'settings.gradle.kts' || !isTooling(rel)) continue;
-    const text = readText(root, rel);
-    if (text === undefined || !text.includes('object')) continue;
-    const r = toolingRootOf(rel);
-    if (r === undefined) continue;
-    let m = constsByRoot.get(r);
-    if (!m) constsByRoot.set(r, (m = new Map()));
-    collectConsts(lex(text), m);
+    try {
+      const text = readText(root, rel);
+      if (text === undefined || !text.includes('object')) continue;
+      const r = toolingRootOf(rel);
+      if (r === undefined) continue;
+      let m = constsByRoot.get(r);
+      if (!m) constsByRoot.set(r, (m = new Map()));
+      collectConsts(lex(text), m);
+    } catch {
+      unreadable(rel);
+    }
   }
   const constRootsCache = new Map<string, string[]>();
   /** The tooling directories whose constants a build file can see, nearest first. */
@@ -588,34 +646,8 @@ export function readGradle(root: string, files: string[]): ReaderResult {
   };
   const constMemo = new Map<string, string | null>();
   const constVisiting = new Set<string>();
-  const expandConst = (raw: string, rootDir: string, objPath: string, depth: number): string | undefined => {
-    if (raw.includes('\u0001')) return undefined;
-    if (!raw.includes('$')) return raw;
-    if (depth > MAX_VAR_DEPTH) return undefined;
-    let failed = false;
-    const find = (name: string): string | undefined => resolveConst(rootDir, `${objPath}.${name}`, depth) ?? resolveConst(rootDir, name, depth);
-    const out = raw.replace(PLACEHOLDER_RE, (_all: string, braced: string | undefined, bare: string | undefined) => {
-      if (failed) return '';
-      let value: string | undefined;
-      if (braced !== undefined) {
-        const e = braced.trim();
-        if (/^[A-Za-z_][\w.]*$/.test(e)) value = find(e);
-      } else if (bare !== undefined) {
-        const parts = bare.split('.');
-        for (let k = parts.length; k >= 1 && value === undefined; k--) {
-          const v = find(parts.slice(0, k).join('.'));
-          if (v !== undefined) value = v + parts.slice(k).map((p) => `.${p}`).join('');
-        }
-      }
-      if (value === undefined) {
-        failed = true;
-        return '';
-      }
-      return value;
-    });
-    if (failed || out.length > MAX_EXPANDED || out.includes('$')) return undefined;
-    return out;
-  };
+  const expandConst = (raw: string, rootDir: string, objPath: string, depth: number): string | undefined =>
+    expandPlaceholders(raw, depth, (name) => resolveConst(rootDir, `${objPath}.${name}`, depth) ?? resolveConst(rootDir, name, depth));
   const resolveConst = (rootDir: string, path: string, depth: number): string | undefined => {
     const e = constsByRoot.get(rootDir)?.get(path);
     if (!e) return undefined;
@@ -696,43 +728,22 @@ export function readGradle(root: string, files: string[]): ReaderResult {
     return fromProps;
   };
 
-  const PLACEHOLDER = PLACEHOLDER_RE;
   const PROP_CALL = /^(?:(?:project|rootProject)\.)?(?:findProperty|property)\(\s*["']([^"']+)["']\s*\)(?:\s*(?:as\??\s*String|\.toString\(\)))?$/;
   const CATALOG_VERSION = /^([A-Za-z_]\w*)\.versions\.([\w.]+?)(?:\.get\(\))?$/;
 
   /** The text with every `$name` and `${name}` replaced, or undefined when one cannot be. */
-  const expand = (raw: string, ctx: FileCtx, line: number, depth: number): string | undefined => {
-    if (raw.includes('\u0001')) return undefined;
-    if (!raw.includes('$')) return raw;
-    if (depth > MAX_VAR_DEPTH) return undefined;
-    let failed = false;
-    const out = raw.replace(PLACEHOLDER, (all: string, braced: string | undefined, bare: string | undefined) => {
-      if (failed) return '';
-      let value: string | undefined;
-      if (braced !== undefined) {
-        const e = braced.trim();
+  const expand = (raw: string, ctx: FileCtx, line: number, depth: number): string | undefined =>
+    expandPlaceholders(
+      raw,
+      depth,
+      (name) => lookupVar(name, ctx, line, depth),
+      (e) => {
         const pc = PROP_CALL.exec(e);
+        if (pc) return lookupVar(pc[1] as string, ctx, line, depth);
         const cv = CATALOG_VERSION.exec(e);
-        if (/^[A-Za-z_][\w.]*$/.test(e)) value = lookupVar(e, ctx, line, depth);
-        else if (pc) value = lookupVar(pc[1] as string, ctx, line, depth);
-        else if (cv) value = catalogVersion(ctx, cv[1] as string, cv[2] as string);
-      } else if (bare !== undefined) {
-        // `$a.b.c`: the longest dotted name that exists, the rest stays text (Kotlin) .
-        const parts = bare.split('.');
-        for (let k = parts.length; k >= 1 && value === undefined; k--) {
-          const v = lookupVar(parts.slice(0, k).join('.'), ctx, line, depth);
-          if (v !== undefined) value = v + parts.slice(k).map((p) => `.${p}`).join('');
-        }
-      }
-      if (value === undefined) {
-        failed = true;
-        return '';
-      }
-      return value;
-    });
-    if (failed || out.length > MAX_EXPANDED || out.includes('$')) return undefined;
-    return out;
-  };
+        return cv ? catalogVersion(ctx, cv[1] as string, cv[2] as string) : undefined;
+      },
+    );
 
   const valueOf = (t: Tok, ctx: FileCtx): string | undefined => (t.interp ? expand(t.v, ctx, t.line, 0) : t.v.includes('$') || t.v.includes('\u0001') ? undefined : t.v);
 
@@ -796,7 +807,7 @@ export function readGradle(root: string, files: string[]): ReaderResult {
   const readBuildFile = (rel: string): void => {
     const ctx = ctxOf(rel);
     if (!ctx) {
-      notices.push(`${rel}: could not be read; skipped`);
+      unreadable(rel);
       return;
     }
     const toks = ctx.toks;
@@ -1127,10 +1138,15 @@ export function readGradle(root: string, files: string[]): ReaderResult {
 
   for (const rel of files) {
     const b = baseName(rel);
-    if (b === 'build.gradle' || b === 'build.gradle.kts') {
-      readBuildFile(rel);
-    } else if ((b.endsWith('.kt') || b.endsWith('.kts')) && b !== 'settings.gradle.kts' && isTooling(rel)) {
-      readConventionSource(rel);
+    // One file that cannot be read must not cost the scan every other file's rows.
+    try {
+      if (b === 'build.gradle' || b === 'build.gradle.kts') {
+        readBuildFile(rel);
+      } else if ((b.endsWith('.kt') || b.endsWith('.kts')) && b !== 'settings.gradle.kts' && isTooling(rel)) {
+        readConventionSource(rel);
+      }
+    } catch {
+      unreadable(rel);
     }
   }
 

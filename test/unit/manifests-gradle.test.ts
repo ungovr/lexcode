@@ -708,6 +708,42 @@ describe('readGradle: constants in buildSrc objects', () => {
   });
 });
 
+describe('readGradle: expansion size', () => {
+  it('a long run of placeholders over a large variable is unresolved, not a throw', () => {
+    const big = 'x'.repeat(4000);
+    const text = [`ext.a = "${big}"`, 'dependencies {', `    implementation "g:b:${'$a'.repeat(140000)}"`, "    implementation 'g:ok:1'", '}', ''].join('\n');
+    const t0 = Date.now();
+    const r = read({ 'build.gradle': text });
+    expect(Date.now() - t0).toBeLessThan(3000);
+    expect(r.deps.map((d) => [d.name, d.version])).toEqual([
+      ['g:b', undefined],
+      ['g:ok', '1'],
+    ]);
+  });
+
+  it('a few placeholders whose result passes the cap are unresolved', () => {
+    const text = [`def a = "${'y'.repeat(2000)}"`, 'dependencies {', '    implementation "g:b:$a$a$a"', '    implementation "g:c:$a"', '}', ''].join('\n');
+    const r = read({ 'build.gradle': text });
+    expect(r.deps.map((d) => [d.name, d.version === undefined ? 'none' : d.version.length])).toEqual([
+      ['g:b', 'none'],
+      ['g:c', 2000],
+    ]);
+  });
+
+  it('a long run of placeholders over a large constant is unresolved, not a throw', () => {
+    const big = 'x'.repeat(4000);
+    const consts = ['object Libs {', `    const val A = "${big}"`, `    const val DEP = "g:b:${'${A}'.repeat(140000)}"`, '    const val OK = "g:ok:1"', '}', ''].join('\n');
+    const app = 'dependencies {\n    implementation Libs.DEP\n    implementation Libs.OK\n}\n';
+    const t0 = Date.now();
+    const r = read({ 'buildSrc/src/Deps.kt': consts, 'build.gradle': app });
+    expect(Date.now() - t0).toBeLessThan(3000);
+    expect(r.deps.map((d) => [d.name, d.version])).toEqual([
+      ['g:b', undefined],
+      ['g:ok', '1'],
+    ]);
+  });
+});
+
 describe('readGradle: robustness', () => {
   it('ignores a file that is not a Gradle build file and reads each build file in the list', () => {
     const files = {
