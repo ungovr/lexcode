@@ -1,4 +1,4 @@
-# lexcode-expect: 6
+# lexcode-expect: 7
 require "base64"
 require "openai"
 
@@ -59,5 +59,14 @@ class LogoJob < ApplicationJob
     result = client.images.generate(parameters: { prompt: prompt })
     url = result.dig("data", 0, "url")
     ActionCable.server.broadcast("brands_#{brand_id}", { logo: url })
+  end
+end
+
+# The implicit view shows the picture the model drew (app/views/covers/show.html.erb).
+class CoversController < ApplicationController
+  def show
+    client = OpenAI::Client.new
+    result = client.images.generate(parameters: { prompt: "Book cover for #{params[:title]}", size: "1024x1024" })
+    @cover_url = result.dig("data", 0, "url")
   end
 end

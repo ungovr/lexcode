@@ -104,3 +104,21 @@ class KnowledgeSearch
     found
   end
 end
+
+class DocsSearchController < ApplicationController
+  before_action :set_llm
+
+  # The view lists stored documents; the model only embeds the query.
+  def index
+    store = Langchain::Vectorsearch::Pgvector.new(url: ENV.fetch("DATABASE_URL"), index_name: "docs", llm: @llm)
+    @hits = store.similarity_search(query: params[:q], k: 5)
+  end
+
+  private
+
+  # A client held in an instance variable is not the model's output.
+  def set_llm
+    @llm = Langchain::LLM::OpenAI.new(api_key: ENV.fetch("OPENAI_API_KEY"))
+    @backup_llm ||= Langchain::LLM::Ollama.new(url: "http://localhost:11434")
+  end
+end

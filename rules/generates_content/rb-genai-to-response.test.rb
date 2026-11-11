@@ -1,4 +1,4 @@
-# lexcode-expect: 6
+# lexcode-expect: 7
 require "gemini-ai"
 
 class AnswersController < ApplicationController
@@ -50,5 +50,13 @@ class Api < Sinatra::Base
   post "/caption" do
     result = GEMINI.generate_content(contents: [{ text: "Caption this: #{params[:text]}" }])
     halt 200, result.to_json
+  end
+end
+
+# The implicit view shows the answer (app/views/explainers/show.html.erb).
+class ExplainersController < ApplicationController
+  def show
+    result = GEMINI.generate_content({ contents: { role: "user", parts: { text: "Explain #{params[:term]}" } } })
+    @explanation = result.dig("candidates", 0, "content", "parts", 0, "text")
   end
 end

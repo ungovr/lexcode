@@ -143,3 +143,72 @@ class SetupWizard
     answer
   end
 end
+
+# A service object keeps the model's text in an instance variable; only a controller's
+# instance variables reach a view, and this method's own value is the file write.
+class DigestBuilder < ApplicationService
+  def build(client)
+    response = client.chat(parameters: { model: "gpt-4o-mini", messages: [{ role: "user", content: "Summarize the open issues." }] })
+    @digest = response.dig("choices", 0, "message", "content")
+    File.write("tmp/digest.md", @digest)
+  end
+end
+
+class TriageController < ApplicationController
+  # The note goes to the log for the on-call engineer, and the action redirects, so no view
+  # shows it.
+  def create
+    client = OpenAI::Client.new
+    response = client.chat(parameters: { model: "gpt-4o-mini", messages: [{ role: "user", content: "Triage: #{params[:error]}" }] })
+    @note = response.dig("choices", 0, "message", "content")
+    Rails.logger.info(@note)
+    redirect_to triage_path
+  end
+
+  # A status-only response renders no view.
+  def ping
+    client = OpenAI::Client.new
+    @raw = client.chat(parameters: { model: "gpt-4o-mini", messages: [{ role: "user", content: "ping" }] })
+    StatsD.increment("triage.ping", tags: ["tokens:#{@raw.dig("usage", "total_tokens")}"])
+    head :no_content
+  end
+
+  # Both redirect-back forms send the visitor to the page they came from.
+  def retry_later
+    client = OpenAI::Client.new
+    response = client.chat(parameters: { model: "gpt-4o-mini", messages: [{ role: "user", content: "Retry: #{params[:error]}" }] })
+    @retry_note = response.dig("choices", 0, "message", "content")
+    Rails.logger.info(@retry_note)
+    redirect_back(fallback_location: triage_path)
+  end
+
+  def dismiss
+    client = OpenAI::Client.new
+    response = client.chat(parameters: { model: "gpt-4o-mini", messages: [{ role: "user", content: "Dismiss: #{params[:error]}" }] })
+    @dismiss_note = response.dig("choices", 0, "message", "content")
+    Rails.logger.info(@dismiss_note)
+    redirect_back_or_to triage_path
+  end
+end
+
+class ComposersController < ApplicationController
+  before_action :set_chat
+
+  # The form, shown before anything is asked: the chat object is not the model's output.
+  def new; end
+
+  private
+
+  def set_chat
+    @chat = RubyLLM.chat(model: "gpt-4o-mini")
+    @fallback ||= RubyLLM.chat
+  end
+end
+
+class ArticlesController < ApplicationController
+  # The implicit view shows what a person wrote.
+  def show
+    @article = Article.find(params[:id])
+    @related = Article.where(topic: @article.topic).limit(3)
+  end
+end

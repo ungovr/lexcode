@@ -131,6 +131,23 @@ left. A tag ends at the first `%>`, as ERB ends it; one that never ends is
 blanked to the end of the block. The Ruby inside an ERB tag is never scanned,
 and an ERB file with no `<script>` block gives the scan nothing.
 
+### Model output a Rails view shows
+
+The six Ruby rules that find model output sent back in a response (text,
+images, speech, video, and Gemini and Langchain.rb content) also count model
+output that a controller action assigns to an instance variable (`@summary =
+response.dig(...)`, or `||=`). Rails renders the action's template when the
+action names no other response, and the template shows the variable. The
+class must be named like a controller (`...Controller`, any namespace), and an
+action that calls `redirect_to`, `redirect_back`, `redirect_back_or_to` or
+`head` anywhere in its body is skipped, since it renders no view on that path.
+The view itself is not read, so lexcode does not check that the template uses
+the variable. A chat object or model client kept in an instance variable
+(`@chat = RubyLLM.chat(...)`, `@llm = Langchain::LLM::OpenAI.new(...)`) is not
+the output and does not count. A chat object built with a chain such as
+`RubyLLM.chat.with_instructions(...)` and kept in an instance variable still
+counts; that is a known residual.
+
 ### A known residual: `rb-direct-message`
 
 `lexcode.social.rb-direct-message` (activity `operates_social_platform`) looks

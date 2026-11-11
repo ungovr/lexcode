@@ -1,4 +1,4 @@
-# lexcode-expect: 5
+# lexcode-expect: 6
 require "langchain"
 
 class ArticlesController < ApplicationController
@@ -40,5 +40,13 @@ class Api < Sinatra::Base
     llm = Langchain::LLM::Mistral.new(api_key: ENV.fetch("MISTRAL_API_KEY"))
     out = llm.chat(messages: [{ role: "user", content: "Rewrite: #{params[:text]}" }])
     halt 200, out.chat_completion
+  end
+end
+
+# The implicit view shows the outline (app/views/outlines/show.html.erb).
+class OutlinesController < ApplicationController
+  def show
+    llm = Langchain::LLM::OpenAI.new(api_key: ENV.fetch("OPENAI_API_KEY"))
+    @outline = llm.chat(messages: [{ role: "user", content: "Outline #{params[:topic]}" }]).chat_completion
   end
 end

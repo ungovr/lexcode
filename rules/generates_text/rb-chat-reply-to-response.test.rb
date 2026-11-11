@@ -1,4 +1,4 @@
-# lexcode-expect: 14
+# lexcode-expect: 17
 require "anthropic"
 require "openai"
 
@@ -153,5 +153,37 @@ class TokensController < ApplicationController
     )
   ensure
     response.stream.close
+  end
+end
+
+# The implicit view: an action that sets an instance variable and names no other response
+# renders its template (app/views/briefs/show.html.erb), which shows the variable.
+class BriefsController < ApplicationController
+  def show
+    client = OpenAI::Client.new
+    response = client.chat(parameters: { model: "gpt-4o-mini", messages: [{ role: "user", content: "Brief me on #{params[:topic]}" }] })
+    @brief = response.dig("choices", 0, "message", "content")
+  end
+
+  # An explicit template render shows the same variables.
+  def update
+    @brief = RubyLLM.chat.ask("Shorten: #{params[:text]}").content
+    render :show
+  end
+end
+
+module Help
+  # The variable is set in a before_action callback, for every action's view.
+  class AnswersController < ApplicationController
+    before_action :set_answer
+
+    def show; end
+
+    private
+
+    def set_answer
+      chat = RubyLLM.chat(model: "gpt-4o-mini")
+      @answer ||= chat.ask(params[:q]).content
+    end
   end
 end

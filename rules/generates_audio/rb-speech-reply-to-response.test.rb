@@ -1,4 +1,4 @@
-# lexcode-expect: 7
+# lexcode-expect: 8
 require "aws-sdk-polly"
 require "google/cloud/text_to_speech"
 require "openai"
@@ -64,5 +64,14 @@ class AnnouncementJob < ApplicationJob
     client = OpenAI::Client.new
     speech = client.audio.speech(parameters: { model: "tts-1", input: text, voice: "alloy" })
     ActionCable.server.broadcast("rooms_#{room_id}", { audio: Base64.strict_encode64(speech) })
+  end
+end
+
+# The implicit view plays the narration in an audio tag (app/views/readings/show.html.erb).
+class ReadingsController < ApplicationController
+  def show
+    client = OpenAI::Client.new
+    speech = client.audio.speech(parameters: { model: "tts-1", input: params[:text], voice: "alloy" })
+    @audio_base64 = Base64.strict_encode64(speech)
   end
 end

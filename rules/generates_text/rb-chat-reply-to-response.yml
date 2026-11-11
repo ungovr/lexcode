@@ -64,6 +64,55 @@ rules:
           - metavariable-regex:
               metavariable: $V
               regex: ^@?[a-z_][A-Za-z0-9_]*$
+      # An instance variable a controller action sets is shown by the action's view, which Rails
+      # renders when the action names no other response. An action that redirects or sends only
+      # a status renders no view.
+      - patterns:
+          - pattern-inside: |
+              class $CTRL < $BASE
+                ...
+              end
+          - metavariable-regex:
+              metavariable: $CTRL
+              regex: ^(.*::)?[A-Z][A-Za-z0-9_]*Controller$
+          - pattern-inside: |
+              def $ACTION(...)
+                ...
+              end
+          - pattern-not-inside: |
+              def $ACTION(...)
+                ...
+                redirect_to(...)
+                ...
+              end
+          - pattern-not-inside: |
+              def $ACTION(...)
+                ...
+                redirect_back(...)
+                ...
+              end
+          - pattern-not-inside: |
+              def $ACTION(...)
+                ...
+                redirect_back_or_to(...)
+                ...
+              end
+          - pattern-not-inside: |
+              def $ACTION(...)
+                ...
+                head(...)
+                ...
+              end
+          - pattern-either:
+              - pattern-inside: $IV = $RHS
+              - pattern-inside: $IV ||= $RHS
+          - metavariable-regex:
+              metavariable: $IV
+              regex: ^@[a-z_][A-Za-z0-9_]*$
+          # A chat object held for later is not the model's output.
+          - pattern-not-inside: $IV = RubyLLM.chat(...)
+          - pattern-not-inside: $IV ||= RubyLLM.chat(...)
+          - focus-metavariable: $RHS
     metadata:
       activity: generates_text
       mentioned: performs

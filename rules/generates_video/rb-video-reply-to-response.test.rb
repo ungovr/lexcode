@@ -1,4 +1,4 @@
-# lexcode-expect: 6
+# lexcode-expect: 7
 require "openai"
 
 class ClipsController < ApplicationController
@@ -42,5 +42,13 @@ class TeaserJob < ApplicationJob
     client = OpenAI::Client.new
     job = client.videos.create(model: "sora-2", prompt: prompt)
     ActionCable.server.broadcast("campaigns_#{campaign_id}", { job: job.id })
+  end
+end
+
+# The implicit view shows the job and polls it (app/views/teasers/show.html.erb).
+class TeasersController < ApplicationController
+  def create
+    client = OpenAI::Client.new(api_key: ENV["OPENAI_API_KEY"])
+    @job = client.videos.create(model: "sora-2", prompt: params[:prompt], seconds: "4")
   end
 end
