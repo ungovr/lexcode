@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- lexcode-expect: 0 -->
+<!-- Deploy targets that are not a public registry: a site, a company-internal repository, an
+     organization's GitHub Packages repository, a local file repository, a relocation notice, and the flatten plugin removing the element. The pom also
+     reads from Sonatype as a consumer in <repositories>, which publishes nothing. -->
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.example.internal</groupId>
+  <artifactId>billing-core</artifactId>
+  <version>3.2.0</version>
+
+  <distributionManagement>
+    <repository>
+      <id>corp-releases</id>
+      <url>https://nexus.corp.example.com/repository/releases</url>
+    </repository>
+    <snapshotRepository>
+      <id>github</id>
+      <url>https://maven.pkg.github.com/acme/billing-internal</url>
+    </snapshotRepository>
+    <snapshotRepository>
+      <id>corp-snapshots</id>
+      <url>file:///var/lib/maven/snapshots</url>
+    </snapshotRepository>
+    <site>
+      <id>corp-site</id>
+      <url>scp://docs.corp.example.com/var/www/billing-core</url>
+    </site>
+    <relocation>
+      <groupId>com.example.billing</groupId>
+    </relocation>
+  </distributionManagement>
+
+  <repositories>
+    <repository>
+      <id>sonatype-snapshots</id>
+      <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+    </repository>
+    <repository>
+      <id>central</id>
+      <url>https://repo.maven.apache.org/maven2</url>
+    </repository>
+  </repositories>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>flatten-maven-plugin</artifactId>
+        <configuration>
+          <pomElements>
+            <distributionManagement>remove</distributionManagement>
+          </pomElements>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>

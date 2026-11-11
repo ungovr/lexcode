@@ -1,0 +1,24 @@
+// lexcode-expect: 0
+// Gradle plugins that package or release without publishing to a public registry: the Java,
+// application and shadow plugins, a version-bump plugin, and the Maven publish plugin used on its
+// own (a publication needs a registry to go anywhere, and that is another rule's evidence). The
+// registry plugins are named in a comment and declared apply false in a root file.
+plugins {
+    id 'java-library'
+    id 'application'
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
+    id 'net.researchgate.release' version '3.0.2'
+    id 'maven-publish'
+    id 'com.vanniktech.maven.publish' version '0.30.0' apply false
+    id("io.github.gradle-nexus.publish-plugin") version "2.0.0" apply false
+}
+
+// To publish to Maven Central the library would use io.github.gradle-nexus.publish-plugin;
+// this internal tool is only ever built and run by the team.
+application {
+    mainClass = 'com.example.internal.Tool'
+}
+
+dependencies {
+    implementation 'com.google.guava:guava:33.2.0'
+}

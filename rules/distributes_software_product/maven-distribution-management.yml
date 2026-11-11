@@ -1,0 +1,63 @@
+rules:
+  - id: lexcode.distribute.maven-distribution-management
+    languages: [xml]
+    severity: INFO
+    message: Declares a Maven deploy target on Maven Central's Sonatype hosts, or Apache's repository (or one named ossrh), which publishes the artifact for others to depend on (distributes_software_product).
+    patterns:
+      - pattern-either:
+          - patterns:
+              - pattern-either:
+                  - pattern: |
+                      <repository>
+                        ...
+                        <url>$URL</url>
+                        ...
+                      </repository>
+                  - pattern: |
+                      <snapshotRepository>
+                        ...
+                        <url>$URL</url>
+                        ...
+                      </snapshotRepository>
+              - metavariable-regex:
+                  metavariable: $URL
+                  regex: (?i)^\s*(https?://)?([a-z0-9-]+\.)?(oss\.sonatype\.org|central\.sonatype\.com|repository\.apache\.org)(/|\s*$)
+          - patterns:
+              - pattern-either:
+                  - pattern: |
+                      <repository>
+                        ...
+                        <id>$ID</id>
+                        ...
+                      </repository>
+                  - pattern: |
+                      <snapshotRepository>
+                        ...
+                        <id>$ID</id>
+                        ...
+                      </snapshotRepository>
+              - metavariable-regex:
+                  metavariable: $ID
+                  regex: (?i)^\s*(ossrh|sonatype-nexus-staging|sonatype-nexus-snapshots|central-portal-snapshots)\s*$
+      - pattern-inside: |
+          <distributionManagement>
+            ...
+          </distributionManagement>
+    paths:
+      include:
+        - "pom.xml"
+        - "maven-distribution-management.*"
+      exclude:
+        - "**/example/**"
+        - "**/examples/**"
+        - "**/sample/**"
+        - "**/samples/**"
+        - "**/demo/**"
+        - "**/demos/**"
+        - "**/src/test/**"
+    metadata:
+      activity: distributes_software_product
+      mentioned: performs
+      definition: https://lexlint.io/activities/distributes-software-product
+      provenance: ungovr-original
+      license: MIT

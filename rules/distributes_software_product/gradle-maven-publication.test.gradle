@@ -1,0 +1,25 @@
+// lexcode-expect: 1
+// A library whose publication is signed with a PGP key, which is what a public registry such as
+// Maven Central requires of the artifacts it accepts.
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+    id 'signing'
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+            pom {
+                name = 'geo-utils'
+                url = 'https://example.org/geo-utils'
+            }
+        }
+    }
+}
+
+signing {
+    useInMemoryPgpKeys(System.getenv('SIGNING_KEY'), System.getenv('SIGNING_PASSWORD'))
+    sign publishing.publications.mavenJava
+}

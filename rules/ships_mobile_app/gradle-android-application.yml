@@ -1,0 +1,23 @@
+rules:
+  - id: lexcode.mobile.gradle-android-application
+    languages: [generic]
+    severity: INFO
+    message: Applies the Android application Gradle plugin, so the module builds an installable app that is listed in a store or sideloaded (ships_mobile_app).
+    pattern-regex: '(?m)^[ \t]*(?:apply[ \t]+plugin[ \t]*:[ \t]*|id[ \t]*\(?[ \t]*)["'']com\.android\.application["''](?![^\n]*\bapply[ \t]+false\b)'
+    paths:
+      include:
+        - "*.gradle"
+        - "gradle-android-application.*"
+      exclude:
+        - "**/example/**"
+        - "**/examples/**"
+        - "**/sample/**"
+        - "**/samples/**"
+        - "**/demo/**"
+        - "**/demos/**"
+    metadata:
+      activity: ships_mobile_app
+      mentioned: performs
+      definition: https://lexlint.io/activities/ships-mobile-app
+      provenance: ungovr-original
+      license: MIT

@@ -1,0 +1,43 @@
+rules:
+  - id: lexcode.mobile.java-android-application-class
+    languages: [java]
+    severity: INFO
+    message: Declares the Application subclass of an Android app (a plain, MultiDex or Dagger Android application), the class an installable app names in its manifest, which is shipping a mobile app (ships_mobile_app).
+    pattern-either:
+      - patterns:
+          - pattern: class $C extends Application { ... }
+          - pattern-inside: |
+              import android.app.Application;
+              ...
+      - patterns:
+          - pattern: class $C extends MultiDexApplication { ... }
+          - pattern-either:
+              - pattern-inside: |
+                  import androidx.multidex.MultiDexApplication;
+                  ...
+              - pattern-inside: |
+                  import android.support.multidex.MultiDexApplication;
+                  ...
+      - patterns:
+          - pattern: class $C extends DaggerApplication { ... }
+          - pattern-inside: |
+              import dagger.android.DaggerApplication;
+              ...
+      - pattern: class $C extends android.app.Application { ... }
+    paths:
+      exclude:
+        - "**/example/**"
+        - "**/examples/**"
+        - "**/sample/**"
+        - "**/samples/**"
+        - "**/demo/**"
+        - "**/demos/**"
+        - "**/src/test/**"
+        - "**/src/androidTest/**"
+        - "**/src/sharedTest/**"
+    metadata:
+      activity: ships_mobile_app
+      mentioned: performs
+      definition: https://lexlint.io/activities/ships-mobile-app
+      provenance: ungovr-original
+      license: MIT

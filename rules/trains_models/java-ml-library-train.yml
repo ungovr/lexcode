@@ -1,0 +1,69 @@
+rules:
+  - id: lexcode.train.java-ml-library-train
+    languages: [java]
+    severity: INFO
+    message: Fits a model with Weka, Tribuo, Smile, Apache OpenNLP, Neuroph or a TensorFlow optimizer, which is training models (trains_models).
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: ($C $X).$M(...)
+              - pattern: new $C(...).$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(buildClassifier|buildClusterer|buildAssociations)$
+          - pattern-either:
+              - pattern-inside: |
+                  import weka.classifiers.$A.$C;
+                  ...
+              - pattern-inside: |
+                  import weka.classifiers.$C;
+                  ...
+              - pattern-inside: |
+                  import weka.clusterers.$C;
+                  ...
+              - pattern-inside: |
+                  import weka.associations.$C;
+                  ...
+      - patterns:
+          - pattern: (Trainer<$T> $X).train(...)
+          - pattern-inside: |
+              import org.tribuo.Trainer;
+              ...
+      - patterns:
+          - pattern: $C.fit(...)
+          - pattern-inside: |
+              import smile.$P.$C;
+              ...
+      - patterns:
+          - pattern: $C.train(...)
+          - pattern-inside: |
+              import opennlp.tools.$P.$C;
+              ...
+      - patterns:
+          - pattern: ($T $N).learn(...)
+          - metavariable-regex:
+              metavariable: $T
+              regex: ^(NeuralNetwork|MultiLayerPerceptron|Perceptron|Adaline|Hopfield|Kohonen|CompetitiveNetwork)\b
+          - pattern-inside: |
+              import org.neuroph.$A.$B;
+              ...
+      - patterns:
+          - pattern: ($T $O).minimize(...)
+          - pattern-inside: |
+              import org.tensorflow.framework.optimizers.$T;
+              ...
+    paths:
+      exclude:
+        - "**/example/**"
+        - "**/examples/**"
+        - "**/sample/**"
+        - "**/samples/**"
+        - "**/demo/**"
+        - "**/demos/**"
+        - "**/src/test/**"
+    metadata:
+      activity: trains_models
+      mentioned: performs
+      definition: https://lexlint.io/activities/trains-models
+      provenance: ungovr-original
+      license: MIT

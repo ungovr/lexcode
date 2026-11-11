@@ -1,0 +1,29 @@
+rules:
+  - id: lexcode.train.java-djl-train
+    languages: [java]
+    severity: INFO
+    message: Trains a Deep Java Library model, with EasyTrain or by feeding a Trainer batches, which is training models (trains_models).
+    patterns:
+      - pattern-either:
+          - pattern: EasyTrain.fit(...)
+          - pattern: EasyTrain.trainBatch(...)
+          - pattern: (Trainer $T).trainBatch(...)
+          - pattern: (Trainer $T).step()
+      - pattern-inside: |
+          import ai.djl.training.$C;
+          ...
+    paths:
+      exclude:
+        - "**/example/**"
+        - "**/examples/**"
+        - "**/sample/**"
+        - "**/samples/**"
+        - "**/demo/**"
+        - "**/demos/**"
+        - "**/src/test/**"
+    metadata:
+      activity: trains_models
+      mentioned: performs
+      definition: https://lexlint.io/activities/trains-models
+      provenance: ungovr-original
+      license: MIT

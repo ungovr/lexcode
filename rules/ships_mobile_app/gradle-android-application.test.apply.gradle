@@ -1,0 +1,19 @@
+// lexcode-expect: 1
+// The older apply-plugin form of the same app module build.
+apply plugin: 'com.android.application'
+
+android {
+    compileSdkVersion 34
+
+    defaultConfig {
+        applicationId "org.example.fieldnotes.legacy"
+        minSdkVersion 21
+        targetSdkVersion 34
+        versionCode 3
+        versionName "0.9"
+    }
+}
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+}
