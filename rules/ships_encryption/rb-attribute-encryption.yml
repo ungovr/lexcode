@@ -1,0 +1,21 @@
+rules:
+  - id: lexcode.crypto.rb-attribute-encryption
+    languages: [ruby]
+    severity: INFO
+    message: Encrypts model attributes with Rails' Active Record Encryption, Lockbox or attr_encrypted, which is shipping encryption (ships_encryption).
+    patterns:
+      - pattern-either:
+          - pattern: encrypts ...
+          - pattern: has_encrypted ...
+          - pattern: encrypts_attached ...
+          - pattern: attr_encrypted ...
+      - pattern-inside: |
+          class $C
+            ...
+          end
+    metadata:
+      activity: ships_encryption
+      mentioned: performs
+      definition: https://lexlint.io/glossary#ships-encryption
+      provenance: ungovr-original
+      license: MIT

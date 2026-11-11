@@ -1,0 +1,41 @@
+rules:
+  - id: lexcode.crypto.rb-library-encryption
+    languages: [ruby]
+    severity: INFO
+    message: Encrypts data or agrees keys with a cryptography library the product bundles (Rails' message encryptor, RbNaCl, Fernet, Lockbox or a JWE gem), which is shipping encryption (ships_encryption).
+    pattern-either:
+      - pattern: ActiveSupport::MessageEncryptor.new(...)
+      - pattern: ::ActiveSupport::MessageEncryptor.new(...)
+      - pattern: RbNaCl::SecretBox.new(...)
+      - pattern: ::RbNaCl::SecretBox.new(...)
+      - pattern: RbNaCl::Box.new(...)
+      - pattern: ::RbNaCl::Box.new(...)
+      - pattern: RbNaCl::SimpleBox.from_secret_key(...)
+      - pattern: ::RbNaCl::SimpleBox.from_secret_key(...)
+      - pattern: RbNaCl::SimpleBox.from_keypair(...)
+      - pattern: ::RbNaCl::SimpleBox.from_keypair(...)
+      - pattern: RbNaCl::Boxes::Sealed.from_public_key(...)
+      - pattern: ::RbNaCl::Boxes::Sealed.from_public_key(...)
+      - pattern: RbNaCl::Boxes::Sealed.from_private_key(...)
+      - pattern: ::RbNaCl::Boxes::Sealed.from_private_key(...)
+      - patterns:
+          - pattern-either:
+              - pattern: RbNaCl::AEAD::$A.new(...)
+              - pattern: ::RbNaCl::AEAD::$A.new(...)
+          - metavariable-regex:
+              metavariable: $A
+              regex: ^(?:ChaCha20Poly1305IETF|ChaCha20Poly1305Legacy|XChaCha20Poly1305IETF)$
+      - pattern: Fernet.generate(...)
+      - pattern: Lockbox.new(...)
+      - pattern: JWE.encrypt(...)
+      - pattern: JSON::JWE.new(...)
+      - pattern: ::JSON::JWE.new(...)
+      - pattern: SymmetricEncryption.encrypt(...)
+      - pattern: Gibberish::AES.new(...)
+      - pattern: Gibberish::AES::$M.new(...)
+    metadata:
+      activity: ships_encryption
+      mentioned: performs
+      definition: https://lexlint.io/glossary#ships-encryption
+      provenance: ungovr-original
+      license: MIT

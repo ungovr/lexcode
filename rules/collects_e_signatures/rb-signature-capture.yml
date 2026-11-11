@@ -1,0 +1,35 @@
+rules:
+  - id: lexcode.esign.rb-signature-capture
+    languages: [ruby]
+    severity: INFO
+    message: Stores a signature a person drew or captured on the record of an agreement, waiver or consent, which is collecting electronic signatures (collects_e_signatures).
+    patterns:
+      - pattern-either:
+          - pattern: has_one_attached $SIG, ...
+          - pattern: has_one_base64_attached $SIG, ...
+          - pattern: has_attached_file $SIG, ...
+          - pattern: mount_uploader $SIG, ...
+          - pattern: mount_base64_uploader $SIG, ...
+          - pattern: $R.$SIG.attach(...)
+      - metavariable-regex:
+          metavariable: $SIG
+          regex: '(?i)^:?["'']?(?:(?:customer|client|guest|patient|participant|signee|signer|tenant|guarantor|applicant|borrower|buyer|seller|witness|guardian|drawn|handwritten|electronic|e)_)?signature(?:_(?:image|img|png|svg|data|file|photo|scan|drawing))?["'']?$'
+      # The record the signature hangs on must be an agreement of some kind: an
+      # agreement word as a CamelCase segment of the class name, anywhere in it
+      # (EventWaiver, Legal::Waiver, WaiversController), never as the start of a
+      # longer word (ContractorProfile, Leaseholder). A
+      # profile, a package release and an email template carry a "signature"
+      # too, and none of them is a person signing a document.
+      - pattern-inside: |
+          class $C
+            ...
+          end
+      - metavariable-regex:
+          metavariable: $C
+          regex: '(?s).*(?-i:(?:Waiver|Agreement|Contract|Consent|Lease|Authori[sz]ation|Acknowledg(?:e)?ment|Attestation|Disclosure|Confidentiality|(?:Liability|Medical|Photo)Release|Sign[Oo]ff|E[Ss]ign|Signature(?:Request|Form|Pad)|WorkOrder|PermissionSlip|Enrol+ment|Approval)s?(?![a-z]))'
+    metadata:
+      activity: collects_e_signatures
+      mentioned: performs
+      definition: https://lexlint.io/glossary#collects-electronic-signatures
+      provenance: ungovr-original
+      license: MIT
