@@ -1,0 +1,55 @@
+rules:
+  - id: lexcode.mobile.rb-fastlane-store-upload
+    languages: [ruby]
+    severity: INFO
+    message: Calls a fastlane action that uploads a build to Apple's App Store, TestFlight or Google Play, which is distributing a mobile app (ships_mobile_app).
+    patterns:
+      - pattern-either:
+          - pattern: upload_to_app_store
+          - pattern: upload_to_testflight
+          - pattern: upload_to_play_store
+          - pattern: upload_to_play_store_internal_app_sharing
+          - patterns:
+              - pattern-either:
+                  - pattern: deliver
+                  - pattern: pilot
+                  - pattern: supply
+              - pattern-either:
+                  - pattern-inside: |
+                      lane $L do
+                        ...
+                      end
+                  - pattern-inside: |
+                      lane $L do |$O|
+                        ...
+                      end
+                  - pattern-inside: |
+                      lane $L, ... do
+                        ...
+                      end
+                  - pattern-inside: |
+                      lane $L, ... do |$O|
+                        ...
+                      end
+                  - pattern-inside: |
+                      private_lane $L do
+                        ...
+                      end
+                  - pattern-inside: |
+                      private_lane $L do |$O|
+                        ...
+                      end
+    paths:
+      exclude:
+        - "**/example/**"
+        - "**/examples/**"
+        - "**/sample/**"
+        - "**/samples/**"
+        - "**/demo/**"
+        - "**/demos/**"
+    metadata:
+      activity: ships_mobile_app
+      mentioned: performs
+      definition: https://lexlint.io/activities/ships-mobile-app
+      provenance: ungovr-original
+      license: MIT

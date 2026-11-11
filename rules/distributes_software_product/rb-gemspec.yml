@@ -1,0 +1,23 @@
+rules:
+  - id: lexcode.distribute.rb-gemspec
+    languages: [ruby]
+    severity: INFO
+    message: Defines a gem specification, which makes a Ruby library that may be published for others to install or may only be loaded from inside the same repository (distributes_software_product).
+    pattern-either:
+      - pattern: |
+          Gem::Specification.new do |$S|
+            ...
+          end
+      - pattern: |
+          Gem::Specification.new(...) do |$S|
+            ...
+          end
+      - pattern: Gem::Specification.new { |$S| ... }
+      - pattern: Gem::Specification.new(...) { |$S| ... }
+    metadata:
+      activity: distributes_software_product
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/distributes-software-product
+      provenance: ungovr-original
+      license: MIT
