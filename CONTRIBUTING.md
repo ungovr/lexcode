@@ -111,8 +111,12 @@ Java, Kotlin and the JVM build files carry a prefix too:
 A Java or Kotlin fixture is a whole compilation unit: a `package` line,
 imports and a class, so it parses as a real file does.
 
-A negative fixture must cover every guard: strip any one guard from the rule
-and the negative has to start matching. Where a rule guards on a vendor import,
+A negative fixture covers the anchors on generic names: strip the guard that
+keeps a rule off a common name (a class called `Post`, a `get` on any
+receiver, an app's own `ActivityHandler`) and the negative has to start
+matching. Other guards, among them sink and propagator restrictions and some
+vendor import guards, are not each pinned by a negative yet, and a contribution
+that adds one is welcome. Where a rule guards on a vendor import,
 write the lookalike the guard exists for: a generic method name called on a
 receiver of another type, in a file without the vendor's import. A rule that
 names several vendors keeps one `patterns:` branch per vendor, each with its own
