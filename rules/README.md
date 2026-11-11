@@ -10,10 +10,10 @@ is measured against the truth sets, per activity.
 
 <!-- recall:start -->
 Measured 2026-11-11 over the UnGovr monorepo, 6 pinned starter templates and 2 real apps,
-against hand-read answer keys. Found counts evidence of either
-kind for the activity or its family; signal only counts the misses where
-lexcode showed a worth-a-look row and nothing stronger. Recall is printed,
-never gated.
+against answer keys read by an agent that had not seen the rules, unreviewed.
+Found counts evidence of either kind for the activity or its family; signal
+only counts the misses where lexcode showed a worth-a-look row and nothing
+stronger. Recall is printed, never gated.
 
 | Activity | Expected | Found | Signal only | Missed in |
 |---|---:|---:|---:|---|
