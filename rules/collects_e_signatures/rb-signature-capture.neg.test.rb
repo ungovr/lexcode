@@ -61,6 +61,32 @@ class PackagesController < ApplicationController
   end
 end
 
+# Class names that only begin with, or contain, an agreement word as part of a
+# longer word, or carry a design word that is not an agreement.
+class ContractorProfile < ApplicationRecord
+  has_one_attached :signature
+end
+
+class Leaseholder < ApplicationRecord
+  has_one_attached :signature
+end
+
+class QuoteOfTheDay < ApplicationRecord
+  has_one_attached :signature
+end
+
+class PackageSigning < ApplicationRecord
+  has_one_attached :signature
+end
+
+class Designer < ApplicationRecord
+  has_one_attached :signature
+end
+
+class EmailDesign < ApplicationRecord
+  has_one_attached :signature
+end
+
 # A method named signature on the app's own class, with no attachment.
 class Request
   def signature

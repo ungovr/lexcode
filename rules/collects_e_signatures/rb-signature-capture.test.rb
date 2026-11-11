@@ -1,4 +1,4 @@
-# lexcode-expect: 7
+# lexcode-expect: 14
 # Storing a signature a person drew or captured, as a record on the agreement.
 
 # Active Storage: the signature pad's image is attached to the waiver.
@@ -33,5 +33,40 @@ end
 class QuoteApprovals
   def approve(quote, io)
     quote.customer_signature.attach(io: io, filename: "approval.png")
+  end
+end
+
+# The agreement word anywhere in the class name: a suffix, a prefix, a namespace.
+class EventWaiver < ApplicationRecord
+  has_one_attached :signature
+end
+
+class SignedWaiver < ApplicationRecord
+  has_one_attached :signature
+end
+
+class ServiceAgreement < ApplicationRecord
+  has_one_attached :signer_signature
+end
+
+class EmploymentContract < ApplicationRecord
+  has_one_attached :signature
+end
+
+class InformedConsent < ApplicationRecord
+  has_one_attached :patient_signature
+end
+
+module Legal
+  class Waiver < ApplicationRecord
+    has_one_attached :signature
+  end
+end
+
+module Admin
+  class ParticipantWaiversController < ApplicationController
+    def sign
+      @waiver.signature.attach(io: StringIO.new(png), filename: "signature.png")
+    end
   end
 end
