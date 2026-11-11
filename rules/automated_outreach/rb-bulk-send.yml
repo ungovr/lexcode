@@ -1,0 +1,24 @@
+rules:
+  - id: lexcode.outreach.rb-bulk-send
+    languages: [ruby]
+    severity: INFO
+    message: Sends one message to many recipients in a single batch call or campaign send, which is sending automated outreach (automated_outreach).
+    pattern-either:
+      - pattern: $S.send_bulk_templated_email(...)
+      - pattern: $S.send_bulk_email(...)
+      - pattern: Resend::Batch.send(...)
+      - pattern: $P.deliver_in_batches(...)
+      - patterns:
+          - pattern: $P.deliver_messages(...)
+          - metavariable-regex:
+              metavariable: $P
+              regex: (?i)^.*(postmark|mailer).*$
+      - pattern: Mailgun::BatchMessage.new(...)
+      - pattern: $M.campaigns.send(...)
+      - pattern: $T.notify.services(...).notifications.create(...)
+    metadata:
+      activity: automated_outreach
+      mentioned: performs
+      definition: https://lexlint.io/activities/automated-outreach
+      provenance: ungovr-original
+      license: MIT
