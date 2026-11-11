@@ -1,4 +1,4 @@
-# lexcode-expect: 12
+# lexcode-expect: 14
 require "net/http"
 require "open-uri"
 require "faraday"
@@ -59,6 +59,16 @@ class PagePuller
     urls.each do |url|
       uri = URI.parse(url)
       Net::HTTP.get_response(uri)
+    end
+  end
+
+  def capitalised_receiver(urls)
+    urls.each { |url| ApiClient.get(url) }
+  end
+
+  def parenless_open(feed_urls)
+    feed_urls.each do |feed_url|
+      open feed_url
     end
   end
 
