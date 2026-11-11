@@ -1,0 +1,90 @@
+rules:
+  - id: lexcode.crypto.java-library-encryption
+    languages: [java]
+    severity: INFO
+    message: Encrypts data or agrees keys with a cryptography library the product bundles (Bouncy Castle, Tink, libsodium, Jasypt, Spring Security Crypto, JOSE encryption, the Signal protocol or the AWS Encryption SDK), which is shipping encryption (ships_encryption).
+    pattern-either:
+      # Bouncy Castle lightweight API, OpenPGP and CMS
+      - pattern: new GCMBlockCipher(...)
+      - pattern: GCMBlockCipher.newInstance(...)
+      - pattern: new CCMBlockCipher(...)
+      - pattern: new EAXBlockCipher(...)
+      - pattern: new OCBBlockCipher(...)
+      - pattern: new PaddedBufferedBlockCipher(...)
+      - pattern: new BufferedBlockCipher(...)
+      - pattern: new ChaCha20Poly1305(...)
+      - pattern: new X25519Agreement()
+      - pattern: new ECDHBasicAgreement()
+      - pattern: new PGPEncryptedDataGenerator(...)
+      - pattern: new CMSEnvelopedDataGenerator()
+      # Google Tink
+      - pattern: AeadConfig.register()
+      - pattern: $K.getPrimitive(Aead.class)
+      - pattern: $K.getPrimitive(HybridEncrypt.class)
+      - pattern: $K.getPrimitive(StreamingAead.class)
+      - pattern: $K.getPrimitive(DeterministicAead.class)
+      # libsodium bindings: Lazysodium, libsodium-jni and Kalium
+      - pattern: $S.cryptoSecretBoxEasy(...)
+      - pattern: $S.cryptoBoxEasy(...)
+      - pattern: $S.cryptoBoxSealEasy(...)
+      - pattern: $S.cryptoAeadXChaCha20Poly1305IetfEncrypt(...)
+      - pattern: $S.cryptoAeadChaCha20Poly1305IetfEncrypt(...)
+      - pattern: $S.cryptoAeadAES256GCMEncrypt(...)
+      - pattern: $S.cryptoSecretStreamInitPush(...)
+      - patterns:
+          - pattern-either:
+              - pattern: new SecretBox(...)
+              - pattern: new Box(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import org.libsodium.jni.crypto.SecretBox;
+                  ...
+              - pattern-inside: |
+                  import org.libsodium.jni.crypto.Box;
+                  ...
+              - pattern-inside: |
+                  import org.abstractj.kalium.crypto.SecretBox;
+                  ...
+              - pattern-inside: |
+                  import org.abstractj.kalium.crypto.Box;
+                  ...
+      # Jasypt and Spring Security Crypto
+      - pattern: new StandardPBEStringEncryptor()
+      - pattern: new StandardPBEByteEncryptor()
+      - pattern: new BasicTextEncryptor()
+      - pattern: new StrongTextEncryptor()
+      - pattern: new AES256TextEncryptor()
+      - pattern: new AesBytesEncryptor(...)
+      - pattern: Encryptors.text(...)
+      - pattern: Encryptors.queryableText(...)
+      - pattern: Encryptors.stronger(...)
+      - pattern: Encryptors.standard(...)
+      - pattern: Encryptors.delux(...)
+      # JOSE encryption (a JWE, not a JWS)
+      - pattern: new RSAEncrypter(...)
+      - pattern: new DirectEncrypter(...)
+      - pattern: new AESEncrypter(...)
+      - pattern: new ECDHEncrypter(...)
+      - pattern: new X25519Encrypter(...)
+      - pattern: new PasswordBasedEncrypter(...)
+      - pattern: $B.encryptWith(...)
+      # End-to-end messaging: the Signal protocol and Olm
+      - pattern: new SessionCipher(...)
+      - pattern: new GroupCipher(...)
+      - pattern: new OlmAccount()
+      - pattern: new OlmSession()
+      - pattern: new OlmOutboundGroupSession()
+      - pattern: new OlmInboundGroupSession(...)
+      # Apache Commons Crypto, the AWS Encryption SDK and PGPainless
+      - pattern: Utils.getCipherInstance(...)
+      - pattern: CryptoCipherFactory.getCryptoCipher(...)
+      - pattern: new CryptoOutputStream(...)
+      - pattern: AwsCrypto.builder()
+      - pattern: AwsCrypto.standard()
+      - pattern: PGPainless.encryptAndOrSign()
+    metadata:
+      activity: ships_encryption
+      mentioned: performs
+      definition: https://lexlint.io/glossary#ships-encryption
+      provenance: ungovr-original
+      license: MIT

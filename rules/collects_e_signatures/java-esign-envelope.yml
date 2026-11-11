@@ -1,0 +1,35 @@
+rules:
+  - id: lexcode.esign.java-esign-envelope
+    languages: [java]
+    severity: INFO
+    message: Sends a document to a person for electronic signature through DocuSign, Dropbox Sign, HelloSign or Adobe Acrobat Sign, which is collecting electronic signatures (collects_e_signatures).
+    patterns:
+      - pattern-either:
+          - pattern: $C.createEnvelope(...)
+          - pattern: $C.signatureRequestSend(...)
+          - pattern: $C.signatureRequestSendWithTemplate(...)
+          - pattern: $C.signatureRequestCreateEmbedded(...)
+          - pattern: $C.signatureRequestCreateEmbeddedWithTemplate(...)
+          - pattern: $C.sendSignatureRequest(...)
+          - pattern: $C.sendTemplateSignatureRequest(...)
+          - pattern: $C.createEmbeddedSignatureRequest(...)
+          - pattern: $C.createAgreement(...)
+      - pattern-either:
+          - pattern-inside: |
+              import com.docusign.esign.api.EnvelopesApi;
+              ...
+          - pattern-inside: |
+              import com.dropbox.sign.api.SignatureRequestApi;
+              ...
+          - pattern-inside: |
+              import com.hellosign.sdk.HelloSignClient;
+              ...
+          - pattern-inside: |
+              import com.adobe.sign.api.AgreementsApi;
+              ...
+    metadata:
+      activity: collects_e_signatures
+      mentioned: performs
+      definition: https://lexlint.io/glossary#collects-electronic-signatures
+      provenance: ungovr-original
+      license: MIT

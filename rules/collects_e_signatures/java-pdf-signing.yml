@@ -1,0 +1,32 @@
+rules:
+  - id: lexcode.esign.java-pdf-signing
+    languages: [java]
+    severity: INFO
+    message: Applies a digital signature to a PDF or other document (PDFBox, iText or the European Commission's DSS library), which is collecting electronic signatures (collects_e_signatures).
+    patterns:
+      - pattern-either:
+          - pattern: (PDDocument $D).addSignature(...)
+          - pattern: new PdfSigner(...)
+          - pattern: PdfStamper.createSignature(...)
+          - pattern: new PAdESService(...)
+          - pattern: new XAdESService(...)
+          - pattern: new CAdESService(...)
+      - pattern-either:
+          - pattern-inside: |
+              import org.apache.pdfbox.pdmodel.PDDocument;
+              ...
+          - pattern-inside: |
+              import com.itextpdf.signatures.PdfSigner;
+              ...
+          - pattern-inside: |
+              import com.itextpdf.text.pdf.PdfStamper;
+              ...
+          - pattern-inside: |
+              import eu.europa.esig.dss.$P.signature.$S;
+              ...
+    metadata:
+      activity: collects_e_signatures
+      mentioned: performs
+      definition: https://lexlint.io/glossary#collects-electronic-signatures
+      provenance: ungovr-original
+      license: MIT
