@@ -2,7 +2,7 @@ rules:
   - id: lexcode.distribute.maven-distribution-management
     languages: [xml]
     severity: INFO
-    message: Declares a Maven deploy target on Maven Central's Sonatype hosts, Apache's repository or GitHub Packages (or one named ossrh), which publishes the artifact for others to depend on (distributes_software_product).
+    message: Declares a Maven deploy target on Maven Central's Sonatype hosts, or Apache's repository (or one named ossrh), which publishes the artifact for others to depend on (distributes_software_product).
     patterns:
       - pattern-either:
           - patterns:
@@ -21,7 +21,7 @@ rules:
                       </snapshotRepository>
               - metavariable-regex:
                   metavariable: $URL
-                  regex: (?i)^\s*(https?://)?([a-z0-9-]+\.)?(oss\.sonatype\.org|central\.sonatype\.com|repository\.apache\.org|maven\.pkg\.github\.com)(/|\s*$)
+                  regex: (?i)^\s*(https?://)?([a-z0-9-]+\.)?(oss\.sonatype\.org|central\.sonatype\.com|repository\.apache\.org)(/|\s*$)
           - patterns:
               - pattern-either:
                   - pattern: |

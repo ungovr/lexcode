@@ -1,7 +1,8 @@
 // lexcode-expect: 0
 // Publications that stay inside the company or the local machine: a publish to the team's own
-// repository and to the local Maven cache, with no signing. The Sonatype and GitHub Packages
-// hosts appear only where the build reads dependencies, which publishes nothing.
+// repository, to the organization's GitHub Packages and to the local Maven cache, with no signing.
+// The Sonatype and GitHub Packages hosts also appear where the build reads dependencies, which
+// publishes nothing.
 plugins {
     id 'java-library'
     id 'maven-publish'
@@ -29,6 +30,14 @@ publishing {
         maven {
             name = 'corp'
             url = uri('https://nexus.corp.example.com/repository/releases')
+        }
+        maven {
+            name = 'githubPackages'
+            url = uri('https://maven.pkg.github.com/acme/billing-internal')
+            credentials {
+                username = System.getenv('GITHUB_ACTOR')
+                password = System.getenv('GITHUB_TOKEN')
+            }
         }
         mavenLocal()
     }

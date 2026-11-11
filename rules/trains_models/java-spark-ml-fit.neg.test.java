@@ -1,10 +1,13 @@
 // lexcode-expect: 0
 // Spark MLlib used to apply a model that already exists: load a saved pipeline model and
-// transform data with it, or run a Spark SQL aggregation. The look-alikes call fit or train
+// transform data with it, prepare features with a string indexer and a scaler (data preparation,
+// not a model), or run a Spark SQL aggregation. The look-alikes call fit or train
 // on classes that are not Spark estimators.
 package demo.scoring;
 
 import org.apache.spark.ml.PipelineModel;
+import org.apache.spark.ml.feature.StandardScaler;
+import org.apache.spark.ml.feature.StringIndexer;
 import org.apache.spark.ml.classification.LogisticRegressionModel;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
@@ -26,6 +29,13 @@ public class BatchScorer {
   public double[] coefficients(String path) {
     LogisticRegressionModel model = LogisticRegressionModel.load(path);
     return model.coefficients().toArray();
+  }
+
+  public Dataset<Row> prepare(Dataset<Row> raw) {
+    StringIndexer indexer = new StringIndexer().setInputCol("plan").setOutputCol("planIndex");
+    Dataset<Row> indexed = indexer.fit(raw).transform(raw);
+    StandardScaler scaler = new StandardScaler().setInputCol("features").setOutputCol("scaled");
+    return scaler.fit(indexed).transform(indexed);
   }
 
   public long countByDay(Dataset<Row> events) {

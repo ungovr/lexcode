@@ -18,6 +18,9 @@ rules:
               - pattern-inside: |
                   import org.apache.spark.ml.$T;
                   ...
+          - pattern-not-inside: |
+              import org.apache.spark.ml.feature.$T;
+              ...
       - patterns:
           - pattern: $C.$M(...)
           - metavariable-regex:

@@ -2,10 +2,10 @@ rules:
   - id: lexcode.distribute.gradle-maven-publication
     languages: [generic]
     severity: INFO
-    message: Signs a Gradle publication, or publishes it to Sonatype or GitHub Packages, which makes the artifact available for others to depend on (distributes_software_product).
+    message: Signs a Gradle publication, or publishes it to Sonatype, which makes the artifact available for others to depend on (distributes_software_product).
     pattern-either:
       - pattern-regex: '(?m)^[ \t]*(?:signing[ \t]*\{[ \t]*)?sign[ \t]*\(?[ \t]*publishing\.publications\b'
-      - pattern-regex: '(?s)^publishing[ \t]*\{(?:(?!\n\}).)*?\n[ \t]+repositories[ \t]*\{(?:(?!\n\}).)*?(?:oss\.sonatype\.org|central\.sonatype\.com|maven\.pkg\.github\.com)'
+      - pattern-regex: '(?s)^publishing[ \t]*\{(?:(?!\n\}).)*?\n[ \t]+repositories[ \t]*\{(?:(?!\n\}).)*?(?:oss\.sonatype\.org|central\.sonatype\.com)'
     paths:
       include:
         - "*.gradle"
