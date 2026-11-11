@@ -101,6 +101,13 @@ class OwnApiClient(
             println(httpParams.get(u))
         }
         urls.forEach { println(cacheClient.get(it)) }
+        urls.forEach { println(httpStore.get(it)) }
+        urls.forEach { println(storageClient.get(it)) }
+        urls.forEach { println(redisClient.get(it)) }
+        urls.forEach { println(s3Client.get(it)) }
+        urls.forEach { println(awsClient.get(it)) }
+        urls.forEach { println(httpCookies.get(it)) }
+        urls.forEach { println(httpParams.get(it)) }
     }
 
     fun hosts(urls: List<String>) {
