@@ -52,3 +52,11 @@ class GalleriesController < ApplicationController
     render json: image
   end
 end
+
+class ProductThumbsController < ApplicationController
+  def show
+    # An images association with a method named generate: it makes thumbnails, no model is called.
+    thumbs = @product.images.generate(size: :thumb)
+    render json: thumbs
+  end
+end

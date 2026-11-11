@@ -41,3 +41,11 @@ class FlashMiddleware
     response.finish
   end
 end
+
+class GuestCartsController < ApplicationController
+  # A guest cart is keyed by a random id the app needs to find the cart again; it follows no one across sites.
+  def show
+    cookies.signed[:browser_id] ||= SecureRandom.uuid
+    cookies.signed[:anonymous_token] = @cart.token
+  end
+end

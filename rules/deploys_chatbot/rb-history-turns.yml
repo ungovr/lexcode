@@ -199,8 +199,11 @@ rules:
       - metavariable-regex:
           metavariable: $Z
           regex: '(?s)^(?!\s*\{[^}]*(\brole:|["\x27:]role["\x27]?\s*=>)\s*["\x27]user["\x27]).*$'
-      # Literal anchor inside the match (the model call), so the engine skips files with no such call.
-      - pattern-regex: '(&?\.(?:\s|\\|#[^\n]*+)*+(chat|converse\w*|chat_completions?|complete)\b(?!\s*&?\.)|&?\.(?:\s|\\|#[^\n]*+)*+messages(?:\s|\\|#[^\n]*+)*+(\(|&?\.(?:\s|\\|#[^\n]*+)*+(create|stream)\b|(?<=\s)parameters)|completions(?:\(\s*\))?(?:\s|\\|#[^\n]*+)*+&?\.(?:\s|\\|#[^\n]*+)*+create\b|&?\.(?:\s|\\|#[^\n]*+)*+responses(?:\(\s*\))?(?:\s|\\|#[^\n]*+)*+&?\.(?:\s|\\|#[^\n]*+)*+create\b)'
+      # Literal anchor inside the match, so the engine skips files with no such call. Every pattern above needs a
+      # `messages:` key (or `:messages =>`), and the rule takes any method name, so the key is the whole anchor. It
+      # is not an alternative beside the method names: two alternatives that both match inside one call report the
+      # call twice.
+      - pattern-regex: '(?<![\w:])messages\s*:(?!:)|:messages\s*=>'
     metadata:
       activity: deploys_chatbot
       mentioned: performs

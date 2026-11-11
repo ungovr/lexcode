@@ -54,3 +54,14 @@ class Inventory
     "#{topic} #{record}"
   end
 end
+
+class CalendarEvents
+  # Calendar bookings that take a record: keyword to pass a model, with no meeting server involved.
+  def book(event, starts_at)
+    CalendarService.create_meeting(record: event, starts_at: starts_at)
+  end
+
+  def book_with_braces(event, starts_at)
+    CalendarService.create_meeting({ record: event, starts_at: starts_at })
+  end
+end

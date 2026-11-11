@@ -40,3 +40,11 @@ class TrimsController < ApplicationController
     send_file out, type: "video/mp4"
   end
 end
+
+class AnswersController < ApplicationController
+  def create
+    # A Video record with a prompt column: the app stores a person's recording, no model draws it.
+    video = current_user.videos.create(prompt: params[:prompt], file: params[:file])
+    render json: video
+  end
+end

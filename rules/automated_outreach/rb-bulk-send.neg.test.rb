@@ -35,3 +35,10 @@ class KafkaFlush
     producer.deliver_messages(batch)
   end
 end
+
+class CampaignsController < ApplicationController
+  def index
+    # Ruby's Object#send on a campaigns association picks a scope by name; no message goes out.
+    @campaigns = current_user.campaigns.send(params[:scope])
+  end
+end

@@ -178,6 +178,20 @@ describe('readRuby', () => {
     expect(r.notices[0]).toContain('Gemfile');
   });
 
+  it('does not call a gem absent when DEPENDENCIES lists it with no spec (a platform-only gem, bundler)', () => {
+    const root = tree({
+      Gemfile: 'gem "rails"\ngem "tzinfo-data", platforms: %i[ windows jruby ]\ngem "bundler"\n',
+      'Gemfile.lock': lock({ specs: ['rails (7.1.3)'], deps: ['bundler', 'rails', 'tzinfo-data'] }),
+    });
+    const r = readRuby(root, ['Gemfile', 'Gemfile.lock']);
+    expect(r.deps).toEqual([
+      { ecosystem: 'gem', name: 'rails', version: '7.1.3', manifest: 'Gemfile:1' },
+      { ecosystem: 'gem', name: 'tzinfo-data', manifest: 'Gemfile:2' },
+      { ecosystem: 'gem', name: 'bundler', manifest: 'Gemfile:3' },
+    ]);
+    expect(r.notices).toEqual([]);
+  });
+
   it('names at most ten absent gems in the notice, then counts the rest', () => {
     const names = Array.from({ length: 13 }, (_, i) => `g${String(i).padStart(2, '0')}`);
     const root = tree({

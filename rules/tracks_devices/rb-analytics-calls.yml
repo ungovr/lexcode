@@ -2,7 +2,7 @@ rules:
   - id: lexcode.tracking.rb-analytics-calls
     languages: [ruby]
     severity: INFO
-    message: Sends visits or events to a third-party analytics service (Ahoy, Segment, Rudder, Mixpanel, PostHog, Amplitude or Staccato for Google Analytics) that follows the visitor with its own id, which is tracking devices (tracks_devices).
+    message: Sends visits or events to an analytics service, first-party (Ahoy) or third-party (Segment, Rudder, Mixpanel, PostHog, Amplitude or Staccato for Google Analytics), that follows the visitor with its own id, which is tracking devices (tracks_devices).
     pattern-either:
       - pattern: ahoy.track(...)
       - pattern: Ahoy::Tracker.new(...)
