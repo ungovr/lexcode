@@ -1,4 +1,4 @@
-# lexcode-expect: 18
+# lexcode-expect: 19
 # Rails endpoints and an ActionCable channel that hand what a person typed, or the conversation so
 # far, to a language model.
 class ChatsController < ApplicationController
@@ -90,6 +90,7 @@ class ResidualShapesChats < ApplicationController
       .create(model: "claude-sonnet-4-5", max_tokens: 1024, messages: params[:history])
     msg = anthropic.messages \
       .create(model: "claude-sonnet-4-5", max_tokens: 1024, messages: params[:history])
+    msg = anthropic.messages parameters: { model: "claude-sonnet-4-5", max_tokens: 1024, messages: params[:history] }
     render json: { msg: msg }
   end
 end

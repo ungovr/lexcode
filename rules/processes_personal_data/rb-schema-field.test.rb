@@ -60,7 +60,7 @@ class CreateResidualShapes < ActiveRecord::Migration[7.1]
       t.date :date_of_birth # YYYY-MM-DD
       t.inet :last_sign_in_ip   # filled by Devise
       t.string :ssn if respond_to?(:string)
-      t # the table
+      t # builder
         .string :phone_number
     end
   end

@@ -110,7 +110,7 @@ rules:
                   metavariable: $K
                   regex: '^:?["\x27]?(messages|chat_messages|history|chat_history|conversation|conversation_history)["\x27]?$'
       # Literal anchor inside the match (the model call), so the engine skips files with no such call.
-      - pattern-regex: '(&?\.(?:\s|\\|#[^\n]*+)*+chat\b(?!\s*&?\.)|&?\.(?:\s|\\|#[^\n]*+)*+converse\b|&?\.(?:\s|\\|#[^\n]*+)*+messages(?:\s|\\|#[^\n]*+)*+(\(|&?\.(?:\s|\\|#[^\n]*+)*+(create|stream)\b|\s+parameters)|completions(?:\(\s*\))?(?:\s|\\|#[^\n]*+)*+&?\.(?:\s|\\|#[^\n]*+)*+create\b|&?\.(?:\s|\\|#[^\n]*+)*+responses(?:\(\s*\))?(?:\s|\\|#[^\n]*+)*+&?\.(?:\s|\\|#[^\n]*+)*+create\b)'
+      - pattern-regex: '(&?\.(?:\s|\\|#[^\n]*+)*+chat\b(?!\s*&?\.)|&?\.(?:\s|\\|#[^\n]*+)*+converse\b|&?\.(?:\s|\\|#[^\n]*+)*+messages(?:\s|\\|#[^\n]*+)*+(\(|&?\.(?:\s|\\|#[^\n]*+)*+(create|stream)\b|(?<=\s)parameters)|completions(?:\(\s*\))?(?:\s|\\|#[^\n]*+)*+&?\.(?:\s|\\|#[^\n]*+)*+create\b|&?\.(?:\s|\\|#[^\n]*+)*+responses(?:\(\s*\))?(?:\s|\\|#[^\n]*+)*+&?\.(?:\s|\\|#[^\n]*+)*+create\b)'
     metadata:
       activity: deploys_chatbot
       mentioned: performs
