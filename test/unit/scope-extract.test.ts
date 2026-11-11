@@ -405,7 +405,7 @@ describe('JSP views', () => {
     });
 
     it('leaves a comparison, an unprefixed HTML tag, a ternary, a tag that never closes and a stray "]]>" alone', () => {
-      for (const src of ['if (a < b:c) {}', 'if (a <b) {}', 'var h = "<div class=\'a\'>x</div>";', 'x = c ? a<b : d;', 'x = "<h:outputText value=\'a\'";', 'if (a[b[0]]>c) {}', 'var u = "http://x"; if (a<b) {}']) {
+      for (const src of ['if (a < b:c) {}', 'if (a <b) {}', 'var h = "<div class=\'a\'>x</div>";', 'x = c ? a<b : d;', 'x = "<h:outputText value=\'a\'";', 'if (a[b[0]]>c) {}', 'var u = "http://x"; if (a<b) {}', 'c?a<b:d; foo(y=>y);']) {
         expect(blankJspTags(src)).toBe(src);
       }
     });
