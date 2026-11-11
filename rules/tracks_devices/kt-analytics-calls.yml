@@ -6,9 +6,12 @@ rules:
     patterns:
       - pattern-either:
           - pattern-regex: '(?s)\A(?=.*Firebase).*'
+          - pattern-regex: '(?s)\A(?=.*com\.google\.firebase).*'
           - pattern-regex: '(?s)\A(?=.*Mixpanel).*'
+          - pattern-regex: '(?s)\A(?=.*com\.mixpanel).*'
           - pattern-regex: '(?s)\A(?=.*com\.segment).*'
           - pattern-regex: '(?s)\A(?=.*Amplitude).*'
+          - pattern-regex: '(?s)\A(?=.*com\.amplitude).*'
           - pattern-regex: '(?s)\A(?=.*Pendo).*'
           - pattern-regex: '(?s)\A(?=.*sdk\.pendo).*'
           - pattern-regex: '(?s)\A(?=.*AppsFlyerLib).*'
