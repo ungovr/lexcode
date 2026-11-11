@@ -1,0 +1,45 @@
+rules:
+  - id: lexcode.esign.kt-signature-record
+    languages: [kotlin]
+    severity: INFO
+    message: Stores a signature a person drew or captured on the record of an agreement, waiver or consent, which is collecting electronic signatures (collects_e_signatures).
+    pattern-either:
+      # A property of the constructor
+      - patterns:
+          - pattern: |
+              class $C(..., $SIG: $T, ...)
+          - metavariable-regex:
+              metavariable: $SIG
+              regex: '(?i)^(?:(?:customer|client|guest|patient|participant|signee|signer|tenant|guarantor|applicant|borrower|buyer|seller|witness|guardian|parent|drawn|handwritten|electronic|e)_?)?signature(?:_?(?:image|img|png|svg|data|file|photo|scan|drawing|base64))?$'
+          - metavariable-regex:
+              metavariable: $C
+              regex: '(?s).*(?-i:(?:Waiver|Agreement|Contract|Consent|Lease|Authori[sz]ation|Acknowledg(?:e)?ment|Attestation|Disclosure|Confidentiality|(?:Liability|Medical|Photo)Release|Sign[Oo]ff|E[Ss]ign|Signature(?:Request|Form|Pad)|WorkOrder|PermissionSlip|Enrol+ment|Approval)s?(?![a-z]))'
+      # A property in the class body
+      - patterns:
+          - pattern-either:
+              - pattern: "var $SIG: $T = $V"
+              - pattern: "val $SIG: $T = $V"
+              - pattern: "lateinit var $SIG: $T"
+              - pattern: "var $SIG: $T"
+              - pattern: "val $SIG: $T"
+          # The record the signature hangs on must be an agreement of some kind: an agreement word as a
+          # CamelCase segment of the class name, anywhere in it (EventWaiver, LeaseAgreement,
+          # ConsentRequest), never as the start of a longer word (ContractorProfile, Leaseholder). A
+          # webhook, a release artifact and a user profile carry a "signature" too, and none of them is
+          # a person signing a document.
+          - pattern-inside: |
+              class $C(...) {
+                ...
+              }
+          - metavariable-regex:
+              metavariable: $SIG
+              regex: '(?i)^(?:(?:customer|client|guest|patient|participant|signee|signer|tenant|guarantor|applicant|borrower|buyer|seller|witness|guardian|parent|drawn|handwritten|electronic|e)_?)?signature(?:_?(?:image|img|png|svg|data|file|photo|scan|drawing|base64))?$'
+          - metavariable-regex:
+              metavariable: $C
+              regex: '(?s).*(?-i:(?:Waiver|Agreement|Contract|Consent|Lease|Authori[sz]ation|Acknowledg(?:e)?ment|Attestation|Disclosure|Confidentiality|(?:Liability|Medical|Photo)Release|Sign[Oo]ff|E[Ss]ign|Signature(?:Request|Form|Pad)|WorkOrder|PermissionSlip|Enrol+ment|Approval)s?(?![a-z]))'
+    metadata:
+      activity: collects_e_signatures
+      mentioned: performs
+      definition: https://lexlint.io/glossary#collects-electronic-signatures
+      provenance: ungovr-original
+      license: MIT

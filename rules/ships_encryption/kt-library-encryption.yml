@@ -1,0 +1,214 @@
+rules:
+  - id: lexcode.crypto.kt-library-encryption
+    languages: [kotlin]
+    severity: INFO
+    message: Encrypts data or agrees keys with a cryptography library the product bundles (Bouncy Castle, Tink, libsodium, Jasypt, Spring Security Crypto, JOSE encryption, the Signal protocol, Olm and Matrix, or the AWS Encryption SDK), which is shipping encryption (ships_encryption).
+    # The platform's own cryptography (javax.crypto Cipher and KeyAgreement, SecretKeyFactory, the Android
+    # Keystore, MessageDigest, Mac, TLS) is not evidence; a cipher built through a bundled provider is.
+    pattern-either:
+      # Bouncy Castle lightweight API, OpenPGP and CMS
+      - pattern: GCMBlockCipher(...)
+      - pattern: GCMBlockCipher.newInstance(...)
+      - pattern: CCMBlockCipher(...)
+      - pattern: EAXBlockCipher(...)
+      - pattern: OCBBlockCipher(...)
+      - pattern: PaddedBufferedBlockCipher(...)
+      - pattern: BufferedBlockCipher(...)
+      - pattern: ChaCha20Poly1305()
+      - pattern: X25519Agreement()
+      - pattern: ECDHBasicAgreement()
+      - pattern: PGPEncryptedDataGenerator(...)
+      - pattern: CMSEnvelopedDataGenerator()
+      # A JCA cipher built through the Bouncy Castle provider
+      - patterns:
+          - pattern-either:
+              - pattern: Cipher.getInstance($A, "BC")
+              - pattern: Cipher.getInstance($A, BouncyCastleProvider.PROVIDER_NAME)
+          - pattern-either:
+              - pattern-inside: |
+                  import javax.crypto.Cipher
+                  ...
+              - pattern-inside: |
+                  import javax.crypto.*
+                  ...
+      # Google Tink
+      - pattern: AeadConfig.register()
+      - patterns:
+          - pattern: $K.getPrimitive(...)
+          - pattern-regex: \b(?:Aead|HybridEncrypt|StreamingAead|DeterministicAead)::class\.java\b
+      # libsodium bindings: Lazysodium (distinctive method names), then libsodium-jni and Kalium class by class
+      - pattern: $S.cryptoSecretBoxEasy(...)
+      - pattern: $S.cryptoBoxEasy(...)
+      - pattern: $S.cryptoBoxSealEasy(...)
+      - pattern: $S.cryptoAeadXChaCha20Poly1305IetfEncrypt(...)
+      - pattern: $S.cryptoAeadChaCha20Poly1305IetfEncrypt(...)
+      - pattern: $S.cryptoAeadAES256GCMEncrypt(...)
+      - pattern: $S.cryptoSecretStreamInitPush(...)
+      - patterns:
+          - pattern: SecretBox(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import org.libsodium.jni.crypto.SecretBox
+                  ...
+              - pattern-inside: |
+                  import org.libsodium.jni.crypto.*
+                  ...
+      - patterns:
+          - pattern: Box(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import org.libsodium.jni.crypto.Box
+                  ...
+              - pattern-inside: |
+                  import org.libsodium.jni.crypto.*
+                  ...
+      - patterns:
+          - pattern: SecretBox(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import org.abstractj.kalium.crypto.SecretBox
+                  ...
+              - pattern-inside: |
+                  import org.abstractj.kalium.crypto.*
+                  ...
+      - patterns:
+          - pattern: Box(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import org.abstractj.kalium.crypto.Box
+                  ...
+              - pattern-inside: |
+                  import org.abstractj.kalium.crypto.*
+                  ...
+      # Jasypt
+      - pattern: StandardPBEStringEncryptor()
+      - pattern: StandardPBEByteEncryptor()
+      - pattern: BasicTextEncryptor()
+      - pattern: StrongTextEncryptor()
+      - pattern: AES256TextEncryptor()
+      # Spring Security Crypto
+      - patterns:
+          - pattern-either:
+              - pattern: Encryptors.text(...)
+              - pattern: Encryptors.queryableText(...)
+              - pattern: Encryptors.stronger(...)
+              - pattern: Encryptors.standard(...)
+              - pattern: Encryptors.delux(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import org.springframework.security.crypto.encrypt.Encryptors
+                  ...
+              - pattern-inside: |
+                  import org.springframework.security.crypto.encrypt.*
+                  ...
+      - patterns:
+          - pattern: AesBytesEncryptor(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import org.springframework.security.crypto.encrypt.AesBytesEncryptor
+                  ...
+              - pattern-inside: |
+                  import org.springframework.security.crypto.encrypt.*
+                  ...
+      # JOSE encryption (a JWE, not a JWS)
+      - pattern: RSAEncrypter(...)
+      - pattern: DirectEncrypter(...)
+      - pattern: AESEncrypter(...)
+      - pattern: ECDHEncrypter(...)
+      - pattern: X25519Encrypter(...)
+      - pattern: PasswordBasedEncrypter(...)
+      - patterns:
+          - pattern: $B.encryptWith(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import io.jsonwebtoken.Jwts
+                  ...
+              - pattern-inside: |
+                  import io.jsonwebtoken.JwtBuilder
+                  ...
+              - pattern-inside: |
+                  import io.jsonwebtoken.*
+                  ...
+      # End-to-end messaging: the Signal protocol, Olm and the Matrix crypto machine
+      - patterns:
+          - pattern: SessionCipher(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import org.whispersystems.libsignal.SessionCipher
+                  ...
+              - pattern-inside: |
+                  import org.whispersystems.libsignal.*
+                  ...
+              - pattern-inside: |
+                  import org.signal.libsignal.protocol.SessionCipher
+                  ...
+              - pattern-inside: |
+                  import org.signal.libsignal.protocol.*
+                  ...
+      - patterns:
+          - pattern: GroupCipher(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import org.whispersystems.libsignal.groups.GroupCipher
+                  ...
+              - pattern-inside: |
+                  import org.whispersystems.libsignal.groups.*
+                  ...
+              - pattern-inside: |
+                  import org.signal.libsignal.protocol.groups.GroupCipher
+                  ...
+              - pattern-inside: |
+                  import org.signal.libsignal.protocol.groups.*
+                  ...
+      - patterns:
+          - pattern-either:
+              - pattern: OlmAccount()
+              - pattern: OlmSession()
+              - pattern: OlmOutboundGroupSession()
+              - pattern: OlmInboundGroupSession(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import org.matrix.olm.OlmAccount
+                  ...
+              - pattern-inside: |
+                  import org.matrix.olm.OlmSession
+                  ...
+              - pattern-inside: |
+                  import org.matrix.olm.OlmOutboundGroupSession
+                  ...
+              - pattern-inside: |
+                  import org.matrix.olm.OlmInboundGroupSession
+                  ...
+              - pattern-inside: |
+                  import org.matrix.olm.*
+                  ...
+      - patterns:
+          - pattern: OlmMachine(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import org.matrix.rustcomponents.sdk.crypto.OlmMachine
+                  ...
+              - pattern-inside: |
+                  import org.matrix.rustcomponents.sdk.crypto.*
+                  ...
+      # Apache Commons Crypto, the AWS Encryption SDK and PGPainless
+      - patterns:
+          - pattern: Utils.getCipherInstance(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import org.apache.commons.crypto.utils.Utils
+                  ...
+              - pattern-inside: |
+                  import org.apache.commons.crypto.utils.*
+                  ...
+      - pattern: CryptoCipherFactory.getCryptoCipher(...)
+      - pattern: CryptoOutputStream(...)
+      - pattern: AwsCrypto.builder()
+      - pattern: AwsCrypto.standard()
+      - pattern: PGPainless.encryptAndOrSign()
+    metadata:
+      activity: ships_encryption
+      mentioned: performs
+      definition: https://lexlint.io/glossary#ships-encryption
+      provenance: ungovr-original
+      license: MIT
