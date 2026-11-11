@@ -50,5 +50,7 @@ class Notifier {
   void notifyUser(String user, String text) {
     template.convertAndSendToUser(user, "/queue/notifications", text);
     template.convertAndSend("/topic/status", text);
+    template.convertAndSendToUser(user, "/queue/admin-alerts", text);
+    template.convertAndSendToUser(user, "/queue/admin", text);
   }
 }

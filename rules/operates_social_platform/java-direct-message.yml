@@ -28,7 +28,7 @@ rules:
           - pattern: $T.convertAndSendToUser($U, $D, ...)
           - metavariable-regex:
               metavariable: $D
-              regex: '^"[^"]*(message|chat|dm|private|direct)[^"]*"$'
+              regex: '(?i)^"([^"]*(message|chat|private|direct)[^"]*|([^"]*[/._-])?dms?([/._-][^"]*)?)"$'
     metadata:
       activity: operates_social_platform
       mentioned: performs

@@ -19,6 +19,12 @@ interface PostRepository extends JpaRepository<Post, Long> {
   List<Post> findByAuthorIdOrderByCreatedAtDesc(Long authorId);
 
   List<Post> findByCaseIdInOrderByDueDate(List<Long> followUpIds);
+
+  @Query("select t from Task t where t.assignee in (select f.assignee from FollowUp f where f.followUpDone = false)")
+  List<Post> openFollowUps();
+
+  @Query(value = "select * from tasks t where t.owner_id in (1, 2) and t.follow_up_date < :d", nativeQuery = true)
+  List<Post> dueFollowUps(String d);
 }
 
 interface ArticleRepository extends JpaRepository<Article, Long> {

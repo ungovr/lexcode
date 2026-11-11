@@ -17,4 +17,14 @@ class SecurityConfig {
         .anyRequest().authenticated());
     return http.build();
   }
+
+  @Bean
+  SecurityFilterChain reversed(HttpSecurity http) throws Exception {
+    http.authorizeHttpRequests(auth -> auth
+        .requestMatchers("/register").hasRole("ADMIN")
+        .requestMatchers("/signup").authenticated()
+        .requestMatchers("/login", "/css/**").permitAll()
+        .anyRequest().authenticated());
+    return http.build();
+  }
 }

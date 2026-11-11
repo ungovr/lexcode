@@ -4,8 +4,8 @@ rules:
     severity: INFO
     message: Selects posts written by the accounts a user follows or befriends (a query, a Spring Data finder or a stream filter keyed on followed or friend accounts), which builds a feed of other users' posts for a social platform (operates_social_platform).
     pattern-either:
-      - pattern-regex: '(?is)@Query\(\s*(value\s*=\s*)?"[^"]{0,500}\b(author|user|owner|creator|poster)\w*(\.id)?\s+in\s*\([^"]{0,300}\b(follow(?!_?ups?\b)|friend)'
-      - pattern-regex: '(?is)@Query\(\s*(value\s*=\s*)?"[^"]{0,300}\bfrom\s+\w*(post|status|tweet)\w*[^"]{0,300}\bjoin\s+\w*(follow(?!_?ups?\b)|friend)'
+      - pattern-regex: '(?is)@Query\(\s*(value\s*=\s*)?"[^"]{0,500}\b(author|user|owner|creator|poster)\w*(\.id)?\s+in\s*\([^"]{0,300}\b(follow(?!_?ups?(\b|_|[A-Z]))|friend)'
+      - pattern-regex: '(?is)@Query\(\s*(value\s*=\s*)?"[^"]{0,300}\bfrom\s+\w*(post|status|tweet)\w*[^"]{0,300}\bjoin\s+\w*(follow(?!_?ups?(\b|_|[A-Z]))|friend)'
       - pattern-regex: '(?i)\b(find|get|list|load|fetch)\w{0,40}(Post|Tweet|Status|Message|Feed|Timeline|Update|By(Author|Poster|Creator|Owner|User)(Id)?In)\w{0,40}\([^)\n]{0,200}\b(following|followed|followees?|followingIds|followedIds|friends|friendIds)\b'
       - patterns:
           - pattern: $FOL.contains($P.$GET())

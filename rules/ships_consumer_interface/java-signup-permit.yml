@@ -5,11 +5,13 @@ rules:
     message: Opens a sign-up page to everyone in the security configuration (permitAll on a register or sign-up path), a screen that members of the public use to reach a service (ships_consumer_interface).
     patterns:
       - pattern-either:
-          - pattern: $A.requestMatchers("...", ...).permitAll()
-          - pattern: $A.antMatchers("...", ...).permitAll()
-          - pattern: $A.mvcMatchers("...", ...).permitAll()
-          - pattern: $A.requestMatchers(new AntPathRequestMatcher("...")).permitAll()
-      - pattern-regex: '"/?(api/)?(v[0-9]+/)?(accounts/|auth/|users/)?(sign-?up|register|registration|create-account)/?"'
+          - pattern: $A.requestMatchers(..., $P, ...).permitAll()
+          - pattern: $A.antMatchers(..., $P, ...).permitAll()
+          - pattern: $A.mvcMatchers(..., $P, ...).permitAll()
+          - pattern: $A.requestMatchers(..., new AntPathRequestMatcher($P), ...).permitAll()
+      - metavariable-regex:
+          metavariable: $P
+          regex: '^"/?(api/)?(v[0-9]+/)?(accounts/|auth/|users/)?(sign-?up|register|registration|create-account)/?"$'
     metadata:
       activity: ships_consumer_interface
       mentioned: performs

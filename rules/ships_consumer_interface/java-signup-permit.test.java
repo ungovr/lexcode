@@ -1,4 +1,4 @@
-// lexcode-expect: 3
+// lexcode-expect: 4
 // Security configuration that opens a sign-up page to anyone, signed in or not.
 package demo.config;
 
@@ -20,5 +20,6 @@ class SecurityConfig {
 
   void legacy(HttpSecurity http) throws Exception {
     http.authorizeRequests().antMatchers("/users/register", "/login").permitAll();
+    http.authorizeRequests().mvcMatchers("/login", "/signup").permitAll();
   }
 }
