@@ -14,7 +14,9 @@ import org.springframework.ai.chat.messages.UserMessage
 import org.springframework.ai.chat.model.ChatModel
 import org.springframework.ai.chat.prompt.Prompt
 import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 
 @RestController
@@ -51,6 +53,20 @@ class ToolController(
         chatClient.prompt().messages(note).call().content()
         return aallam.chatCompletion(ChatCompletionRequest(model = ModelId("m"), messages = request.options)) +
             aallam.chatCompletion(ChatCompletionRequest(model = ModelId("m"), messages = note))
+    }
+
+    // A parameter that is not the request body (a path variable or a query parameter) is not the client's conversation.
+    @PostMapping("/lookup/{id}")
+    fun lookup(@PathVariable messages: List<String>, @RequestParam(required = false) history: List<String>): String {
+        chatClient.prompt().messages(messages).call().content()
+        return chatClient.prompt().messages(history).call().content()
+    }
+
+    // Builders of requests that are not model requests, fed the request's own list.
+    @PostMapping("/notify")
+    fun notify(@RequestBody request: ChatRequest, @RequestBody messages: List<String>): Any {
+        NotificationRequest.builder().messages(request.messages)
+        return MailRequest.builder().messages(messages).build()
     }
 
     // A "messages" builder that is not a model request, and a generate() on a renderer.

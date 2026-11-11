@@ -1,4 +1,4 @@
-// lexcode-expect: 5
+// lexcode-expect: 8
 package demo.ai
 
 import dev.langchain4j.data.message.ChatMessage
@@ -20,17 +20,17 @@ import org.springframework.web.reactive.function.server.awaitBody
 @RestController
 class PromptController(
     private val chatModel: ChatModel,
-    private val langchain: ChatLanguageModel,
+    private val languageModel: ChatLanguageModel,
 ) {
     @PostMapping("/chat/model")
     fun springAiModel(@RequestBody request: ChatRequest) = chatModel.call(Prompt(request.messages))
 
-    @PostMapping("/chat/langchain")
-    fun langchain4j(@RequestBody req: ChatRequest) = langchain.generate(req.messages)
+    @PostMapping("/chat/languageModel")
+    fun langchain4j(@RequestBody req: ChatRequest) = languageModel.generate(req.messages)
 
     @PostMapping("/chat/langchain2")
     suspend fun langchain4jDirect(@RequestBody history: List<ChatMessage>): Any {
-        return langchain.chat(history)
+        return languageModel.chat(history)
     }
 }
 
@@ -46,4 +46,20 @@ class ReactivePromptHandler(private val chatModel: ChatModel) {
         val body = request.awaitBody<ChatRequest>()
         return chatModel.call(Prompt(body.messages))
     }
+}
+
+// The request's list reaches the call through a conversion or a not-null assertion, from a handler
+// whose annotation carries arguments, or into a model named with a camel-case AI part.
+class MappedPromptController(
+    private val chatModel: ChatModel,
+    private val openAI: ChatLanguageModel,
+) {
+    @PostMapping("/chat/mapped")
+    fun mapped(@RequestBody request: ChatRequest) = chatModel.call(Prompt(request.messages.map { toSpring(it) }))
+
+    @PostMapping("/chat/required")
+    fun required(@RequestBody(required = true) request: ChatRequest) = chatModel.call(Prompt(request.messages!!))
+
+    @PostMapping("/chat/openai-named")
+    fun named(@RequestBody request: ChatRequest) = openAI.chat(request.messages)
 }

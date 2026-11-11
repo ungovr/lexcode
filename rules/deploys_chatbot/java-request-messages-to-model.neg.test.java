@@ -61,4 +61,42 @@ class NightlyClassifier {
     String classify(List<org.springframework.ai.chat.messages.Message> history) {
         return chatClient.prompt().messages(history).call().content();
     }
+
+    // Messages that come from the app's own store, not from the request: a getter on another object,
+    // and a local list loaded from a store.
+    @PostMapping("/replay")
+    public String replay(@RequestBody String text, ArchiveService archive) {
+        chatClient.prompt().messages(archive.getMessages()).call().content();
+        List<org.springframework.ai.chat.messages.Message> history = archive.load(text);
+        return chatClient.prompt().messages(history).call().content();
+    }
+
+    // A parameter that is not the request body is not the client's conversation.
+    @PostMapping("/lookup/{id}")
+    public String lookup(@PathVariable List<String> messages, @RequestParam(required = false) List<String> history) {
+        chatClient.prompt().messages(messages).call().content();
+        return chatClient.prompt().messages(history).call().content();
+    }
+
+    // Builders of requests that are not model requests, and receivers with "ai" inside a word.
+    @PostMapping("/notify")
+    public Object notify(@RequestBody ChatRequest request, @RequestBody List<String> messages, MailRenderer mailRenderer, RetailCatalog retailCatalog) {
+        NotificationRequest.builder().messages(request.getMessages());
+        MailRequest.builder().messages(messages).build();
+        mailRenderer.generate(request.getMessages());
+        return retailCatalog.chat(messages);
+    }
+
+    // The request's own value goes to the model, but it is not a conversation: the getter is named for
+    // something else, or the whole body is one string.
+    @PostMapping("/options")
+    public void options(@RequestBody ChatRequest request, @RequestBody String note, ChatModel chatModel) {
+        chatClient.prompt().messages(request.getOptions());
+        chatClient.prompt().messages(note);
+        chatModel.call(new Prompt(note));
+        chatModel.chat(request.getOptions());
+        chatModel.chat(note);
+        chatModel.generate(request.getOptions());
+        chatModel.generate(note);
+    }
 }

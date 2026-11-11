@@ -1,4 +1,4 @@
-// lexcode-expect: 8
+// lexcode-expect: 13
 package demo.ai
 
 import com.aallam.openai.api.chat.ChatCompletionRequest
@@ -81,4 +81,31 @@ class ChatResource(private val chatClient: ChatClient) {
 suspend fun handleChat(call: io.ktor.server.application.ApplicationCall, chatClient: ChatClient) {
     val chat = call.receive<ChatRequest>()
     chatClient.prompt().messages(chat.messages).call().content()
+}
+
+// The request's list reaches the call through a conversion, a not-null assertion, an annotation with
+// arguments, or a builder of a named model request type.
+class MappedChatController(
+    private val chatClient: ChatClient,
+    private val openai: OpenAIClient,
+) {
+    @PostMapping("/chat/mapped")
+    fun mapped(@RequestBody request: ChatRequest): String =
+        chatClient.prompt().messages(request.messages.map { toSpring(it) }).call().content()
+
+    @PostMapping("/chat/asserted")
+    fun asserted(@RequestBody request: ChatRequest): String =
+        chatClient.prompt().messages(request.messages!!).call().content()
+
+    @PostMapping("/chat/required")
+    fun required(@RequestBody(required = true) request: ChatRequest): String =
+        chatClient.prompt().messages(request.messages).call().content()
+
+    @PostMapping("/chat/bedrock")
+    fun bedrock(@RequestBody request: ChatRequest) =
+        ConverseRequest.builder().modelId("m").messages(request.messages).build()
+
+    @PostMapping("/chat/langchain-request")
+    fun langchainRequest(@RequestBody request: ChatRequest) =
+        dev.langchain4j.model.chat.request.ChatRequest.builder().messages(request.messages).build()
 }

@@ -65,6 +65,7 @@ class Wiring {
         SessionStore()
         InMemoryChatMemoryRepository()
         OrderRepository(db)
+        AcmeJdbcChatMemoryRepository(db)
         JdbcOrderRepository.builder().build()
         MongoTemplate.create(template)
     }

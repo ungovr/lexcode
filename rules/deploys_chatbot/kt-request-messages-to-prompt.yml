@@ -26,26 +26,27 @@ rules:
       - pattern-regex: '(?s)(@RequestBody|@Payload|@POST|call\.receive|awaitBody).*'
       - pattern-regex: '(?s)(\bPrompt\(|\.chat\(|\.generate\().*'
       - pattern-either:
-          - pattern-inside: |
-              fun $F(..., @RequestBody $P: $T, ...) { ... }
-          - pattern-inside: |
-              fun $F(..., @RequestBody $P: $T, ...): $R { ... }
-          - pattern-inside: |
-              fun $F(..., @RequestBody $P: $T, ...) = $E
-          - pattern-inside: |
-              fun $F(..., @RequestBody $P: $T, ...): $R = $E
-          - pattern-inside: |
-              suspend fun $F(..., @RequestBody $P: $T, ...) { ... }
-          - pattern-inside: |
-              suspend fun $F(..., @RequestBody $P: $T, ...): $R { ... }
-          - pattern-inside: |
-              suspend fun $F(..., @RequestBody $P: $T, ...) = $E
-          - pattern-inside: |
-              suspend fun $F(..., @RequestBody $P: $T, ...): $R = $E
-          - pattern-inside: |
-              fun $F(..., @Payload $P: $T, ...) { ... }
-          - pattern-inside: |
-              fun $F(..., @Payload $P: $T, ...): $R { ... }
+          - patterns:
+              - pattern-either:
+                  - pattern-inside: |
+                      fun $F(..., @$AN(...) $P: $T, ...) { ... }
+                  - pattern-inside: |
+                      fun $F(..., @$AN(...) $P: $T, ...): $R { ... }
+                  - pattern-inside: |
+                      fun $F(..., @$AN(...) $P: $T, ...) = $E
+                  - pattern-inside: |
+                      fun $F(..., @$AN(...) $P: $T, ...): $R = $E
+                  - pattern-inside: |
+                      suspend fun $F(..., @$AN(...) $P: $T, ...) { ... }
+                  - pattern-inside: |
+                      suspend fun $F(..., @$AN(...) $P: $T, ...): $R { ... }
+                  - pattern-inside: |
+                      suspend fun $F(..., @$AN(...) $P: $T, ...) = $E
+                  - pattern-inside: |
+                      suspend fun $F(..., @$AN(...) $P: $T, ...): $R = $E
+              - metavariable-regex:
+                  metavariable: $AN
+                  regex: ^(RequestBody|Payload)$
           - pattern-inside: |
               @POST
               fun $F(..., $P: $T, ...) { ... }
@@ -108,7 +109,7 @@ rules:
       # is the list.
       - pattern-either:
           - patterns:
-              - pattern: Prompt($P.$A, ...)
+              - pattern: Prompt(<... $P.$A ...>, ...)
               # Literal anchor inside the match (the model call), so the engine skips files with no such call.
               - pattern-regex: '\bPrompt\('
               - metavariable-regex:
@@ -122,12 +123,12 @@ rules:
                   metavariable: $P
                   regex: ^(messages|history|conversation|chatHistory|chatMessages)$
           - patterns:
-              - pattern: $M.$W($P.$A)
+              - pattern: $M.$W(<... $P.$A ...>)
               # Literal anchor inside the match (the model call), so the engine skips files with no such call.
               - pattern-regex: '\.(chat|generate)\('
               - metavariable-regex:
                   metavariable: $M
-                  regex: (?i)^(this\.)?\w*(model|llm|chat|assistant|ai)\w*$
+                  regex: ^(this\.)?(\w*(?i:model|llm|chat|assistant)\w*|(\w*[a-z0-9_])?(Ai|AI)([A-Z_]\w*)?|ai([A-Z_]\w*)?)$
               - metavariable-regex:
                   metavariable: $A
                   regex: ^(get)?([Mm]essages|[Hh]istory|[Cc]onversation|[Cc]hatHistory|[Cc]hatMessages)$
@@ -137,7 +138,7 @@ rules:
               - pattern-regex: '\.(chat|generate)\('
               - metavariable-regex:
                   metavariable: $M
-                  regex: (?i)^(this\.)?\w*(model|llm|chat|assistant|ai)\w*$
+                  regex: ^(this\.)?(\w*(?i:model|llm|chat|assistant)\w*|(\w*[a-z0-9_])?(Ai|AI)([A-Z_]\w*)?|ai([A-Z_]\w*)?)$
               - metavariable-regex:
                   metavariable: $P
                   regex: ^(messages|history|conversation|chatHistory|chatMessages)$

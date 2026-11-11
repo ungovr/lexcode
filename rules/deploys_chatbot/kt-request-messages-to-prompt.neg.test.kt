@@ -5,7 +5,9 @@ import org.springframework.ai.chat.messages.UserMessage
 import org.springframework.ai.chat.model.ChatModel
 import org.springframework.ai.chat.prompt.Prompt
 import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 
 @RestController
@@ -44,6 +46,29 @@ class PromptTools(
         templates.chat(messages)
         templates.generate(request.messages)
         templates.generate(messages)
+    }
+
+    // A parameter that is not the request body (a path variable or a query parameter) is not the client's conversation.
+    @PostMapping("/lookup/{id}")
+    fun lookup(@PathVariable messages: List<String>, @RequestParam(required = false) history: List<String>) {
+        chatModel.call(Prompt(messages))
+        chatModel.call(Prompt(history))
+    }
+
+    // Receivers with "ai" inside a word: mail, retail. They are not models.
+    @PostMapping("/mail")
+    fun mail(
+        @RequestBody request: ChatRequest,
+        @RequestBody messages: List<String>,
+        @RequestBody history: List<String>,
+        mailRenderer: MailRenderer,
+        mailer: Mailer,
+        retailCatalog: RetailCatalog,
+    ) {
+        mailRenderer.generate(request.messages)
+        mailer.chat(messages)
+        retailCatalog.generate(history)
+        retailCatalog.chat(request.messages)
     }
 }
 
