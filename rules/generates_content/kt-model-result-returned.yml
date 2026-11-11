@@ -1,0 +1,110 @@
+rules:
+  - id: lexcode.generate.kt-model-result-returned
+    languages:
+      - kotlin
+    severity: INFO
+    message: Returns the output of a Gemini call from a function, which may be generating content with AI that reaches users (generates_content).
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+          - pattern: $C.models.generateContent(...)
+          - pattern: $C.models.generateContentStream(...)
+          - pattern: $C.chats.create(...)
+      - patterns:
+          - pattern-regex: (?s)\A(?=.*com\.google\.ai\.client\.generativeai\.).*
+          - pattern-either:
+              - pattern: $M.generateContent(...)
+              - pattern: $M.generateContentStream(...)
+              - pattern: $M.startChat(...)
+      - patterns:
+          - pattern-regex: (?s)\A(?=.*com\.google\.firebase\.vertexai\.).*
+          - pattern-either:
+              - pattern: $M.generateContent(...)
+              - pattern: $M.generateContentStream(...)
+              - pattern: $M.startChat(...)
+      - patterns:
+          - pattern-regex: (?s)\A(?=.*com\.google\.firebase\.ai\.).*
+          - pattern-either:
+              - pattern: $M.generateContent(...)
+              - pattern: $M.generateContentStream(...)
+              - pattern: $M.startChat(...)
+      - patterns:
+          - pattern-regex: (?s)\A(?=.*com\.google\.cloud\.vertexai\.).*
+          - pattern-either:
+              - pattern: $M.generateContent(...)
+              - pattern: $M.generateContentStream(...)
+              - pattern: $M.startChat(...)
+    pattern-propagators:
+      - pattern: $S.$M { $X -> ... }
+        from: $S
+        to: $X
+      - pattern: $S?.$M { $X -> ... }
+        from: $S
+        to: $X
+      - patterns:
+          - pattern: $S.$M { <... $IT ...> }
+          - metavariable-regex:
+              metavariable: $IT
+              regex: ^it$
+        from: $S
+        to: $IT
+      - patterns:
+          - pattern: $S?.$M { <... $IT ...> }
+          - metavariable-regex:
+              metavariable: $IT
+              regex: ^it$
+        from: $S
+        to: $IT
+    pattern-sinks:
+      - patterns:
+          - pattern: return $X
+          - pattern-not-inside:
+              patterns:
+                - pattern-either:
+                    - pattern: |
+                        @$A(...)
+                        fun $F(...): $R {
+                          ...
+                        }
+                    - pattern: |
+                        @$A
+                        fun $F(...): $R {
+                          ...
+                        }
+                - metavariable-regex:
+                    metavariable: $A
+                    regex: ^(GetMapping|PostMapping|PutMapping|PatchMapping|DeleteMapping|RequestMapping|ResponseBody|SendTo|SendToUser|QueryMapping|MutationMapping|SubscriptionMapping|GET|POST|PUT|DELETE|HEAD|Get|Post|Put|Patch|Delete|Route)$
+          - pattern-not-inside: |
+              $C { ... }
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  fun $F(...) = $X
+              - pattern-inside: |
+                  fun $F(...): $R = $X
+          - focus-metavariable: $X
+          - pattern-not-inside:
+              patterns:
+                - pattern-either:
+                    - pattern: |
+                        @$A(...)
+                        fun $F(...) = $X
+                    - pattern: |
+                        @$A(...)
+                        fun $F(...): $R = $X
+                    - pattern: |
+                        @$A
+                        fun $F(...) = $X
+                    - pattern: |
+                        @$A
+                        fun $F(...): $R = $X
+                - metavariable-regex:
+                    metavariable: $A
+                    regex: ^(GetMapping|PostMapping|PutMapping|PatchMapping|DeleteMapping|RequestMapping|ResponseBody|SendTo|SendToUser|QueryMapping|MutationMapping|SubscriptionMapping|GET|POST|PUT|DELETE|HEAD|Get|Post|Put|Patch|Delete|Route)$
+    metadata:
+      activity: generates_content
+      mentioned: performs
+      definition: https://lexlint.io/activities/generates-content
+      provenance: ungovr-original
+      license: MIT
+      strength: signal

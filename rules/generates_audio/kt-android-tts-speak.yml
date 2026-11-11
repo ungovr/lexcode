@@ -1,0 +1,20 @@
+rules:
+  - id: lexcode.audio.kt-android-tts-speak
+    languages:
+      - kotlin
+    severity: INFO
+    message: Reads text aloud with the platform text-to-speech engine, which may be generating audio that reaches users (generates_audio).
+    patterns:
+      - pattern-either:
+          - pattern: $T.speak(..., $Q, ...)
+          - pattern: $T?.speak(..., $Q, ...)
+      - metavariable-regex:
+          metavariable: $Q
+          regex: ^(android\.speech\.tts\.)?TextToSpeech\.QUEUE_(FLUSH|ADD)$
+    metadata:
+      activity: generates_audio
+      mentioned: performs
+      definition: https://lexlint.io/activities/generates-audio
+      provenance: ungovr-original
+      license: MIT
+      strength: signal
