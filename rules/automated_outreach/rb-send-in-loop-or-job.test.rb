@@ -1,4 +1,4 @@
-# lexcode-expect: 23
+# lexcode-expect: 33
 # Mail and texts the program sends on its own: once per recipient in a loop, and from a rake task
 # or a scheduler block that no user action triggers.
 class DigestsController < ApplicationController
@@ -111,6 +111,49 @@ class ParenlessSends
     end
     users.each do |user|
       Net::SMTP.start("localhost", 25) { |smtp| smtp.send_message build(user), "hi@example.org", user.email }
+    end
+  end
+end
+
+# Shapes the anchor must admit: a leading-dot chain, a trailing dot and safe navigation.
+class ChainShapesLoop
+  def run(users, phones, addresses)
+    users.each do |user|
+      AnnouncementMailer
+        .notice(user)
+        .deliver_now
+      AnnouncementMailer.
+        notice(user).
+        deliver_later
+      AnnouncementMailer&.notice(user)&.deliver_now
+    end
+    phones.each do |phone|
+      client&.messages&.create(from: "+15550100", to: phone, body: "Hi")
+      client
+        .calls
+        .create(from: "+15550100", to: phone, url: "https://example.org/voice.xml")
+    end
+    addresses.each do |address|
+      Resend::Emails
+        .send(from: "hi@example.org", to: address, subject: "Hi", html: "<p>Hi</p>")
+    end
+  end
+end
+
+# Shapes the anchor must also admit: an empty () after a no-arg method, a comment line or a
+# backslash between the two tokens, and (schema, Mailchimp) text after or far from the key.
+class ResidualShapesLoop
+  def run(users, phones)
+    users.each do |user|
+      AnnouncementMailer.notice(user) # the weekly notice
+        .deliver_now
+      AnnouncementMailer.notice(user) \
+        .deliver_later
+    end
+    phones.each do |phone|
+      client.calls().create(from: "+15550100", to: phone, url: "https://example.org/voice.xml")
+      client.messages # texts
+        .create(from: "+15550100", to: phone, body: "Hi")
     end
   end
 end

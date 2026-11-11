@@ -9,7 +9,7 @@ class. Every rule is original to UnGovr and MIT licensed. The recall table below
 is measured against the truth sets, per activity.
 
 <!-- recall:start -->
-Measured 2026-11-10 over the UnGovr monorepo and four pinned starter
+Measured 2026-11-11 over the UnGovr monorepo and the pinned starter
 templates, against hand-read answer keys. Found counts evidence of either
 kind for the activity or its family; signal only counts the misses where
 lexcode showed a worth-a-look row and nothing stronger. Recall is printed,
@@ -25,12 +25,12 @@ never gated.
 | `generates_content` | 2 | 2 | 0 |  |
 | `generates_text` | 1 | 1 | 0 |  |
 | `processes_biometrics` | 1 | 1 | 0 |  |
-| `processes_personal_data` | 5 | 5 | 0 |  |
+| `processes_personal_data` | 6 | 6 | 0 |  |
 | `processes_voice` | 1 | 1 | 0 |  |
 | `records_calls` | 1 | 0 | 0 | monorepo |
 | `records_text_chat` | 1 | 1 | 0 |  |
-| `ships_consumer_interface` | 4 | 0 | 1 | vercel-chatbot, nextjs-subscription-payments, obytes-expo, full-stack-fastapi |
-| `ships_encryption` | 4 | 1 | 0 | vercel-chatbot, obytes-expo, full-stack-fastapi |
+| `ships_consumer_interface` | 5 | 0 | 2 | vercel-chatbot, nextjs-subscription-payments, obytes-expo, full-stack-fastapi, bullet-train |
+| `ships_encryption` | 5 | 1 | 0 | vercel-chatbot, obytes-expo, full-stack-fastapi, bullet-train |
 | `ships_mobile_app` | 2 | 2 | 0 |  |
 | `statutory_requests` | 1 | 0 | 1 | monorepo |
 | `tracks_devices` | 2 | 2 | 0 |  |

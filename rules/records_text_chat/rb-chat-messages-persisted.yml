@@ -22,7 +22,7 @@ rules:
                   metavariable: $...ARGS
                   regex: (?s)^.*\b(params|message_params|messages_params|chat_params|chat_message_params|conversation_params)\b.*$
               # Literal anchor inside the match, so the engine skips files with no such write.
-              - pattern-regex: '(?i)(add_message|post_message|\.messages\s*\.create)'
+              - pattern-regex: '(?i)(add_message|post_message|&?\.(?:\s|\\|#[^\n]*+)*+messages(?:\(\s*\))?(?:\s|\\|#[^\n]*+)*+&?\.(?:\s|\\|#[^\n]*+)*+create)'
           - patterns:
               - pattern-either:
                   - pattern: ChatMessage.create($...ARGS)
@@ -52,7 +52,7 @@ rules:
               - metavariable-regex:
                   metavariable: $...ARGS
                   regex: (?s)^.*\b(params|message_params|messages_params|chat_params|chat_message_params|conversation_params)\b.*$
-              - pattern-regex: '(?i)(ChatMessages?|Chats?::Message|ConversationMessage|Conversations?(::Message)?|\bChat|ChatTurn|Transcript(Entry)?|LiveChatMessage)\.create'
+              - pattern-regex: '(?i)(ChatMessages?|Chats?::Message|ConversationMessage|Conversations?(::Message)?|\bChat|ChatTurn|Transcript(Entry)?|LiveChatMessage)(?:\(\s*\))?(?:\s|\\|#[^\n]*+)*+&?\.(?:\s|\\|#[^\n]*+)*+create'
           - patterns:
               - pattern-inside: |
                   class $CLS < ApplicationCable::Channel

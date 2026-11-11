@@ -1,4 +1,4 @@
-# lexcode-expect: 10
+# lexcode-expect: 19
 # Rails migrations and a schema dump that create or add personal columns.
 class CreateCustomers < ActiveRecord::Migration[7.1]
   def change
@@ -31,5 +31,37 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_10_000000) do
     t.string "topic"
     t.string "email", default: "", null: false
     t.string "current_sign_in_ip"
+  end
+end
+
+# Shapes the anchor must admit: a leading-dot chain, a trailing dot and safe navigation.
+class CreateChainShapes < ActiveRecord::Migration[7.1]
+  def change
+    create_table :people do |t|
+      t
+        .string :email, null: false
+      t.
+        string :phone_number
+      t&.date :date_of_birth
+      t.string(
+        :last_sign_in_ip,
+        null: true
+      )
+    end
+  end
+end
+
+# Shapes the anchor must also admit: an empty () after a no-arg method, a comment line or a
+# backslash between the two tokens, and (schema, Mailchimp) text after or far from the key.
+class CreateResidualShapes < ActiveRecord::Migration[7.1]
+  def change
+    create_table :people do |t|
+      t.string :email # login address
+      t.date :date_of_birth # YYYY-MM-DD
+      t.inet :last_sign_in_ip   # filled by Devise
+      t.string :ssn if respond_to?(:string)
+      t # builder
+        .string :phone_number
+    end
   end
 end
