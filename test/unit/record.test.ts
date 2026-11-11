@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildRecord, countRulesRun } from '../../src/record/build.js';
+import { buildRecord, countRulesRun, engineTargets, unreadLanguages } from '../../src/record/build.js';
 import type { Sidecar } from '../../src/types.js';
 import { NOW, SCOPE, match, ruleSetWith } from '../helpers/record.js';
 
@@ -342,5 +342,33 @@ describe('countRulesRun', () => {
     const m = countRulesRun(rs, rs.rules, ['a.rb'], new Set());
     expect(m.get('trains_models')).toBeUndefined();
     expect(m.get('tracks_devices')).toBe(2);
+  });
+});
+
+describe('unreadLanguages for Ruby', () => {
+  const files = ['a.rb', 'b.rake', 'c.php'];
+  /** The rules of the test alone: the helper's rule set carries the bundled ones as well. */
+  const only = (rs: ReturnType<typeof ruleSetWith>) => rs.rules.filter((r) => r.id.startsWith('lexcode.a.'));
+
+  it('reads .rb and .rake with a Ruby rule, so only PHP is unread', () => {
+    const rs = ruleSetWith([{ id: 'lexcode.a.rb', activity: 'trains_models', languages: ['ruby'] }]);
+    expect(unreadLanguages(only(rs), files)).toEqual([{ language: 'PHP', files: 1 }]);
+  });
+
+  it('counts .rb and .rake as Ruby files when no rule reads Ruby', () => {
+    const rs = ruleSetWith([{ id: 'lexcode.a.py', activity: 'trains_models', languages: ['python'] }]);
+    expect(unreadLanguages(only(rs), files)).toEqual([
+      { language: 'Ruby', files: 2 },
+      { language: 'PHP', files: 1 },
+    ]);
+  });
+
+  it('counts .ru and .gemspec as Ruby, and hands them to a Ruby rule', () => {
+    const rs = ruleSetWith([{ id: 'lexcode.a.rb', activity: 'trains_models', languages: ['ruby'] }]);
+    const all = ['config.ru', 'x.gemspec', 'y.rb'];
+    expect(unreadLanguages(only(rs), all)).toEqual([]);
+    expect(engineTargets(only(rs), [...all, 'z.py'])).toEqual(all);
+    const py = ruleSetWith([{ id: 'lexcode.a.py', activity: 'trains_models', languages: ['python'] }]);
+    expect(unreadLanguages(only(py), all)).toEqual([{ language: 'Ruby', files: 3 }]);
   });
 });
