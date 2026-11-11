@@ -122,3 +122,16 @@ class DocsSearchController < ApplicationController
     @backup_llm ||= Langchain::LLM::Ollama.new(url: "http://localhost:11434")
   end
 end
+
+class AssistantFormsController < ApplicationController
+  # An assistant built on the client, and the client from a local variable, held for the form.
+  def new
+    llm = Langchain::LLM::OpenAI.new(api_key: ENV.fetch("OPENAI_API_KEY"))
+    @assistant = Langchain::Assistant.new(llm: llm, instructions: "Be brief.")
+  end
+
+  def edit
+    llm = Langchain::LLM::OpenAI.new(api_key: ENV.fetch("OPENAI_API_KEY"))
+    @llm = llm
+  end
+end

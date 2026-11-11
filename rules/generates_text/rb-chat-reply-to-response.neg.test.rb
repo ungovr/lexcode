@@ -251,3 +251,59 @@ class DraftCleanupJob < ApplicationJob
     message.broadcast_remove_to(message.thread)
   end
 end
+
+# A route whose last statement hands the text on has that call's value, not the text.
+class HookRoutes < Sinatra::Base
+  post "/hooks/save" do
+    answer = RubyLLM.chat.ask("Say hi.").content
+    Message.create!(body: answer)
+  end
+
+  post "/hooks/log" do
+    answer = RubyLLM.chat.ask("Say hi.").content
+    logger.info(answer)
+  end
+
+  post "/hooks/notify" do
+    answer = RubyLLM.chat.ask("Say hi.").content
+    SlackNotifier.post(answer)
+  end
+
+  post "/hooks/file" do
+    answer = RubyLLM.chat.ask("Say hi.").content
+    File.write("tmp/answer.txt", answer)
+  end
+
+  get "/hooks/print" do
+    answer = RubyLLM.chat.ask("Say hi.").content
+    puts answer
+  end
+
+  get "/hooks/rails-log" do
+    answer = RubyLLM.chat.ask("Say hi.").content
+    Rails.logger.info "said #{answer}"
+  end
+end
+
+class ChatFormsController < ApplicationController
+  # A chat object built in a local variable first, then kept for the form.
+  def new
+    chat = RubyLLM.chat(model: "gpt-4o-mini")
+    @chat = chat
+  end
+
+  def edit
+    chat = RubyLLM.chat(model: "gpt-4o-mini")
+    chat.with_instructions("Be brief.")
+    @chat ||= chat
+  end
+end
+
+class SpamCleanupJob < ApplicationJob
+  # A Turbo stream removal shows nothing of the message.
+  def perform(message)
+    verdict = RubyLLM.chat.ask("Is this spam? #{message.content}").content
+    message.update!(spam_verdict: verdict)
+    Turbo::StreamsChannel.broadcast_remove_to(message.thread, target: message)
+  end
+end

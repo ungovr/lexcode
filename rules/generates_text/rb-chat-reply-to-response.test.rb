@@ -1,4 +1,4 @@
-# lexcode-expect: 27
+# lexcode-expect: 35
 require "anthropic"
 require "openai"
 
@@ -251,5 +251,45 @@ class NoteDigestJob < ApplicationJob
   def perform(user, client)
     result = client.chat(parameters: { model: "gpt-4o-mini", messages: [{ role: "user", content: "Summarize my notes." }] })
     NotesChannel.broadcast_to(user, { text: result.dig("choices", 0, "message", "content") })
+  end
+end
+
+# Sinatra routes with options after the path, every verb, and values built from the text.
+class OptionRoutes < Sinatra::Base
+  get "/answers", provides: :json do
+    answer = RubyLLM.chat.ask("Answer #{params[:q]}").content
+    { answer: answer }.to_json
+  end
+
+  put "/drafts/:id" do
+    reply = RubyLLM.chat.ask("Redraft #{params[:text]}")
+    reply.content
+  end
+
+  patch "/drafts/:id" do
+    answer = RubyLLM.chat.ask("Tighten #{params[:text]}").content
+    "<p>#{answer}</p>"
+  end
+
+  delete "/drafts/:id" do
+    RubyLLM.chat.ask("Write a goodbye note for #{params[:name]}").content
+  end
+
+  post "/pages", provides: :html do
+    @page = RubyLLM.chat.ask("Write a page about #{params[:topic]}").content
+    erb :page
+  end
+end
+
+# Text gathered into an instance variable, and set on a record the view shows.
+class DigestsController < ApplicationController
+  def show
+    chat = RubyLLM.chat
+    @text = +""
+    chat.ask(params[:q]) { |chunk| @text << chunk.content.to_s }
+    @summary = ""
+    @summary += chat.ask("Summarize #{params[:q]}").content
+    @post = Post.find(params[:id])
+    @post.summary = chat.ask("Summarize #{@post.body}").content
   end
 end
