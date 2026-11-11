@@ -2,7 +2,7 @@ rules:
   - id: lexcode.esign.rb-signature-capture
     languages: [ruby]
     severity: INFO
-    message: Stores a signature a person drew or captured as an attachment on a record, which is collecting electronic signatures (collects_e_signatures).
+    message: Stores a signature a person drew or captured on the record of an agreement, waiver or consent, which is collecting electronic signatures (collects_e_signatures).
     patterns:
       - pattern-either:
           - pattern: has_one_attached $SIG, ...
@@ -13,7 +13,17 @@ rules:
           - pattern: $R.$SIG.attach(...)
       - metavariable-regex:
           metavariable: $SIG
-          regex: '(?i)^:?["'']?(?:(?:customer|client|guest|member|patient|participant|signee|signer|tenant|guarantor|applicant|borrower|buyer|seller|employee|witness|parent|guardian|user|drawn|handwritten|electronic|e)_)?signature(?:_(?:image|img|png|svg|data|file|photo|scan|drawing))?["'']?$'
+          regex: '(?i)^:?["'']?(?:(?:customer|client|guest|patient|participant|signee|signer|tenant|guarantor|applicant|borrower|buyer|seller|witness|guardian|drawn|handwritten|electronic|e)_)?signature(?:_(?:image|img|png|svg|data|file|photo|scan|drawing))?["'']?$'
+      # The record the signature hangs on must be an agreement of some kind: a
+      # profile, a package release and an email template carry a "signature"
+      # too, and none of them is a person signing a document.
+      - pattern-inside: |
+          class $C
+            ...
+          end
+      - metavariable-regex:
+          metavariable: $C
+          regex: '(?i)(?:waiver|consent|agreement|contract|lease|authori[sz]ation|acknowledg|attestation|disclosure|confidentiality|(?:liability|medical|photo)_?release|sign_?off|signing|esign|signature_?(?:request|form|pad)|work_?order|quote|estimate|proposal|permission_?slip|enrol+ment|approval)'
     metadata:
       activity: collects_e_signatures
       mentioned: performs

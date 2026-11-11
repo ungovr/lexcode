@@ -1,51 +1,7 @@
-# lexcode-expect: 24
+# lexcode-expect: 14
 # Encrypting data or agreeing keys with a cryptography library the product
-# bundles: Ruby's OpenSSL bindings, Rails' message encryptor, RbNaCl, Fernet,
-# Lockbox, JWE and others.
-require "openssl"
-
-# OpenSSL ciphers, in the shapes people write them.
-class FieldCipher
-  def encrypt(plain, key)
-    cipher = OpenSSL::Cipher.new("aes-256-gcm")
-    cipher.encrypt
-    cipher.key = key
-    iv = cipher.random_iv
-    [iv, cipher.update(plain) + cipher.final, cipher.auth_tag]
-  end
-
-  def decrypt(iv, data, tag, key)
-    cipher = OpenSSL::Cipher.new 'aes-256-gcm'
-    cipher.decrypt
-    cipher.key = key
-    cipher.iv = iv
-    cipher.auth_tag = tag
-    cipher.update(data) + cipher.final
-  end
-
-  def scoped(key)
-    ::OpenSSL::Cipher.new("aes-128-cbc").tap { |c| c.encrypt; c.key = key }
-  end
-
-  def named_classes
-    [OpenSSL::Cipher::AES.new(256, :CBC), OpenSSL::Cipher::AES256.new(:CBC), ::OpenSSL::Cipher::AES128.new(:CBC)]
-  end
-end
-
-# RSA public-key encryption and S/MIME.
-class Envelope
-  def seal(public_key, secret)
-    public_key.public_encrypt(secret, OpenSSL::PKey::RSA::PKCS1_OAEP_PADDING)
-  end
-
-  def open(private_key, sealed)
-    private_key.private_decrypt(sealed, OpenSSL::PKey::RSA::PKCS1_OAEP_PADDING)
-  end
-
-  def smime(certs, data)
-    OpenSSL::PKCS7.encrypt(certs, data, OpenSSL::Cipher.new("aes-256-cbc"))
-  end
-end
+# bundles: Rails' message encryptor, RbNaCl, Fernet, Lockbox, JWE gems and
+# others. Ruby's own OpenSSL bindings are the platform's, see the negative fixture.
 
 # Rails' message encryptor, for cookies and tokens of the app's own.
 class TokenBox

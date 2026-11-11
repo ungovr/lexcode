@@ -2,21 +2,8 @@ rules:
   - id: lexcode.crypto.rb-library-encryption
     languages: [ruby]
     severity: INFO
-    message: Encrypts data or agrees keys with a cryptography library the product bundles (OpenSSL's Ruby bindings, Rails' message encryptor, RbNaCl, Fernet, Lockbox or JWE), which is shipping encryption (ships_encryption).
+    message: Encrypts data or agrees keys with a cryptography library the product bundles (Rails' message encryptor, RbNaCl, Fernet, Lockbox or a JWE gem), which is shipping encryption (ships_encryption).
     pattern-either:
-      - pattern: OpenSSL::Cipher.new(...)
-      - pattern: ::OpenSSL::Cipher.new(...)
-      - patterns:
-          - pattern-either:
-              - pattern: OpenSSL::Cipher::$A.new(...)
-              - pattern: ::OpenSSL::Cipher::$A.new(...)
-          - metavariable-regex:
-              metavariable: $A
-              regex: ^(?!\w*Error$)\w+$
-      - pattern: $K.public_encrypt(...)
-      - pattern: $K.private_decrypt(...)
-      - pattern: OpenSSL::PKCS7.encrypt(...)
-      - pattern: ::OpenSSL::PKCS7.encrypt(...)
       - pattern: ActiveSupport::MessageEncryptor.new(...)
       - pattern: ::ActiveSupport::MessageEncryptor.new(...)
       - pattern: RbNaCl::SecretBox.new(...)

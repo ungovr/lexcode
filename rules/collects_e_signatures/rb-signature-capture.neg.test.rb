@@ -37,6 +37,30 @@ class ReportsController < ApplicationController
   end
 end
 
+# A bare "signature" on a record that is not an agreement: a profile signature
+# image under forum posts, a detached signature of a released package, and the
+# footer of an email template. None is a person signing a document.
+class User < ApplicationRecord
+  has_one_attached :signature
+  mount_uploader :user_signature, SignatureImageUploader
+end
+
+class PackageVersion < ApplicationRecord
+  has_one_attached :signature
+  has_one_attached :archive
+end
+
+class EmailTemplate < ApplicationRecord
+  has_attached_file :signature, styles: { footer: "600x120>" }
+end
+
+class PackagesController < ApplicationController
+  def attach_signature
+    @package.signature.attach(params[:sig])
+    current_user.signature.attach(io: File.open(params[:path]), filename: "sig.png")
+  end
+end
+
 # A method named signature on the app's own class, with no attachment.
 class Request
   def signature
