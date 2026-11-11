@@ -311,6 +311,18 @@ engine kept inside a monolith can set either, with a `source_code_uri` that
 points into the monolith's own tree, and so reads as a distributed product.
 Telling an in-repo path gem from a published one is not done yet.
 
+### A known residual: mail to administrators
+
+The `automated_outreach` rules that find a message sent from a loop, a
+background job or a scheduled job cannot tell who receives it. A job that mails
+its own status or a report to the administrators who run the system has that
+shape, though it is not outreach to the people the app serves. In Ruby it is
+`lexcode.outreach.rb-send-in-background-job`, the job-status email in the Canvas
+LMS block above. In Java it is `lexcode.outreach.java-send-in-loop` and
+`lexcode.outreach.java-send-in-scheduled-job`: report mails to administrators
+were 4 of the 13 matches those two rules made in Sakai when they were reviewed.
+Read such a match against its recipient list before relying on it.
+
 ## Java, Kotlin, JSP and the Maven ecosystem
 
 How lexcode reads Java and Kotlin, where the engine cannot, and what a Maven or
@@ -416,6 +428,9 @@ neither are the dependency declarations of precompiled `*.gradle.kts` plugins
 string concatenation is not recorded. A dependency whose version comes from a
 BOM, or from a parent outside the repository, is recorded without a version.
 JVM Test Suite dependencies (`testing { suites { ... } }`) count as production.
+`gradle-maven-publication` reads only a `publishing {` block that starts at the
+beginning of a line (the top level of a build file), so one nested in
+`subprojects {}` or `allprojects {}` is missed.
 
 ### The Java gate exemption
 
@@ -426,7 +441,9 @@ JVM evidence lives in build files, is met by a `maven-` or `gradle-` rule.
 ### Java and Kotlin files
 
 Test source sets are left out like `test`: the directories `androidTest`,
-`testFixtures` and `integrationTest` are skipped unless `--include-tests`. The
+`testFixtures` and `integrationTest`, and the Kotlin Multiplatform test source
+sets `commonTest`, `jvmTest`, `androidUnitTest`, `androidInstrumentedTest`,
+`iosTest`, `jsTest` and `nativeTest`, are skipped unless `--include-tests`. The
 `samples`, `example` and `demo` path excludes some rules use are not used on
 Java or Kotlin source rules, because the engine's path globs also match package
 paths (`com.google.samples.apps`, `org.springframework.samples`,
