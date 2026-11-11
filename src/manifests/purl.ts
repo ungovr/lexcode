@@ -17,7 +17,7 @@ function encPath(path: string): string {
 /**
  * Build the package URL of a dependency. npm keeps its case and percent-encodes a
  * scope's `@`; PyPI is normalized per PEP 503; Go namespace and name are lowercased,
- * as the purl specification requires for the golang type; a gem name is kept as written.
+ * as the purl specification requires for the golang type; a gem name is kept as written; a Maven `group:artifact` becomes the namespace and name, as written.
  */
 export function purlOf(d: Dependency): string {
   let type: string;
@@ -38,6 +38,11 @@ export function purlOf(d: Dependency): string {
     case 'gem':
       type = 'gem';
       name = d.name;
+      break;
+    case 'maven':
+      // group:artifact becomes the purl namespace and name; Maven coordinates are case-sensitive and kept as written.
+      type = 'maven';
+      name = d.name.replace(':', '/');
       break;
   }
   const base = `pkg:${type}/${encPath(name)}`;
