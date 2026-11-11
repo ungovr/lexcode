@@ -1,0 +1,42 @@
+rules:
+  - id: lexcode.chat.java-socket-handler-saves-message
+    languages: [java]
+    severity: INFO
+    message: Writes what a person sent over a websocket to a message or chat record, which is keeping a text chat (records_text_chat).
+    # The handler shapes are Spring's @MessageMapping, the Jakarta @OnMessage endpoint and a
+    # TextWebSocketHandler. A handler that saves something else (a position, a metric) does not match,
+    # because the record must be named for a message, chat, conversation, transcript or dialog.
+    patterns:
+      - pattern-either:
+          - pattern-inside: |
+              @MessageMapping(...)
+              $RET $F(...) {
+                ...
+              }
+          - pattern-inside: |
+              @OnMessage
+              $RET $F(...) {
+                ...
+              }
+          - pattern-inside: |
+              $RET handleTextMessage(WebSocketSession $S, TextMessage $M) {
+                ...
+              }
+      - pattern-either:
+          - pattern: $R.save(...)
+          - pattern: $R.saveAll(...)
+          - pattern: $R.saveAndFlush(...)
+          - pattern: $R.insert(...)
+          - pattern: $R.persist(...)
+          - pattern: $R.addMessage(...)
+      - metavariable-regex:
+          metavariable: $R
+          regex: '(?i)^(this\.)?\w*(message|msg|chat|conversation|transcript|dialog)\w*$'
+      # Literal anchor inside the match (the write), so the engine skips files with no such call.
+      - pattern-regex: '\.(save|saveAll|saveAndFlush|insert|persist|addMessage)\('
+    metadata:
+      activity: records_text_chat
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-text-chat
+      provenance: ungovr-original
+      license: MIT

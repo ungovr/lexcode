@@ -1,0 +1,41 @@
+rules:
+  - id: lexcode.chat.java-chat-messages-persisted
+    languages: [java]
+    severity: INFO
+    message: Writes the text of a chat to a conversation, transcript or chat message table, which is keeping a text chat (records_text_chat).
+    # A form the app only saves is not a chat, so the record is named for a chat: either the
+    # repository or DAO is (chat message, chat history, conversation, transcript), or the entity
+    # handed to any store is (new ChatMessage(...), ConversationTurn.builder()...). A contact,
+    # feedback or ticket record, and a chat ROOM record that holds no text, do not match.
+    patterns:
+      - pattern-either:
+          - patterns:
+              - pattern-either:
+                  - pattern: $R.save(...)
+                  - pattern: $R.saveAll(...)
+                  - pattern: $R.saveAndFlush(...)
+                  - pattern: $R.insert(...)
+                  - pattern: $R.persist(...)
+              - metavariable-regex:
+                  metavariable: $R
+                  regex: '(?i)^(this\.)?\w*(chat(message|msg|history|log|turn|entry|transcript|s)?|conversation(message|msg|turn|entry|s)?|transcript(entry)?|dialog(message|turn))(repository|repo|dao|mapper|store)$'
+          - patterns:
+              - pattern-either:
+                  - pattern: $R.save(<... new $T(...) ...>)
+                  - pattern: $R.saveAndFlush(<... new $T(...) ...>)
+                  - pattern: $R.persist(<... new $T(...) ...>)
+                  - pattern: $R.insert(<... new $T(...) ...>)
+                  - pattern: $R.save(<... $T.builder() ...>)
+                  - pattern: $R.saveAndFlush(<... $T.builder() ...>)
+                  - pattern: $R.persist(<... $T.builder() ...>)
+              - metavariable-regex:
+                  metavariable: $T
+                  regex: ^(Chat(Message|Msg|History|Log|Turn|Entry|Transcript)|Conversation(Message|Turn|Entry)?|Transcript(Entry)?|Dialog(Message|Turn))$
+      # Literal anchor inside the match (the write), so the engine skips files with no such call.
+      - pattern-regex: '\.(save|saveAll|saveAndFlush|insert|persist)\('
+    metadata:
+      activity: records_text_chat
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-text-chat
+      provenance: ungovr-original
+      license: MIT

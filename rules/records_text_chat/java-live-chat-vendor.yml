@@ -1,0 +1,24 @@
+rules:
+  - id: lexcode.chat.java-live-chat-vendor
+    languages: [java]
+    severity: INFO
+    message: Starts a live-chat or in-app messaging SDK, so the vendor receives what visitors type to support, which is a text chat that is kept (records_text_chat).
+    # The vendor SDKs an Android or Java app starts by a call on the vendor's own class: Intercom,
+    # Freshchat, Zendesk Chat, Smooch, Sendbird, Stream Chat and Twilio Conversations. A help-center
+    # article viewer, analytics and crash reporting are not matched.
+    pattern-either:
+      - pattern: Intercom.initialize(...)
+      - pattern: Intercom.client()
+      - pattern: Freshchat.getInstance(...)
+      - pattern: Chat.INSTANCE.init(...)
+      - pattern: Smooch.init(...)
+      - pattern: SendbirdChat.init(...)
+      - pattern: SendBird.init(...)
+      - pattern: new ChatClient.Builder(...)
+      - pattern: ConversationsClient.create(...)
+    metadata:
+      activity: records_text_chat
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-text-chat
+      provenance: ungovr-original
+      license: MIT
