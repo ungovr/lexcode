@@ -35,11 +35,20 @@ export interface Scaling<R> {
   ratio: number;
   /** What the function returned for the large input, for the test's own correctness assertions. */
   result: R;
+  /** How many measurements were taken (see `measureScaling`). */
+  attempts: number;
 }
 
 /**
  * Times `run` on a small and a large input built by `setup` (outside the
  * clock), each as the minimum of several repetitions after a warm-up.
+ *
+ * A ratio over the bound is measured again, both sizes afresh, up to
+ * `attempts` times in all, and the lowest ratio is the one returned. Noise on
+ * a shared runner only ever adds time, and it comes and goes: one CI run
+ * measured a linear function at 41.7x for 10x the input and the next at under
+ * 30x (#12844). A quadratic regression is over the bound on every attempt, so
+ * the extra attempts cost time only when something is already wrong or noisy.
  */
 export function measureScaling<T, R>(opts: {
   small: number;
@@ -47,20 +56,30 @@ export function measureScaling<T, R>(opts: {
   setup: (n: number) => T;
   run: (input: T) => R;
   reps?: number;
+  attempts?: number;
 }): Scaling<R> {
   const reps = opts.reps ?? 4;
+  const attempts = opts.attempts ?? 3;
   const smallInput = opts.setup(opts.small);
   const largeInput = opts.setup(opts.large);
-  const smallMs = timePerCall(() => opts.run(smallInput), reps, 5);
-  const largeMs = timePerCall(() => opts.run(largeInput), reps, 5);
-  return { smallMs, largeMs, ratio: largeMs / smallMs, result: opts.run(largeInput) };
+  let best: { smallMs: number; largeMs: number; ratio: number } | undefined;
+  let taken = 0;
+  while (taken < attempts) {
+    taken++;
+    const smallMs = timePerCall(() => opts.run(smallInput), reps, 5);
+    const largeMs = timePerCall(() => opts.run(largeInput), reps, 5);
+    const ratio = largeMs / smallMs;
+    if (best === undefined || ratio < best.ratio) best = { smallMs, largeMs, ratio };
+    if (best.ratio < MAX_RATIO_FOR_10X) break;
+  }
+  return { ...best!, result: opts.run(largeInput), attempts: taken };
 }
 
 /** Asserts the cost grew no faster than near-linearly for a 10x larger input. */
 export function expectNearLinear(m: Scaling<unknown>, what = 'the function'): void {
-  if (process.env['LEXCODE_SCALING_LOG']) process.stderr.write(`scaling ${what}: ${m.ratio.toFixed(2)}x (${m.smallMs.toFixed(3)} ms -> ${m.largeMs.toFixed(3)} ms)` + '\n');
+  if (process.env['LEXCODE_SCALING_LOG']) process.stderr.write(`scaling ${what}: ${m.ratio.toFixed(2)}x (${m.smallMs.toFixed(3)} ms -> ${m.largeMs.toFixed(3)} ms, ${m.attempts} attempt(s))` + '\n');
   expect(
     m.ratio,
-    `${what}: 10x the input cost ${m.ratio.toFixed(1)}x the time (${m.smallMs.toFixed(3)} ms, then ${m.largeMs.toFixed(3)} ms); linear is about 10x, quadratic about 100x`,
+    `${what}: 10x the input cost ${m.ratio.toFixed(1)}x the time (${m.smallMs.toFixed(3)} ms, then ${m.largeMs.toFixed(3)} ms), the lowest of ${m.attempts} measurement(s); linear is about 10x, quadratic about 100x`,
   ).toBeLessThan(MAX_RATIO_FOR_10X);
 }
