@@ -24,6 +24,10 @@ plugins {
 // The app module applies com.android.application; this module is the shared sync library.
 val appPluginId = "com.android.application-not-applied"
 
+apply {
+    plugin("com.android.library")
+}
+
 android {
     namespace = "org.example.fieldnotes.sync"
     compileSdk = 34

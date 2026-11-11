@@ -1,4 +1,4 @@
-// lexcode-expect: 4
+// lexcode-expect: 6
 // The same plugins reached through the build classpath, apply(), and a vanniktech catalog alias.
 buildscript {
     dependencies {
@@ -11,4 +11,6 @@ apply(plugin = "com.vanniktech.maven.publish")
 
 plugins {
     alias(libs.plugins.vanniktech.maven.publish)
+    alias(libs.plugins.vanniktech.mavenPublish)
+    alias(libs.plugins.gradle.nexus.publish)
 }

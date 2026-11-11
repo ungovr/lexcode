@@ -14,6 +14,12 @@ plugins {
 // Releases go out through the store console by hand; com.github.triplet.play is not used here.
 val playPluginId = "com.github.triplet.play-not-applied"
 
+buildscript {
+    dependencies {
+        classpath("com.github.triplet.gradle:android-publisher:3.10.1")
+    }
+}
+
 android {
     namespace = "org.example.fieldnotes"
     compileSdk = 34

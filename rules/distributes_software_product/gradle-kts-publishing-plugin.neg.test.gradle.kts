@@ -18,6 +18,11 @@ plugins {
     id("io.github.gradle-nexus.publish-plugin") version "2.0.0" apply false
     alias(libs.plugins.vanniktech.publish) apply false
     alias(libs.plugins.jreleaser) apply false
+    alias(libs.plugins.vanniktech.dependency.graph)
+    alias(libs.plugins.vanniktech.android.junit.jacoco)
+    alias(libs.plugins.vanniktech.code.quality)
+    alias(libs.plugins.gradle.nexus.publish.other)
+    alias(libs.plugins.myapp.vanniktech)
 }
 
 // Publishing goes through the company pipeline: com.vanniktech.maven.publish is not applied here.
