@@ -323,6 +323,49 @@ describe('readMaven', () => {
     expect(readMaven(tree({ 'pom.xml': text }), ['pom.xml']).deps).toHaveLength(1);
   });
 
+  it('a property that names the next one many times does not hang the reader', () => {
+    // 9 levels, each naming the next 10 times: 10^9 expansions without a memo, and far past the length cap.
+    const ref = (n: number): string => '${p' + n + '}';
+    const props = Array.from({ length: 9 }, (_v, i) => `    <p${i}>${ref(i + 1).repeat(10)}</p${i}>`);
+    const text = pom({
+      head: ['  <properties>', ...props, '    <p9>1</p9>', '  </properties>'],
+      body: deps(dep('com.fan', 'fan', { version: '${p0}' }), dep('com.fan', 'ok', { version: '${p9}' })),
+    });
+    const t0 = Date.now();
+    const r = readMaven(tree({ 'pom.xml': text }), ['pom.xml']);
+    expect(Date.now() - t0).toBeLessThan(2000);
+    expect(r.deps.map((d) => [d.name, d.version])).toEqual([
+      ['com.fan:fan', undefined],
+      ['com.fan:ok', '1'],
+    ]);
+    expect(r.notices).toHaveLength(1);
+  });
+
+  it('a short fan-out inside the length cap still resolves', () => {
+    const text = pom({
+      head: ['  <properties>', `    <a>${'${b}'.repeat(10)}</a>`, `    <b>${'${c}'.repeat(10)}</b>`, '    <c>x</c>', '  </properties>'],
+      body: deps(dep('com.fan', 'fan', { version: '${a}' })),
+    });
+    expect(readMaven(tree({ 'pom.xml': text }), ['pom.xml']).deps[0]?.version).toBe('x'.repeat(100));
+  });
+
+  it('a notice for a pom that does not parse never carries the pom text', () => {
+    const token = 'AKIAIOSFODNN7EXAMPLE';
+    const root = tree({
+      'a/pom.xml': `<project>\n<${token}`,
+      'b/pom.xml': `<project>\n<dep ${token}="`,
+      'c/pom.xml': `<project>\n<dep ${token}=x/>`,
+      'd/pom.xml': `<project>\n<${token}>\n</project>`,
+      'e/pom.xml': `<${token}>\n<x>\n</${token}>`,
+    });
+    const r = readMaven(root, ['a/pom.xml', 'b/pom.xml', 'c/pom.xml', 'd/pom.xml', 'e/pom.xml']);
+    expect(r.notices).toHaveLength(5);
+    for (const n of r.notices) {
+      expect(n).not.toContain(token);
+      expect(n).toMatch(/^[a-e]\/pom\.xml: did not parse \(.*line \d+.*\); skipped$/);
+    }
+  });
+
   it('a pom that does not parse is a notice, not a throw', () => {
     const good = pom({ body: deps(dep('com.good', 'good', { version: '1' })) });
     const root = tree({ 'bad/pom.xml': '<project><dependencies>\n<dependency>', 'good/pom.xml': good });

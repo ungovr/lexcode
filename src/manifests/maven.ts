@@ -13,6 +13,10 @@ import { parseXml, XmlError, type XmlElement } from './xml.js';
 
 const MAX_DEPTH = 10;
 const MAX_CHAIN = 20;
+/** Longest string a `${...}` expansion may produce; past it the value is unresolved. */
+const MAX_EXPANDED = 4096;
+/** Stack guard for a chain of properties each naming the next. */
+const MAX_PROP_DEPTH = 200;
 
 interface PomRef {
   groupId?: string;
@@ -247,21 +251,44 @@ export function readMaven(root: string, files: string[]): ReaderResult {
     return undefined;
   };
 
-  /** Replace every `${...}`; undefined when one cannot be resolved or the chain runs past MAX_DEPTH. */
+  // A property's resolved value, per leaf pom and name, computed once. IN_PROGRESS marks a property being
+  // resolved, so a cycle is found when it is reached again; a value that grows past MAX_EXPANDED is unresolved.
+  // Without the memo a property naming the next one many times expands exponentially.
+  const IN_PROGRESS = Symbol('in progress');
+  const propCache = new Map<Pom, Map<string, string | undefined | typeof IN_PROGRESS>>();
+
+  const resolveProp = (name: string, ctx: Chain, depth: number): string | undefined => {
+    const leaf = ctx.poms[0] as Pom;
+    let cache = propCache.get(leaf);
+    if (cache === undefined) propCache.set(leaf, (cache = new Map()));
+    if (cache.has(name)) {
+      const hit = cache.get(name);
+      return hit === IN_PROGRESS ? undefined : hit;
+    }
+    cache.set(name, IN_PROGRESS);
+    const raw = lookup(name, ctx);
+    const value = raw === undefined ? undefined : interp(raw, ctx, depth + 1);
+    cache.set(name, value);
+    return value;
+  };
+
+  /** Replace every `${...}`; undefined when one cannot be resolved, is a cycle, or the result is too long. */
   const interp = (s: string, ctx: Chain, depth = 0): string | undefined => {
-    if (!s.includes('${')) return s;
-    if (depth > MAX_DEPTH) return undefined;
+    if (!s.includes('${')) return s.length > MAX_EXPANDED ? undefined : s;
+    if (depth > MAX_PROP_DEPTH) return undefined;
     let failed = false;
+    let length = 0;
     const out = s.replace(/\$\{([^}]*)\}/g, (_w, name: string) => {
-      const v = lookup(name.trim(), ctx);
-      const r = v === undefined ? undefined : interp(v, ctx, depth + 1);
-      if (r === undefined) {
+      if (failed) return '';
+      const r = resolveProp(name.trim(), ctx, depth);
+      length += r === undefined ? 0 : r.length;
+      if (r === undefined || length > MAX_EXPANDED) {
         failed = true;
         return '';
       }
       return r;
     });
-    return failed ? undefined : out;
+    return failed || out.length > MAX_EXPANDED ? undefined : out;
   };
 
   const isImport = (m: Managed): boolean => m.scope === 'import' && m.type === 'pom';
