@@ -12,6 +12,7 @@ rules:
         - "**/example/**"
         - "**/examples/**"
         - "**/sample/**"
+        - "**/samples/**"
         - "**/demo/**"
         - "**/demos/**"
     metadata:

@@ -110,6 +110,30 @@ describe('release: the rule set is complete and well formed', () => {
     expect(hits).toEqual([]);
   });
 
+  // Build-file and config rules name real directories, so they keep these
+  // excludes, but a singular without its plural (or the reverse) is a slip: the
+  // gradle-kts- rules once had `sample` and not `samples`.
+  it('a rule that excludes a sample, example or demo directory excludes the plural and the singular alike', () => {
+    const hits: string[] = [];
+    const walk = (dir: string): void => {
+      for (const e of readdirSync(dir)) {
+        const p = join(dir, e);
+        if (statSync(p).isDirectory()) walk(p);
+        else if (e.endsWith('.yml') && !e.endsWith('.test.yml') && !/^(java|kt)-/.test(e)) {
+          const doc = parse(readFileSync(p, 'utf8')) as { rules?: { id: string; paths?: { exclude?: string[] } }[] };
+          for (const rule of doc?.rules ?? []) {
+            const ex = new Set(rule.paths?.exclude ?? []);
+            for (const word of ['sample', 'example', 'demo']) {
+              if (ex.has(`**/${word}/**`) !== ex.has(`**/${word}s/**`)) hits.push(`${rule.id}: ${word}/${word}s`);
+            }
+          }
+        }
+      }
+    };
+    walk(rulesDir);
+    expect(hits).toEqual([]);
+  });
+
   it('contributing forbids the three rule sets', () => {
     const text = readFileSync(join(root, 'CONTRIBUTING.md'), 'utf8');
     for (const phrase of ['semgrep-rules', 'opengrep-rules', 'privado-rules', 'Commons Clause']) {
