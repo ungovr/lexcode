@@ -247,6 +247,51 @@ describe('readGradle: what is not a dependency', () => {
     expect(r.devSkipped).toBe(0);
   });
 
+  it('does not read a components {} block, which configures modules the build already has', () => {
+    const text = [
+      'dependencies {',
+      '    implementation("com.google.guava:guava:33.0.0-jre")',
+      '    components {',
+      '        withModule("com.squareup.okhttp3:okhttp") { allVariants { } }',
+      '    }',
+      '}',
+      '',
+    ].join('\n');
+    const r = read({ 'build.gradle.kts': text });
+    expect(names(r)).toEqual(['com.google.guava:guava']);
+    expect(r.notices).toEqual([]);
+    const only = ['dependencies {', '    components {', '        withModule("com.squareup.okhttp3:okhttp") { allVariants { } }', '    }', '}', ''].join('\n');
+    const o = read({ 'build.gradle.kts': only });
+    expect(o.deps).toEqual([]);
+    expect(o.notices).toEqual([]);
+  });
+
+  it('does not read a modules {} block, which names a module the build replaces', () => {
+    const text = [
+      'dependencies {',
+      '    implementation("com.google.guava:guava:33.0.0-jre")',
+      '    modules {',
+      '        module("com.google.collections:google-collections") { replacedBy("com.google.guava:guava") }',
+      '    }',
+      '}',
+      '',
+    ].join('\n');
+    const r = read({ 'build.gradle.kts': text });
+    expect(names(r)).toEqual(['com.google.guava:guava']);
+    expect(r.notices).toEqual([]);
+    const only = [
+      'dependencies {',
+      '    modules {',
+      '        module("com.google.collections:google-collections") { replacedBy("com.google.guava:guava") }',
+      '    }',
+      '}',
+      '',
+    ].join('\n');
+    const o = read({ 'build.gradle.kts': only });
+    expect(o.deps).toEqual([]);
+    expect(o.notices).toEqual([]);
+  });
+
   it('does not record projects, files, platforms or kotlin()', () => {
     const text = [
       'dependencies {',

@@ -353,7 +353,10 @@ app's own code and is not recorded.
 Every `build.gradle` and `build.gradle.kts` is read as tokens, with braces
 counted, and never evaluated. Only a declaration directly inside a
 `dependencies {}` block counts, and nothing inside `buildscript {}`,
-`plugins {}`, `pluginManagement {}` or `constraints {}` is a dependency. A
+`plugins {}`, `pluginManagement {}`, `constraints {}`, `components {}` or
+`modules {}` is a dependency (the last two configure or replace modules the
+build already has, such as `withModule("g:a") { ... }` and
+`module("g:old") { replacedBy("g:new") }`). A
 closure after a declaration (`implementation('g:a:v') { exclude group: 'x' }`)
 does not end the block, and its `exclude` is not read as a dependency.
 

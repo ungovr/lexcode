@@ -457,7 +457,8 @@ interface FileCtx {
 
 type Frame = { kind: 'dependencies' | 'excluded' | 'closure' | 'other'; eff: string; base: number };
 
-const EXCLUDED_BLOCKS = new Set(['buildscript', 'plugins', 'pluginManagement', 'constraints']);
+/** Blocks that never hold the app's dependencies: `components {}` and `modules {}` configure or replace modules the build already has. */
+const EXCLUDED_BLOCKS = new Set(['buildscript', 'plugins', 'pluginManagement', 'constraints', 'components', 'modules']);
 const CONTROL = new Set(['if', 'for', 'while', 'when', 'switch', 'catch', 'synchronized']);
 /** A call in an argument list that never names a component of the app. */
 const SKIP_CALLS = new Set(['platform', 'enforcedPlatform', 'project', 'files', 'fileTree', 'kotlin', 'gradleApi', 'localGroovy', 'gradleTestKit', 'testFixtures']);
