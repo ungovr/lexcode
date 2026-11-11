@@ -43,6 +43,40 @@ class WarmupsController < ApplicationController
   end
 end
 
+class ExplainersController < ApplicationController
+  def one_shot
+    # One typed question inside a fixed prompt: a one-shot tool, no conversation list.
+    openai.chat(parameters: { model: "gpt-4o-mini", messages: [{ role: "user", content: "Explain: #{params[:question]}" }] })
+  end
+
+  def one_turn
+    # One message as the user turn next to a fixed system turn: still no list from the request.
+    reply = openai.chat(parameters: {
+      model: "gpt-4o-mini",
+      messages: [{ role: "system", content: "You answer questions about the library." }, { role: "user", content: params[:message] }]
+    })
+    render json: { reply: reply.dig("choices", 0, "message", "content") }
+  end
+
+  def question
+    anthropic.messages.create(model: "claude-sonnet-4-5", max_tokens: 512, messages: [{ role: "user", content: params[:question] }])
+  end
+end
+
+class OneShotChannel < ApplicationCable::Channel
+  def speak(data)
+    reply = client.messages.create(model: "claude-sonnet-4-5", max_tokens: 512, messages: [{ role: "user", content: data["message"] }])
+    transmit(reply: reply.content.first.text)
+  end
+end
+
+class WebhookJob < ApplicationJob
+  def perform(data)
+    # `data` outside a channel is a generic local name.
+    client.messages.create(model: "claude-sonnet-4-5", max_tokens: 100, messages: data["messages"])
+  end
+end
+
 class FlashController < ApplicationController
   def index
     # `messages` here are flash notices, not a conversation with a model.

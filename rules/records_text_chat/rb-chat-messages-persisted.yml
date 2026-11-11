@@ -3,9 +3,10 @@ rules:
     languages: [ruby]
     severity: INFO
     message: Writes what a person typed in a request or over a channel to a conversation or message record, which is keeping a text chat (records_text_chat).
-    # Not a taint rule on purpose: the engine reads every file for a taint rule and only the files
-    # that contain the sink for a pattern rule, and this sink is rare. The cost is that a value
-    # copied into a local variable before the write is not followed.
+    # Not a taint rule on purpose: the cost is that a value copied into a local variable before the
+    # write is not followed. In an ActionCable channel the record must be a message-like model
+    # (a name segment Message, Chat, Comment or Post), so a vote, a metric or an LLM call that
+    # mentions `data` is not a chat message.
     patterns:
       - pattern-either:
           - patterns:
@@ -20,6 +21,8 @@ rules:
               - metavariable-regex:
                   metavariable: $...ARGS
                   regex: (?s)^.*\b(params|message_params|messages_params|chat_params|chat_message_params|conversation_params)\b.*$
+              # Literal anchor inside the match, so the engine skips files with no such write.
+              - pattern-regex: '(?i)(add_message|post_message|\.messages\.create)'
           - patterns:
               - pattern-either:
                   - pattern: ChatMessage.create($...ARGS)
@@ -49,19 +52,30 @@ rules:
               - metavariable-regex:
                   metavariable: $...ARGS
                   regex: (?s)^.*\b(params|message_params|messages_params|chat_params|chat_message_params|conversation_params)\b.*$
+              - pattern-regex: '(?i)(ChatMessages?|Chats?::Message|ConversationMessage|Conversations?(::Message)?|\bChat|ChatTurn|Transcript(Entry)?|LiveChatMessage)\.create'
           - patterns:
               - pattern-inside: |
                   class $CLS < ApplicationCable::Channel
                     ...
                   end
               - pattern-either:
-                  - pattern: $K.create($...ARGS)
-                  - pattern: $K.create!($...ARGS)
-                  - pattern: $CHAT.messages.create($...ARGS)
-                  - pattern: $CHAT.messages.create!($...ARGS)
+                  - patterns:
+                      - pattern-either:
+                          - pattern: $K.create($...ARGS)
+                          - pattern: $K.create!($...ARGS)
+                      - metavariable-regex:
+                          metavariable: $K
+                          regex: ^(::)?(\w+::)*([A-Z][a-z0-9]*)*(Message|Chat|Comment|Post)s?$
+                  - patterns:
+                      - pattern-either:
+                          - pattern: $CHAT.messages.create($...ARGS)
+                          - pattern: $CHAT.messages.create!($...ARGS)
+                      - metavariable-regex:
+                          metavariable: $CHAT
+                          regex: (?i)^.*(chat|conversation|room|thread|channel|transcript|dialog|inbox).*$
               - metavariable-regex:
                   metavariable: $...ARGS
-                  regex: (?s)^.*\bdata\b.*$
+                  regex: (?s)^.*\bdata\b(?!:).*$
     metadata:
       activity: records_text_chat
       mentioned: performs

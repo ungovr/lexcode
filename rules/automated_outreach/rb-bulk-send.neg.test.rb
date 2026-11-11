@@ -26,3 +26,12 @@ class SinglePostmark
     postmark.deliver(from: "hi@example.org", to: user.email, subject: "Your receipt", text_body: "Thanks")
   end
 end
+
+class KafkaFlush
+  def flush(producer, batch)
+    # ruby-kafka's producer sends records to a broker, not messages to people.
+    batch.each { |record| producer.produce(record, topic: "events") }
+    producer.deliver_messages
+    producer.deliver_messages(batch)
+  end
+end

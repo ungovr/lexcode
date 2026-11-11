@@ -23,6 +23,35 @@ class LabelAll
   end
 end
 
+class Translator
+  def call(text)
+    # A prompt built in steps and sent once: a system line plus a user line, nothing pushed after.
+    messages = []
+    messages << { role: "system", content: "Translate to French." }
+    messages << { role: "user", content: text }
+    client.chat(parameters: { model: "gpt-4o", messages: messages })
+  end
+
+  def few_shot(text)
+    # Few-shot examples pushed in a loop, then the text; one call, no reply fed back.
+    messages = [{ role: "system", content: "Label the sentiment." }]
+    EXAMPLES.each do |example, label|
+      messages << { role: "user", content: example }
+      messages << { role: "assistant", content: label }
+    end
+    messages << { role: "user", content: text }
+    openai.chat(parameters: { model: "gpt-4o-mini", messages: messages })
+  end
+
+  def few_shot_push(text)
+    messages = [{ role: "system", content: "Label the sentiment." }]
+    messages.push({ role: "user", content: "great" })
+    messages.push({ role: "assistant", content: "positive" })
+    messages.push({ role: "user", content: text })
+    anthropic.messages.create(model: "claude-sonnet-4-5", max_tokens: 10, messages: messages)
+  end
+end
+
 class Captions
   def caption(photo_url)
     # A one-off call to a Google model, not a chat session.

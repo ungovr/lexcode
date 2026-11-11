@@ -50,6 +50,24 @@ class RelayChannel < ApplicationCable::Channel
     ActionCable.server.broadcast("room_#{params[:room]}", message: data["message"])
   end
 
+  def ask_model(data)
+    # A chat call that answers over the channel and keeps nothing: Deploys a chatbot alone.
+    reply = anthropic.messages.create(model: "claude-sonnet-4-5", max_tokens: 100, messages: [{ role: "user", content: data["message"] }])
+    transmit(reply: reply.content.first.text)
+  end
+
+  def vote(data)
+    Vote.create!(poll_id: data["poll_id"], user: current_user)
+  end
+
+  def press(data)
+    Metric.create!(name: "tap", payload: data)
+  end
+
+  def click(data)
+    Event.create!(kind: "click", data: data)
+  end
+
   def preview(data)
     # Builds a record to render, and never saves it.
     draft = Message.new(content: data["message"])

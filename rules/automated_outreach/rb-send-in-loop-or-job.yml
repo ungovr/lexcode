@@ -74,6 +74,8 @@ rules:
               - metavariable-regex:
                   metavariable: $S
                   regex: (?i)^(\w*smtp\w*|\w*mail\w*|\w*gun\w*|\w*bot\w*|@\w*mail\w*|@\w*smtp\w*)$
+      # Literal anchor inside the match: it lets the engine skip files with no send call (without it the common words in the patterns make it read most large files).
+      - pattern-regex: '(\.(deliver_now|deliver_later)\b|\.deliver\b|\bsend_(templated_|raw_)?email\(|deliver_with_template|Resend::Emails\.send|\.(messages|calls)\.create\(|\.send_message\()'
     metadata:
       activity: automated_outreach
       mentioned: performs

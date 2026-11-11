@@ -8,7 +8,11 @@ rules:
       - pattern: $S.send_bulk_email(...)
       - pattern: Resend::Batch.send(...)
       - pattern: $P.deliver_in_batches(...)
-      - pattern: $P.deliver_messages(...)
+      - patterns:
+          - pattern: $P.deliver_messages(...)
+          - metavariable-regex:
+              metavariable: $P
+              regex: (?i)^.*(postmark|mailer).*$
       - pattern: Mailgun::BatchMessage.new(...)
       - pattern: $M.campaigns.send(...)
       - pattern: $T.notify.services(...).notifications.create(...)
