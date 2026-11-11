@@ -1,4 +1,4 @@
-# lexcode-expect: 17
+# lexcode-expect: 27
 require "anthropic"
 require "openai"
 
@@ -185,5 +185,71 @@ module Help
       chat = RubyLLM.chat(model: "gpt-4o-mini")
       @answer ||= chat.ask(params[:q]).content
     end
+  end
+end
+
+# The model's text reaches the person through a partial, the response body, or a Turbo
+# broadcast from the record it was saved to.
+class NotePanelsController < ApplicationController
+  def show
+    client = OpenAI::Client.new
+    result = client.chat(parameters: { model: "gpt-4o-mini", messages: [{ role: "user", content: params[:q] }] })
+    render partial: "panels/panel", locals: { value: result.dig("choices", 0, "message", "content") }
+  end
+
+  def raw
+    client = OpenAI::Client.new
+    result = client.chat(parameters: { model: "gpt-4o-mini", messages: [{ role: "user", content: params[:q] }] })
+    response.body = result.dig("choices", 0, "message", "content")
+  end
+end
+
+class NoteReplyJob < ApplicationJob
+  def perform(thread_id, params)
+    client = OpenAI::Client.new
+    result = client.chat(parameters: { model: "gpt-4o-mini", messages: [{ role: "user", content: params[:q] }] })
+    message = Message.create!(thread_id: thread_id, role: "assistant", content: result.dig("choices", 0, "message", "content"))
+    message.broadcast_append_to("thread_#{thread_id}", target: "messages")
+  end
+
+  def refresh(record, params)
+    client = OpenAI::Client.new
+    result = client.chat(parameters: { model: "gpt-4o-mini", messages: [{ role: "user", content: params[:q] }] })
+    record.update!(content: result.dig("choices", 0, "message", "content"))
+    record.broadcast_replace_later_to(record.thread)
+  end
+end
+
+# Sinatra: a route's value is the response body, and a template the route renders shows its
+# instance variables.
+class NoteRoutes < Sinatra::Base
+  get "/notes/:id" do |id|
+    client = OpenAI::Client.new
+    result = client.chat(parameters: { model: "gpt-4o-mini", messages: [{ role: "user", content: params[:q] }] })
+    result.dig("choices", 0, "message", "content")
+  end
+
+  post "/notes" do
+    client = OpenAI::Client.new
+    result = client.chat(parameters: { model: "gpt-4o-mini", messages: [{ role: "user", content: params[:q] }] })
+    @value = result.dig("choices", 0, "message", "content")
+    erb :notes
+  end
+end
+
+# ActionController::Metal sets the body itself, and an Action Cable channel broadcasts to one
+# subscriber.
+class FastNotesController < ActionController::Metal
+  def show
+    client = OpenAI::Client.new
+    result = client.chat(parameters: { model: "gpt-4o-mini", messages: [{ role: "user", content: params[:q] }] })
+    self.response_body = result.dig("choices", 0, "message", "content")
+  end
+end
+
+class NoteDigestJob < ApplicationJob
+  def perform(user, client)
+    result = client.chat(parameters: { model: "gpt-4o-mini", messages: [{ role: "user", content: "Summarize my notes." }] })
+    NotesChannel.broadcast_to(user, { text: result.dig("choices", 0, "message", "content") })
   end
 end

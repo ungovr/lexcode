@@ -18,6 +18,15 @@ rules:
               - pattern-inside: '$C.stream_generate_content(...) { |$X, ...| ... }'
           - pattern: $X
     pattern-propagators:
+      # A record updated with the model's output carries it to whatever shows the record.
+      - pattern: '$REC.update(..., $K: $V, ...)'
+        from: $V
+        to: $REC
+        by-side-effect: true
+      - pattern: '$REC.update!(..., $K: $V, ...)'
+        from: $V
+        to: $REC
+        by-side-effect: true
       - pattern: $OUT = <... $R.dig(...) ...>
         from: $R
         to: $OUT
@@ -50,49 +59,83 @@ rules:
               - pattern-inside: transmit(...)
               - pattern-inside: ActionCable.server.broadcast(...)
               - pattern-inside: Turbo::StreamsChannel.$M(...)
+              - pattern-inside: 'render(..., partial: ..., ...)'
+              - pattern-inside: 'render(..., locals: ..., ...)'
+              - pattern-inside: response.body = ...
+              - pattern-inside: self.response_body = ...
+              - pattern-inside: $C.broadcast_to(...)
+              # Turbo::Broadcastable calls that put content on the page or make it refetch.
+              - patterns:
+                  - pattern-inside: $R.$B(...)
+                  - metavariable-regex:
+                      metavariable: $B
+                      regex: ^broadcast_(append|prepend|replace|update|before|after|render|action|refresh)\w*$
           - pattern: $V
           - metavariable-regex:
               metavariable: $V
               regex: ^@?[a-z_][A-Za-z0-9_]*$
-      # An instance variable a controller action sets is shown by the action's view, which Rails
-      # renders when the action names no other response. An action that redirects or sends only
-      # a status renders no view.
+      # An instance variable that a Rails controller action or a Sinatra route sets is shown by
+      # the view it renders. Rails renders the action's template when the action names no other
+      # response; an action that redirects or sends only a status renders no view. A Sinatra
+      # route names its template.
       - patterns:
-          - pattern-inside: |
-              class $CTRL < $BASE
-                ...
-              end
-          - metavariable-regex:
-              metavariable: $CTRL
-              regex: ^(.*::)?[A-Z][A-Za-z0-9_]*Controller$
-          - pattern-inside: |
-              def $ACTION(...)
-                ...
-              end
-          - pattern-not-inside: |
-              def $ACTION(...)
-                ...
-                redirect_to(...)
-                ...
-              end
-          - pattern-not-inside: |
-              def $ACTION(...)
-                ...
-                redirect_back(...)
-                ...
-              end
-          - pattern-not-inside: |
-              def $ACTION(...)
-                ...
-                redirect_back_or_to(...)
-                ...
-              end
-          - pattern-not-inside: |
-              def $ACTION(...)
-                ...
-                head(...)
-                ...
-              end
+          - pattern-either:
+              - patterns:
+                  - pattern-inside: |
+                      class $CTRL < $BASE
+                        ...
+                      end
+                  - metavariable-regex:
+                      metavariable: $CTRL
+                      regex: ^(.*::)?[A-Z][A-Za-z0-9_]*Controller$
+                  - pattern-inside: |
+                      def $ACTION(...)
+                        ...
+                      end
+                  - pattern-not-inside: |
+                      def $ACTION(...)
+                        ...
+                        redirect_to(...)
+                        ...
+                      end
+                  - pattern-not-inside: |
+                      def $ACTION(...)
+                        ...
+                        redirect_back(...)
+                        ...
+                      end
+                  - pattern-not-inside: |
+                      def $ACTION(...)
+                        ...
+                        redirect_back_or_to(...)
+                        ...
+                      end
+                  - pattern-not-inside: |
+                      def $ACTION(...)
+                        ...
+                        head(...)
+                        ...
+                      end
+              - patterns:
+                  - pattern-either:
+                      - pattern-inside: |
+                          $VERB $PATH do
+                            ...
+                            $TPL(...)
+                            ...
+                          end
+                      - pattern-inside: |
+                          $VERB $PATH do |...|
+                            ...
+                            $TPL(...)
+                            ...
+                          end
+                  - metavariable-regex:
+                      metavariable: $VERB
+                      regex: ^(get|post|put|patch|delete)$
+                  - metavariable-regex:
+                      metavariable: $TPL
+                      regex: ^(erb|haml|slim|liquid|markdown|builder|rabl|mustache)$
           - pattern-either:
               - pattern-inside: $IV = $RHS
               - pattern-inside: $IV ||= $RHS
@@ -100,6 +143,132 @@ rules:
               metavariable: $IV
               regex: ^@[a-z_][A-Za-z0-9_]*$
           - focus-metavariable: $RHS
+      # A Sinatra route's value, its last statement, is the response body. The verbs are
+      # spelled out: a $VERB metavariable makes the engine try every block call (each `it ... do`
+      # in a spec), which cost about half a second per rule over Canvas.
+      - patterns:
+          - pattern-either:
+              - pattern: |
+                  get $PATH do
+                    ...
+                    $LAST
+                  end
+              - pattern: |
+                  get $PATH do |...|
+                    ...
+                    $LAST
+                  end
+              - pattern: |
+                  post $PATH do
+                    ...
+                    $LAST
+                  end
+              - pattern: |
+                  post $PATH do |...|
+                    ...
+                    $LAST
+                  end
+              - pattern: |
+                  put $PATH do
+                    ...
+                    $LAST
+                  end
+              - pattern: |
+                  put $PATH do |...|
+                    ...
+                    $LAST
+                  end
+              - pattern: |
+                  patch $PATH do
+                    ...
+                    $LAST
+                  end
+              - pattern: |
+                  patch $PATH do |...|
+                    ...
+                    $LAST
+                  end
+              - pattern: |
+                  delete $PATH do
+                    ...
+                    $LAST
+                  end
+              - pattern: |
+                  delete $PATH do |...|
+                    ...
+                    $LAST
+                  end
+          - pattern-not: |
+              get $PATH do
+                ...
+                $LAST
+                $NEXT
+                ...
+              end
+          - pattern-not: |
+              get $PATH do |...|
+                ...
+                $LAST
+                $NEXT
+                ...
+              end
+          - pattern-not: |
+              post $PATH do
+                ...
+                $LAST
+                $NEXT
+                ...
+              end
+          - pattern-not: |
+              post $PATH do |...|
+                ...
+                $LAST
+                $NEXT
+                ...
+              end
+          - pattern-not: |
+              put $PATH do
+                ...
+                $LAST
+                $NEXT
+                ...
+              end
+          - pattern-not: |
+              put $PATH do |...|
+                ...
+                $LAST
+                $NEXT
+                ...
+              end
+          - pattern-not: |
+              patch $PATH do
+                ...
+                $LAST
+                $NEXT
+                ...
+              end
+          - pattern-not: |
+              patch $PATH do |...|
+                ...
+                $LAST
+                $NEXT
+                ...
+              end
+          - pattern-not: |
+              delete $PATH do
+                ...
+                $LAST
+                $NEXT
+                ...
+              end
+          - pattern-not: |
+              delete $PATH do |...|
+                ...
+                $LAST
+                $NEXT
+                ...
+              end
+          - focus-metavariable: $LAST
     metadata:
       activity: generates_content
       mentioned: performs

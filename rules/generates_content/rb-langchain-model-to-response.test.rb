@@ -1,4 +1,4 @@
-# lexcode-expect: 6
+# lexcode-expect: 14
 require "langchain"
 
 class ArticlesController < ApplicationController
@@ -48,5 +48,54 @@ class OutlinesController < ApplicationController
   def show
     llm = Langchain::LLM::OpenAI.new(api_key: ENV.fetch("OPENAI_API_KEY"))
     @outline = llm.chat(messages: [{ role: "user", content: "Outline #{params[:topic]}" }]).chat_completion
+  end
+end
+
+# The model's output reaches the person through a partial, the response body, or a Turbo
+# broadcast from the record it was saved to.
+class ChainPanelsController < ApplicationController
+  def show
+    llm = Langchain::LLM::OpenAI.new(api_key: ENV.fetch("OPENAI_API_KEY"))
+    result = llm.chat(messages: [{ role: "user", content: params[:q] }])
+    render partial: "panels/panel", locals: { value: result.chat_completion }
+  end
+
+  def raw
+    llm = Langchain::LLM::OpenAI.new(api_key: ENV.fetch("OPENAI_API_KEY"))
+    result = llm.chat(messages: [{ role: "user", content: params[:q] }])
+    response.body = result.chat_completion
+  end
+end
+
+class ChainReplyJob < ApplicationJob
+  def perform(thread_id, params)
+    llm = Langchain::LLM::OpenAI.new(api_key: ENV.fetch("OPENAI_API_KEY"))
+    result = llm.chat(messages: [{ role: "user", content: params[:q] }])
+    message = Message.create!(thread_id: thread_id, role: "assistant", content: result.chat_completion)
+    message.broadcast_append_to("thread_#{thread_id}", target: "messages")
+  end
+
+  def refresh(record, params)
+    llm = Langchain::LLM::OpenAI.new(api_key: ENV.fetch("OPENAI_API_KEY"))
+    result = llm.chat(messages: [{ role: "user", content: params[:q] }])
+    record.update!(content: result.chat_completion)
+    record.broadcast_replace_later_to(record.thread)
+  end
+end
+
+# Sinatra: a route's value is the response body, and a template the route renders shows its
+# instance variables.
+class ChainRoutes < Sinatra::Base
+  get "/chains/:id" do |id|
+    llm = Langchain::LLM::OpenAI.new(api_key: ENV.fetch("OPENAI_API_KEY"))
+    result = llm.chat(messages: [{ role: "user", content: params[:q] }])
+    result.chat_completion
+  end
+
+  post "/chains" do
+    llm = Langchain::LLM::OpenAI.new(api_key: ENV.fetch("OPENAI_API_KEY"))
+    result = llm.chat(messages: [{ role: "user", content: params[:q] }])
+    @value = result.chat_completion
+    erb :chains
   end
 end

@@ -1,4 +1,4 @@
-# lexcode-expect: 7
+# lexcode-expect: 14
 require "base64"
 require "openai"
 
@@ -68,5 +68,54 @@ class CoversController < ApplicationController
     client = OpenAI::Client.new
     result = client.images.generate(parameters: { prompt: "Book cover for #{params[:title]}", size: "1024x1024" })
     @cover_url = result.dig("data", 0, "url")
+  end
+end
+
+# The model's picture reaches the person through a partial, the response body, or a Turbo
+# broadcast from the record it was saved to.
+class SketchPanelsController < ApplicationController
+  def show
+    client = OpenAI::Client.new
+    result = client.images.generate(parameters: { prompt: params[:q], size: "1024x1024" })
+    render partial: "panels/panel", locals: { value: result.dig("data", 0, "url") }
+  end
+
+  def raw
+    client = OpenAI::Client.new
+    result = client.images.generate(parameters: { prompt: params[:q], size: "1024x1024" })
+    response.body = result.dig("data", 0, "url")
+  end
+end
+
+class SketchReplyJob < ApplicationJob
+  def perform(thread_id, params)
+    client = OpenAI::Client.new
+    result = client.images.generate(parameters: { prompt: params[:q], size: "1024x1024" })
+    message = Message.create!(thread_id: thread_id, role: "assistant", content: result.dig("data", 0, "url"))
+    message.broadcast_append_to("thread_#{thread_id}", target: "messages")
+  end
+
+  def refresh(record, params)
+    client = OpenAI::Client.new
+    result = client.images.generate(parameters: { prompt: params[:q], size: "1024x1024" })
+    record.update(content: result.dig("data", 0, "url"))
+    record.broadcast_replace_later_to(record.thread)
+  end
+end
+
+# Sinatra: a route's value is the response body, and a template the route renders shows its
+# instance variables.
+class SketchRoutes < Sinatra::Base
+  get "/sketchs/:id" do |id|
+    client = OpenAI::Client.new
+    result = client.images.generate(parameters: { prompt: params[:q], size: "1024x1024" })
+    result.dig("data", 0, "url")
+  end
+
+  post "/sketchs" do
+    client = OpenAI::Client.new
+    result = client.images.generate(parameters: { prompt: params[:q], size: "1024x1024" })
+    @value = result.dig("data", 0, "url")
+    erb :sketchs
   end
 end

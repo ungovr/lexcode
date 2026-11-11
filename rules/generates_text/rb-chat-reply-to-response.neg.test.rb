@@ -212,3 +212,42 @@ class ArticlesController < ApplicationController
     @related = Article.where(topic: @article.topic).limit(3)
   end
 end
+
+class StatusRoutes < Sinatra::Base
+  # The route's value is a fixed string; the model's text only goes to the log.
+  get "/status" do
+    chat = RubyLLM.chat
+    answer = chat.ask("Say hi.").content
+    logger.info(answer)
+    "ok"
+  end
+
+  # The route redirects, so no template shows the variable.
+  post "/notes" do
+    chat = RubyLLM.chat
+    @note = chat.ask("Note: #{params[:text]}").content
+    NoteStore.append(@note)
+    redirect "/notes"
+  end
+end
+
+# An outbound HTTP call that takes a block is not a route: the text goes to a Slack channel
+# the team reads.
+class OnCallNotifier
+  def notify(slack, client)
+    response = client.chat(parameters: { model: "gpt-4o-mini", messages: [{ role: "user", content: "Explain the failed deploy." }] })
+    note = response.dig("choices", 0, "message", "content")
+    slack.post("/api/chat.postMessage") do |req|
+      req.body = { channel: "#on-call", text: note }.to_json
+    end
+  end
+end
+
+class DraftCleanupJob < ApplicationJob
+  # Removing a message from the page shows nothing of it.
+  def perform(message, client)
+    response = client.chat(parameters: { model: "gpt-4o-mini", messages: [{ role: "user", content: "Is this message spam? #{message.content}" }] })
+    message.update!(spam_verdict: response.dig("choices", 0, "message", "content"))
+    message.broadcast_remove_to(message.thread)
+  end
+end
