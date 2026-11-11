@@ -21,8 +21,10 @@ rules:
                   import androidx.ads.identifier.*
                   ...
       # Privileged hardware identifiers. The property names are generic (an app-owned class can have
-      # deviceId), so the receiver has to be declared as a TelephonyManager: a constructor property, a
-      # parameter, a cast, a typed local or the class-literal service lookup.
+      # deviceId), so the receiver has to be declared as a TelephonyManager (a constructor property, a
+      # parameter, a lateinit property, a typed or nullable local, or a cast) and the file has to import
+      # android.telephony.TelephonyManager or android.telephony.*, so an app-owned class of that name
+      # does not count. The class-literal service lookup follows as its own group.
       - patterns:
           - pattern-either:
               - pattern: $T.imei
