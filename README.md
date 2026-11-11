@@ -54,8 +54,8 @@ files (including any named `*.min.js`, `*.bundle.js`, `vendor.*.js` or
 `*.vendor.js`), never a file with a line over 100,000 characters (generated
 code, counted in a notice), never symbolic links, never files over 5 MB, never a
 file you cannot open for reading (counted in a notice), and never directories
-named `test`, `tests`, `__tests__`, `spec`, `fixtures` or `testdata` unless you
-pass `--include-tests`. `app.scope` in `lexlint.yml` narrows the read, as the
+named `test`, `tests`, `__tests__`, `spec`, `fixtures`, `testdata`, `androidTest`,
+`testFixtures` or `integrationTest` unless you pass `--include-tests`. `app.scope` in `lexlint.yml` narrows the read, as the
 lint reads it.
 
 Languages: TypeScript, JavaScript (with JSX and TSX), Python, Go and Ruby

@@ -207,6 +207,16 @@ describe('the skip list', () => {
     expect(r.info.include_tests).toBe(true);
   });
 
+  it.each(['androidTest', 'testFixtures', 'integrationTest'])(
+    'drops the JVM test source set %s, and --include-tests still reads it',
+    (name) => {
+      const files = [`app/src/${name}/kotlin/com/acme/A.kt`, 'app/src/main/kotlin/com/acme/Main.kt'];
+      const root = repo(files);
+      expect(listFiles(root, plain).files).toEqual(['app/src/main/kotlin/com/acme/Main.kt']);
+      expect(listFiles(root, { ...plain, includeTests: true }).files).toEqual([...files].sort());
+    },
+  );
+
   it('applies to a tracked file as well', () => {
     const root = repo(['src/a.ts', 'node_modules/x.js']);
     git(root, 'add', '-f', 'node_modules/x.js');

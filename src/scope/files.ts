@@ -88,7 +88,18 @@ function ignoredBy(rules: IgnoreRule[], rel: string, isDir: boolean): boolean {
 }
 
 /** Directories skipped unless `includeTests`. */
-const TEST_DIRS = new Set(['test', 'tests', '__tests__', 'spec', 'fixtures', 'testdata']);
+const TEST_DIRS = new Set([
+  'test',
+  'tests',
+  '__tests__',
+  'spec',
+  'fixtures',
+  'testdata',
+  // JVM test source sets: Gradle's `androidTest`, `testFixtures` and `integrationTest`.
+  'androidTest',
+  'testFixtures',
+  'integrationTest',
+]);
 /**
  * File names of bundled or minified code: someone else's library copied in,
  * never the project's own code, and the costliest files to parse (a vendored
