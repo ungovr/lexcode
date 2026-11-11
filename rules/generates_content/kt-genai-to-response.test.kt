@@ -1,4 +1,4 @@
-// lexcode-expect: 11
+// lexcode-expect: 13
 package com.example.content
 
 import org.springframework.scheduling.annotation.Scheduled
@@ -90,6 +90,17 @@ fun Route.firebaseRoutes() {
 fun Reply(model: GenerativeModel, q: String) {
   val response = model.generateContent(q)
   Text(text = response.text ?: "")
+}
+
+// The implicit `it` of forEach and collect carries the streamed text to the browser.
+class StreamingScreen(private val client: Client, private val model: GenerativeModel) {
+  fun forEachIt(emitter: SseEmitter, q: String) {
+    client.models.generateContentStream("gemini-2.5-flash", q, null).forEach { emitter.send(it.text()) }
+  }
+
+  suspend fun collectIt(emitter: SseEmitter, q: String) {
+    model.generateContentStream(q).collect { emitter.send(it.text) }
+  }
 }
 
 // A function that is not a request handler: a scheduled job returns the model's output to its scheduler.

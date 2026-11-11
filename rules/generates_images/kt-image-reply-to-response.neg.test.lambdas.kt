@@ -105,6 +105,53 @@ class LambdaHandlers(private val client: OpenAIClient) {
     f(q)
     return "ok"
   }
+
+  @GetMapping("/l14")
+  fun fourteen(q: String): String {
+    
+    repo.tx3(1, 2) { a, b, c -> repo.save(client.images().generate(ImageGenerateParams.builder().build())) }
+    return "ok"
+  }
+
+  @GetMapping("/l15")
+  fun fifteen(q: String): String {
+    
+    val f = { a: Int, b: Int -> repo.save(client.images().generate(ImageGenerateParams.builder().build())) }
+    f(1, 2)
+    return "ok"
+  }
+
+  @GetMapping("/l16")
+  fun sixteen(q: String): String {
+    
+    val f = { s -> repo.save(client.images().generate(ImageGenerateParams.builder().build())) }
+    f(q)
+    return "ok"
+  }
+
+  @GetMapping("/l17")
+  fun seventeen(q: String): String {
+    
+    val f = { a: Int, b: Int, c: Int -> repo.save(client.images().generate(ImageGenerateParams.builder().build())) }
+    f(1, 2, 3)
+    return "ok"
+  }
+
+  @GetMapping("/l18")
+  fun eighteen(q: String): String {
+    
+    var out = ""
+    client.images().generate(ImageGenerateParams.builder().build()).forEach { out = "constant" }
+    return out
+  }
+
+  @GetMapping("/l19")
+  fun nineteen(q: String): String {
+    
+    var out = ""
+    client.images().generate(ImageGenerateParams.builder().build()).collect { out = "constant" }
+    return out
+  }
 }
 
 class LambdaPlain(private val client: OpenAIClient) {
@@ -177,6 +224,47 @@ class LambdaPlain(private val client: OpenAIClient) {
     val f = { s: String -> repo.save(client.images().generate(ImageGenerateParams.builder().build())) }
     f(q)
     return "ok"
+  }
+
+  fun fourteen(q: String): String {
+    
+    repo.tx3(1, 2) { a, b, c -> repo.save(client.images().generate(ImageGenerateParams.builder().build())) }
+    return "ok"
+  }
+
+  fun fifteen(q: String): String {
+    
+    val f = { a: Int, b: Int -> repo.save(client.images().generate(ImageGenerateParams.builder().build())) }
+    f(1, 2)
+    return "ok"
+  }
+
+  fun sixteen(q: String): String {
+    
+    val f = { s -> repo.save(client.images().generate(ImageGenerateParams.builder().build())) }
+    f(q)
+    return "ok"
+  }
+
+  fun seventeen(q: String): String {
+    
+    val f = { a: Int, b: Int, c: Int -> repo.save(client.images().generate(ImageGenerateParams.builder().build())) }
+    f(1, 2, 3)
+    return "ok"
+  }
+
+  fun eighteen(q: String): String {
+    
+    var out = ""
+    client.images().generate(ImageGenerateParams.builder().build()).forEach { out = "constant" }
+    return out
+  }
+
+  fun nineteen(q: String): String {
+    
+    var out = ""
+    client.images().generate(ImageGenerateParams.builder().build()).collect { out = "constant" }
+    return out
   }
 }
 

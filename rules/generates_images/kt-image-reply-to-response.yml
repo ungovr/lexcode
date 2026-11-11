@@ -63,6 +63,13 @@ rules:
         from: $S
         to: $X
       - patterns:
+          - pattern: $S.$M { <... $IT ...> }
+          - metavariable-regex:
+              metavariable: $IT
+              regex: ^it$
+        from: $S
+        to: $IT
+      - patterns:
           - pattern: $S?.$M { <... $IT ...> }
           - metavariable-regex:
               metavariable: $IT
@@ -87,11 +94,11 @@ rules:
               regex: ^(GetMapping|PostMapping|PutMapping|PatchMapping|DeleteMapping|RequestMapping|ResponseBody|SendTo|SendToUser|QueryMapping|MutationMapping|SubscriptionMapping|GET|POST|PUT|DELETE|HEAD|Get|Post|Put|Patch|Delete|Route)$
           - pattern: return $X
           - pattern-not-inside: |
-              $M { $P -> ... }
+              { $P -> ... }
           - pattern-not-inside: |
-              $M { $P, $Q -> ... }
+              { $P, $Q -> ... }
           - pattern-not-inside: |
-              { $P: $T -> ... }
+              { $P, $Q, $W -> ... }
           - focus-metavariable: $X
       - patterns:
           - pattern-either:

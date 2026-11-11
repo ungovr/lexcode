@@ -20,6 +20,8 @@ class Reach0(private val client: Client) {
   pw.println(t)
   t.also { emitter.send("tick") }
   t?.also { emitter.send("tick") }
+  t.forEach { emitter.send("tick") }
+  t.collect { emitter.send("tick") }
   }
 }
 
@@ -37,6 +39,8 @@ class Reach1(model: dev.langchain4j.model.chat.ChatModel) {
   pw.println(t)
   t.also { emitter.send("tick") }
   t?.also { emitter.send("tick") }
+  t.forEach { emitter.send("tick") }
+  t.collect { emitter.send("tick") }
   }
 }
 

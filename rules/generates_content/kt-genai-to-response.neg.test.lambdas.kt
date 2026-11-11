@@ -105,6 +105,53 @@ class LambdaHandlers(private val client: Client) {
     f(q)
     return "ok"
   }
+
+  @GetMapping("/l14")
+  fun fourteen(q: String): String {
+    
+    repo.tx3(1, 2) { a, b, c -> repo.save(client.models.generateContent("m", q, null)) }
+    return "ok"
+  }
+
+  @GetMapping("/l15")
+  fun fifteen(q: String): String {
+    
+    val f = { a: Int, b: Int -> repo.save(client.models.generateContent("m", q, null)) }
+    f(1, 2)
+    return "ok"
+  }
+
+  @GetMapping("/l16")
+  fun sixteen(q: String): String {
+    
+    val f = { s -> repo.save(client.models.generateContent("m", q, null)) }
+    f(q)
+    return "ok"
+  }
+
+  @GetMapping("/l17")
+  fun seventeen(q: String): String {
+    
+    val f = { a: Int, b: Int, c: Int -> repo.save(client.models.generateContent("m", q, null)) }
+    f(1, 2, 3)
+    return "ok"
+  }
+
+  @GetMapping("/l18")
+  fun eighteen(q: String): String {
+    
+    var out = ""
+    client.models.generateContent("m", q, null).forEach { out = "constant" }
+    return out
+  }
+
+  @GetMapping("/l19")
+  fun nineteen(q: String): String {
+    
+    var out = ""
+    client.models.generateContent("m", q, null).collect { out = "constant" }
+    return out
+  }
 }
 
 class LambdaPlain(private val client: Client) {
@@ -177,6 +224,47 @@ class LambdaPlain(private val client: Client) {
     val f = { s: String -> repo.save(client.models.generateContent("m", q, null)) }
     f(q)
     return "ok"
+  }
+
+  fun fourteen(q: String): String {
+    
+    repo.tx3(1, 2) { a, b, c -> repo.save(client.models.generateContent("m", q, null)) }
+    return "ok"
+  }
+
+  fun fifteen(q: String): String {
+    
+    val f = { a: Int, b: Int -> repo.save(client.models.generateContent("m", q, null)) }
+    f(1, 2)
+    return "ok"
+  }
+
+  fun sixteen(q: String): String {
+    
+    val f = { s -> repo.save(client.models.generateContent("m", q, null)) }
+    f(q)
+    return "ok"
+  }
+
+  fun seventeen(q: String): String {
+    
+    val f = { a: Int, b: Int, c: Int -> repo.save(client.models.generateContent("m", q, null)) }
+    f(1, 2, 3)
+    return "ok"
+  }
+
+  fun eighteen(q: String): String {
+    
+    var out = ""
+    client.models.generateContent("m", q, null).forEach { out = "constant" }
+    return out
+  }
+
+  fun nineteen(q: String): String {
+    
+    var out = ""
+    client.models.generateContent("m", q, null).collect { out = "constant" }
+    return out
   }
 }
 
@@ -277,6 +365,53 @@ class LambdaHandlers1(model: dev.langchain4j.model.chat.ChatModel) {
     f(q)
     return "ok"
   }
+
+  @GetMapping("/l14")
+  fun fourteen(q: String): String {
+    val assistant = AiServices.create(Assistant::class.java, model)
+    repo.tx3(1, 2) { a, b, c -> repo.save(assistant.answer(q)) }
+    return "ok"
+  }
+
+  @GetMapping("/l15")
+  fun fifteen(q: String): String {
+    val assistant = AiServices.create(Assistant::class.java, model)
+    val f = { a: Int, b: Int -> repo.save(assistant.answer(q)) }
+    f(1, 2)
+    return "ok"
+  }
+
+  @GetMapping("/l16")
+  fun sixteen(q: String): String {
+    val assistant = AiServices.create(Assistant::class.java, model)
+    val f = { s -> repo.save(assistant.answer(q)) }
+    f(q)
+    return "ok"
+  }
+
+  @GetMapping("/l17")
+  fun seventeen(q: String): String {
+    val assistant = AiServices.create(Assistant::class.java, model)
+    val f = { a: Int, b: Int, c: Int -> repo.save(assistant.answer(q)) }
+    f(1, 2, 3)
+    return "ok"
+  }
+
+  @GetMapping("/l18")
+  fun eighteen(q: String): String {
+    val assistant = AiServices.create(Assistant::class.java, model)
+    var out = ""
+    assistant.answer(q).forEach { out = "constant" }
+    return out
+  }
+
+  @GetMapping("/l19")
+  fun nineteen(q: String): String {
+    val assistant = AiServices.create(Assistant::class.java, model)
+    var out = ""
+    assistant.answer(q).collect { out = "constant" }
+    return out
+  }
 }
 
 class LambdaPlain1(model: dev.langchain4j.model.chat.ChatModel) {
@@ -349,6 +484,47 @@ class LambdaPlain1(model: dev.langchain4j.model.chat.ChatModel) {
     val f = { s: String -> repo.save(assistant.answer(q)) }
     f(q)
     return "ok"
+  }
+
+  fun fourteen(q: String): String {
+    val assistant = AiServices.create(Assistant::class.java, model)
+    repo.tx3(1, 2) { a, b, c -> repo.save(assistant.answer(q)) }
+    return "ok"
+  }
+
+  fun fifteen(q: String): String {
+    val assistant = AiServices.create(Assistant::class.java, model)
+    val f = { a: Int, b: Int -> repo.save(assistant.answer(q)) }
+    f(1, 2)
+    return "ok"
+  }
+
+  fun sixteen(q: String): String {
+    val assistant = AiServices.create(Assistant::class.java, model)
+    val f = { s -> repo.save(assistant.answer(q)) }
+    f(q)
+    return "ok"
+  }
+
+  fun seventeen(q: String): String {
+    val assistant = AiServices.create(Assistant::class.java, model)
+    val f = { a: Int, b: Int, c: Int -> repo.save(assistant.answer(q)) }
+    f(1, 2, 3)
+    return "ok"
+  }
+
+  fun eighteen(q: String): String {
+    val assistant = AiServices.create(Assistant::class.java, model)
+    var out = ""
+    assistant.answer(q).forEach { out = "constant" }
+    return out
+  }
+
+  fun nineteen(q: String): String {
+    val assistant = AiServices.create(Assistant::class.java, model)
+    var out = ""
+    assistant.answer(q).collect { out = "constant" }
+    return out
   }
 }
 

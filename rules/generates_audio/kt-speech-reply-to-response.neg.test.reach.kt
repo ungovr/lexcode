@@ -19,6 +19,8 @@ class Reach0(private val openAI: OpenAI) {
   pw.println(t)
   t.also { emitter.send("tick") }
   t?.also { emitter.send("tick") }
+  t.forEach { emitter.send("tick") }
+  t.collect { emitter.send("tick") }
   audioBuf.write(t, 0, 1)
   }
 }

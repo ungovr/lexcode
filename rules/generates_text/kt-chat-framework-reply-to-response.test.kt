@@ -1,4 +1,4 @@
-// lexcode-expect: 8
+// lexcode-expect: 11
 package com.example.text
 
 import android.widget.TextView
@@ -11,6 +11,7 @@ import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter
 
 @RestController
 class FrameworkController(
@@ -50,6 +51,21 @@ class FrameworkController(
 class ChatScreen(private val model: ChatModel) {
   fun show(view: TextView, q: String) {
     view.text = model.chat(q)
+  }
+}
+
+// The Spring AI streaming idiom: the implicit `it` of subscribe, doOnNext and forEach carries the tokens out.
+class StreamingScreen(private val chatModel: ChatModel) {
+  fun subscribeIt(emitter: SseEmitter, q: String) {
+    chatModel.stream(Prompt(q)).subscribe { emitter.send(it) }
+  }
+
+  fun doOnNextIt(emitter: SseEmitter, q: String) {
+    chatModel.stream(Prompt(q)).doOnNext { emitter.send(it) }.blockLast()
+  }
+
+  fun collectListIt(emitter: SseEmitter, q: String) {
+    chatModel.stream(Prompt(q)).collectList().block()!!.forEach { emitter.send(it) }
   }
 }
 

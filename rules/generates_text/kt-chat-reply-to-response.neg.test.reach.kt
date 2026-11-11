@@ -21,6 +21,8 @@ class Reach0(private val model: ChatModel) {
   pw.println(t)
   t.also { emitter.send("tick") }
   t?.also { emitter.send("tick") }
+  t.forEach { emitter.send("tick") }
+  t.collect { emitter.send("tick") }
   }
 }
 
@@ -38,6 +40,8 @@ class Reach1(private val openai: OpenAIClient) {
   pw.println(t)
   t.also { emitter.send("tick") }
   t?.also { emitter.send("tick") }
+  t.forEach { emitter.send("tick") }
+  t.collect { emitter.send("tick") }
   }
 }
 
@@ -54,6 +58,8 @@ class ReachCallback(private val model: ChatModel) {
       pw.println(t)
       t.also { emitter.send("tick") }
       t?.also { emitter.send("tick") }
+      t.forEach { emitter.send("tick") }
+      t.collect { emitter.send("tick") }
     }
   }
 }

@@ -20,6 +20,8 @@ class Reach0(private val client: OpenAIClient) {
   pw.println(t)
   t.also { emitter.send("tick") }
   t?.also { emitter.send("tick") }
+  t.forEach { emitter.send("tick") }
+  t.collect { emitter.send("tick") }
   view.load(t)
   }
 }
