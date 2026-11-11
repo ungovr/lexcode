@@ -218,17 +218,39 @@ function onlyProcessingInstructionsDropped(raw: RawError, root: string): boolean
   if (!/\.(?:xml|pom)$/i.test(path)) return false;
   const spans = (raw as { spans?: unknown }).spans;
   if (!Array.isArray(spans) || spans.length === 0) return false;
-  let lines: string[];
+  let bytes: Buffer;
   try {
-    lines = readFileSync(isAbsolute(path) ? path : join(root, path), 'utf8').split(/\r\n|\n|\r/);
+    bytes = readFileSync(isAbsolute(path) ? path : join(root, path));
   } catch {
     return false;
   }
-  for (const span of spans as { start?: { line?: unknown; col?: unknown } }[]) {
-    const line = span.start?.line;
-    const col = span.start?.col;
-    if (typeof line !== 'number' || typeof col !== 'number') return false;
-    if (!(lines[line - 1] ?? '').startsWith('<?', col - 1)) return false;
+  // The engine counts columns in bytes, so the lines stay bytes until a span is cut out of them.
+  const lines: Buffer[] = [];
+  for (let from = 0; ; ) {
+    const nl = bytes.indexOf(0x0a, from);
+    if (nl < 0) {
+      lines.push(bytes.subarray(from));
+      break;
+    }
+    lines.push(bytes.subarray(from, nl));
+    from = nl + 1;
+  }
+  type Pos = { line?: unknown; col?: unknown };
+  for (const span of spans as { start?: Pos; end?: Pos }[]) {
+    const l1 = span.start?.line;
+    const c1 = span.start?.col;
+    const l2 = span.end?.line;
+    const c2 = span.end?.col;
+    if (typeof l1 !== 'number' || typeof c1 !== 'number' || typeof l2 !== 'number' || typeof c2 !== 'number') return false;
+    if (l1 < 1 || l2 < l1 || l2 > lines.length) return false;
+    const parts: Buffer[] = [];
+    for (let l = l1; l <= l2; l++) {
+      const line = lines[l - 1] as Buffer;
+      parts.push(line.subarray(l === l1 ? c1 - 1 : 0, l === l2 ? c2 - 1 : line.length));
+    }
+    const text = Buffer.concat(parts.flatMap((p, i) => (i === 0 ? [p] : [Buffer.from('\n'), p]))).toString('utf8');
+    // Exactly one processing instruction: it opens with `<?`, closes with the first `?>`, and the span ends there.
+    if (text.length < 4 || !text.startsWith('<?') || !text.endsWith('?>') || text.indexOf('?>') !== text.length - 2) return false;
   }
   return true;
 }
