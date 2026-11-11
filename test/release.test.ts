@@ -44,12 +44,19 @@ function wholeFileLookaheadProblem(rx: string): string | null {
   if (start === -1) return null;
   const lookaheads = rx.split('(?=').length - 1;
   if (lookaheads > 1) return 'second lookahead';
-  // Walk the lookahead to its closing parenthesis, ignoring escapes and character classes.
-  let depth = 0;
+  // Walk the lookahead to its closing parenthesis, ignoring escapes and character classes. An alternation
+  // at the lookahead's own level is always the failing shape (`(?=.*A|.*B)`). One inside a group fails only
+  // when it comes before the lookahead's first literal (`(?=.*(A|B))`): the engine then tries every
+  // alternative at every position of the file. After a leading literal (`(?=.*?Mechanize(?:\s|#)*\.new)`)
+  // it runs only where the literal matched, which held to 940 KB on opengrep 1.33.1.
+  let depth = 1;
   let inClass = false;
-  for (let i = start + 2; i < rx.length; i++) {
+  let seenLiteral = false;
+  for (let i = start + '\\A(?='.length; i < rx.length; i++) {
     const ch = rx[i] as string;
     if (ch === '\\') {
+      const next = rx[i + 1] ?? '';
+      if (depth === 1 && !/[sSwWdDbBAzZ]/.test(next)) seenLiteral = true;
       i++;
       continue;
     }
@@ -62,7 +69,8 @@ function wholeFileLookaheadProblem(rx: string): string | null {
     else if (ch === ')') {
       depth--;
       if (depth === 0) return null;
-    } else if (ch === '|' && depth >= 1) return 'alternation';
+    } else if (ch === '|' && (depth === 1 || !seenLiteral)) return 'alternation';
+    else if (depth === 1 && !'.*+?{}^$'.includes(ch) && !/[\d,]/.test(ch)) seenLiteral = true;
   }
   return null;
 }
@@ -208,6 +216,13 @@ describe('release: the rule set is complete and well formed', () => {
     // An escaped bar, and a bar inside a character class, are not alternations.
     expect(wholeFileLookaheadProblem('(?s)\\A(?=.*a\\|b).*')).toBeNull();
     expect(wholeFileLookaheadProblem('(?s)\\A(?=.*[|]x).*')).toBeNull();
+    // An alternation at the lookahead's own level fails even after a literal; one in a group after the
+    // lookahead's first literal runs only where that literal matched, and passes.
+    expect(wholeFileLookaheadProblem('(?s)\\A(?=.*Post|.*Tweet).*')).toMatch(/alternation/);
+    expect(wholeFileLookaheadProblem('(?s)\\A(?=.*?(?:Post|Tweet)Model).*')).toMatch(/alternation/);
+    expect(wholeFileLookaheadProblem('(?s)\\A(?=.*?Mechanize(?:\\s|#)*\\.(?:new|start)).*')).toBeNull();
+    expect(wholeFileLookaheadProblem('(?s)\\A(?=.*com\\.(?:openai|anthropic)).*')).toBeNull();
+    expect(wholeFileLookaheadProblem('(?s)\\A(?=.*\\b(?:A|B)).*')).toMatch(/alternation/);
   });
 
   it('contributing forbids the three rule sets', () => {
