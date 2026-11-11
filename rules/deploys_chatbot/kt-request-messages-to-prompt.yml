@@ -1,0 +1,149 @@
+# Not a taint rule on purpose, as in java-request-messages-to-model: the cost is that a value passed
+# through a helper before the call is not followed; the request's own messages list, or a property
+# read straight off the request object, is. The bar is the JS, Python, Java and Ruby rules': a
+# messages or history LIST from the request reaches the model call. A single typed message inside a
+# fixed prompt is a one-shot tool, not a chatbot, so it does not match. The model call is named by the
+# request type or the client in it (a Spring AI ChatClient prompt, a Prompt, an OpenAI or Anthropic
+# params builder, a LangChain4j model, openai-kotlin's ChatCompletionRequest), so a "messages"
+# builder of some other kind does not match. The request is a Spring handler parameter
+# (@RequestBody, @Payload), a JAX-RS @POST parameter, or the value a Ktor or WebFlux handler reads
+# with call.receive<T>() or awaitBody<T>().
+#
+# The argument is written into each call pattern (`$P.messages`, or the bare `$P`) instead of being
+# checked afterwards with metavariable-pattern: a metavariable-pattern does not see the handler's $P,
+# and a free `$P.$A` also matched the dotted import name of a class (`org.springframework.ai.chat.
+# messages.UserMessage` reads as `<package>.messages`). Written in the call, $P is the handler's own
+# parameter.
+# This rule takes `Prompt(...)` and the LangChain4j `chat`/`generate` calls; kt-request-messages-to-model
+# takes the builder and request-object forms. See there for why they are two rules.
+rules:
+  - id: lexcode.chatbot.kt-request-messages-to-prompt
+    languages: [kotlin]
+    severity: INFO
+    message: Passes the conversation a client sent in a request to a language model, which is deploying a chatbot (deploys_chatbot).
+    patterns:
+      # A pre-filter: the request is read through one of these, so files with none are not parsed.
+      - pattern-regex: '(?s)(@RequestBody|@Payload|@POST|call\.receive|awaitBody).*'
+      - pattern-regex: '(?s)(\bPrompt\(|\.chat\(|\.generate\().*'
+      - pattern-either:
+          - pattern-inside: |
+              fun $F(..., @RequestBody $P: $T, ...) { ... }
+          - pattern-inside: |
+              fun $F(..., @RequestBody $P: $T, ...): $R { ... }
+          - pattern-inside: |
+              fun $F(..., @RequestBody $P: $T, ...) = $E
+          - pattern-inside: |
+              fun $F(..., @RequestBody $P: $T, ...): $R = $E
+          - pattern-inside: |
+              suspend fun $F(..., @RequestBody $P: $T, ...) { ... }
+          - pattern-inside: |
+              suspend fun $F(..., @RequestBody $P: $T, ...): $R { ... }
+          - pattern-inside: |
+              suspend fun $F(..., @RequestBody $P: $T, ...) = $E
+          - pattern-inside: |
+              suspend fun $F(..., @RequestBody $P: $T, ...): $R = $E
+          - pattern-inside: |
+              fun $F(..., @Payload $P: $T, ...) { ... }
+          - pattern-inside: |
+              fun $F(..., @Payload $P: $T, ...): $R { ... }
+          - pattern-inside: |
+              @POST
+              fun $F(..., $P: $T, ...) { ... }
+          - pattern-inside: |
+              @POST
+              fun $F(..., $P: $T, ...): $R { ... }
+          - pattern-inside: |
+              @POST
+              fun $F(..., $P: $T, ...) = $E
+          - pattern-inside: |
+              @POST
+              fun $F(..., $P: $T, ...): $R = $E
+          - pattern-inside: |
+              {
+                val $P = call.receive<$T>()
+                ...
+              }
+          - pattern-inside: |
+              {
+                val $P: $T = call.receive()
+                ...
+              }
+          - pattern-inside: |
+              {
+                val $P = $REQ.awaitBody<$T>()
+                ...
+              }
+          - pattern-inside: |
+              fun $F(...) {
+                val $P = call.receive<$T>()
+                ...
+              }
+          - pattern-inside: |
+              suspend fun $F(...) {
+                val $P = call.receive<$T>()
+                ...
+              }
+          - pattern-inside: |
+              fun $F(...) {
+                val $P = $REQ.awaitBody<$T>()
+                ...
+              }
+          - pattern-inside: |
+              fun $F(...): $R {
+                val $P = $REQ.awaitBody<$T>()
+                ...
+              }
+          - pattern-inside: |
+              suspend fun $F(...) {
+                val $P = $REQ.awaitBody<$T>()
+                ...
+              }
+          - pattern-inside: |
+              suspend fun $F(...): $R {
+                val $P = $REQ.awaitBody<$T>()
+                ...
+              }
+      # The call is named by what is in it, then its argument is the request's own messages: a
+      # property read off the request object (request.messages) or the request body itself, when that
+      # is the list.
+      - pattern-either:
+          - patterns:
+              - pattern: Prompt($P.$A, ...)
+              # Literal anchor inside the match (the model call), so the engine skips files with no such call.
+              - pattern-regex: '\bPrompt\('
+              - metavariable-regex:
+                  metavariable: $A
+                  regex: ^(get)?([Mm]essages|[Hh]istory|[Cc]onversation|[Cc]hatHistory|[Cc]hatMessages)$
+          - patterns:
+              - pattern: Prompt($P, ...)
+              # Literal anchor inside the match (the model call), so the engine skips files with no such call.
+              - pattern-regex: '\bPrompt\('
+              - metavariable-regex:
+                  metavariable: $P
+                  regex: ^(messages|history|conversation|chatHistory|chatMessages)$
+          - patterns:
+              - pattern: $M.$W($P.$A)
+              # Literal anchor inside the match (the model call), so the engine skips files with no such call.
+              - pattern-regex: '\.(chat|generate)\('
+              - metavariable-regex:
+                  metavariable: $M
+                  regex: (?i)^(this\.)?\w*(model|llm|chat|assistant|ai)\w*$
+              - metavariable-regex:
+                  metavariable: $A
+                  regex: ^(get)?([Mm]essages|[Hh]istory|[Cc]onversation|[Cc]hatHistory|[Cc]hatMessages)$
+          - patterns:
+              - pattern: $M.$W($P)
+              # Literal anchor inside the match (the model call), so the engine skips files with no such call.
+              - pattern-regex: '\.(chat|generate)\('
+              - metavariable-regex:
+                  metavariable: $M
+                  regex: (?i)^(this\.)?\w*(model|llm|chat|assistant|ai)\w*$
+              - metavariable-regex:
+                  metavariable: $P
+                  regex: ^(messages|history|conversation|chatHistory|chatMessages)$
+    metadata:
+      activity: deploys_chatbot
+      mentioned: performs
+      definition: https://lexlint.io/activities/deploys-chatbot
+      provenance: ungovr-original
+      license: MIT

@@ -1,0 +1,44 @@
+rules:
+  - id: lexcode.chat.kt-live-chat-vendor
+    languages: [kotlin]
+    severity: INFO
+    message: Starts a live-chat or in-app messaging SDK, so the vendor receives what visitors type to support, which is a text chat that is kept (records_text_chat).
+    # The vendor SDKs an Android app starts by a call on the vendor's own class: Intercom,
+    # Freshchat, Zendesk Chat, Smooch, Sendbird, Stream Chat and Twilio Conversations. Several of the
+    # class names are plain words (`Chat`, `ChatClient`), so each vendor is its own branch with its
+    # own import guard (the regular expression also pre-filters files): an app's own `Chat` object
+    # does not match, and one vendor's import does not enable another vendor's call. A help-center
+    # article viewer, analytics and crash reporting are not matched.
+    pattern-either:
+      - patterns:
+          - pattern-regex: '(?s)import\s+io\.intercom\..*'
+          - pattern-either:
+              - pattern: Intercom.initialize(...)
+              - pattern: Intercom.client()
+      - patterns:
+          - pattern-regex: '(?s)import\s+com\.freshchat\..*'
+          - pattern: Freshchat.getInstance(...)
+      - patterns:
+          - pattern-regex: '(?s)import\s+zendesk\.chat\..*'
+          - pattern: Chat.INSTANCE.init(...)
+      - patterns:
+          - pattern-regex: '(?s)import\s+io\.smooch\..*'
+          - pattern: Smooch.init(...)
+      - patterns:
+          - pattern-regex: '(?s)import\s+com\.sendbird\..*'
+          - pattern-either:
+              - pattern: SendbirdChat.init(...)
+              - pattern: SendbirdUIKit.init(...)
+              - pattern: SendBird.init(...)
+      - patterns:
+          - pattern-regex: '(?s)import\s+io\.getstream\.chat\..*'
+          - pattern: ChatClient.Builder(...)
+      - patterns:
+          - pattern-regex: '(?s)import\s+com\.twilio\.conversations\..*'
+          - pattern: ConversationsClient.create(...)
+    metadata:
+      activity: records_text_chat
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-text-chat
+      provenance: ungovr-original
+      license: MIT
