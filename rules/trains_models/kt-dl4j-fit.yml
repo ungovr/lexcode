@@ -1,0 +1,102 @@
+rules:
+  - id: lexcode.train.kt-dl4j-fit
+    languages: [kotlin]
+    severity: INFO
+    message: Calls fit on a Deeplearning4j or ND4J SameDiff network, graph or trainer, which trains a neural network on data the app holds (trains_models).
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - patterns:
+                  - pattern: $N.fit(...)
+                  - pattern-either:
+                      - pattern-inside: |
+                          val $N = $T(...)
+                          ...
+                      - pattern-inside: |
+                          var $N = $T(...)
+                          ...
+                      - pattern-inside: |
+                          val $N: $T = $E
+                          ...
+                      - pattern-inside: |
+                          fun $F(..., $N: $T, ...) {
+                            ...
+                          }
+                      - pattern-inside: |
+                          class $C(..., $N: $T, ...) {
+                            ...
+                          }
+                      - pattern-inside: |
+                          class $C(...) {
+                            ...
+                            lateinit var $N: $T
+                            ...
+                          }
+                      - pattern-inside: |
+                          class $C(...) {
+                            ...
+                            val $N = $T(...)
+                            ...
+                          }
+                      - pattern-inside: |
+                          class $C(...) {
+                            ...
+                            val $N: $T = $E
+                            ...
+                          }
+              - pattern: $T(...).fit(...)
+          - metavariable-regex:
+              metavariable: $T
+              regex: ^(MultiLayerNetwork|ComputationGraph|SameDiff|EarlyStoppingTrainer|EarlyStoppingGraphTrainer|SparkDl4jMultiLayer|SparkComputationGraph)$
+          - pattern-either:
+              - pattern-inside: |
+                  import org.deeplearning4j.nn.multilayer.$T
+                  ...
+              - pattern-inside: |
+                  import org.deeplearning4j.nn.graph.$T
+                  ...
+              - pattern-inside: |
+                  import org.nd4j.autodiff.samediff.$T
+                  ...
+              - pattern-inside: |
+                  import org.deeplearning4j.earlystopping.trainer.$T
+                  ...
+              - pattern-inside: |
+                  import org.deeplearning4j.spark.impl.multilayer.$T
+                  ...
+              - pattern-inside: |
+                  import org.deeplearning4j.spark.impl.graph.$T
+                  ...
+              - pattern-inside: |
+                  import org.deeplearning4j.nn.multilayer.*
+                  ...
+              - pattern-inside: |
+                  import org.deeplearning4j.nn.graph.*
+                  ...
+              - pattern-inside: |
+                  import org.nd4j.autodiff.samediff.*
+                  ...
+              - pattern-inside: |
+                  import org.deeplearning4j.earlystopping.trainer.*
+                  ...
+              - pattern-inside: |
+                  import org.deeplearning4j.spark.impl.multilayer.*
+                  ...
+              - pattern-inside: |
+                  import org.deeplearning4j.spark.impl.graph.*
+                  ...
+    paths:
+      exclude:
+        - "**/example/**"
+        - "**/examples/**"
+        - "**/sample/**"
+        - "**/demo/**"
+        - "**/demos/**"
+        - "**/src/test/**"
+        - "**/src/androidTest/**"
+    metadata:
+      activity: trains_models
+      mentioned: performs
+      definition: https://lexlint.io/activities/trains-models
+      provenance: ungovr-original
+      license: MIT

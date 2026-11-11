@@ -1,0 +1,41 @@
+rules:
+  - id: lexcode.distribute.gradle-kts-maven-publication
+    languages: [kotlin]
+    severity: INFO
+    message: Signs a Gradle publication, or publishes it to Sonatype or Maven Central, which makes the artifact available for others to depend on (distributes_software_product).
+    pattern-either:
+      - pattern: sign(publishing.publications)
+      - pattern: sign(publishing.publications[$K])
+      - pattern: sign(publishing.publications.$M(...))
+      - pattern: sign(publishing.publications.$M(...).$N(...))
+      - patterns:
+          - pattern-either:
+              - pattern: uri($U)
+              - pattern: setUrl($U)
+              - pattern: maven($U)
+              - pattern: maven(url = $U)
+          - pattern-inside: |
+              publishing { ... }
+          - metavariable-regex:
+              metavariable: $U
+              regex: ^"https?://([\w.-]+\.)?(oss\.sonatype\.org|central\.sonatype\.com)\b
+      - patterns:
+          - pattern: publishToMavenCentral(...)
+          - pattern-inside: |
+              mavenPublishing { ... }
+    paths:
+      include:
+        - "*.gradle.kts"
+        - "gradle-kts-maven-publication.*"
+      exclude:
+        - "**/example/**"
+        - "**/examples/**"
+        - "**/sample/**"
+        - "**/demo/**"
+        - "**/demos/**"
+    metadata:
+      activity: distributes_software_product
+      mentioned: performs
+      definition: https://lexlint.io/activities/distributes-software-product
+      provenance: ungovr-original
+      license: MIT

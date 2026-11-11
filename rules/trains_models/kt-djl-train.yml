@@ -1,0 +1,56 @@
+rules:
+  - id: lexcode.train.kt-djl-train
+    languages: [kotlin]
+    severity: INFO
+    message: Trains a Deep Java Library model, with EasyTrain or by feeding a Trainer batches, which is training models (trains_models).
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: EasyTrain.fit(...)
+              - pattern: EasyTrain.trainBatch(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import ai.djl.training.EasyTrain
+                  ...
+              - pattern-inside: |
+                  import ai.djl.training.*
+                  ...
+      - pattern: ai.djl.training.EasyTrain.fit(...)
+      - pattern: ai.djl.training.EasyTrain.trainBatch(...)
+      - patterns:
+          - pattern-either:
+              - patterns:
+                  - pattern-either:
+                      - pattern: $T.trainBatch(...)
+                      - pattern: $T.step()
+                  - metavariable-type:
+                      metavariable: $T
+                      type: Trainer
+              - patterns:
+                  - pattern-either:
+                      - pattern: $T.trainBatch(...)
+                      - pattern: $T.step()
+                  - pattern-inside: |
+                      $M.newTrainer(...).use { $T -> ... }
+          - pattern-either:
+              - pattern-inside: |
+                  import ai.djl.training.Trainer
+                  ...
+              - pattern-inside: |
+                  import ai.djl.training.*
+                  ...
+    paths:
+      exclude:
+        - "**/example/**"
+        - "**/examples/**"
+        - "**/sample/**"
+        - "**/demo/**"
+        - "**/demos/**"
+        - "**/src/test/**"
+        - "**/src/androidTest/**"
+    metadata:
+      activity: trains_models
+      mentioned: performs
+      definition: https://lexlint.io/activities/trains-models
+      provenance: ungovr-original
+      license: MIT

@@ -1,0 +1,22 @@
+rules:
+  - id: lexcode.mobile.gradle-kts-android-application
+    languages: [kotlin]
+    severity: INFO
+    message: Applies the Android application Gradle plugin, by id or by a catalog alias named for it, so the module builds an installable app that is listed in a store or sideloaded (ships_mobile_app).
+    pattern-regex: '(?m)^[ \t]*(?:(?:id|apply)[ \t]*\([ \t]*(?:plugin[ \t]*=[ \t]*)?"com\.android\.application"[ \t]*\)|plugin[ \t]*\([ \t]*"com\.android\.application"[ \t]*\)|alias[ \t]*\([ \t]*\w+\.plugins\.(?:\w+\.)*android\.application[ \t]*\))(?![^\n]*\bapply[ \t]+false\b)'
+    paths:
+      include:
+        - "*.gradle.kts"
+        - "gradle-kts-android-application.*"
+      exclude:
+        - "**/example/**"
+        - "**/examples/**"
+        - "**/sample/**"
+        - "**/demo/**"
+        - "**/demos/**"
+    metadata:
+      activity: ships_mobile_app
+      mentioned: performs
+      definition: https://lexlint.io/activities/ships-mobile-app
+      provenance: ungovr-original
+      license: MIT

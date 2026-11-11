@@ -1,0 +1,22 @@
+rules:
+  - id: lexcode.mobile.gradle-kts-play-publisher
+    languages: [kotlin]
+    severity: INFO
+    message: Applies the Gradle Play Publisher plugin, by id or by a catalog alias named for it, which uploads the build to Google Play, which is distributing a mobile app through Google's store (ships_mobile_app).
+    pattern-regex: '(?m)^[ \t]*(?:(?:id|apply)[ \t]*\([ \t]*(?:plugin[ \t]*=[ \t]*)?"com\.github\.triplet\.play"[ \t]*\)|plugin[ \t]*\([ \t]*"com\.github\.triplet\.play"[ \t]*\)|alias[ \t]*\([ \t]*\w+\.plugins\.(?:\w+\.)*(?:triplet(?:\.\w+)*|play\.publisher)[ \t]*\)|classpath[ \t]*\([ \t]*"com\.github\.triplet\.gradle:play-publisher[:"])(?![^\n]*\bapply[ \t]+false\b)'
+    paths:
+      include:
+        - "*.gradle.kts"
+        - "gradle-kts-play-publisher.*"
+      exclude:
+        - "**/example/**"
+        - "**/examples/**"
+        - "**/sample/**"
+        - "**/demo/**"
+        - "**/demos/**"
+    metadata:
+      activity: ships_mobile_app
+      mentioned: performs
+      definition: https://lexlint.io/activities/ships-mobile-app
+      provenance: ungovr-original
+      license: MIT
