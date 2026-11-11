@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { blankOutsideScripts, extractScripts } from '../../src/scope/extract.js';
+import { expectNearLinear, measureScaling } from '../helpers/scaling.js';
 
 const made: string[] = [];
 function tmp(): string {
@@ -217,12 +218,15 @@ describe('extractScripts', () => {
 });
 
 describe('blankOutsideScripts on hostile input', () => {
-  it('takes under 1 second for 500 KB of unterminated comment openers, and still finds the script after them', () => {
-    const text = '<!--'.repeat(125_000) + '<script>fetch(u)</script>';
-    const t0 = performance.now();
-    const out = blankOutsideScripts(text);
-    expect(performance.now() - t0).toBeLessThan(1000);
-    expect(out?.text.includes('fetch(u)')).toBe(true);
+  it('takes time that grows near-linearly with 500 KB of unterminated comment openers, and still finds the script after them', () => {
+    const m = measureScaling({
+      small: 12_500,
+      large: 125_000,
+      setup: (n) => '<!--'.repeat(n) + '<script>fetch(u)</script>',
+      run: (text) => blankOutsideScripts(text),
+    });
+    expectNearLinear(m, 'blankOutsideScripts');
+    expect(m.result?.text.includes('fetch(u)')).toBe(true);
   });
 
   it('a terminated comment still hides the script inside it, and the script after it is kept', () => {

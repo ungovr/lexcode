@@ -50,6 +50,28 @@ package, and nothing adds to it on its own:
 4. `npm test` checks the shape of every entry: no duplicates, known evidence
    ids, a quote and an https source.
 
+## Performance tests
+
+A performance test checks a scaling ratio or a work counter, never a fixed
+time. CI runners differ in speed several-fold (a shared macOS runner once took
+2.8 seconds on a test budgeted at 2), so "under 2 seconds"
+passes on one runner and fails on the next with no code change, and a budget
+loose enough to be safe everywhere misses real regressions.
+
+Time the same function on N and 10N inputs inside one test and assert the
+ratio. Linear code costs about 10x and quadratic code about 100x, on any
+machine, so a bound of 30x separates them. `test/helpers/scaling.ts` does this:
+`measureScaling` warms up, takes the minimum of several repetitions per size,
+and loops a call that runs under 5 ms so the clock is not the noise;
+`expectNearLinear` asserts the ratio. Keep the existing correctness assertions
+on the result it returns. Where the code has a natural counter (lines scanned,
+lookups made), assert the count instead. If a ratio test flakes, fix the
+measurement method; never widen the bound or skip the platform.
+
+A deadline test (an engine that outlives its deadline is stopped) is not a
+performance test, and its time bound only has to be far above the deadline it
+checks.
+
 ## Running the tests
 
 ```
