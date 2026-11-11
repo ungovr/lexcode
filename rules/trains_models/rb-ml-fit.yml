@@ -1,0 +1,50 @@
+rules:
+  - id: lexcode.train.rb-ml-fit
+    languages: [ruby]
+    severity: INFO
+    message: Fits a machine-learning model to training data with Rumale, XGBoost, LightGBM, Disco or a similar gem, which is training models (trains_models).
+    mode: taint
+    pattern-sources:
+      - pattern: Rumale::LinearModel::$C.new(...)
+      - pattern: Rumale::Ensemble::$C.new(...)
+      - pattern: Rumale::Tree::$C.new(...)
+      - pattern: Rumale::NaiveBayes::$C.new(...)
+      - pattern: Rumale::NearestNeighbors::$C.new(...)
+      - pattern: Rumale::NeuralNetwork::$C.new(...)
+      - pattern: Rumale::KernelMachine::$C.new(...)
+      - pattern: XGBoost::Classifier.new(...)
+      - pattern: XGBoost::Regressor.new(...)
+      - pattern: XGBoost::Ranker.new(...)
+      - pattern: LightGBM::Classifier.new(...)
+      - pattern: LightGBM::Regressor.new(...)
+      - pattern: LightGBM::Ranker.new(...)
+      - pattern: Disco::Recommender.new(...)
+      - pattern: Prophet.new(...)
+      - pattern: Tensorflow::Keras::Models::Sequential.new(...)
+      - pattern: Ai4r::NeuralNetwork::Backpropagation.new(...)
+      - pattern: ClassifierReborn::Bayes.new(...)
+      - pattern: Classifier::Bayes.new(...)
+      - pattern: RubyFann::Standard.new(...)
+      - pattern: RubyFann::Shortcut.new(...)
+    pattern-sinks:
+      - patterns:
+          - pattern: $M.fit(...)
+          - focus-metavariable: $M
+      - patterns:
+          - pattern: $M.partial_fit(...)
+          - focus-metavariable: $M
+      - patterns:
+          - pattern: $M.train(...)
+          - focus-metavariable: $M
+      - patterns:
+          - pattern: $M.train_on_data(...)
+          - focus-metavariable: $M
+      - patterns:
+          - pattern: $M.train_on_file(...)
+          - focus-metavariable: $M
+    metadata:
+      activity: trains_models
+      mentioned: performs
+      definition: https://lexlint.io/activities/trains-models
+      provenance: ungovr-original
+      license: MIT
