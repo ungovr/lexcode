@@ -12,18 +12,10 @@ rules:
           - pattern: ($T $M).$F(...)
           - metavariable-regex:
               metavariable: $T
-              regex: ^([\w.]+\.)?(GenerativeModel)$
+              regex: ^([\w.]+\.)?(GenerativeModel|ChatSession)$
           - metavariable-regex:
               metavariable: $F
-              regex: ^(generateContent|generateContentStream|generateContentAsync)$
-      - patterns:
-          - pattern: ($T $M).$F(...)
-          - metavariable-regex:
-              metavariable: $T
-              regex: ^([\w.]+\.)?(ChatSession)$
-          - metavariable-regex:
-              metavariable: $F
-              regex: ^(sendMessage|sendMessageStream)$
+              regex: ^(generateContent|generateContentStream|generateContentAsync|sendMessage|sendMessageStream)$
     pattern-propagators:
       - pattern: $S.forEach($X -> ...)
         from: $S

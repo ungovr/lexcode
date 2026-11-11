@@ -63,3 +63,31 @@ public class MoodBoardJob {
     }
   }
 }
+
+// An in-house photo service whose method names sound like image-model calls. The photos are
+// the ones people uploaded; nothing here calls a model.
+@RestController
+class PhotoController {
+  private final PhotoService photos;
+
+  PhotoController(PhotoService photos) {
+    this.photos = photos;
+  }
+
+  @GetMapping("/photos/edit")
+  public byte[] edit(@RequestParam String upload) {
+    return photos.editImage(upload);
+  }
+
+  @GetMapping("/photos/upscale")
+  public ResponseEntity<byte[]> upscale(@RequestParam String upload) {
+    byte[] larger = photos.upscaleImage(upload, 2);
+    return ResponseEntity.ok(larger);
+  }
+
+  @GetMapping("/photos/album")
+  public Object album(@RequestParam String album) {
+    var images = photos.generateImages(album);
+    return images;
+  }
+}

@@ -8,11 +8,9 @@ rules:
       - pattern: $C.images().generate(...)
       - pattern: $C.images().edit(...)
       - pattern: $C.images().createVariation(...)
-      - pattern: $C.getImageGenerations(...)
-      - pattern: $C.getImageGenerationsWithResponse(...)
-      - pattern: $M.generateImages(...)
-      - pattern: $M.editImage(...)
-      - pattern: $M.upscaleImage(...)
+      - pattern: $C.models.generateImages(...)
+      - pattern: $C.models.editImage(...)
+      - pattern: $C.models.upscaleImage(...)
       - patterns:
           - pattern-either:
               - pattern: $C.invokeModel(InvokeModelRequest.builder(). ... .modelId($ID). ... .build())
@@ -24,10 +22,10 @@ rules:
           - pattern: ($T $M).$F(...)
           - metavariable-regex:
               metavariable: $T
-              regex: ^([\w.]+\.)?(\w*ImageModel)$
+              regex: ^([\w.]+\.)?(\w*ImageModel|OpenAIClient|OpenAIAsyncClient)$
           - metavariable-regex:
               metavariable: $F
-              regex: ^(generate|edit|call)$
+              regex: ^(generate|edit|call|getImageGenerations|getImageGenerationsWithResponse)$
       - pattern: $M.call(new ImagePrompt(...))
       - pattern: $M.call((ImagePrompt $P))
     pattern-propagators:

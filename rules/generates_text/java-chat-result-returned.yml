@@ -35,21 +35,6 @@ rules:
           - metavariable-regex:
               metavariable: $M
               regex: ^(create|createStreaming)$
-      - pattern: $C.getChatCompletions(...)
-      - pattern: $C.getChatCompletionsStream(...)
-      - pattern: $C.getChatCompletionsWithResponse(...)
-      - pattern: $C.getCompletions(...)
-      - pattern: $C.getCompletionsStream(...)
-      - patterns:
-          - pattern: ($T $M).$F(...)
-          - metavariable-regex:
-              metavariable: $T
-              regex: ^([\w.]+\.)?(ChatCompletionsClient|ChatCompletionsAsyncClient)$
-          - metavariable-regex:
-              metavariable: $F
-              regex: ^(complete|completeStream)$
-      - pattern: $C.converse(...)
-      - pattern: $C.converseStream(...)
       - patterns:
           - pattern-either:
               - pattern: $C.invokeModel(InvokeModelRequest.builder(). ... .modelId($ID). ... .build())
@@ -61,28 +46,12 @@ rules:
           - pattern: ($T $M).$F(...)
           - metavariable-regex:
               metavariable: $T
-              regex: ^([\w.]+\.)?(\w*ChatModel|\w*ChatLanguageModel)$
+              regex: ^([\w.]+\.)?(OpenAIClient|OpenAIAsyncClient|ChatCompletionsClient|ChatCompletionsAsyncClient|BedrockRuntimeClient|BedrockRuntimeAsyncClient|\w*ChatModel|\w*ChatLanguageModel|OllamaAPI|Ollama|LlamaModel)$
           - metavariable-regex:
               metavariable: $F
-              regex: ^(chat|generate|call|stream)$
+              regex: ^(getChatCompletions|getChatCompletionsStream|getChatCompletionsWithResponse|getCompletions|getCompletionsStream|complete|completeStream|converse|converseStream|chat|generate|generateAsync|call|stream|chatComplete)$
       - pattern: $C.prompt(...). ... .call()
       - pattern: $C.prompt(...). ... .stream()
-      - patterns:
-          - pattern: ($T $M).$F(...)
-          - metavariable-regex:
-              metavariable: $T
-              regex: ^([\w.]+\.)?(OllamaAPI|Ollama)$
-          - metavariable-regex:
-              metavariable: $F
-              regex: ^(generate|generateAsync|chat)$
-      - patterns:
-          - pattern: ($T $M).$F(...)
-          - metavariable-regex:
-              metavariable: $T
-              regex: ^([\w.]+\.)?(LlamaModel)$
-          - metavariable-regex:
-              metavariable: $F
-              regex: ^(complete|generate|chatComplete)$
       - patterns:
           - pattern: |
               void onPartialResponse(String $T) {

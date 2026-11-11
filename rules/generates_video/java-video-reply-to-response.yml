@@ -5,7 +5,7 @@ rules:
     message: Sends a clip rendered by a video model back in an HTTP response, a socket or a screen, which is generating video with AI that reaches users (generates_video).
     mode: taint
     pattern-sources:
-      - pattern: $M.generateVideos(...)
+      - pattern: $C.models.generateVideos(...)
       - patterns:
           - pattern: $C.videos().$M(...)
           - metavariable-regex:

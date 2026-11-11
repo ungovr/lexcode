@@ -55,3 +55,24 @@ public class StoryboardJob {
     }
   }
 }
+
+// An in-house catalog whose method name sounds like a video-model call. It lists clips people uploaded.
+@RestController
+class CatalogController {
+  private final VideoCatalog videos;
+
+  CatalogController(VideoCatalog videos) {
+    this.videos = videos;
+  }
+
+  @GetMapping("/catalog/{id}")
+  public ResponseEntity<Object> catalog(@PathVariable String id) {
+    var listing = videos.generateVideos(id);
+    return ResponseEntity.ok(listing);
+  }
+
+  @GetMapping("/catalog/{id}/raw")
+  public Object raw(@PathVariable String id) {
+    return videos.generateVideos(id);
+  }
+}

@@ -6,8 +6,6 @@ rules:
     mode: taint
     pattern-sources:
       - pattern: $C.audio().speech().create(...)
-      - pattern: $C.generateSpeechFromText(...)
-      - pattern: $C.synthesizeSpeech(...)
       - pattern: $S.SpeakText(...)
       - pattern: $S.SpeakTextAsync(...)
       - pattern: $S.SpeakSsml(...)
@@ -16,10 +14,10 @@ rules:
           - pattern: ($T $M).$F(...)
           - metavariable-regex:
               metavariable: $T
-              regex: ^([\w.]+\.)?(\w*SpeechModel|\w*TextToSpeechModel)$
+              regex: ^([\w.]+\.)?(\w*SpeechModel|\w*TextToSpeechModel|OpenAIClient|OpenAIAsyncClient|TextToSpeechClient|PollyClient|PollyAsyncClient)$
           - metavariable-regex:
               metavariable: $F
-              regex: ^(call|stream)$
+              regex: ^(call|stream|generateSpeechFromText|synthesizeSpeech)$
       - pattern: $M.call(new SpeechPrompt(...))
       - pattern: $M.call((SpeechPrompt $P))
     pattern-propagators:

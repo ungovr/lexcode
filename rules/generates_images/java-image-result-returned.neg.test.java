@@ -46,3 +46,25 @@ public class CoverArtJob {
     return assets.thumbnail(original, 64);
   }
 }
+
+// An in-house photo service whose method names sound like image-model calls.
+class PhotoLibrary {
+  private final PhotoService photos;
+
+  PhotoLibrary(PhotoService photos) {
+    this.photos = photos;
+  }
+
+  public byte[] edited(String upload) {
+    return photos.editImage(upload);
+  }
+
+  public byte[] larger(String upload) {
+    byte[] bigger = photos.upscaleImage(upload, 2);
+    return bigger;
+  }
+
+  public Object album(String album) {
+    return photos.generateImages(album);
+  }
+}

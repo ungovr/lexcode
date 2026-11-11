@@ -143,3 +143,29 @@ public class TicketDigest {
     }
   }
 }
+
+// An in-house suggestion service whose method names sound like model calls. Nothing here calls a model.
+@RestController
+class SuggestController {
+  private final SuggestService suggest;
+
+  SuggestController(SuggestService suggest) {
+    this.suggest = suggest;
+  }
+
+  @GetMapping("/suggest")
+  public ResponseEntity<java.util.List<String>> complete(@RequestParam String prefix) {
+    var options = suggest.getCompletions(prefix);
+    return ResponseEntity.ok(options);
+  }
+
+  @GetMapping("/suggest/thread")
+  public Object thread(@RequestParam String id) {
+    return suggest.converse(id);
+  }
+
+  @GetMapping("/suggest/stream")
+  public Object stream(@RequestParam String prefix) {
+    return suggest.getCompletionsStream(prefix);
+  }
+}

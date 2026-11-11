@@ -68,3 +68,24 @@ public class NarrationJob {
     }
   }
 }
+
+// An in-house report service whose method name sounds like a speech-model call. It renders a written report.
+@RestController
+class ReportController {
+  private final ReportService reports;
+
+  ReportController(ReportService reports) {
+    this.reports = reports;
+  }
+
+  @GetMapping("/reports/{id}")
+  public ResponseEntity<String> report(@RequestParam String id) {
+    String text = reports.synthesizeSpeech(id);
+    return ResponseEntity.ok(text);
+  }
+
+  @GetMapping("/reports/{id}/raw")
+  public String raw(@RequestParam String id) {
+    return reports.synthesizeSpeech(id);
+  }
+}

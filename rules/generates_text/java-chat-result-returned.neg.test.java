@@ -58,3 +58,21 @@ public class TicketTagger {
     return line.trim();
   }
 }
+
+// An in-house suggestion service whose method names sound like model calls.
+class SuggestionBox {
+  private final SuggestService suggest;
+
+  SuggestionBox(SuggestService suggest) {
+    this.suggest = suggest;
+  }
+
+  public java.util.List<String> options(String prefix) {
+    return suggest.getCompletions(prefix);
+  }
+
+  public Object thread(String id) {
+    var t = suggest.converse(id);
+    return t;
+  }
+}
