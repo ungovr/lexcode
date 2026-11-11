@@ -5,7 +5,9 @@ rules:
     message: Takes a caller's speech through Twilio TwiML, with speech recognition or a transcribed voicemail, which is processing human voices (processes_voice).
     patterns:
       - pattern-either:
-          - pattern: $B.input(..., Gather.Input.SPEECH, ...)
+          - pattern: $B.inputs(Gather.Input.SPEECH)
+          - pattern: $B.inputs(Arrays.asList(..., Gather.Input.SPEECH, ...))
+          - pattern: $B.inputs(List.of(..., Gather.Input.SPEECH, ...))
           - patterns:
               - pattern: $B.transcribe(true)
               - pattern-either:

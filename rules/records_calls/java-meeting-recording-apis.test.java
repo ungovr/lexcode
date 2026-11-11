@@ -34,7 +34,7 @@ public class MeetingArchive {
   }
 
   public RecordAction voicemailPrompt() {
-    return new RecordAction.Builder().beepStart(true).build();
+    return RecordAction.builder().beepStart(true).build();
   }
 
   public String zoomRecordings(String meetingId) {

@@ -14,9 +14,17 @@ public class Menu {
         .toXml();
   }
 
+  public String keypadList() {
+    com.twilio.twiml.voice.Gather gather = new com.twilio.twiml.voice.Gather.Builder()
+        .inputs(java.util.Arrays.asList(com.twilio.twiml.voice.Gather.Input.DTMF))
+        .numDigits(1)
+        .build();
+    return new com.twilio.twiml.VoiceResponse.Builder().gather(gather).build().toXml();
+  }
+
   public String keypadMenu() {
     com.twilio.twiml.voice.Gather gather = new com.twilio.twiml.voice.Gather.Builder()
-        .input(com.twilio.twiml.voice.Gather.Input.DTMF)
+        .inputs(com.twilio.twiml.voice.Gather.Input.DTMF)
         .numDigits(1)
         .action("/menu")
         .say(new com.twilio.twiml.voice.Say.Builder("Press 1 for sales, 2 for support.").build())

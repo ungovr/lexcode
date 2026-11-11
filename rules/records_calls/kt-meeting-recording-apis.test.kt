@@ -36,7 +36,7 @@ class MeetingArchive(
         }
     }
 
-    fun voicemailPrompt(): RecordAction = RecordAction.Builder().beepStart(true).build()
+    fun voicemailPrompt(): RecordAction = RecordAction.builder().beepStart(true).build()
 
     fun zoomRecordings(meetingId: String): String = "https://api.zoom.us/v2/meetings/$meetingId/recordings"
 

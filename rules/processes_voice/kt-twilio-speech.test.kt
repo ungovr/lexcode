@@ -1,4 +1,4 @@
-// lexcode-expect: 3
+// lexcode-expect: 4
 // Taking a caller's speech through Twilio TwiML: a Gather that listens for speech (alone and
 // alongside keypad digits) and a voicemail Record that asks Twilio to transcribe.
 package demo.voice
@@ -11,7 +11,7 @@ import com.twilio.twiml.voice.Say
 class Assistant {
     fun listen(): String {
         val gather = Gather.Builder()
-            .input(Gather.Input.SPEECH)
+            .inputs(Gather.Input.SPEECH)
             .action("/handle-speech")
             .say(Say.Builder("How can I help you?").build())
             .build()
@@ -20,7 +20,15 @@ class Assistant {
 
     fun listenOrKeys(): String {
         val gather = Gather.Builder()
-            .input(Gather.Input.DTMF, Gather.Input.SPEECH)
+            .inputs(listOf(Gather.Input.DTMF, Gather.Input.SPEECH))
+            .action("/handle")
+            .build()
+        return VoiceResponse.Builder().gather(gather).build().toXml()
+    }
+
+    fun listenMutable(): String {
+        val gather = Gather.Builder()
+            .inputs(mutableListOf(Gather.Input.SPEECH))
             .action("/handle")
             .build()
         return VoiceResponse.Builder().gather(gather).build().toXml()

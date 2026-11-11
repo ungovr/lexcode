@@ -8,7 +8,7 @@ import com.twilio.twiml.voice.*
 
 class WildcardAssistant {
     fun listen(): String {
-        val gather = Gather.Builder().input(Gather.Input.SPEECH).build()
+        val gather = Gather.Builder().inputs(Gather.Input.SPEECH).build()
         return VoiceResponse.Builder().gather(gather).build().toXml()
     }
 

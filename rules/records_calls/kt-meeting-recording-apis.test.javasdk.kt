@@ -17,5 +17,5 @@ class JavaClients(
 
     fun record(request: Any): Any = legacy.startContactRecording(request as com.amazonaws.services.connect.model.StartContactRecordingRequest)
 
-    fun prompt(): VonageRecord = VonageRecord.Builder().beepStart(true).build()
+    fun prompt(): VonageRecord = VonageRecord.builder().beepStart(true).build()
 }

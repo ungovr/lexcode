@@ -5,7 +5,7 @@
 // action, with the vendor types written in full and no vendor import. A local archive has
 // startRoomCompositeEgress, startParticipantEgress, startTrackCompositeEgress,
 // startTrackEgress, createMediaCapturePipeline and startContactRecording methods of its own
-// and calls them on a receiver, and a RecordAction.Builder of its own.
+// and calls them on a receiver, and a RecordAction with a builder() of its own.
 package demo.meetings
 
 class MeetingDesk(private val rooms: io.livekit.server.RoomServiceClient) {
@@ -48,6 +48,8 @@ class MeetingArchive(private val archive: Archive) {
     }
 
     fun prompt(): Any = RecordAction.Builder().build()
+
+    fun prompt2(): Any = RecordAction.builder().build()
 }
 
 interface Archive {
@@ -67,6 +69,10 @@ interface Archive {
 }
 
 class RecordAction {
+    companion object {
+        fun builder(): Builder = Builder()
+    }
+
     class Builder {
         fun build(): Any = Any()
     }

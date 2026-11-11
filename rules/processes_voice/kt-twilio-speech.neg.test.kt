@@ -21,11 +21,16 @@ class Menu {
 
     fun keypadMenu(): String {
         val gather = Gather.Builder()
-            .input(Gather.Input.DTMF)
+            .inputs(Gather.Input.DTMF)
             .numDigits(1)
             .action("/menu")
             .say(Say.Builder("Press 1 for sales, 2 for support.").build())
             .build()
+        return VoiceResponse.Builder().gather(gather).build().toXml()
+    }
+
+    fun keypadList(): String {
+        val gather = Gather.Builder().inputs(listOf(Gather.Input.DTMF)).numDigits(1).build()
         return VoiceResponse.Builder().gather(gather).build().toXml()
     }
 
@@ -50,7 +55,9 @@ interface Options {
 class SurveyGather {
     enum class Input { DTMF, SPEECH }
 
-    fun input(vararg kinds: Input): SurveyGather = this
+    fun inputs(kinds: List<Input>): SurveyGather = this
+
+    fun inputs(kind: Input): SurveyGather = this
 }
 
-fun survey(widget: SurveyGather): SurveyGather = widget.input(SurveyGather.Input.DTMF, SurveyGather.Input.SPEECH)
+fun survey(widget: SurveyGather): SurveyGather = widget.inputs(listOf(SurveyGather.Input.DTMF, SurveyGather.Input.SPEECH)).inputs(SurveyGather.Input.SPEECH)

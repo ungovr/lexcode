@@ -7,8 +7,10 @@ class Gather {
     enum class Input { DTMF, SPEECH }
 
     class Builder {
-        fun input(vararg kinds: Input): Builder = this
+        fun inputs(kinds: List<Input>): Builder = this
+
+        fun inputs(kind: Input): Builder = this
     }
 }
 
-fun editorStep(builder: Gather.Builder): Gather.Builder = builder.input(Gather.Input.DTMF, Gather.Input.SPEECH)
+fun editorStep(builder: Gather.Builder): Gather.Builder = builder.inputs(listOf(Gather.Input.DTMF, Gather.Input.SPEECH)).inputs(Gather.Input.SPEECH)
