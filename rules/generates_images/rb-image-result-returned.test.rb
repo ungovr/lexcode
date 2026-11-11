@@ -1,4 +1,4 @@
-# lexcode-expect: 5
+# lexcode-expect: 4
 require "openai"
 
 # A service object hands the picture to its caller. Where it goes is not visible here, so
@@ -17,12 +17,6 @@ class AvatarService
     result = @client.images.edit(parameters: { prompt: prompt, image: photo })
     url = result.dig("data", 0, "url")
     url
-  end
-
-  def self.poster(theme)
-    client = OpenAI::Client.new
-    result = client.images.generate(parameters: { model: "gpt-image-1", prompt: theme })
-    result.dig("data", 0, "b64_json")
   end
 
   def variant(path)

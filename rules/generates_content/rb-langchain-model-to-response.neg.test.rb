@@ -68,3 +68,39 @@ class PageBuilder
     page.generate_content(:html)
   end
 end
+
+# Retrieval over a vector store: the hits come from the database, not from a model. The
+# Langchain.rb store takes the LLM client only to embed the query.
+class KnowledgeController < ApplicationController
+  def index
+    llm = Langchain::LLM::OpenAI.new(api_key: ENV.fetch("OPENAI_API_KEY"))
+    store = Langchain::Vectorsearch::Pgvector.new(url: ENV.fetch("DATABASE_URL"), index_name: "docs", llm: llm)
+    render json: { hits: store.similarity_search(query: params[:q]) }
+  end
+
+  def inline
+    hits = Langchain::Vectorsearch::Qdrant.new(
+      url: ENV.fetch("QDRANT_URL"),
+      api_key: ENV.fetch("QDRANT_API_KEY"),
+      index_name: "docs",
+      llm: Langchain::LLM::OpenAI.new(api_key: ENV.fetch("OPENAI_API_KEY"))
+    ).similarity_search(query: params[:q])
+    render json: { hits: hits }
+  end
+end
+
+class KnowledgeSearch
+  def lookup(query)
+    llm = Langchain::LLM::OpenAI.new(api_key: ENV.fetch("OPENAI_API_KEY"))
+    store = Langchain::Vectorsearch::Pgvector.new(url: ENV.fetch("DATABASE_URL"), index_name: "docs", llm: llm)
+    results = store.similarity_search(query: query)
+    return results
+  end
+
+  def nearest(vector)
+    llm = Langchain::LLM::OpenAI.new(api_key: ENV.fetch("OPENAI_API_KEY"))
+    store = Langchain::Vectorsearch::Chroma.new(url: ENV.fetch("CHROMA_URL"), index_name: "docs", llm: llm)
+    found = store.similarity_search_by_vector(embedding: vector)
+    found
+  end
+end

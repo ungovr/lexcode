@@ -6,10 +6,10 @@ rules:
     mode: taint
     pattern-sources:
       - pattern: '$C.videos.create(..., prompt: ..., ...)'
-      - pattern: '$C.videos.create(parameters: ...)'
+      - pattern: '$C.videos.create({ ..., prompt: ..., ... })'
       - pattern: RubyLLM.animate(...)
     pattern-propagators:
-      - pattern: $OUT = <... $R ...>
+      - pattern: $OUT = <... $R.dig(...) ...>
         from: $R
         to: $OUT
       - pattern: |

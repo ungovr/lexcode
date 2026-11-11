@@ -18,6 +18,9 @@ rules:
         to: $X
     pattern-sanitizers:
       - pattern: $L.embed(...)
+      - pattern: Langchain::Vectorsearch::$K.new(...)
+      - pattern: $S.similarity_search(...)
+      - pattern: $S.similarity_search_by_vector(...)
     pattern-sinks:
       - patterns:
           - pattern-either:

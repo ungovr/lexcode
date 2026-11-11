@@ -12,7 +12,7 @@ rules:
       - pattern: $C.synthesize_speech(...)
       - pattern: RubyLLM.speak(...)
     pattern-propagators:
-      - pattern: $OUT = <... $R ...>
+      - pattern: $OUT = <... $R.dig(...) ...>
         from: $R
         to: $OUT
       - pattern: |

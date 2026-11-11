@@ -18,16 +18,8 @@ rules:
       - pattern: '$C.chat(..., messages: ..., ...)'
       - pattern: '$C.complete(..., prompt: ..., ...)'
       - pattern: RubyLLM.chat(...)
-      - patterns:
-          - pattern-either:
-              - pattern-inside: |
-                  $C.ask(...) do |$X|
-                    ...
-                  end
-              - pattern-inside: '$C.ask(...) { |$X| ... }'
-          - pattern: $X
     pattern-propagators:
-      - pattern: $OUT = <... $R ...>
+      - pattern: $OUT = <... $R.dig(...) ...>
         from: $R
         to: $OUT
       - pattern: |
@@ -37,6 +29,15 @@ rules:
         from: $S
         to: $X
       - pattern: '$S.each { |$X| ... }'
+        from: $S
+        to: $X
+      - pattern: |
+          $S.ask(...) do |$X|
+            ...
+          end
+        from: $S
+        to: $X
+      - pattern: '$S.ask(...) { |$X| ... }'
         from: $S
         to: $X
     pattern-sinks:
@@ -63,50 +64,6 @@ rules:
               metavariable: $V
               regex: ^@?[a-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*[?!]?)*$
           - focus-metavariable: $V
-      - patterns:
-          - pattern: |
-              def $F(...)
-                ...
-                $X
-              end
-          - pattern-not: |
-              def $F(...)
-                ...
-                $X
-                $Y
-              end
-          - metavariable-regex:
-              metavariable: $X
-              regex: ^@?[a-z_]\w*\.dig\(
-          - metavariable-pattern:
-              metavariable: $X
-              pattern-either:
-                - pattern: $V.dig(...)
-                - pattern: $V.dig(...).$N
-                - pattern: $V.dig(...).$N(...)
-          - focus-metavariable: $X
-      - patterns:
-          - pattern: |
-              def self.$F(...)
-                ...
-                $X
-              end
-          - pattern-not: |
-              def self.$F(...)
-                ...
-                $X
-                $Y
-              end
-          - metavariable-regex:
-              metavariable: $X
-              regex: ^@?[a-z_]\w*\.dig\(
-          - metavariable-pattern:
-              metavariable: $X
-              pattern-either:
-                - pattern: $V.dig(...)
-                - pattern: $V.dig(...).$N
-                - pattern: $V.dig(...).$N(...)
-          - focus-metavariable: $X
     metadata:
       activity: generates_text
       mentioned: performs

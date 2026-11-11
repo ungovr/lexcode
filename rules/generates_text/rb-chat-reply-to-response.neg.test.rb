@@ -124,3 +124,22 @@ class VectorsController < ApplicationController
     render json: { vector: vector }
   end
 end
+
+# Command-line prompt libraries ask people questions with a block; no model is called.
+class SetupWizard
+  def name(prompt)
+    prompt.ask("Your name?") do |q|
+      q.required true
+      q.modify :strip
+    end
+  end
+
+  def email(prompt)
+    prompt.ask("Email?") { |q| q.validate(/@/) }
+  end
+
+  def confirm(cli)
+    answer = cli.ask("Proceed? (y/n)") { |q| q.in = %w[y n] }
+    answer
+  end
+end

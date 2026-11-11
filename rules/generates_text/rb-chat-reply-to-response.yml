@@ -18,16 +18,8 @@ rules:
       - pattern: '$C.chat(..., messages: ..., ...)'
       - pattern: '$C.complete(..., prompt: ..., ...)'
       - pattern: RubyLLM.chat(...)
-      - patterns:
-          - pattern-either:
-              - pattern-inside: |
-                  $C.ask(...) do |$X|
-                    ...
-                  end
-              - pattern-inside: '$C.ask(...) { |$X| ... }'
-          - pattern: $X
     pattern-propagators:
-      - pattern: $OUT = <... $R ...>
+      - pattern: $OUT = <... $R.dig(...) ...>
         from: $R
         to: $OUT
       - pattern: |
@@ -37,6 +29,15 @@ rules:
         from: $S
         to: $X
       - pattern: '$S.each { |$X| ... }'
+        from: $S
+        to: $X
+      - pattern: |
+          $S.ask(...) do |$X|
+            ...
+          end
+        from: $S
+        to: $X
+      - pattern: '$S.ask(...) { |$X| ... }'
         from: $S
         to: $X
     pattern-sinks:

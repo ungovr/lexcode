@@ -1,4 +1,4 @@
-# lexcode-expect: 10
+# lexcode-expect: 9
 require "anthropic"
 require "openai"
 
@@ -67,13 +67,8 @@ class Rewriter
     completion
   end
 
-  def title
-    # The last expression of a method is its value, with or without a return.
-    response = OpenAI::Client.new.chat(parameters: { model: "gpt-4o-mini", messages: [{ role: "user", content: "Name a cat." }] })
-    response.dig("choices", 0, "message", "content")
-  end
-
   def slogan
+    # The last expression of a method is its value, with or without a return.
     message = Anthropic::Client.new.messages.create(max_tokens: 50, messages: [{ role: "user", content: "A slogan." }], model: "claude-sonnet-4-5")
     message.content.first.text
   end

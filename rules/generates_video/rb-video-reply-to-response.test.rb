@@ -23,7 +23,8 @@ end
 class StatusController < ApplicationController
   def show
     client = OpenAI::Client.new
-    job = client.videos.create(parameters: { model: "sora-2", prompt: "A walk through a market" })
+    # The official gem's create takes one params hash, which Ruby also accepts as keywords.
+    job = client.videos.create({ model: "sora-2", prompt: "A walk through a market" })
     render plain: job.status
   end
 end

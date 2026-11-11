@@ -18,7 +18,7 @@ rules:
               - pattern-inside: '$C.stream_generate_content(...) { |$X, ...| ... }'
           - pattern: $X
     pattern-propagators:
-      - pattern: $OUT = <... $R ...>
+      - pattern: $OUT = <... $R.dig(...) ...>
         from: $R
         to: $OUT
       - pattern: |

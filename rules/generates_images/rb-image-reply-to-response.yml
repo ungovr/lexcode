@@ -11,7 +11,7 @@ rules:
       - pattern: $C.images.create_variation(...)
       - pattern: RubyLLM.paint(...)
     pattern-propagators:
-      - pattern: $OUT = <... $R ...>
+      - pattern: $OUT = <... $R.dig(...) ...>
         from: $R
         to: $OUT
       - pattern: |
