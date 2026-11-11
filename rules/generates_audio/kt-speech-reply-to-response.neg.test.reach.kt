@@ -17,6 +17,8 @@ class Reach0(private val openAI: OpenAI) {
   request.setAttribute("a", t)
   out.write(t)
   pw.println(t)
+  t.also { emitter.send("tick") }
+  t?.also { emitter.send("tick") }
   audioBuf.write(t, 0, 1)
   }
 }

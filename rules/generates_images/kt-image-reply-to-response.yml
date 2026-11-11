@@ -63,13 +63,6 @@ rules:
         from: $S
         to: $X
       - patterns:
-          - pattern: $S.$M { <... $IT ...> }
-          - metavariable-regex:
-              metavariable: $IT
-              regex: ^it$
-        from: $S
-        to: $IT
-      - patterns:
           - pattern: $S?.$M { <... $IT ...> }
           - metavariable-regex:
               metavariable: $IT
@@ -95,6 +88,10 @@ rules:
           - pattern: return $X
           - pattern-not-inside: |
               $M { $P -> ... }
+          - pattern-not-inside: |
+              $M { $P, $Q -> ... }
+          - pattern-not-inside: |
+              { $P: $T -> ... }
           - focus-metavariable: $X
       - patterns:
           - pattern-either:

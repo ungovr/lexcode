@@ -1,4 +1,4 @@
-// lexcode-expect: 12
+// lexcode-expect: 14
 package com.example.text
 
 import android.content.Context
@@ -120,6 +120,13 @@ fun bedrockInvoke(bedrock: BedrockRuntimeClient, view: TextView) = runBlocking {
     body = "{}".toByteArray()
   }
   view.setText(String(response.body))
+}
+
+// The servlet writer named out or pw, inside a function that takes the servlet response.
+fun servletWriter(openai: OpenAIClient, response: HttpServletResponse) {
+  val t = openai.chat().completions().create(ChatCompletionCreateParams.builder().build()).toString()
+  out.write(t)
+  pw.println(t)
 }
 
 // A function that is not a request handler: a scheduled job returns the model's output to its scheduler.

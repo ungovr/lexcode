@@ -18,6 +18,8 @@ class Reach0(private val client: Client) {
   request.setAttribute("a", t)
   out.write(t)
   pw.println(t)
+  t.also { emitter.send("tick") }
+  t?.also { emitter.send("tick") }
   }
 }
 
@@ -33,6 +35,8 @@ class Reach1(model: dev.langchain4j.model.chat.ChatModel) {
   request.setAttribute("a", t)
   out.write(t)
   pw.println(t)
+  t.also { emitter.send("tick") }
+  t?.also { emitter.send("tick") }
   }
 }
 

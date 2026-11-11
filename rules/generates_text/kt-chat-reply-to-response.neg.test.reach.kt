@@ -19,6 +19,8 @@ class Reach0(private val model: ChatModel) {
   request.setAttribute("a", t)
   out.write(t)
   pw.println(t)
+  t.also { emitter.send("tick") }
+  t?.also { emitter.send("tick") }
   }
 }
 
@@ -34,6 +36,8 @@ class Reach1(private val openai: OpenAIClient) {
   request.setAttribute("a", t)
   out.write(t)
   pw.println(t)
+  t.also { emitter.send("tick") }
+  t?.also { emitter.send("tick") }
   }
 }
 
@@ -48,6 +52,8 @@ class ReachCallback(private val model: ChatModel) {
       request.setAttribute("a", t)
       out.write(t)
       pw.println(t)
+      t.also { emitter.send("tick") }
+      t?.also { emitter.send("tick") }
     }
   }
 }

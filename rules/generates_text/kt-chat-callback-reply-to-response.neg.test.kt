@@ -4,8 +4,10 @@
 package com.example.negative.text
 
 import android.widget.TextView
+import dev.langchain4j.service.TokenStream
 import dev.langchain4j.model.chat.response.StreamingChatResponseHandler
 import org.slf4j.LoggerFactory
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter
 
 private val log = LoggerFactory.getLogger("negative")
 
@@ -35,5 +37,16 @@ class Screen(private val view: TextView) {
 
       override fun onError(error: Throwable) {}
     }
+  }
+}
+
+// A callback lambda that never mentions the token: it sends a constant and a captured variable.
+class Ticker(private val emitter: SseEmitter, private val label: String) {
+  fun tick(tokens: TokenStream) {
+    tokens.onPartialResponse { emitter.send("tick") }.start()
+  }
+
+  fun tickWithLabel(tokens: TokenStream) {
+    tokens.onPartialResponse { emitter.send(label) }.start()
   }
 }

@@ -18,6 +18,8 @@ class Reach0(private val client: OpenAIClient) {
   request.setAttribute("a", t)
   out.write(t)
   pw.println(t)
+  t.also { emitter.send("tick") }
+  t?.also { emitter.send("tick") }
   view.load(t)
   }
 }

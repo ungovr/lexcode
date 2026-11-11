@@ -68,6 +68,44 @@ class LambdaHandlers(private val model: ChatModel) {
     model.chat(q).let { c -> repo.save(c) }
     return "ok"
   }
+
+  @GetMapping("/l9")
+  fun nine(q: String): String {
+    
+    listOf(q).forEachIndexed { i, s -> repo.save(i, model.chat(q)) }
+    return "ok"
+  }
+
+  @GetMapping("/l10")
+  fun ten(q: String): String {
+    
+    mapOf(q to q).forEach { k, v -> repo.save(k, model.chat(q)) }
+    return "ok"
+  }
+
+  @GetMapping("/l11")
+  fun eleven(q: String): String {
+    
+    var out = ""
+    model.chat(q).also { out = "constant" }
+    return out
+  }
+
+  @GetMapping("/l12")
+  fun twelve(q: String): String {
+    
+    var out = ""
+    model.chat(q)?.also { out = "constant" }
+    return out
+  }
+
+  @GetMapping("/l13")
+  fun thirteen(q: String): String {
+    
+    val f = { s: String -> repo.save(model.chat(q)) }
+    f(q)
+    return "ok"
+  }
 }
 
 class LambdaPlain(private val model: ChatModel) {
@@ -109,6 +147,37 @@ class LambdaPlain(private val model: ChatModel) {
   fun eight(q: String) {
     
     model.chat(q).let { c -> repo.save(c) }
+  }
+
+  fun nine(q: String) {
+    
+    listOf(q).forEachIndexed { i, s -> repo.save(i, model.chat(q)) }
+  }
+
+  fun ten(q: String) {
+    
+    mapOf(q to q).forEach { k, v -> repo.save(k, model.chat(q)) }
+  }
+
+  fun eleven(q: String): String {
+    
+    var out = ""
+    model.chat(q).also { out = "constant" }
+    return out
+  }
+
+  fun twelve(q: String): String {
+    
+    var out = ""
+    model.chat(q)?.also { out = "constant" }
+    return out
+  }
+
+  fun thirteen(q: String): String {
+    
+    val f = { s: String -> repo.save(model.chat(q)) }
+    f(q)
+    return "ok"
   }
 }
 
@@ -171,6 +240,44 @@ class LambdaHandlers1(private val openai: OpenAIClient) {
     openai.chat().completions().create(ChatCompletionCreateParams.builder().build()).let { c -> repo.save(c) }
     return "ok"
   }
+
+  @GetMapping("/l9")
+  fun nine(q: String): String {
+    
+    listOf(q).forEachIndexed { i, s -> repo.save(i, openai.chat().completions().create(ChatCompletionCreateParams.builder().build())) }
+    return "ok"
+  }
+
+  @GetMapping("/l10")
+  fun ten(q: String): String {
+    
+    mapOf(q to q).forEach { k, v -> repo.save(k, openai.chat().completions().create(ChatCompletionCreateParams.builder().build())) }
+    return "ok"
+  }
+
+  @GetMapping("/l11")
+  fun eleven(q: String): String {
+    
+    var out = ""
+    openai.chat().completions().create(ChatCompletionCreateParams.builder().build()).also { out = "constant" }
+    return out
+  }
+
+  @GetMapping("/l12")
+  fun twelve(q: String): String {
+    
+    var out = ""
+    openai.chat().completions().create(ChatCompletionCreateParams.builder().build())?.also { out = "constant" }
+    return out
+  }
+
+  @GetMapping("/l13")
+  fun thirteen(q: String): String {
+    
+    val f = { s: String -> repo.save(openai.chat().completions().create(ChatCompletionCreateParams.builder().build())) }
+    f(q)
+    return "ok"
+  }
 }
 
 class LambdaPlain1(private val openai: OpenAIClient) {
@@ -212,6 +319,37 @@ class LambdaPlain1(private val openai: OpenAIClient) {
   fun eight(q: String) {
     
     openai.chat().completions().create(ChatCompletionCreateParams.builder().build()).let { c -> repo.save(c) }
+  }
+
+  fun nine(q: String) {
+    
+    listOf(q).forEachIndexed { i, s -> repo.save(i, openai.chat().completions().create(ChatCompletionCreateParams.builder().build())) }
+  }
+
+  fun ten(q: String) {
+    
+    mapOf(q to q).forEach { k, v -> repo.save(k, openai.chat().completions().create(ChatCompletionCreateParams.builder().build())) }
+  }
+
+  fun eleven(q: String): String {
+    
+    var out = ""
+    openai.chat().completions().create(ChatCompletionCreateParams.builder().build()).also { out = "constant" }
+    return out
+  }
+
+  fun twelve(q: String): String {
+    
+    var out = ""
+    openai.chat().completions().create(ChatCompletionCreateParams.builder().build())?.also { out = "constant" }
+    return out
+  }
+
+  fun thirteen(q: String): String {
+    
+    val f = { s: String -> repo.save(openai.chat().completions().create(ChatCompletionCreateParams.builder().build())) }
+    f(q)
+    return "ok"
   }
 }
 

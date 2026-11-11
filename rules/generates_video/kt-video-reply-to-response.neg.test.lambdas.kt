@@ -66,5 +66,43 @@ class LambdaHandlers(private val client: Client) {
     client.models.generateVideos("v", q, null, null).let { c -> repo.save(c) }
     return "ok"
   }
+
+  @GetMapping("/l9")
+  fun nine(q: String): String {
+    
+    listOf(q).forEachIndexed { i, s -> repo.save(i, client.models.generateVideos("v", q, null, null)) }
+    return "ok"
+  }
+
+  @GetMapping("/l10")
+  fun ten(q: String): String {
+    
+    mapOf(q to q).forEach { k, v -> repo.save(k, client.models.generateVideos("v", q, null, null)) }
+    return "ok"
+  }
+
+  @GetMapping("/l11")
+  fun eleven(q: String): String {
+    
+    var out = ""
+    client.models.generateVideos("v", q, null, null).also { out = "constant" }
+    return out
+  }
+
+  @GetMapping("/l12")
+  fun twelve(q: String): String {
+    
+    var out = ""
+    client.models.generateVideos("v", q, null, null)?.also { out = "constant" }
+    return out
+  }
+
+  @GetMapping("/l13")
+  fun thirteen(q: String): String {
+    
+    val f = { s: String -> repo.save(client.models.generateVideos("v", q, null, null)) }
+    f(q)
+    return "ok"
+  }
 }
 
