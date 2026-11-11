@@ -1,0 +1,92 @@
+rules:
+  - id: lexcode.tracking.kt-android-id-sent
+    languages: [kotlin]
+    severity: INFO
+    message: Reads the Android id, which identifies one device for the life of the app signing key, and sends it to another host or to an analytics or crash SDK, which is tracking devices (tracks_devices).
+    mode: taint
+    pattern-sources:
+      - pattern: Settings.Secure.getString(..., Settings.Secure.ANDROID_ID)
+      - patterns:
+          - pattern: Secure.getString(..., Secure.ANDROID_ID)
+          - pattern-inside: |
+              import android.provider.Settings.Secure
+              ...
+    pattern-sinks:
+      # An HTTP header, form field, query parameter or request property.
+      - pattern: $B.addHeader(...)
+      - pattern: $B.header(...)
+      - pattern: $C.setRequestProperty(...)
+      - pattern: $U.appendQueryParameter(...)
+      - pattern: $U.addQueryParameter(...)
+      - pattern: $U?.appendQueryParameter(...)
+      - pattern: $U?.addQueryParameter(...)
+      - patterns:
+          - pattern-either:
+              - pattern: $F.add(...)
+              - pattern: $F.addEncoded(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import okhttp3.FormBody
+                  ...
+              - pattern-inside: |
+                  import okhttp3.*
+                  ...
+      # A Ktor client request.
+      - patterns:
+          - pattern: header(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import io.ktor.client.request.header
+                  ...
+              - pattern-inside: |
+                  import io.ktor.client.request.*
+                  ...
+      - patterns:
+          - pattern: parameter(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import io.ktor.client.request.parameter
+                  ...
+              - pattern-inside: |
+                  import io.ktor.client.request.*
+                  ...
+      # A user id handed to an analytics, attribution or crash SDK.
+      - pattern: Firebase.analytics.setUserId(...)
+      - pattern: Firebase.crashlytics.setUserId(...)
+      - patterns:
+          - pattern: $F.setUserId(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import com.google.firebase.analytics.FirebaseAnalytics
+                  ...
+              - pattern-inside: |
+                  import com.google.firebase.crashlytics.FirebaseCrashlytics
+                  ...
+              - pattern-inside: |
+                  import com.amplitude.android.Amplitude
+                  ...
+              - pattern-inside: |
+                  import com.google.firebase.analytics.*
+                  ...
+              - pattern-inside: |
+                  import com.google.firebase.crashlytics.*
+                  ...
+              - pattern-inside: |
+                  import com.amplitude.android.*
+                  ...
+      - patterns:
+          - pattern: $M.identify(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import com.mixpanel.android.mpmetrics.MixpanelAPI
+                  ...
+              - pattern-inside: |
+                  import com.mixpanel.android.mpmetrics.*
+                  ...
+      - pattern: AppsFlyerLib.getInstance().setCustomerUserId(...)
+    metadata:
+      activity: tracks_devices
+      mentioned: performs
+      definition: https://lexlint.io/activities/tracks-devices
+      provenance: ungovr-original
+      license: MIT

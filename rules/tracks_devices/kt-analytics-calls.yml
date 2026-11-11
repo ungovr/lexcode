@@ -1,0 +1,161 @@
+rules:
+  - id: lexcode.tracking.kt-analytics-calls
+    languages: [kotlin]
+    severity: INFO
+    message: Sends visits or events to a third-party analytics, attribution or crash-reporting service (Firebase Analytics and Crashlytics, Segment, Mixpanel, Amplitude, Pendo, AppsFlyer, Adjust, Meta app events, Sentry for Android or Google Analytics) that follows the device with its own id, which is tracking devices (tracks_devices). Starting an Android crash-reporting SDK counts too, because a crash-reporting service is one of the counterparties this activity names.
+    pattern-either:
+      # Names that belong to one vendor.
+      - pattern: FirebaseAnalytics.getInstance(...)
+      - patterns:
+          - pattern: FirebaseCrashlytics.getInstance().setUserId(...)
+          - pattern-not: FirebaseCrashlytics.getInstance().setUserId("")
+          - pattern-not: FirebaseCrashlytics.getInstance().setUserId(null)
+      - pattern: SentryAndroid.init(...)
+      - pattern: Bugsnag.start(...)
+      - pattern: MixpanelAPI.getInstance(...)
+      - pattern: MixpanelAPI(...)
+      - pattern: AppEventsLogger.newLogger(...)
+      - pattern: AppsFlyerLib.getInstance().init(...)
+      - pattern: AppsFlyerLib.getInstance().start(...)
+      - pattern: AdjustConfig(...)
+      - pattern: '"=~/.*google-analytics\.com\/(g\/|mp\/)?collect.*/"'
+      # Firebase through the KTX properties.
+      - pattern: Firebase.analytics
+      - patterns:
+          - pattern: Firebase.crashlytics.setUserId(...)
+          - pattern-not: Firebase.crashlytics.setUserId("")
+          - pattern-not: Firebase.crashlytics.setUserId(null)
+      # Firebase Analytics on a receiver (the method names are generic, so the file has to import the client).
+      - patterns:
+          - pattern-either:
+              - pattern: $F.logEvent(...)
+              - pattern: $F.setUserId(...)
+              - pattern: $F.setUserProperty(...)
+          # Clearing the user id is the opposite of following the device.
+          - pattern-not: $F.setUserId("")
+          - pattern-not: $F.setUserId(null)
+          - pattern-either:
+              - pattern-inside: |
+                  import com.google.firebase.analytics.FirebaseAnalytics
+                  ...
+              - pattern-inside: |
+                  import com.google.firebase.analytics.analytics
+                  ...
+              - pattern-inside: |
+                  import com.google.firebase.analytics.ktx.analytics
+                  ...
+              - pattern-inside: |
+                  import com.google.firebase.analytics.*
+                  ...
+      # Crashlytics user id.
+      - patterns:
+          - pattern: $C.setUserId(...)
+          - pattern-not: $C.setUserId("")
+          - pattern-not: $C.setUserId(null)
+          - pattern-either:
+              - pattern-inside: |
+                  import com.google.firebase.crashlytics.FirebaseCrashlytics
+                  ...
+              - pattern-inside: |
+                  import com.google.firebase.crashlytics.crashlytics
+                  ...
+              - pattern-inside: |
+                  import com.google.firebase.crashlytics.ktx.crashlytics
+                  ...
+              - pattern-inside: |
+                  import com.google.firebase.crashlytics.*
+                  ...
+      # Mixpanel.
+      - patterns:
+          - pattern: $M.track(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import com.mixpanel.android.mpmetrics.MixpanelAPI
+                  ...
+              - pattern-inside: |
+                  import com.mixpanel.android.mpmetrics.*
+                  ...
+      # Segment: the server-side message builders.
+      - patterns:
+          - pattern-either:
+              - pattern: TrackMessage.builder(...)
+              - pattern: IdentifyMessage.builder(...)
+              - pattern: ScreenMessage.builder(...)
+              - pattern: PageMessage.builder(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import com.segment.analytics.messages.$X
+                  ...
+              - pattern-inside: |
+                  import com.segment.analytics.messages.*
+                  ...
+      # Segment: the Android SDKs (Kotlin and the earlier Java client).
+      - patterns:
+          - pattern-either:
+              - pattern: Analytics.with(...)
+              - pattern: Analytics.Builder(...)
+              - pattern: Analytics(...)
+              - pattern: $A.track(...)
+              - pattern: $A.identify(...)
+              - pattern: $A.screen(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import com.segment.analytics.Analytics
+                  ...
+              - pattern-inside: |
+                  import com.segment.analytics.*
+                  ...
+              - pattern-inside: |
+                  import com.segment.analytics.kotlin.android.Analytics
+                  ...
+              - pattern-inside: |
+                  import com.segment.analytics.kotlin.core.Analytics
+                  ...
+              - pattern-inside: |
+                  import com.segment.analytics.kotlin.android.*
+                  ...
+              - pattern-inside: |
+                  import com.segment.analytics.kotlin.core.*
+                  ...
+      # Amplitude.
+      - patterns:
+          - pattern-either:
+              - pattern: Amplitude(...)
+              - pattern: $A.track(...)
+              - pattern: $A.logEvent(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import com.amplitude.android.Amplitude
+                  ...
+              - pattern-inside: |
+                  import com.amplitude.api.Amplitude
+                  ...
+              - pattern-inside: |
+                  import com.amplitude.Amplitude
+                  ...
+              - pattern-inside: |
+                  import com.amplitude.android.*
+                  ...
+              - pattern-inside: |
+                  import com.amplitude.api.*
+                  ...
+      # Pendo.
+      - patterns:
+          - pattern-either:
+              - pattern: Pendo.setup(...)
+              - pattern: Pendo.initSDK(...)
+              - pattern: Pendo.startSession(...)
+              - pattern: Pendo.track(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import sdk.pendo.io.Pendo
+                  ...
+              - pattern-inside: |
+                  import sdk.pendo.io.*
+                  ...
+    metadata:
+      activity: tracks_devices
+      mentioned: performs
+      definition: https://lexlint.io/activities/tracks-devices
+      provenance: ungovr-original
+      license: MIT

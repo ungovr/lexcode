@@ -1,0 +1,121 @@
+rules:
+  - id: lexcode.personal.kt-client-ip-captured
+    languages: [kotlin]
+    severity: INFO
+    message: Writes the visitor's IP address into a log or a database, which is processing personal data (processes_personal_data).
+    mode: taint
+    pattern-sources:
+      - pattern: $R.getRemoteAddr()
+      - pattern: $R.getRemoteHost()
+      - pattern: $R.remoteAddr
+      - pattern: $R.remoteHost
+      - pattern: $R.origin.remoteAddress
+      - patterns:
+          - pattern-either:
+              - pattern: $R.getHeader($H)
+              - pattern: $R.header($H)
+              - pattern: $R.headers[$H]
+              - pattern: $R.headers.get($H)
+          - metavariable-regex:
+              metavariable: $H
+              regex: (?i)^"(x-forwarded-for|x-real-ip|forwarded|cf-connecting-ip|true-client-ip|x-client-ip)"$
+    # The address is not what is logged when it only feeds a comparison or a verification call
+    # (a presence check, a captcha check whose error message is logged).
+    pattern-sanitizers:
+      - patterns:
+          - pattern: $C.$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(check|verify|validate|is|has|contains|startsWith)([A-Z]\w*)?$
+    options:
+      taint_assume_safe_comparisons: true
+    pattern-sinks:
+      # A log line.
+      - patterns:
+          - pattern: $L.$M(...)
+          - metavariable-regex:
+              metavariable: $L
+              regex: ^(log|logger|LOG|LOGGER|_log|_logger|auditLog|accessLog)$
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(trace|debug|info|warn|error|fatal|log)$
+      # A log line written as a trailing lambda (kotlin-logging); the message is what is logged.
+      - patterns:
+          - pattern: $L.$M { $X }
+          - metavariable-regex:
+              metavariable: $L
+              regex: ^(log|logger|LOG|LOGGER|_log|_logger|auditLog|accessLog)$
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(trace|debug|info|warn|error|fatal|log)$
+          - focus-metavariable: $X
+      # A mapped diagnostic context entry, which every later log line carries.
+      - pattern: MDC.put(...)
+      # A JDBC or Spring JDBC write.
+      - patterns:
+          - pattern-either:
+              - pattern: $J.update($Q, ...)
+              - pattern: $J.batchUpdate($Q, ...)
+              - pattern: $J.execute($Q, ...)
+          - metavariable-regex:
+              metavariable: $Q
+              regex: (?i)^"{1,3}\s*(insert|update|merge|upsert|replace)\b
+      - patterns:
+          - pattern-either:
+              - pattern: $S.setString(...)
+              - pattern: $S.setObject(...)
+          - pattern-either:
+              - pattern-inside: |
+                  $C.prepareStatement($Q).use { $P -> ... }
+              - pattern-inside: |
+                  val $PS = $C.prepareStatement($Q)
+                  ...
+          - metavariable-regex:
+              metavariable: $Q
+              regex: (?i)^"{1,3}\s*(insert|update|merge|upsert|replace)\b
+      # An address-named property or named argument on an object the same function saves.
+      - patterns:
+          - pattern-either:
+              - pattern: $O.$SET = $X
+              - pattern: $N(..., $SET = $X, ...)
+          - metavariable-regex:
+              metavariable: $SET
+              regex: ^(ip|ipAddress|ipAddr|clientIp|clientIP|remoteAddr|remoteIp|remoteAddress|lastIp|lastIpAddress|lastLoginIp|forwardedFor|xForwardedFor)$
+          - pattern-either:
+              - pattern-inside: |
+                  fun $M(...) {
+                    ...
+                    $Y.save(...)
+                    ...
+                  }
+              - pattern-inside: |
+                  fun $M(...) {
+                    ...
+                    $Y.saveAndFlush(...)
+                    ...
+                  }
+              - pattern-inside: |
+                  fun $M(...) {
+                    ...
+                    $Y.persist(...)
+                    ...
+                  }
+              - pattern-inside: |
+                  fun $M(...) {
+                    ...
+                    $Y.insert(...)
+                    ...
+                  }
+              - pattern-inside: |
+                  fun $M(...) = $Y.save(...)
+              - pattern-inside: |
+                  fun $M(...) = $Y.saveAndFlush(...)
+              - pattern-inside: |
+                  fun $M(...) = $Y.insert(...)
+          - focus-metavariable: $X
+    metadata:
+      activity: processes_personal_data
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-personal-data
+      provenance: ungovr-original
+      license: MIT

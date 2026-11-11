@@ -1,0 +1,135 @@
+rules:
+  - id: lexcode.tracking.kt-advertising-id
+    languages: [kotlin]
+    severity: INFO
+    message: Reads an identifier that follows one Android device (the advertising id, the IMEI, MEID or subscriber id, the hardware serial or the Firebase installation id), which is tracking devices (tracks_devices).
+    pattern-either:
+      # The Google advertising id client, in Google's or AndroidX's package.
+      - patterns:
+          - pattern: AdvertisingIdClient.getAdvertisingIdInfo(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import com.google.android.gms.ads.identifier.AdvertisingIdClient
+                  ...
+              - pattern-inside: |
+                  import com.google.android.gms.ads.identifier.*
+                  ...
+              - pattern-inside: |
+                  import androidx.ads.identifier.AdvertisingIdClient
+                  ...
+              - pattern-inside: |
+                  import androidx.ads.identifier.*
+                  ...
+      # Privileged hardware identifiers. The property names are generic (an app-owned class can have
+      # deviceId), so the receiver has to be declared as a TelephonyManager (a constructor property, a
+      # parameter, a lateinit property, a typed or nullable local, or a cast) and the file has to import
+      # android.telephony.TelephonyManager or android.telephony.*, so an app-owned class of that name
+      # does not count. The class-literal service lookup follows as its own group.
+      - patterns:
+          - pattern-either:
+              - pattern: $T.imei
+              - pattern: $T.getImei(...)
+              - pattern: $T.meid
+              - pattern: $T.getMeid(...)
+              - pattern: $T.deviceId
+              - pattern: $T.getDeviceId(...)
+              - pattern: $T.subscriberId
+              - pattern: $T.getSubscriberId(...)
+              - pattern: $T.simSerialNumber
+              - pattern: $T.getSimSerialNumber(...)
+              - pattern: $T?.imei
+              - pattern: $T?.getImei(...)
+              - pattern: $T?.meid
+              - pattern: $T?.getMeid(...)
+              - pattern: $T?.deviceId
+              - pattern: $T?.getDeviceId(...)
+              - pattern: $T?.subscriberId
+              - pattern: $T?.getSubscriberId(...)
+              - pattern: $T?.simSerialNumber
+              - pattern: $T?.getSimSerialNumber(...)
+          - pattern-either:
+              - pattern-inside: |
+                  class $C(..., val $T: TelephonyManager, ...) {
+                    ...
+                  }
+              - pattern-inside: |
+                  class $C(..., var $T: TelephonyManager, ...) {
+                    ...
+                  }
+              - pattern-inside: |
+                  fun $F(..., $T: TelephonyManager, ...) = $B
+              - pattern-inside: |
+                  fun $F(..., $T: TelephonyManager, ...) {
+                    ...
+                  }
+              - pattern-inside: |
+                  lateinit var $T: TelephonyManager
+                  ...
+              - pattern-inside: |
+                  val $T: TelephonyManager? = $X
+                  ...
+              - pattern-inside: |
+                  var $T: TelephonyManager? = $X
+                  ...
+              - pattern-inside: |
+                  val $T = $X as TelephonyManager
+                  ...
+              - pattern-inside: |
+                  val $T: TelephonyManager = $X
+                  ...
+          - pattern-either:
+              - pattern-inside: |
+                  import android.telephony.TelephonyManager
+                  ...
+              - pattern-inside: |
+                  import android.telephony.*
+                  ...
+      # The same properties on a service looked up by class literal. A class literal in a pattern matches
+      # every class literal, so the file has to look the telephony service up by that literal.
+      - patterns:
+          - pattern-regex: '(?s)\A(?=.*getSystemService\(\s*TelephonyManager::class).*'
+          - pattern-either:
+              - pattern: $T.imei
+              - pattern: $T.getImei(...)
+              - pattern: $T.meid
+              - pattern: $T.getMeid(...)
+              - pattern: $T.deviceId
+              - pattern: $T.getDeviceId(...)
+              - pattern: $T.subscriberId
+              - pattern: $T.getSubscriberId(...)
+              - pattern: $T.simSerialNumber
+              - pattern: $T.getSimSerialNumber(...)
+              - pattern: $T?.imei
+              - pattern: $T?.getImei(...)
+              - pattern: $T?.meid
+              - pattern: $T?.getMeid(...)
+              - pattern: $T?.deviceId
+              - pattern: $T?.getDeviceId(...)
+              - pattern: $T?.subscriberId
+              - pattern: $T?.getSubscriberId(...)
+              - pattern: $T?.simSerialNumber
+              - pattern: $T?.getSimSerialNumber(...)
+          - pattern-inside: |
+              val $T = $X.getSystemService($K)
+              ...
+          - pattern-either:
+              - pattern-inside: |
+                  import android.telephony.TelephonyManager
+                  ...
+              - pattern-inside: |
+                  import android.telephony.*
+                  ...
+      # Names that belong to one vendor or to Android.
+      - pattern: Build.getSerial()
+      - pattern: FirebaseInstallations.getInstance().id
+      - pattern: FirebaseInstallations.getInstance().getId()
+      - pattern: FirebaseInstanceId.getInstance().id
+      - pattern: FirebaseInstanceId.getInstance().getId()
+      - pattern: Firebase.installations.id
+      - pattern: Firebase.installations.getId()
+    metadata:
+      activity: tracks_devices
+      mentioned: performs
+      definition: https://lexlint.io/activities/tracks-devices
+      provenance: ungovr-original
+      license: MIT
