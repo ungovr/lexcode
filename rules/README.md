@@ -300,7 +300,13 @@ Vue, Svelte, HTML, Jinja and ERB, and the block is read as JavaScript. Inside a
 block, `<%= ... %>` becomes `_` padded with spaces to its length, every other
 `<% ... %>` tag becomes spaces, a `<%-- ... --%>` comment runs to `--%>`, and EL
 (`${...}`, `#{...}`) becomes `_` padded, with line breaks kept so line numbers
-hold. A `<script>` inside a JSP comment is still read, because extraction finds
-the element before the comment is blanked. A JSTL action inside a script body
-(`<c:if>` and the like) is not blanked. Thymeleaf templates are `.html` and
-already read; FreeMarker and Velocity templates are not read.
+hold. A namespaced tag inside a script body (a JSF component such as `<h:outputText
+value="#{msgs.x}"/>`, a JSTL action such as `<c:if test="${a}">` or `</c:if>`,
+`<jsp:expression>`: `<` or `</`, a prefix, a colon, a name, up to its closing
+`>`, past quoted values) also becomes `_` padded, so it stays valid JavaScript
+in a string and in an expression; `<![CDATA[` and a `]]>` that closes it become
+spaces. A comparison such as `a < b:c`, an unprefixed HTML tag and a namespaced
+tag with no closing `>` are left alone. A `<script>` inside a JSP comment is
+still read, because extraction finds the element before the comment is blanked.
+Thymeleaf templates are `.html` and already read; FreeMarker and Velocity
+templates are not read.

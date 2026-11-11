@@ -228,21 +228,57 @@ function elEnd(text: string, open: number): number {
   return text.length;
 }
 
+/** The longest namespaced tag lexcode will blank; a `<` that has no `>` within this is just a less-than sign. */
+const MAX_TAG_CHARS = 4000;
+
 /**
- * Blanks the JSP syntax of a script body so the JavaScript parser can read it: an output tag (`<%=`) and an
- * EL expression (`${...}`, `#{...}`) become `_` padded with spaces to their length, every other tag (`<%`,
- * `<%!`, `<%@`) becomes spaces, and line breaks stay, so line and column numbers hold. A `<%--` comment runs
- * to `--%>`, any other tag to the first `%>`, and an EL expression to its closing brace, past nested braces
- * and quoted strings. A `\${` or `\#{` is a literal and is left. Anything that never ends is blanked to the
- * end of the body.
+ * Offset just past the `>` that closes the namespaced tag (`<h:outputText ...>`, `</f:view>`, `<c:out ... />`) whose
+ * name starts at `from`, stepping over quoted attribute values (a `>` or a `<script>` inside quotes is part of the
+ * value; an escaped quote is not a quote). -1 when it does not close within MAX_TAG_CHARS.
+ */
+function tagEnd(text: string, from: number): number {
+  const limit = Math.min(text.length, from + MAX_TAG_CHARS);
+  let i = from;
+  while (i < limit) {
+    const ch = text[i] as string;
+    if (ch === '\\') {
+      i += 2;
+      continue;
+    }
+    if (ch === '"' || ch === "'") {
+      i++;
+      while (i < limit && text[i] !== ch) i += text[i] === '\\' ? 2 : 1;
+      i++;
+      continue;
+    }
+    if (ch === '>') return i + 1;
+    i++;
+  }
+  return -1;
+}
+
+/**
+ * Blanks the JSP syntax of a script body so the JavaScript parser can read it: an output tag (`<%=`), an
+ * EL expression (`${...}`, `#{...}`) and a namespaced tag (`<h:outputText .../>`, `</f:view>`, `<c:out>`,
+ * `<jsp:expression>`: `<` or `</`, a word, a colon, a name) become `_` padded with spaces to their length, so
+ * they stay a valid JavaScript expression in a string and out of one; every other tag (`<%`, `<%!`, `<%@`)
+ * and the `<![CDATA[` and `]]>` markers of a CDATA section become spaces. Line breaks stay, so line and column
+ * numbers hold. A `<%--` comment runs to `--%>`, any other tag to the first `%>`, an EL expression to its
+ * closing brace, past nested braces and quoted strings, and a namespaced tag to its `>`, past quoted values.
+ * A `\${` or `\#{` is a literal and is left. A JSP tag that never ends is blanked to the end of the body; a
+ * namespaced tag that never ends is not a tag and is left, as is `a < b:c` (a tag name follows the `<`
+ * directly) and an HTML tag without a prefix. A `]]>` is blanked only after a `<![CDATA[` opened in the body,
+ * so `a[b[0]]>c` is left.
  */
 export function blankJspTags(body: string): string {
-  const opener = /<%|[$#]\{/g;
+  const opener = /<%|[$#]\{|<\/?\w+:[A-Za-z_]|<!\[CDATA\[|\]\]>/g;
   let out = '';
   let cursor = 0;
+  let inCdata = false;
   for (let m = opener.exec(body); m !== null; m = opener.exec(body)) {
     const open = m.index;
-    if (m[0] !== '<%' && body[open - 1] === '\\') continue;
+    if (m[0] === ']]>' && !inCdata) continue;
+    if ((m[0] === '${' || m[0] === '#{') && body[open - 1] === '\\') continue;
     let end: number;
     let output: boolean;
     if (m[0] === '<%') {
@@ -255,8 +291,20 @@ export function blankJspTags(body: string): string {
         end = close === -1 ? body.length : close + 2;
         output = body[open + 2] === '=';
       }
-    } else {
+    } else if (m[0] === '${' || m[0] === '#{') {
       end = elEnd(body, open + 1);
+      output = true;
+    } else if (m[0] === '<![CDATA[') {
+      end = open + m[0].length;
+      output = false;
+      inCdata = true;
+    } else if (m[0] === ']]>') {
+      end = open + 3;
+      output = false;
+      inCdata = false;
+    } else {
+      end = tagEnd(body, open + m[0].length);
+      if (end === -1) continue; // no closing `>`: a less-than sign, not a tag
       output = true;
     }
     const tag = blank(body.slice(open, end));
