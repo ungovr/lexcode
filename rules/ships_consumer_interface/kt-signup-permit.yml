@@ -1,0 +1,36 @@
+rules:
+  - id: lexcode.consumer.kt-signup-permit
+    languages: [kotlin]
+    severity: INFO
+    message: 'Opens a sign-up page to everyone in the security configuration (permitAll on a register or sign-up path), a screen that members of the public use to reach a service (ships_consumer_interface).'
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: '$A.requestMatchers(..., $P, ...).permitAll()'
+              - pattern: '$A.antMatchers(..., $P, ...).permitAll()'
+              - pattern: '$A.mvcMatchers(..., $P, ...).permitAll()'
+              - pattern: '$A.requestMatchers(..., AntPathRequestMatcher($P), ...).permitAll()'
+          - metavariable-regex:
+              metavariable: $P
+              regex: '^"/?(api/)?(v[0-9]+/)?(accounts/|auth/|users/)?(sign-?up|register|registration|create-account)/?"$'
+      - patterns:
+          - pattern: 'authorize(..., $P, permitAll)'
+          - pattern-either:
+              - pattern-inside: |
+                  authorizeHttpRequests {
+                    ...
+                  }
+              - pattern-inside: |
+                  authorizeRequests {
+                    ...
+                  }
+          - metavariable-regex:
+              metavariable: $P
+              regex: '^"/?(api/)?(v[0-9]+/)?(accounts/|auth/|users/)?(sign-?up|register|registration|create-account)/?"$'
+    metadata:
+      activity: ships_consumer_interface
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/ships-consumer-interface
+      provenance: ungovr-original
+      license: MIT

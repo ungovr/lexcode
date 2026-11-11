@@ -1,0 +1,110 @@
+rules:
+  - id: lexcode.social.kt-follow-relation
+    languages: [kotlin]
+    severity: INFO
+    message: 'Defines a follow or friendship relation between user accounts (a follower and followed pair, a friendship class, or a finder keyed on the follower), which is how people connect on a social platform (operates_social_platform).'
+    patterns:
+      - pattern-regex: '(?is)\A(?=.*(follow|friend)).*'
+      - pattern-either:
+            - patterns:
+                - pattern-either:
+                    - pattern: 'class $C(..., val $G: $T2, ..., val $F: $T, ...)'
+                    - pattern: 'class $C(..., val $G: $T2, ..., var $F: $T, ...)'
+                    - pattern: 'class $C(..., var $G: $T2, ..., val $F: $T, ...)'
+                    - pattern: 'class $C(..., var $G: $T2, ..., var $F: $T, ...)'
+                    - pattern: 'class $C(..., val $F: $T2, ..., val $G: $T, ...)'
+                    - pattern: 'class $C(..., val $F: $T2, ..., var $G: $T, ...)'
+                    - pattern: 'class $C(..., var $F: $T2, ..., val $G: $T, ...)'
+                    - pattern: 'class $C(..., var $F: $T2, ..., var $G: $T, ...)'
+                - metavariable-regex:
+                    metavariable: $G
+                    regex: '^follower(User|Account|Member|Profile)?(Id)?$'
+                - metavariable-regex:
+                    metavariable: $F
+                    regex: '^(followed|followee|following)(User|Account|Member|Profile)?(Id)?$'
+            - patterns:
+                - pattern-either:
+                    - pattern: 'val $G: $T'
+                    - pattern: 'var $G: $T'
+                    - pattern: 'val $G: $T = $V'
+                    - pattern: 'var $G: $T = $V'
+                - pattern-either:
+                    - pattern-inside: |
+                        class $C {
+                          ...
+                          val $F: $T2
+                          ...
+                        }
+                    - pattern-inside: |
+                        class $C {
+                          ...
+                          var $F: $T2
+                          ...
+                        }
+                    - pattern-inside: |
+                        class $C {
+                          ...
+                          val $F: $T2 = $W
+                          ...
+                        }
+                    - pattern-inside: |
+                        class $C {
+                          ...
+                          var $F: $T2 = $W
+                          ...
+                        }
+                    - pattern-inside: |
+                        class $C(...) {
+                          ...
+                          val $F: $T2
+                          ...
+                        }
+                    - pattern-inside: |
+                        class $C(...) {
+                          ...
+                          var $F: $T2
+                          ...
+                        }
+                    - pattern-inside: |
+                        class $C(...) {
+                          ...
+                          val $F: $T2 = $W
+                          ...
+                        }
+                    - pattern-inside: |
+                        class $C(...) {
+                          ...
+                          var $F: $T2 = $W
+                          ...
+                        }
+                - pattern-not-inside: |
+                    fun $M(...) {
+                      ...
+                    }
+                - pattern-not-inside: |
+                    fun $M(...): $R {
+                      ...
+                    }
+                - pattern-not-inside: |
+                    fun $M(...) = $E
+                - metavariable-regex:
+                    metavariable: $G
+                    regex: '^follower(User|Account|Member|Profile)?(Id)?$'
+                - metavariable-regex:
+                    metavariable: $F
+                    regex: '^(followed|followee|following)(User|Account|Member|Profile)?(Id)?$'
+            - patterns:
+                - pattern-either:
+                    - pattern: 'class $C(...)'
+                    - pattern: 'class $C'
+                - metavariable-regex:
+                    metavariable: $C
+                    regex: '^(Friendship|FriendRequest|FriendConnection|UserFriend)$'
+            - pattern-regex: '\b(find|exists|count|delete)\w{0,40}By(Follower|Followee|Following|Followed)(User|Account|Member)?(Id)?(And|Or|In|\()'
+    metadata:
+      activity: operates_social_platform
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/operates-social-platform
+      provenance: ungovr-original
+      license: MIT

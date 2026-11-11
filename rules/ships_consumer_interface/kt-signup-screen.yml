@@ -1,0 +1,45 @@
+rules:
+  - id: lexcode.consumer.kt-signup-screen
+    languages: [kotlin]
+    severity: INFO
+    message: 'Declares an Android sign-up screen (an Activity or Fragment, or a Compose screen, for registering an account), a screen that members of the public use to reach a service (ships_consumer_interface).'
+    patterns:
+      - pattern-regex: '(?s)\A(?=.*(SignUp|Signup|Register|Registration|CreateAccount)).*'
+      - pattern-either:
+            - patterns:
+                - pattern-either:
+                    - pattern: 'class $C : $S()'
+                    - pattern: 'class $C : $S(...)'
+                    - pattern: 'class $C(...) : $S()'
+                    - pattern: 'class $C(...) : $S(...)'
+                - metavariable-regex:
+                    metavariable: $S
+                    regex: '^\w*(Activity|Fragment)$'
+                - metavariable-regex:
+                    metavariable: $C
+                    regex: '^(?!.*(Admin|Staff|Employee|Operator|Internal|Support|Debug|Test|Mock|Preview)).*(SignUp|Signup|Register|Registration|CreateAccount)(Activity|Fragment|Dialog|Flow\w*)$'
+            - patterns:
+                - pattern-either:
+                    - pattern: |
+                        @Composable
+                        fun $F(...) {
+                          ...
+                        }
+                    - pattern: |
+                        @Composable
+                        fun $F(...): $R {
+                          ...
+                        }
+                    - pattern: |
+                        @Composable
+                        fun $F(...) = $E
+                - metavariable-regex:
+                    metavariable: $F
+                    regex: '^(?!.*(Admin|Staff|Employee|Operator|Internal|Support|Debug|Test|Mock|Preview)).*(SignUp|Signup|Register|Registration|CreateAccount)(Screen|Page|Route)$'
+    metadata:
+      activity: ships_consumer_interface
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/ships-consumer-interface
+      provenance: ungovr-original
+      license: MIT

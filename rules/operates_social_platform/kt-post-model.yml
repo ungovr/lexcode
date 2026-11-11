@@ -1,0 +1,183 @@
+rules:
+  - id: lexcode.social.kt-post-model
+    languages: [kotlin]
+    severity: INFO
+    message: 'Declares a post that a user writes and other users react to (a post, tweet or reply class with likes, upvotes or reactions, or with an author and comments or replies), which is how content is shared on a social platform (operates_social_platform).'
+    patterns:
+      - pattern-regex: '(?s)\A(?=.*(Post|Tweet|Toot|Reply|StatusUpdate))(?=.*(?i:like|reaction|upvote|downvote|favorite|retweet|share|boost|comment|replies)).*'
+      - pattern-either:
+            - patterns:
+                - pattern-either:
+                    - pattern: 'class $C(..., val $L: $T, ...)'
+                    - pattern: 'class $C(..., var $L: $T, ...)'
+                - metavariable-regex:
+                    metavariable: $C
+                    regex: '^(\w*[a-z0-9])?(Post|Tweet|Toot|Reply|ForumPost|WallPost|StatusUpdate)$'
+                - metavariable-regex:
+                    metavariable: $L
+                    regex: '^(likes?|numberOfLikes|numLikes|likeCount|likesCount|likedBy|reactions?|reactionCount|reactionsCount|upvotes?|upvoteCount|downvotes?|shareCount|retweetCount|retweets|boosts|favorites)$'
+            - patterns:
+                - pattern-either:
+                    - pattern: 'val $L: $T'
+                    - pattern: 'var $L: $T'
+                    - pattern: 'val $L: $T = $V'
+                    - pattern: 'var $L: $T = $V'
+                - pattern-either:
+                    - pattern-inside: |
+                        class $C {
+                          ...
+                        }
+                    - pattern-inside: |
+                        class $C(...) {
+                          ...
+                        }
+                - pattern-not-inside: |
+                    fun $M(...) {
+                      ...
+                    }
+                - pattern-not-inside: |
+                    fun $M(...): $R {
+                      ...
+                    }
+                - pattern-not-inside: |
+                    fun $M(...) = $E
+                - metavariable-regex:
+                    metavariable: $C
+                    regex: '^(\w*[a-z0-9])?(Post|Tweet|Toot|Reply|ForumPost|WallPost|StatusUpdate)$'
+                - metavariable-regex:
+                    metavariable: $L
+                    regex: '^(likes?|numberOfLikes|numLikes|likeCount|likesCount|likedBy|reactions?|reactionCount|reactionsCount|upvotes?|upvoteCount|downvotes?|shareCount|retweetCount|retweets|boosts|favorites)$'
+            - patterns:
+                - pattern-either:
+                    - pattern: 'class $C(..., val $A: $T2, ..., val $M: $T, ...)'
+                    - pattern: 'class $C(..., val $A: $T2, ..., var $M: $T, ...)'
+                    - pattern: 'class $C(..., var $A: $T2, ..., val $M: $T, ...)'
+                    - pattern: 'class $C(..., var $A: $T2, ..., var $M: $T, ...)'
+                    - pattern: 'class $C(..., val $M: $T2, ..., val $A: $T, ...)'
+                    - pattern: 'class $C(..., val $M: $T2, ..., var $A: $T, ...)'
+                    - pattern: 'class $C(..., var $M: $T2, ..., val $A: $T, ...)'
+                    - pattern: 'class $C(..., var $M: $T2, ..., var $A: $T, ...)'
+                - metavariable-regex:
+                    metavariable: $C
+                    regex: '^(\w*[a-z0-9])?(Post|Tweet|Toot|Reply|ForumPost|WallPost|StatusUpdate)$'
+                - metavariable-regex:
+                    metavariable: $A
+                    regex: '^(author|authorId|creator|creatorId|creatorUserName|poster|posterId|owner|ownerId|user|userId|createdBy)$'
+                - metavariable-regex:
+                    metavariable: $M
+                    regex: '^(comments|replies|numberOfComments|commentCount)$'
+            - patterns:
+                - pattern-either:
+                    - pattern: 'val $M: $T'
+                    - pattern: 'var $M: $T'
+                    - pattern: 'val $M: $T = $V'
+                    - pattern: 'var $M: $T = $V'
+                - pattern-either:
+                    - pattern-inside: |
+                        class $C {
+                          ...
+                          val $A: $T2
+                          ...
+                        }
+                    - pattern-inside: |
+                        class $C {
+                          ...
+                          var $A: $T2
+                          ...
+                        }
+                    - pattern-inside: |
+                        class $C {
+                          ...
+                          val $A: $T2 = $W
+                          ...
+                        }
+                    - pattern-inside: |
+                        class $C {
+                          ...
+                          var $A: $T2 = $W
+                          ...
+                        }
+                    - pattern-inside: |
+                        class $C(...) {
+                          ...
+                          val $A: $T2
+                          ...
+                        }
+                    - pattern-inside: |
+                        class $C(...) {
+                          ...
+                          var $A: $T2
+                          ...
+                        }
+                    - pattern-inside: |
+                        class $C(...) {
+                          ...
+                          val $A: $T2 = $W
+                          ...
+                        }
+                    - pattern-inside: |
+                        class $C(...) {
+                          ...
+                          var $A: $T2 = $W
+                          ...
+                        }
+                - pattern-not-inside: |
+                    fun $M(...) {
+                      ...
+                    }
+                - pattern-not-inside: |
+                    fun $M(...): $R {
+                      ...
+                    }
+                - pattern-not-inside: |
+                    fun $M(...) = $E
+                - metavariable-regex:
+                    metavariable: $C
+                    regex: '^(\w*[a-z0-9])?(Post|Tweet|Toot|Reply|ForumPost|WallPost|StatusUpdate)$'
+                - metavariable-regex:
+                    metavariable: $A
+                    regex: '^(author|authorId|creator|creatorId|creatorUserName|poster|posterId|owner|ownerId|user|userId|createdBy)$'
+                - metavariable-regex:
+                    metavariable: $M
+                    regex: '^(comments|replies|numberOfComments|commentCount)$'
+            - patterns:
+                - pattern-either:
+                    - pattern: 'val $M: $T'
+                    - pattern: 'var $M: $T'
+                    - pattern: 'val $M: $T = $V'
+                    - pattern: 'var $M: $T = $V'
+                - pattern-either:
+                    - pattern-inside: |
+                        class $C(..., val $A: $T2, ...) {
+                          ...
+                        }
+                    - pattern-inside: |
+                        class $C(..., var $A: $T2, ...) {
+                          ...
+                        }
+                - pattern-not-inside: |
+                    fun $M(...) {
+                      ...
+                    }
+                - pattern-not-inside: |
+                    fun $M(...): $R {
+                      ...
+                    }
+                - pattern-not-inside: |
+                    fun $M(...) = $E
+                - metavariable-regex:
+                    metavariable: $C
+                    regex: '^(\w*[a-z0-9])?(Post|Tweet|Toot|Reply|ForumPost|WallPost|StatusUpdate)$'
+                - metavariable-regex:
+                    metavariable: $A
+                    regex: '^(author|authorId|creator|creatorId|creatorUserName|poster|posterId|owner|ownerId|user|userId|createdBy)$'
+                - metavariable-regex:
+                    metavariable: $M
+                    regex: '^(comments|replies|numberOfComments|commentCount)$'
+    metadata:
+      activity: operates_social_platform
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/operates-social-platform
+      provenance: ungovr-original
+      license: MIT
