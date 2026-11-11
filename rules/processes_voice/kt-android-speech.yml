@@ -1,0 +1,19 @@
+rules:
+  - id: lexcode.voice.kt-android-speech
+    languages: [kotlin]
+    severity: INFO
+    message: Starts Android speech recognition, which listens to a person speaking and turns it into text (processes_voice).
+    pattern-either:
+      # Each name is the platform's own, written in full: the engine resolves it through the file's
+      # imports (a named import, a wildcard and an alias), so a class of the same name defined in the
+      # project, or a startListening method on another type, is not taken for it.
+      - pattern: android.speech.SpeechRecognizer.createSpeechRecognizer(...)
+      - pattern: android.speech.SpeechRecognizer.createOnDeviceSpeechRecognizer(...)
+      - pattern: '($R : android.speech.SpeechRecognizer).startListening(...)'
+      - pattern: android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH
+    metadata:
+      activity: processes_voice
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-voice
+      provenance: ungovr-original
+      license: MIT

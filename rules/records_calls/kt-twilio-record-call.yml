@@ -1,0 +1,24 @@
+rules:
+  - id: lexcode.calls.kt-twilio-record-call
+    languages: [kotlin]
+    severity: INFO
+    message: Places a Twilio call or opens a video room with recording turned on, or starts recording a live call, which is recording a call (records_calls).
+    patterns:
+      - pattern-either:
+          # setRecord is a common name, so the file must import the Twilio Call or Room class (named, wildcard or alias)
+          - patterns:
+              - pattern-regex: '(?sm)^import\s+com\.twilio\.rest\.(api\.v2010\.account\.(Call|\*)|video\.v1\.(Room|\*))(\s|;|$).*'
+              - pattern-either:
+                  - pattern: $X.setRecord($V)
+                  - pattern: $X.setRecordParticipantsOnConnect($V)
+              - metavariable-regex:
+                  metavariable: $V
+                  regex: ^(?!\s*false\s*$)
+          # Starting a recording on a call in progress, with Twilio's Recording class written in full
+          - pattern: com.twilio.rest.api.v2010.account.call.Recording.creator(...)
+    metadata:
+      activity: records_calls
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-calls
+      provenance: ungovr-original
+      license: MIT

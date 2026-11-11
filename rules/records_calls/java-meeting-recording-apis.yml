@@ -47,7 +47,7 @@ rules:
                       ...
           # Vonage Voice: the record action of an NCCO
           - patterns:
-              - pattern: new RecordAction.Builder(...)
+              - pattern: RecordAction.builder(...)
               - pattern-either:
                   - pattern-inside: |
                       import com.vonage.client.voice.ncco.RecordAction;

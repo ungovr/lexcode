@@ -1,0 +1,19 @@
+rules:
+  - id: lexcode.biometric.kt-device-biometric-prompt
+    languages: [kotlin]
+    severity: INFO
+    message: Asks the phone to confirm the user with a fingerprint or face, which may be using biometric data (processes_biometrics).
+    pattern-either:
+      # The platform's own classes, written in full: the engine resolves them through the file's imports
+      # (named, wildcard or alias), so a screen or class of the same name in the project is not taken for them.
+      - pattern: androidx.biometric.BiometricPrompt(...)
+      - pattern: android.hardware.biometrics.BiometricPrompt.Builder(...)
+      - pattern: '($F : android.hardware.fingerprint.FingerprintManager).authenticate(...)'
+      - pattern: '($F : androidx.core.hardware.fingerprint.FingerprintManagerCompat).authenticate(...)'
+    metadata:
+      activity: processes_biometrics
+      strength: signal
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-biometrics
+      provenance: ungovr-original
+      license: MIT

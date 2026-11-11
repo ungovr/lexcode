@@ -1,0 +1,28 @@
+rules:
+  - id: lexcode.biometric.kt-biometric-libs
+    languages: [kotlin]
+    severity: INFO
+    message: Matches faces or fingerprints with a biometric library (OpenCV face recognizers, SourceAFIS, Neurotechnology), which is recognizing people from face geometry or a fingerprint (processes_biometrics).
+    patterns:
+      - pattern-either:
+          # OpenCV and JavaCV: recognizers that learn and match identities, and the SFace embedder. The import
+          # line keeps a project object of the same name out.
+          - patterns:
+              - pattern-regex: '(?sm)^import\s+(org\.opencv|org\.bytedeco)\..*'
+              - pattern-either:
+                  - pattern: LBPHFaceRecognizer.create(...)
+                  - pattern: EigenFaceRecognizer.create(...)
+                  - pattern: FisherFaceRecognizer.create(...)
+                  - pattern: FaceRecognizerSF.create(...)
+          # SourceAFIS (a template extracted from a fingerprint image, and the matcher) and the Neurotechnology
+          # biometric client: each class is written in full, which the engine resolves through the file's imports
+          # (named, wildcard or alias), so a project class of the same name is not taken for it.
+          - pattern: com.machinezoo.sourceafis.FingerprintTemplate(...)
+          - pattern: com.machinezoo.sourceafis.FingerprintMatcher(...)
+          - pattern: com.neurotec.biometrics.client.NBiometricClient(...)
+    metadata:
+      activity: processes_biometrics
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-biometrics
+      provenance: ungovr-original
+      license: MIT

@@ -1,0 +1,25 @@
+rules:
+  - id: lexcode.calls.kt-android-call-recording
+    languages: [kotlin]
+    severity: INFO
+    message: Records a phone call through Android's call audio sources, which is recording a call (records_calls).
+    patterns:
+      # The call audio sources (both sides, the other side, this side), named through the platform's own
+      # constant, which the engine resolves through the file's imports, so a project's own AudioSource
+      # list or setAudioSource method is not taken for it.
+      - pattern-either:
+          - pattern: setAudioSource($S)
+          - pattern: $R.setAudioSource($S)
+          - pattern: android.media.AudioRecord($S, ...)
+      - metavariable-pattern:
+          metavariable: $S
+          pattern-either:
+            - pattern: android.media.MediaRecorder.AudioSource.VOICE_CALL
+            - pattern: android.media.MediaRecorder.AudioSource.VOICE_DOWNLINK
+            - pattern: android.media.MediaRecorder.AudioSource.VOICE_UPLINK
+    metadata:
+      activity: records_calls
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-calls
+      provenance: ungovr-original
+      license: MIT

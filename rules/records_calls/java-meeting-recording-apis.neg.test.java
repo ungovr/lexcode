@@ -5,7 +5,7 @@
 // Vonage connect action, with the vendor types written in full and no import. A local
 // archive has startRoomCompositeEgress, startParticipantEgress, startTrackCompositeEgress,
 // startTrackEgress, createMediaCapturePipeline and startContactRecording methods of its
-// own and calls them on a receiver, and a RecordAction.Builder of its own.
+// own and calls them on a receiver, and a RecordAction with a builder() of its own.
 package demo.meetings;
 
 public class MeetingDesk {
@@ -65,6 +65,10 @@ class MeetingArchive {
   Object prompt() {
     return new RecordAction.Builder().build();
   }
+
+  Object prompt2() {
+    return RecordAction.builder().build();
+  }
 }
 
 interface Archive {
@@ -82,6 +86,10 @@ interface Archive {
 }
 
 class RecordAction {
+  static Builder builder() {
+    return new Builder();
+  }
+
   static class Builder {
     Object build() {
       return new Object();
