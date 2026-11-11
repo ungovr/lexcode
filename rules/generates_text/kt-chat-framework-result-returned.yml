@@ -1,0 +1,134 @@
+rules:
+  - id: lexcode.text.kt-chat-framework-result-returned
+    languages:
+      - kotlin
+    severity: INFO
+    message: Returns text written by a LangChain4j, Spring AI, Ollama4j or llama.cpp chat model from a function, which may be generating text with AI that reaches users (generates_text).
+    mode: taint
+    pattern-sources:
+      - patterns:
+          - pattern-regex: (?s)\A(?=.*dev\.langchain4j\.).*
+          - pattern-either:
+              - pattern: $M.chat(...)
+              - pattern: $M.chat { ... }
+          - metavariable-regex:
+              metavariable: $M
+              regex: (?i)^(this\.)?_?\w*(model|llm|assistant|ollama|gpt)\w*$
+      - patterns:
+          - pattern-regex: (?s)\A(?=.*dev\.langchain4j\.).*
+          - pattern-either:
+              - pattern: model.generate(...)
+              - pattern: chatModel.generate(...)
+              - pattern: chatLanguageModel.generate(...)
+              - pattern: languageModel.generate(...)
+              - pattern: llm.generate(...)
+      - patterns:
+          - pattern-regex: (?s)\A(?=.*org\.springframework\.ai\.).*
+          - pattern-either:
+              - pattern: chatModel.call(...)
+              - pattern: llm.call(...)
+      - patterns:
+          - pattern-regex: (?s)\A(?=.*org\.springframework\.ai\.).*
+          - pattern: $M.stream($P, ...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: (?i)^(this\.)?_?\w*(model|llm|assistant|ollama|gpt)\w*$
+      - patterns:
+          - pattern-regex: (?s)\A(?=.*org\.springframework\.ai\.).*
+          - pattern-either:
+              - pattern: $C.prompt(...). ... .call()
+              - pattern: $C.prompt(...). ... .stream()
+      - patterns:
+          - pattern-regex: (?s)\A(?=.*io\.github\.ollama4j\.).*
+          - pattern-either:
+              - pattern: ollamaAPI.generate(...)
+              - pattern: ollamaAPI.chat(...)
+              - pattern: ollamaApi.generate(...)
+              - pattern: ollamaApi.chat(...)
+              - pattern: ollama.generate(...)
+              - pattern: ollama.chat(...)
+      - patterns:
+          - pattern-regex: (?s)\A(?=.*de\.kherud\.llama\.).*
+          - pattern-either:
+              - pattern: model.generate(...)
+              - pattern: model.complete(...)
+              - pattern: llamaModel.generate(...)
+              - pattern: llamaModel.complete(...)
+    pattern-propagators:
+      - pattern: $S.$M { $X -> ... }
+        from: $S
+        to: $X
+      - pattern: $S?.$M { $X -> ... }
+        from: $S
+        to: $X
+      - patterns:
+          - pattern: $S.$M { <... $IT ...> }
+          - metavariable-regex:
+              metavariable: $IT
+              regex: ^it$
+        from: $S
+        to: $IT
+      - patterns:
+          - pattern: $S?.$M { <... $IT ...> }
+          - metavariable-regex:
+              metavariable: $IT
+              regex: ^it$
+        from: $S
+        to: $IT
+    pattern-sinks:
+      - patterns:
+          - pattern: return $X
+          - pattern-not-inside:
+              patterns:
+                - pattern-either:
+                    - pattern: |
+                        @$A(...)
+                        fun $F(...): $R {
+                          ...
+                        }
+                    - pattern: |
+                        @$A
+                        fun $F(...): $R {
+                          ...
+                        }
+                - metavariable-regex:
+                    metavariable: $A
+                    regex: ^(GetMapping|PostMapping|PutMapping|PatchMapping|DeleteMapping|RequestMapping|ResponseBody|SendTo|SendToUser|QueryMapping|MutationMapping|SubscriptionMapping|GET|POST|PUT|DELETE|HEAD|Get|Post|Put|Patch|Delete|Route)$
+          - pattern-not-inside: |
+              { $P -> ... }
+          - pattern-not-inside: |
+              { $P, $Q -> ... }
+          - pattern-not-inside: |
+              { $P, $Q, $W -> ... }
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  fun $F(...) = $X
+              - pattern-inside: |
+                  fun $F(...): $R = $X
+          - focus-metavariable: $X
+          - pattern-not-inside:
+              patterns:
+                - pattern-either:
+                    - pattern: |
+                        @$A(...)
+                        fun $F(...) = $X
+                    - pattern: |
+                        @$A(...)
+                        fun $F(...): $R = $X
+                    - pattern: |
+                        @$A
+                        fun $F(...) = $X
+                    - pattern: |
+                        @$A
+                        fun $F(...): $R = $X
+                - metavariable-regex:
+                    metavariable: $A
+                    regex: ^(GetMapping|PostMapping|PutMapping|PatchMapping|DeleteMapping|RequestMapping|ResponseBody|SendTo|SendToUser|QueryMapping|MutationMapping|SubscriptionMapping|GET|POST|PUT|DELETE|HEAD|Get|Post|Put|Patch|Delete|Route)$
+    metadata:
+      activity: generates_text
+      mentioned: performs
+      definition: https://lexlint.io/activities/generates-text
+      provenance: ungovr-original
+      license: MIT
+      strength: signal

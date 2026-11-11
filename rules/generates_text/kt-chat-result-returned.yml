@@ -1,0 +1,168 @@
+rules:
+  - id: lexcode.text.kt-chat-result-returned
+    languages:
+      - kotlin
+    severity: INFO
+    message: Returns text written by a chat or completion model from a function, which may be generating text with AI that reaches users (generates_text).
+    mode: taint
+    pattern-sources:
+      - patterns:
+          - pattern-regex: (?s)\A(?=.*com\.openai\.).*
+          - pattern-either:
+              - pattern: $C.chat().completions().create(...)
+              - pattern: $C.chat().completions().createStreaming(...)
+      - patterns:
+          - pattern-regex: (?s)\A(?=.*com\.openai\.).*
+          - pattern-either:
+              - pattern: client.responses().create(...)
+              - pattern: client.responses().createStreaming(...)
+              - pattern: client.completions().create(...)
+              - pattern: client.completions().createStreaming(...)
+              - pattern: openai.responses().create(...)
+              - pattern: openai.responses().createStreaming(...)
+              - pattern: openai.completions().create(...)
+              - pattern: openai.completions().createStreaming(...)
+              - pattern: openAI.responses().create(...)
+              - pattern: openAI.responses().createStreaming(...)
+              - pattern: openAI.completions().create(...)
+              - pattern: openAI.completions().createStreaming(...)
+              - pattern: openAIClient.responses().create(...)
+              - pattern: openAIClient.responses().createStreaming(...)
+              - pattern: openAIClient.completions().create(...)
+              - pattern: openAIClient.completions().createStreaming(...)
+      - patterns:
+          - pattern-regex: (?s)\A(?=.*com\.anthropic\.).*
+          - pattern-either:
+              - pattern: client.messages().create(...)
+              - pattern: client.messages().createStreaming(...)
+              - pattern: client.beta().messages().create(...)
+              - pattern: client.beta().messages().createStreaming(...)
+              - pattern: anthropic.messages().create(...)
+              - pattern: anthropic.messages().createStreaming(...)
+              - pattern: anthropic.beta().messages().create(...)
+              - pattern: anthropic.beta().messages().createStreaming(...)
+              - pattern: anthropicClient.messages().create(...)
+              - pattern: anthropicClient.messages().createStreaming(...)
+              - pattern: anthropicClient.beta().messages().create(...)
+              - pattern: anthropicClient.beta().messages().createStreaming(...)
+      - patterns:
+          - pattern-regex: (?s)\A(?=.*com\.aallam\.openai\.).*
+          - pattern-either:
+              - pattern: $O.chatCompletion(...)
+              - pattern: $O.chatCompletions(...)
+              - pattern: $O.completion(...)
+              - pattern: $O.completions(...)
+      - patterns:
+          - pattern-regex: (?s)\A(?=.*com\.azure\.ai\.openai\.).*
+          - pattern-either:
+              - pattern: $C.getChatCompletions(...)
+              - pattern: $C.getChatCompletionsStream(...)
+              - pattern: $C.getChatCompletionsWithResponse(...)
+              - pattern: $C.getCompletions(...)
+              - pattern: $C.getCompletionsStream(...)
+              - pattern: $C.getCompletionsWithResponse(...)
+      - patterns:
+          - pattern-regex: (?s)\A(?=.*com\.azure\.ai\.inference\.).*
+          - pattern-either:
+              - pattern: $C.complete(...)
+              - pattern: $C.completeStream(...)
+          - metavariable-regex:
+              metavariable: $C
+              regex: (?i)^(this\.)?_?\w*(client|model|inference|chat|llm)\w*$
+      - patterns:
+          - pattern-regex: (?s)\A(?=.*\.services\.bedrockruntime\.).*
+          - pattern-either:
+              - pattern: $C.converse(...)
+              - pattern: $C.converse { ... }
+              - pattern: $C.converseStream(...)
+              - pattern: $C.converseStream { ... }
+      - patterns:
+          - pattern-regex: (?s)\A(?=.*\.services\.bedrockruntime\.).*
+          - pattern-either:
+              - pattern: $C.invokeModel { ...; modelId = $ID; ... }
+              - pattern: InvokeModelRequest { ...; modelId = $ID; ... }
+              - pattern: InvokeModelRequest.builder(). ... .modelId($ID). ... .build()
+              - pattern: $C.invokeModelWithResponseStream { ...; modelId = $ID; ... }
+              - pattern: InvokeModelWithResponseStreamRequest { ...; modelId = $ID; ... }
+              - pattern: InvokeModelWithResponseStreamRequest.builder(). ... .modelId($ID). ... .build()
+          - metavariable-regex:
+              metavariable: $ID
+              regex: (?i)^"[^"]*(claude|llama|titan-text|nova-(lite|micro|pro|premier)|mistral|command|jamba|deepseek|qwen)[^"]*"$
+    pattern-propagators:
+      - pattern: $S.$M { $X -> ... }
+        from: $S
+        to: $X
+      - pattern: $S?.$M { $X -> ... }
+        from: $S
+        to: $X
+      - patterns:
+          - pattern: $S.$M { <... $IT ...> }
+          - metavariable-regex:
+              metavariable: $IT
+              regex: ^it$
+        from: $S
+        to: $IT
+      - patterns:
+          - pattern: $S?.$M { <... $IT ...> }
+          - metavariable-regex:
+              metavariable: $IT
+              regex: ^it$
+        from: $S
+        to: $IT
+    pattern-sinks:
+      - patterns:
+          - pattern: return $X
+          - pattern-not-inside:
+              patterns:
+                - pattern-either:
+                    - pattern: |
+                        @$A(...)
+                        fun $F(...): $R {
+                          ...
+                        }
+                    - pattern: |
+                        @$A
+                        fun $F(...): $R {
+                          ...
+                        }
+                - metavariable-regex:
+                    metavariable: $A
+                    regex: ^(GetMapping|PostMapping|PutMapping|PatchMapping|DeleteMapping|RequestMapping|ResponseBody|SendTo|SendToUser|QueryMapping|MutationMapping|SubscriptionMapping|GET|POST|PUT|DELETE|HEAD|Get|Post|Put|Patch|Delete|Route)$
+          - pattern-not-inside: |
+              { $P -> ... }
+          - pattern-not-inside: |
+              { $P, $Q -> ... }
+          - pattern-not-inside: |
+              { $P, $Q, $W -> ... }
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  fun $F(...) = $X
+              - pattern-inside: |
+                  fun $F(...): $R = $X
+          - focus-metavariable: $X
+          - pattern-not-inside:
+              patterns:
+                - pattern-either:
+                    - pattern: |
+                        @$A(...)
+                        fun $F(...) = $X
+                    - pattern: |
+                        @$A(...)
+                        fun $F(...): $R = $X
+                    - pattern: |
+                        @$A
+                        fun $F(...) = $X
+                    - pattern: |
+                        @$A
+                        fun $F(...): $R = $X
+                - metavariable-regex:
+                    metavariable: $A
+                    regex: ^(GetMapping|PostMapping|PutMapping|PatchMapping|DeleteMapping|RequestMapping|ResponseBody|SendTo|SendToUser|QueryMapping|MutationMapping|SubscriptionMapping|GET|POST|PUT|DELETE|HEAD|Get|Post|Put|Patch|Delete|Route)$
+    metadata:
+      activity: generates_text
+      mentioned: performs
+      definition: https://lexlint.io/activities/generates-text
+      provenance: ungovr-original
+      license: MIT
+      strength: signal
