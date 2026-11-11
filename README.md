@@ -55,7 +55,9 @@ files (including any named `*.min.js`, `*.bundle.js`, `vendor.*.js` or
 code, counted in a notice), never symbolic links, never files over 5 MB, never a
 file you cannot open for reading (counted in a notice), and never directories
 named `test`, `tests`, `__tests__`, `spec`, `fixtures`, `testdata`,
-`androidTest`, `testFixtures` or `integrationTest` unless you pass
+`androidTest`, `testFixtures` or `integrationTest`, or the Kotlin Multiplatform
+test source sets `commonTest`, `jvmTest`, `androidUnitTest`,
+`androidInstrumentedTest`, `iosTest`, `jsTest` or `nativeTest`, unless you pass
 `--include-tests`. `app.scope` in `lexlint.yml` narrows the read, as the
 lint reads it.
 

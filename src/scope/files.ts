@@ -99,6 +99,14 @@ const TEST_DIRS = new Set([
   'androidTest',
   'testFixtures',
   'integrationTest',
+  // Kotlin Multiplatform test source sets (`src/commonTest/kotlin` and the like).
+  'commonTest',
+  'jvmTest',
+  'androidUnitTest',
+  'androidInstrumentedTest',
+  'iosTest',
+  'jsTest',
+  'nativeTest',
 ]);
 /**
  * File names of bundled or minified code: someone else's library copied in,

@@ -217,6 +217,16 @@ describe('the skip list', () => {
     },
   );
 
+  it.each(['commonTest', 'jvmTest', 'androidUnitTest', 'androidInstrumentedTest', 'iosTest', 'jsTest', 'nativeTest'])(
+    'drops the Kotlin Multiplatform test source set %s, keeps its main source sets, and --include-tests still reads it',
+    (name) => {
+      const files = [`shared/src/${name}/kotlin/com/acme/A.kt`, 'shared/src/commonMain/kotlin/com/acme/Main.kt', 'shared/src/jvmMain/kotlin/com/acme/Jvm.kt'];
+      const root = repo(files);
+      expect(listFiles(root, plain).files).toEqual(['shared/src/commonMain/kotlin/com/acme/Main.kt', 'shared/src/jvmMain/kotlin/com/acme/Jvm.kt']);
+      expect(listFiles(root, { ...plain, includeTests: true }).files).toEqual([...files].sort());
+    },
+  );
+
   it.skipIf(process.platform === 'win32')(
     'never lists a symbolic link: a dangling file link (Canvas buildSrc/build.gradle.kts), a file link, or a file under a linked directory, tracked or not',
     () => {
