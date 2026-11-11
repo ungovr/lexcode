@@ -198,6 +198,27 @@ describe('readGradle: configurations', () => {
   });
 });
 
+describe('readGradle: processor configurations', () => {
+  it('treats any kapt, ksp or annotationProcessor configuration as dev, flavors and targets included', () => {
+    const text = [
+      'dependencies {',
+      '    kaptFree "g:1:1"',
+      '    kspTest "g:2:1"',
+      '    kspJvm "g:3:1"',
+      '    annotationProcessorRelease "g:4:1"',
+      '    kaptAndroidTest "g:5:1"',
+      '    kapt "g:6:1"',
+      '    kspecial "g:keep:1"',
+      '    apiKaptLike "g:keep2:1"',
+      '}',
+      '',
+    ].join('\n');
+    const r = read({ 'build.gradle': text });
+    expect(names(r)).toEqual(['g:keep', 'g:keep2']);
+    expect(r.devSkipped).toBe(6);
+  });
+});
+
 describe('readGradle: what is not a dependency', () => {
   it('ignores buildscript, plugins, pluginManagement and constraints', () => {
     const text = [
@@ -564,6 +585,125 @@ describe('readGradle: convention plugins', () => {
       'gradle/libs.versions.toml': catalog,
       'app/src/main/kotlin/Other.kt': 'class Other { fun f() { add("api", libs.findLibrary("junit").get()) } }\n',
     };
+    expect(read(files).deps).toEqual([]);
+  });
+});
+
+describe('readGradle: constants in buildSrc objects', () => {
+  const consts = [
+    '@file:Suppress("unused")',
+    '',
+    'object Versions {',
+    '    const val COMPILE_SDK = 36',
+    '    const val okhttp = "4.12.0"',
+    '    const val junit: String = "4.13.2"',
+    '}',
+    '',
+    'object Libs {',
+    '    const val okhttp = "com.squareup.okhttp3:okhttp:${Versions.okhttp}"',
+    '    const val JUNIT = "junit:junit:$junitVersion"',
+    '    const val sibling = "g:sibling:${localVersion}"',
+    '    const val localVersion = "9"',
+    '    const val BOM = "com.google.firebase:firebase-bom:34.6.0"',
+    '    const val NOVERSION = "com.google.firebase:firebase-config"',
+    '    const val UNKNOWN = "g:unknown:${Versions.missing}"',
+    '    object Google {',
+    '        const val MAPS = "com.google.android.gms:play-services-maps:1.0"',
+    '        val cycleA = "g:a:${cycleB}"',
+    '        val cycleB = "${cycleA}"',
+    '    }',
+    '}',
+    '',
+  ].join('\n');
+
+  it('reads object constants from buildSrc', () => {
+    const app = ['dependencies {', '    implementation(Libs.okhttp)', '    implementation Libs.Google.MAPS', '    implementation(Libs.NOVERSION)', '    api(Libs.sibling)', '}', ''].join('\n');
+    const r = read({ 'settings.gradle.kts': '', 'buildSrc/src/main/java/Deps.kt': consts, 'app/build.gradle.kts': app });
+    expect(r.deps).toEqual([
+      { ecosystem: 'maven', name: 'com.squareup.okhttp3:okhttp', version: '4.12.0', manifest: 'app/build.gradle.kts:2' },
+      { ecosystem: 'maven', name: 'com.google.android.gms:play-services-maps', version: '1.0', manifest: 'app/build.gradle.kts:3' },
+      { ecosystem: 'maven', name: 'com.google.firebase:firebase-config', manifest: 'app/build.gradle.kts:4' },
+      { ecosystem: 'maven', name: 'g:sibling', version: '9', manifest: 'app/build.gradle.kts:5' },
+    ]);
+    expect(r.notices).toHaveLength(1);
+    expect(r.notices[0]).toMatch(/^1 Gradle dependency has no version/);
+  });
+
+  it('a constant used only in a test configuration is skipped', () => {
+    const app = ['dependencies {', '    testImplementation(Libs.okhttp)', '    androidTestImplementation Libs.BOM', '}', ''].join('\n');
+    const r = read({ 'buildSrc/src/main/java/Deps.kt': consts, 'build.gradle': app });
+    expect(r.deps).toEqual([]);
+    expect(r.devSkipped).toBe(2);
+    expect(r.notices).toEqual([]);
+  });
+
+  it('records a constant whose version cannot be resolved without a version, and bounds a cycle', () => {
+    const app = ['dependencies {', '    implementation(Libs.UNKNOWN)', '    implementation(Libs.Google.cycleA)', '}', ''].join('\n');
+    const r = read({ 'buildSrc/src/main/java/Deps.kt': consts, 'build.gradle': app });
+    // cycleA is "g:a:${cycleB}" and cycleB names cycleA back: the version is unresolved, the dependency is still g:a.
+    expect(r.deps.map((d) => [d.name, d.version])).toEqual([
+      ['g:unknown', undefined],
+      ['g:a', undefined],
+    ]);
+  });
+
+  it('counts a reference to a constant that does not exist, and a reference outside any buildSrc', () => {
+    const app = ['dependencies {', '    implementation(Libs.NOPE)', '    implementation(Other.okhttp)', '}', ''].join('\n');
+    const r = read({ 'buildSrc/src/main/java/Deps.kt': consts, 'build.gradle': app });
+    expect(r.deps).toEqual([]);
+    expect(r.notices).toEqual(['2 Gradle dependencies are named by a constant or variable lexcode does not evaluate; not recorded']);
+  });
+
+  it('uses the constants of the buildSrc that belongs to the build, nearest first', () => {
+    const files = {
+      'a/settings.gradle': '',
+      'a/buildSrc/src/Deps.kt': 'object Libs { const val X = "g:from-a:1" }\n',
+      'b/settings.gradle': '',
+      'b/buildSrc/src/Deps.kt': 'object Libs { const val X = "g:from-b:2" }\n',
+      'a/app/build.gradle': 'dependencies {\n    implementation Libs.X\n}\n',
+      'b/app/build.gradle': 'dependencies {\n    implementation Libs.X\n}\n',
+    };
+    expect(read(files).deps.map((d) => `${d.name}@${d.version}`)).toEqual(['g:from-a@1', 'g:from-b@2']);
+  });
+
+  it('a module moved out of the build with projectDir sees the buildSrc of its build', () => {
+    const files = {
+      'apps/settings.gradle': "include ':lib'\ninclude ':other'\nproject(':lib').projectDir = new File(rootProject.projectDir, '/../libs/lib')\nproject(':other').projectDir = file(\"../tools/other\")\n",
+      'apps/buildSrc/src/Deps.kt': 'object Libs { const val X = "g:moved:4" }\n',
+      'libs/lib/build.gradle': 'dependencies {\n    implementation Libs.X\n}\n',
+      'tools/other/build.gradle.kts': 'dependencies {\n    implementation(Libs.X)\n}\n',
+      'elsewhere/build.gradle': 'dependencies {\n    implementation Libs.X\n}\n',
+    };
+    const r = read(files);
+    expect(r.deps.map((d) => [d.name, d.manifest])).toEqual([
+      ['g:moved', 'libs/lib/build.gradle:2'],
+      ['g:moved', 'tools/other/build.gradle.kts:2'],
+    ]);
+    expect(r.notices).toEqual(['1 Gradle dependency is named by a constant or variable lexcode does not evaluate; not recorded']);
+  });
+
+  it('reads constants from an includeBuild directory', () => {
+    const files = {
+      'settings.gradle': "includeBuild('tools/plugins')\n",
+      'tools/plugins/src/main/kotlin/Deps.kt': 'object Libs { const val X = "g:inc:3" }\n',
+      'app/build.gradle': 'dependencies {\n    implementation Libs.X\n}\n',
+    };
+    expect(read(files).deps.map((d) => `${d.name}@${d.version}`)).toEqual(['g:inc@3']);
+  });
+
+  it('bounds a chain of constants that each name the previous twice', () => {
+    const lines = ['object Libs {', '    const val C0 = "v"'];
+    for (let i = 1; i <= 40; i++) lines.push(`    const val C${i} = "\${C${i - 1}}\${C${i - 1}}"`);
+    lines.push('    const val DEP = "g:a:${C40}"', '}', '');
+    const files = { 'buildSrc/src/Deps.kt': lines.join('\n'), 'build.gradle': 'dependencies {\n    implementation Libs.DEP\n}\n' };
+    const t0 = Date.now();
+    const r = read(files);
+    expect(Date.now() - t0).toBeLessThan(2000);
+    expect(r.deps.map((d) => [d.name, d.version])).toEqual([['g:a', undefined]]);
+  });
+
+  it('does not read constants from outside the tooling directories', () => {
+    const files = { 'app/src/main/kotlin/Deps.kt': 'object Libs { const val X = "g:x:1" }\n', 'build.gradle': 'dependencies {\n    implementation Libs.X\n}\n' };
     expect(read(files).deps).toEqual([]);
   });
 });

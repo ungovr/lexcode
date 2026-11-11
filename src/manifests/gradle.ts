@@ -25,6 +25,7 @@ const MAX_VAR_DEPTH = 8;
 const MAX_EXPANDED = 4096;
 const MAX_LOOKAHEAD = 5000;
 const MAX_LOOKBACK = 400;
+const PLACEHOLDER_RE = /\$\{([^{}]*)\}|\$([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)/g;
 
 // ---------------------------------------------------------------------------------------------------------
 // Tokens
@@ -156,12 +157,14 @@ const isP = (t: Tok | undefined, v: string): boolean => t !== undefined && t.k =
 // Configurations
 // ---------------------------------------------------------------------------------------------------------
 
-const DEV_NAMES = new Set(['kapt', 'ksp', 'annotationProcessor', 'lintChecks', 'lintPublish', 'detektPlugins', 'ktlint']);
+const DEV_NAMES = new Set(['lintChecks', 'lintPublish', 'detektPlugins', 'ktlint']);
+/** kapt, ksp and annotationProcessor, bare or with a flavor, target or source set after them (`kaptFree`, `kspJvm`). */
+const PROCESSOR_PREFIX = /^(?:kapt|ksp|annotationProcessor)(?:[A-Z]|$)/;
 const DEV_SEGMENTS = new Set(['test', 'debug']);
 
 /** Decision 7: a test, debug or processor configuration is not a dependency the app ships. */
 function isDevConf(conf: string): boolean {
-  if (DEV_NAMES.has(conf)) return true;
+  if (DEV_NAMES.has(conf) || PROCESSOR_PREFIX.test(conf)) return true;
   const segments = conf.match(/[A-Z]?[a-z0-9]+|[A-Z]+(?![a-z0-9])/g) ?? [];
   return segments.some((s) => DEV_SEGMENTS.has(s.toLowerCase()));
 }
@@ -341,6 +344,59 @@ function parseProperties(text: string): Map<string, string> {
 }
 
 // ---------------------------------------------------------------------------------------------------------
+// Constants in buildSrc objects
+// ---------------------------------------------------------------------------------------------------------
+
+interface ConstEntry {
+  raw: string;
+  interp: boolean;
+  /** The object path that holds it (`Libs`, `Libs.Google`), for a sibling reference like `$NAME`. */
+  objPath: string;
+}
+
+/** `const val NAME = "..."` and `val NAME = "..."` directly inside `object X { }` (nested objects join with dots). */
+function collectConsts(toks: Tok[], into: Map<string, ConstEntry>): void {
+  let depth = 0;
+  const frames: { name: string; depth: number }[] = [];
+  let pending: { name: string; at: number } | undefined;
+  for (let i = 0; i < toks.length; i++) {
+    const t = toks[i] as Tok;
+    if (t.k === 'p') {
+      if (t.v === '{') {
+        depth++;
+        if (pending && pending.at === i) frames.push({ name: pending.name, depth });
+        pending = undefined;
+      } else if (t.v === '}') {
+        if (frames.length > 0 && (frames[frames.length - 1] as { depth: number }).depth === depth) frames.pop();
+        depth = Math.max(0, depth - 1);
+      }
+      continue;
+    }
+    if (t.k !== 'id') continue;
+    if (t.v === 'object' && toks[i + 1]?.k === 'id') {
+      for (let j = i + 2; j < toks.length && j < i + 12; j++) {
+        const u = toks[j] as Tok;
+        if (u.k === 'p' && u.v === '{') {
+          pending = { name: (toks[i + 1] as Tok).v, at: j };
+          break;
+        }
+        if (u.k === 'p' && (u.v === ';' || u.v === '=' || u.v === '}')) break;
+      }
+    } else if (t.v === 'val' && frames.length > 0 && (frames[frames.length - 1] as { depth: number }).depth === depth && toks[i + 1]?.k === 'id') {
+      let k = i + 2;
+      if (isP(toks[k], ':')) {
+        while (k < toks.length && k < i + 8 && !isP(toks[k], '=')) k++;
+      }
+      const val = toks[k + 1];
+      if (isP(toks[k], '=') && val?.k === 'str' && wholeValue(toks, k + 1)) {
+        const objPath = frames.map((f) => f.name).join('.');
+        into.set(`${objPath}.${(toks[i + 1] as Tok).v}`, { raw: val.v, interp: val.interp === true, objPath });
+      }
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------------------------------------
 // The reader
 // ---------------------------------------------------------------------------------------------------------
 
@@ -450,32 +506,129 @@ export function readGradle(root: string, files: string[]): ReaderResult {
     const b = baseName(rel);
     if (b === 'settings.gradle' || b === 'settings.gradle.kts') settingsDirs.add(dirOf(rel));
   }
+  /** A module whose directory a settings file moves with `project(':x').projectDir = ...`, mapped to that settings directory. */
+  const movedProjects = new Map<string, string>();
   const buildRootOf = (dir: string): string => {
-    for (const d of ancestorDirs(dir)) if (settingsDirs.has(d)) return d;
+    for (const d of ancestorDirs(dir)) {
+      if (settingsDirs.has(d)) return d;
+      const moved = movedProjects.get(d);
+      if (moved !== undefined) return moved;
+    }
     return '';
   };
 
   // ---- tooling directories: buildSrc, build-logic and every includeBuild("...") ----
-  const includedBuilds = new Set<string>();
+  /** Each includeBuild target, with the directory of the settings file that names it. */
+  const includedBuilds = new Map<string, string>();
   for (const rel of files) {
     const b = baseName(rel);
     if (b !== 'settings.gradle' && b !== 'settings.gradle.kts') continue;
     const text = readText(root, rel);
-    if (text === undefined || !text.includes('includeBuild')) continue;
+    if (text === undefined || !(text.includes('includeBuild') || text.includes('projectDir'))) continue;
     const toks = lex(text);
     for (let i = 0; i < toks.length; i++) {
+      if (toks[i]?.k === 'id' && toks[i]?.v === 'projectDir' && isP(toks[i - 1], '.') && isP(toks[i + 1], '=')) {
+        // project(':x').projectDir = new File(rootProject.projectDir, '/../libs/x')  |  = file("../libs/x")
+        let path: string | undefined;
+        for (let k = i + 2; k < toks.length && toks[k]?.line === toks[i]?.line; k++) if (toks[k]?.k === 'str') path = (toks[k] as Tok).v;
+        const moved = path === undefined ? undefined : resolveInside(dirOf(rel), path);
+        if (moved !== undefined && moved !== '' && moved !== dirOf(rel) && !movedProjects.has(moved)) movedProjects.set(moved, dirOf(rel));
+        continue;
+      }
       if (toks[i]?.k !== 'id' || toks[i]?.v !== 'includeBuild') continue;
       const arg = isP(toks[i + 1], '(') ? toks[i + 2] : toks[i + 1];
       if (arg?.k !== 'str') continue;
       const target = resolveInside(dirOf(rel), arg.v);
-      if (target !== undefined && target !== '') includedBuilds.add(target);
+      if (target !== undefined && target !== '') includedBuilds.set(target, dirOf(rel));
     }
   }
   const isTooling = (rel: string): boolean => {
     const segs = rel.split('/');
     for (let i = 0; i < segs.length - 1; i++) if (segs[i] === 'buildSrc' || segs[i] === 'build-logic') return true;
-    for (const d of includedBuilds) if (rel.startsWith(`${d}/`)) return true;
+    for (const d of includedBuilds.keys()) if (rel.startsWith(`${d}/`)) return true;
     return false;
+  };
+  /** The directory a tooling file belongs to: its buildSrc or build-logic directory, or its includeBuild target. */
+  const toolingRootOf = (rel: string): string | undefined => {
+    const segs = rel.split('/');
+    for (let i = 0; i < segs.length - 1; i++) if (segs[i] === 'buildSrc' || segs[i] === 'build-logic') return segs.slice(0, i + 1).join('/');
+    for (const d of includedBuilds.keys()) if (rel.startsWith(`${d}/`)) return d;
+    return undefined;
+  };
+
+  // ---- constants declared in objects of the tooling sources, by tooling directory ----
+  const constsByRoot = new Map<string, Map<string, ConstEntry>>();
+  for (const rel of files) {
+    const b = baseName(rel);
+    if (!(b.endsWith('.kt') || b.endsWith('.kts')) || b === 'settings.gradle.kts' || !isTooling(rel)) continue;
+    const text = readText(root, rel);
+    if (text === undefined || !text.includes('object')) continue;
+    const r = toolingRootOf(rel);
+    if (r === undefined) continue;
+    let m = constsByRoot.get(r);
+    if (!m) constsByRoot.set(r, (m = new Map()));
+    collectConsts(lex(text), m);
+  }
+  const constRootsCache = new Map<string, string[]>();
+  /** The tooling directories whose constants a build file can see, nearest first. */
+  const constRootsFor = (dir: string): string[] => {
+    const hit = constRootsCache.get(dir);
+    if (hit) return hit;
+    const out: string[] = [];
+    const br = buildRootOf(dir);
+    for (const d of [...ancestorDirs(dir), br]) {
+      for (const name of ['buildSrc', 'build-logic']) {
+        const r = joinRel(d, name);
+        if (constsByRoot.has(r) && !out.includes(r)) out.push(r);
+      }
+    }
+    for (const [target, settingsDir] of includedBuilds) if (settingsDir === br && constsByRoot.has(target)) out.push(target);
+    constRootsCache.set(dir, out);
+    return out;
+  };
+  const constMemo = new Map<string, string | null>();
+  const constVisiting = new Set<string>();
+  const expandConst = (raw: string, rootDir: string, objPath: string, depth: number): string | undefined => {
+    if (raw.includes('\u0001')) return undefined;
+    if (!raw.includes('$')) return raw;
+    if (depth > MAX_VAR_DEPTH) return undefined;
+    let failed = false;
+    const find = (name: string): string | undefined => resolveConst(rootDir, `${objPath}.${name}`, depth) ?? resolveConst(rootDir, name, depth);
+    const out = raw.replace(PLACEHOLDER_RE, (_all: string, braced: string | undefined, bare: string | undefined) => {
+      if (failed) return '';
+      let value: string | undefined;
+      if (braced !== undefined) {
+        const e = braced.trim();
+        if (/^[A-Za-z_][\w.]*$/.test(e)) value = find(e);
+      } else if (bare !== undefined) {
+        const parts = bare.split('.');
+        for (let k = parts.length; k >= 1 && value === undefined; k--) {
+          const v = find(parts.slice(0, k).join('.'));
+          if (v !== undefined) value = v + parts.slice(k).map((p) => `.${p}`).join('');
+        }
+      }
+      if (value === undefined) {
+        failed = true;
+        return '';
+      }
+      return value;
+    });
+    if (failed || out.length > MAX_EXPANDED || out.includes('$')) return undefined;
+    return out;
+  };
+  const resolveConst = (rootDir: string, path: string, depth: number): string | undefined => {
+    const e = constsByRoot.get(rootDir)?.get(path);
+    if (!e) return undefined;
+    if (!e.interp) return e.raw.includes('$') ? undefined : e.raw;
+    const key = `${rootDir}\0${path}`;
+    const cached = constMemo.get(key);
+    if (cached !== undefined) return cached ?? undefined;
+    if (constVisiting.has(key)) return undefined;
+    constVisiting.add(key);
+    const out = expandConst(e.raw, rootDir, e.objPath, depth + 1);
+    constVisiting.delete(key);
+    constMemo.set(key, out ?? null);
+    return out;
   };
 
   // ---- per-file contexts and properties ----
@@ -543,7 +696,7 @@ export function readGradle(root: string, files: string[]): ReaderResult {
     return fromProps;
   };
 
-  const PLACEHOLDER = /\$\{([^{}]*)\}|\$([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)/g;
+  const PLACEHOLDER = PLACEHOLDER_RE;
   const PROP_CALL = /^(?:(?:project|rootProject)\.)?(?:findProperty|property)\(\s*["']([^"']+)["']\s*\)(?:\s*(?:as\??\s*String|\.toString\(\)))?$/;
   const CATALOG_VERSION = /^([A-Za-z_]\w*)\.versions\.([\w.]+?)(?:\.get\(\))?$/;
 
@@ -597,10 +750,11 @@ export function readGradle(root: string, files: string[]): ReaderResult {
   };
 
   /** A `group:artifact[:version][:classifier][@ext]` string. */
-  const coordinate = (t: Tok, ctx: FileCtx): { lib?: LibRef; shape: boolean } => {
+  const coordinate = (t: Tok, ctx: FileCtx, expander?: (s: string) => string | undefined): { lib?: LibRef; shape: boolean } => {
     const parts = splitColons(t.v);
     if (parts.length < 2 || parts[0] === '' || parts[1] === '') return { shape: false };
-    const expandPart = (s: string): string | undefined => (t.interp ? expand(s, ctx, t.line, 0) : s.includes('$') || s.includes('\u0001') ? undefined : s);
+    const expandPart =
+      expander ?? ((s: string): string | undefined => (t.interp ? expand(s, ctx, t.line, 0) : s.includes('$') || s.includes('\u0001') ? undefined : s));
     const group = expandPart(parts[0] as string);
     const artifact = expandPart(parts[1] as string);
     if (group === undefined || artifact === undefined || !NAME_RE.test(group) || !NAME_RE.test(artifact)) return { shape: true };
@@ -830,7 +984,21 @@ export function readGradle(root: string, files: string[]): ReaderResult {
       const known = segs[0] === 'libs' || catalogsFor(ctx.dir).some((c) => c.name === segs[0]);
       if (known && segs.length >= 2) {
         handleLookup(conf, 'path', segs, first.line);
-      } else if (countable(conf) && !['true', 'false', 'null'].includes(first.v)) {
+        return;
+      }
+      // `Libs.OKHTTP`, `Libs.Group.OKHTTP`: a string constant declared in an object of buildSrc or build-logic.
+      if (segs.length >= 2) {
+        const path = segs.join('.');
+        for (const r of constRootsFor(ctx.dir)) {
+          const entry = constsByRoot.get(r)?.get(path);
+          if (!entry) continue;
+          const c = coordinate({ k: 'str', v: entry.raw, line: first.line }, ctx, (part) => expandConst(part, r, entry.objPath, 0));
+          if (c.lib) record(conf, c.lib, rel, first.line, tooling, seen);
+          else if (c.shape && countable(conf)) nameUnresolved++;
+          return;
+        }
+      }
+      if (countable(conf) && !['true', 'false', 'null'].includes(first.v)) {
         constants++;
       }
     };
