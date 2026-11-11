@@ -1,0 +1,102 @@
+rules:
+  - id: lexcode.esign.kt-pdf-signing
+    languages: [kotlin]
+    severity: INFO
+    message: Applies a digital signature or seal to a PDF or other document with a key (PDFBox, iText or the European Commission's DSS library), which may be collecting electronic signatures and is worth a look (collects_e_signatures).
+    # One branch per library: each call is read only in a file that imports that library's own class.
+    pattern-either:
+      # PDFBox: a document typed as PDDocument, or one just loaded in the same function
+      - patterns:
+          - pattern: $D.addSignature(...)
+          - metavariable-type:
+              metavariable: $D
+              type: PDDocument
+          - pattern-either:
+              - pattern-inside: |
+                  import org.apache.pdfbox.pdmodel.PDDocument
+                  ...
+              - pattern-inside: |
+                  import org.apache.pdfbox.pdmodel.*
+                  ...
+      - patterns:
+          - pattern: $D.addSignature(...)
+          - pattern-either:
+              - pattern-inside: |
+                  val $D = PDDocument.load(...)
+                  ...
+              - pattern-inside: |
+                  PDDocument.load(...).use { $D -> ... }
+          - pattern-either:
+              - pattern-inside: |
+                  import org.apache.pdfbox.pdmodel.PDDocument
+                  ...
+              - pattern-inside: |
+                  import org.apache.pdfbox.pdmodel.*
+                  ...
+      - patterns:
+          - pattern: $D.addSignature(...)
+          - pattern-either:
+              - pattern-inside: |
+                  val $D = Loader.loadPDF(...)
+                  ...
+              - pattern-inside: |
+                  Loader.loadPDF(...).use { $D -> ... }
+          - pattern-either:
+              - pattern-inside: |
+                  import org.apache.pdfbox.Loader
+                  ...
+              - pattern-inside: |
+                  import org.apache.pdfbox.*
+                  ...
+      - patterns:
+          - pattern: PdfSigner(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import com.itextpdf.signatures.PdfSigner
+                  ...
+              - pattern-inside: |
+                  import com.itextpdf.signatures.*
+                  ...
+      - patterns:
+          - pattern: PdfStamper.createSignature(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import com.itextpdf.text.pdf.PdfStamper
+                  ...
+              - pattern-inside: |
+                  import com.itextpdf.text.pdf.*
+                  ...
+      - patterns:
+          - pattern: PAdESService(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import eu.europa.esig.dss.pades.signature.PAdESService
+                  ...
+              - pattern-inside: |
+                  import eu.europa.esig.dss.pades.signature.*
+                  ...
+      - patterns:
+          - pattern: XAdESService(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import eu.europa.esig.dss.xades.signature.XAdESService
+                  ...
+              - pattern-inside: |
+                  import eu.europa.esig.dss.xades.signature.*
+                  ...
+      - patterns:
+          - pattern: CAdESService(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import eu.europa.esig.dss.cades.signature.CAdESService
+                  ...
+              - pattern-inside: |
+                  import eu.europa.esig.dss.cades.signature.*
+                  ...
+    metadata:
+      activity: collects_e_signatures
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/glossary#collects-electronic-signatures
+      provenance: ungovr-original
+      license: MIT

@@ -1,0 +1,136 @@
+rules:
+  - id: lexcode.identity.kt-selfie-and-id-document
+    languages: [kotlin]
+    severity: INFO
+    message: 'Holds a face or selfie image beside an image of a photo ID, the shape of document-and-selfie identity verification, whose result the app acts on (relies_on_digital_identity). The verifier usually matches the face to the ID photo, so ask about processes_biometrics too.'
+    patterns:
+      - pattern-regex: '(?is)\A(?=.*(?:selfie|liveness|face_?(?:image|photo|img|picture|pic|capture|snapshot|scan))).*'
+      - pattern-either:
+          # A class (an entity, a DTO, a request model) with both, as constructor parameters
+          - patterns:
+              - pattern-either:
+                  - pattern: "class $C(..., $FACE: $T1, ..., $DOC: $T2, ...)"
+                  - pattern: "class $C(..., $DOC: $T2, ..., $FACE: $T1, ...)"
+              - metavariable-regex:
+                  metavariable: $FACE
+                  regex: '(?i)^(?!(?-i:[A-Z][A-Z0-9_]*)$)(?:selfie|liveness|face_?(?:image|photo|img|picture|pic|capture|snapshot|scan))\w*$'
+              - metavariable-regex:
+                  metavariable: $DOC
+                  regex: '(?i)^(?!(?-i:[A-Z][A-Z0-9_]*)$)(?:photo_?id_?(?:image|img|photo|card|doc|document|scan|front|back|upload|file)|id_?(?:document|doc|card|photo|image|img|scan|front|back)|identity_?(?:document|doc|card)|identification_?(?:image|photo|document|doc|card)|passport_?(?:image|photo|scan|page|front)|drivers?_?licen[cs]e_?(?:image|photo|scan|front|back)|document_?(?:image|photo|front|back|scan))\w*$'
+          # A class with both as properties in its body
+          - patterns:
+              - pattern-either:
+                  - pattern: "var $FACE: $T = $V"
+                  - pattern: "val $FACE: $T = $V"
+                  - pattern: "lateinit var $FACE: $T"
+                  - pattern: "var $FACE: $T"
+                  - pattern: "val $FACE: $T"
+              - pattern-either:
+                  - pattern-inside: |
+                      class $C(...) {
+                        ...
+                        var $DOC: $U = $W
+                        ...
+                      }
+                  - pattern-inside: |
+                      class $C(...) {
+                        ...
+                        val $DOC: $U = $W
+                        ...
+                      }
+                  - pattern-inside: |
+                      class $C(...) {
+                        ...
+                        lateinit var $DOC: $U
+                        ...
+                      }
+                  - pattern-inside: |
+                      class $C(...) {
+                        ...
+                        var $DOC: $U
+                        ...
+                      }
+                  - pattern-inside: |
+                      class $C(...) {
+                        ...
+                        val $DOC: $U
+                        ...
+                      }
+              - metavariable-regex:
+                  metavariable: $FACE
+                  regex: '(?i)^(?!(?-i:[A-Z][A-Z0-9_]*)$)(?:selfie|liveness|face_?(?:image|photo|img|picture|pic|capture|snapshot|scan))\w*$'
+              - metavariable-regex:
+                  metavariable: $DOC
+                  regex: '(?i)^(?!(?-i:[A-Z][A-Z0-9_]*)$)(?:photo_?id_?(?:image|img|photo|card|doc|document|scan|front|back|upload|file)|id_?(?:document|doc|card|photo|image|img|scan|front|back)|identity_?(?:document|doc|card)|identification_?(?:image|photo|document|doc|card)|passport_?(?:image|photo|scan|page|front)|drivers?_?licen[cs]e_?(?:image|photo|scan|front|back)|document_?(?:image|photo|front|back|scan))\w*$'
+          # An endpoint or function that takes both as parameters, in either order
+          - patterns:
+              - pattern-either:
+                  - pattern: |
+                      fun $M(..., $FACE: $T1, ..., $DOC: $T2, ...) {
+                        ...
+                      }
+                  - pattern: |
+                      fun $M(..., $FACE: $T1, ..., $DOC: $T2, ...) = $E
+                  - pattern: |
+                      fun $M(..., $FACE: $T1, ..., $DOC: $T2, ...)
+                  - pattern: |
+                      fun $M(..., $DOC: $T2, ..., $FACE: $T1, ...) {
+                        ...
+                      }
+                  - pattern: |
+                      fun $M(..., $DOC: $T2, ..., $FACE: $T1, ...) = $E
+                  - pattern: |
+                      fun $M(..., $DOC: $T2, ..., $FACE: $T1, ...)
+              - focus-metavariable: $FACE
+              - metavariable-regex:
+                  metavariable: $FACE
+                  regex: '(?i)^(?!(?-i:[A-Z][A-Z0-9_]*)$)(?:selfie|liveness|face_?(?:image|photo|img|picture|pic|capture|snapshot|scan))\w*$'
+              - metavariable-regex:
+                  metavariable: $DOC
+                  regex: '(?i)^(?!(?-i:[A-Z][A-Z0-9_]*)$)(?:photo_?id_?(?:image|img|photo|card|doc|document|scan|front|back|upload|file)|id_?(?:document|doc|card|photo|image|img|scan|front|back)|identity_?(?:document|doc|card)|identification_?(?:image|photo|document|doc|card)|passport_?(?:image|photo|scan|page|front)|drivers?_?licen[cs]e_?(?:image|photo|scan|front|back)|document_?(?:image|photo|front|back|scan))\w*$'
+          # A multipart request that sends both from one function
+          - patterns:
+              - pattern-either:
+                  - pattern: $B.addFormDataPart($FACE, ...)
+                  - pattern: addFormDataPart($FACE, ...)
+              - metavariable-regex:
+                  metavariable: $FACE
+                  regex: '(?i)^"(?!(?-i:[A-Z][A-Z0-9_]*)$)(?:selfie|liveness|face_?(?:image|photo|img|picture|pic|capture|snapshot|scan))\w*"$'
+              - pattern-either:
+                  - pattern-inside: |
+                      fun $M(...) {
+                        ...
+                        $X.addFormDataPart($DOC, ...)
+                        ...
+                      }
+                  - pattern-inside: |
+                      fun $M(...) {
+                        ...
+                        addFormDataPart($DOC, ...)
+                        ...
+                      }
+                  - pattern-inside: |
+                      fun $M(...) = <... $X.addFormDataPart($DOC, ...) ...>
+                  - pattern-inside: |
+                      fun $M(...) = <... addFormDataPart($DOC, ...) ...>
+                  - pattern-inside: |
+                      $O.apply {
+                        ...
+                        addFormDataPart($DOC, ...)
+                        ...
+                      }
+                  - pattern-inside: |
+                      with(...) {
+                        ...
+                        addFormDataPart($DOC, ...)
+                        ...
+                      }
+              - metavariable-regex:
+                  metavariable: $DOC
+                  regex: '(?i)^"(?!(?-i:[A-Z][A-Z0-9_]*)$)(?:photo_?id_?(?:image|img|photo|card|doc|document|scan|front|back|upload|file)|id_?(?:document|doc|card|photo|image|img|scan|front|back)|identity_?(?:document|doc|card)|identification_?(?:image|photo|document|doc|card)|passport_?(?:image|photo|scan|page|front)|drivers?_?licen[cs]e_?(?:image|photo|scan|front|back)|document_?(?:image|photo|front|back|scan))\w*"$'
+    metadata:
+      activity: relies_on_digital_identity
+      mentioned: performs
+      definition: https://lexlint.io/glossary#relies-on-a-digital-identity
+      provenance: ungovr-original
+      license: MIT

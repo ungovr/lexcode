@@ -1,0 +1,50 @@
+rules:
+  - id: lexcode.crypto.kt-encrypted-storage
+    languages: [kotlin]
+    severity: INFO
+    message: Encrypts what an Android app stores with Jetpack Security (EncryptedSharedPreferences or EncryptedFile) or SQLCipher, which is shipping encryption (ships_encryption).
+    pattern-either:
+      # Jetpack Security (androidx.security.crypto) is a library the app bundles, not the platform's own Keystore
+      - patterns:
+          - pattern: EncryptedSharedPreferences.create(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import androidx.security.crypto.EncryptedSharedPreferences
+                  ...
+              - pattern-inside: |
+                  import androidx.security.crypto.*
+                  ...
+      - patterns:
+          - pattern: EncryptedFile.Builder(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import androidx.security.crypto.EncryptedFile
+                  ...
+              - pattern-inside: |
+                  import androidx.security.crypto.*
+                  ...
+      # SQLCipher
+      - patterns:
+          - pattern: SupportFactory(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import net.sqlcipher.database.SupportFactory
+                  ...
+              - pattern-inside: |
+                  import net.sqlcipher.database.*
+                  ...
+      - patterns:
+          - pattern: SupportOpenHelperFactory(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
+                  ...
+              - pattern-inside: |
+                  import net.zetetic.database.sqlcipher.*
+                  ...
+    metadata:
+      activity: ships_encryption
+      mentioned: performs
+      definition: https://lexlint.io/glossary#ships-encryption
+      provenance: ungovr-original
+      license: MIT

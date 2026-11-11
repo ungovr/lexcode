@@ -1,0 +1,170 @@
+rules:
+  - id: lexcode.crypto.kt-framework-encryption
+    languages: [kotlin]
+    severity: INFO
+    message: Encrypts data or agrees keys with a framework the product bundles (Jasypt, Spring Security Crypto, JOSE encryption, JJWT, the Signal protocol, Olm and Matrix, Apache Commons Crypto, the AWS Encryption SDK or PGPainless), which is shipping encryption (ships_encryption).
+    pattern-either:
+      # Jasypt
+      - pattern: StandardPBEStringEncryptor()
+      - pattern: StandardPBEByteEncryptor()
+      - pattern: BasicTextEncryptor()
+      - pattern: StrongTextEncryptor()
+      - pattern: AES256TextEncryptor()
+      # Spring Security Crypto
+      - patterns:
+          - pattern-either:
+              - pattern: Encryptors.text(...)
+              - pattern: Encryptors.queryableText(...)
+              - pattern: Encryptors.stronger(...)
+              - pattern: Encryptors.standard(...)
+              - pattern: Encryptors.delux(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import org.springframework.security.crypto.encrypt.Encryptors
+                  ...
+              - pattern-inside: |
+                  import org.springframework.security.crypto.encrypt.*
+                  ...
+      - patterns:
+          - pattern: AesBytesEncryptor(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import org.springframework.security.crypto.encrypt.AesBytesEncryptor
+                  ...
+              - pattern-inside: |
+                  import org.springframework.security.crypto.encrypt.*
+                  ...
+      # Nimbus JOSE encryption (a JWE, not a JWS)
+      - patterns:
+          - pattern-either:
+              - pattern: RSAEncrypter(...)
+              - pattern: DirectEncrypter(...)
+              - pattern: AESEncrypter(...)
+              - pattern: ECDHEncrypter(...)
+              - pattern: X25519Encrypter(...)
+              - pattern: PasswordBasedEncrypter(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import com.nimbusds.jose.crypto.RSAEncrypter
+                  ...
+              - pattern-inside: |
+                  import com.nimbusds.jose.crypto.DirectEncrypter
+                  ...
+              - pattern-inside: |
+                  import com.nimbusds.jose.crypto.AESEncrypter
+                  ...
+              - pattern-inside: |
+                  import com.nimbusds.jose.crypto.ECDHEncrypter
+                  ...
+              - pattern-inside: |
+                  import com.nimbusds.jose.crypto.X25519Encrypter
+                  ...
+              - pattern-inside: |
+                  import com.nimbusds.jose.crypto.PasswordBasedEncrypter
+                  ...
+              - pattern-inside: |
+                  import com.nimbusds.jose.crypto.*
+                  ...
+      - patterns:
+          - pattern: $B.encryptWith(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import io.jsonwebtoken.Jwts
+                  ...
+              - pattern-inside: |
+                  import io.jsonwebtoken.JwtBuilder
+                  ...
+              - pattern-inside: |
+                  import io.jsonwebtoken.*
+                  ...
+      # End-to-end messaging: the Signal protocol, Olm and the Matrix crypto machine
+      - patterns:
+          - pattern: SessionCipher(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import org.whispersystems.libsignal.SessionCipher
+                  ...
+              - pattern-inside: |
+                  import org.whispersystems.libsignal.*
+                  ...
+              - pattern-inside: |
+                  import org.signal.libsignal.protocol.SessionCipher
+                  ...
+              - pattern-inside: |
+                  import org.signal.libsignal.protocol.*
+                  ...
+      - patterns:
+          - pattern: GroupCipher(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import org.whispersystems.libsignal.groups.GroupCipher
+                  ...
+              - pattern-inside: |
+                  import org.whispersystems.libsignal.groups.*
+                  ...
+              - pattern-inside: |
+                  import org.signal.libsignal.protocol.groups.GroupCipher
+                  ...
+              - pattern-inside: |
+                  import org.signal.libsignal.protocol.groups.*
+                  ...
+      - patterns:
+          - pattern-either:
+              - pattern: OlmAccount()
+              - pattern: OlmSession()
+              - pattern: OlmOutboundGroupSession()
+              - pattern: OlmInboundGroupSession(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import org.matrix.olm.OlmAccount
+                  ...
+              - pattern-inside: |
+                  import org.matrix.olm.OlmSession
+                  ...
+              - pattern-inside: |
+                  import org.matrix.olm.OlmOutboundGroupSession
+                  ...
+              - pattern-inside: |
+                  import org.matrix.olm.OlmInboundGroupSession
+                  ...
+              - pattern-inside: |
+                  import org.matrix.olm.*
+                  ...
+      - patterns:
+          - pattern: OlmMachine(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import org.matrix.rustcomponents.sdk.crypto.OlmMachine
+                  ...
+              - pattern-inside: |
+                  import org.matrix.rustcomponents.sdk.crypto.*
+                  ...
+      # Apache Commons Crypto, the AWS Encryption SDK and PGPainless
+      - patterns:
+          - pattern: Utils.getCipherInstance(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import org.apache.commons.crypto.utils.Utils
+                  ...
+              - pattern-inside: |
+                  import org.apache.commons.crypto.utils.*
+                  ...
+      - patterns:
+          - pattern: CryptoOutputStream(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import org.apache.commons.crypto.stream.CryptoOutputStream
+                  ...
+              - pattern-inside: |
+                  import org.apache.commons.crypto.stream.*
+                  ...
+      - pattern: CryptoCipherFactory.getCryptoCipher(...)
+      - pattern: AwsCrypto.builder()
+      - pattern: AwsCrypto.standard()
+      - pattern: PGPainless.encryptAndOrSign()
+    metadata:
+      activity: ships_encryption
+      mentioned: performs
+      definition: https://lexlint.io/glossary#ships-encryption
+      provenance: ungovr-original
+      license: MIT
