@@ -307,3 +307,46 @@ class SpamCleanupJob < ApplicationJob
     Turbo::StreamsChannel.broadcast_remove_to(message.thread, target: message)
   end
 end
+
+# The outermost call of the last statement hands the text on, whatever its receiver.
+class SideEffectRoutes < Sinatra::Base
+  post "/effects/new-save" do
+    answer = RubyLLM.chat.ask("Say hi.").content
+    Message.new(body: answer).save
+  end
+
+  post "/effects/dataset" do
+    answer = RubyLLM.chat.ask("Say hi.").content
+    DB[:messages].insert(body: answer)
+  end
+
+  post "/effects/find-update" do
+    answer = RubyLLM.chat.ask("Say hi.").content
+    Message.find(params[:id]).update(body: answer)
+  end
+
+  post "/effects/stdout" do
+    answer = RubyLLM.chat.ask("Say hi.").content
+    $stdout.puts answer
+  end
+
+  post "/effects/file-block" do
+    answer = RubyLLM.chat.ask("Say hi.").content
+    File.open("tmp/answer.txt", "w") { |f| f.write(answer) }
+  end
+
+  post "/effects/cache" do
+    answer = RubyLLM.chat.ask("Say hi.").content
+    redis.set("answer", answer)
+  end
+
+  post "/effects/mail" do
+    answer = RubyLLM.chat.ask("Say hi.").content
+    Pony.mail(to: "team@example.org", body: answer)
+  end
+
+  post "/effects/modifier" do
+    answer = RubyLLM.chat.ask("Say hi.").content
+    logger.info "answer: #{answer}" if settings.verbose
+  end
+end

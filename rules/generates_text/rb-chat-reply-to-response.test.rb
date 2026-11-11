@@ -1,4 +1,4 @@
-# lexcode-expect: 35
+# lexcode-expect: 40
 require "anthropic"
 require "openai"
 
@@ -291,5 +291,34 @@ class DigestsController < ApplicationController
     @summary += chat.ask("Summarize #{params[:q]}").content
     @post = Post.find(params[:id])
     @post.summary = chat.ask("Summarize #{@post.body}").content
+  end
+end
+
+# The route's value is a chain that ends in the text, even when a save or a log call sits
+# inside it, and a variable may be named like a side-effect method.
+class RecordRoutes < Sinatra::Base
+  post "/records/json" do
+    answer = RubyLLM.chat.ask("Say hi.").content
+    Message.create!(body: answer).to_json
+  end
+
+  post "/records/body" do
+    answer = RubyLLM.chat.ask("Say hi.").content
+    Message.create!(body: answer).body
+  end
+
+  post "/records/concat" do
+    answer = RubyLLM.chat.ask("Say hi.").content
+    logger.info(answer).to_s + answer
+  end
+
+  post "/records/named" do
+    post = RubyLLM.chat.ask("Say hi.").content
+    post
+  end
+
+  post "/records/chain" do
+    push = RubyLLM.chat.ask("Say hi.").content
+    push.post.strip
   end
 end

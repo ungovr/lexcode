@@ -276,11 +276,14 @@ rules:
                 $NEXT
                 ...
               end
-          # A last statement that only hands the text on (a log line, printing, a file write, a
-          # save, a queued job, a notifier's post) has that call's value, not the text.
+          # A last statement whose outermost call only hands the text on (a log call, printing, a
+          # file write, a save, a queued job, a notifier's post or a mail) has that call's value, not
+          # the text. The regex reads the statement's last call: balanced arguments, an optional
+          # block or if/unless modifier, then the end, so `Message.create!(...).to_json` is still the
+          # text and `Message.new(...).save` is not.
           - metavariable-regex:
               metavariable: $LAST
-              regex: '^(?!\s*(?:(?:puts|print|pp|p|warn)\b|(?:[A-Z]\w*(?:::[A-Z]\w*)*|@{0,2}[a-z_]\w*)(?:\s*&?\.\s*[a-z_]\w*)*\s*&?\.\s*(?:debug|info|warn|error|fatal|unknown|write|binwrite|create|create!|save|save!|update|update!|insert|insert_all|upsert|perform_later|perform_async|perform_in|perform_at|deliver_later|deliver_now|deliver|enqueue|publish|post|append|push|notify|send_message)\b))'
+              regex: '\A(?!\s*(?:puts|print|pp|p|warn)(?:[ \t(]|\z)|[\s\S]*\.\s*(?:debug|info|warn|error|fatal|unknown|puts|print|write|binwrite|open|set|create|save|update|update_all|update_column|update_columns|insert|insert_all|upsert|destroy|perform_later|perform_async|perform_in|perform_at|deliver_later|deliver_now|deliver|enqueue|publish|post|append|push|notify|send_message|mail)[!?]?\s*(?:\((?:[^()]|\([^()]*\))*\))?\s*(?:\{[\s\S]*\}|do\b[\s\S]*\bend)?\s*(?:(?:if|unless)\b[^\n]*)?\z|[\s\S]*\.\s*(?:debug|info|warn|error|fatal|unknown|puts|print|write|binwrite|open|set|create|save|update|update_all|update_column|update_columns|insert|insert_all|upsert|destroy|perform_later|perform_async|perform_in|perform_at|deliver_later|deliver_now|deliver|enqueue|publish|post|append|push|notify|send_message|mail)[!?]?[ \t]+[^\n]*\z)'
           - focus-metavariable: $LAST
     metadata:
       activity: generates_images

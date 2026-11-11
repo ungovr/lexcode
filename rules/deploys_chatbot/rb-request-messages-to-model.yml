@@ -32,7 +32,10 @@ rules:
                         - pattern: $P.dig(..., $K)
                         - pattern: $P.fetch($K, ...)
                         - pattern: $P.require($K)
+                        - pattern: $P.slice(..., $K, ...)
                     - pattern-not-inside: '{..., content: $V, ...}'
+                    - pattern-not-inside: '{..., "content" => $V, ...}'
+                    - pattern-not-inside: '{..., "content": $V, ...}'
                     - pattern-not-inside: '"...#{$E}..."'
                     - metavariable-regex:
                         metavariable: $P
@@ -102,7 +105,10 @@ rules:
                         - pattern: $P.dig(..., $K)
                         - pattern: $P.fetch($K, ...)
                         - pattern: $P.require($K)
+                        - pattern: $P.slice(..., $K, ...)
                     - pattern-not-inside: '{..., content: $V, ...}'
+                    - pattern-not-inside: '{..., "content" => $V, ...}'
+                    - pattern-not-inside: '{..., "content": $V, ...}'
                     - pattern-not-inside: '"...#{$E}..."'
                     - metavariable-regex:
                         metavariable: $P

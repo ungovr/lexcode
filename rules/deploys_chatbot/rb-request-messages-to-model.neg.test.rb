@@ -117,3 +117,11 @@ class ThreadToolsChannel < ApplicationCable::Channel
     transmit({ summary: reply.content.first.text })
   end
 end
+
+# String keys, in either hash syntax: still one message's content, not a list of turns.
+class ThreadTitlesController < ApplicationController
+  def create
+    openai.chat(parameters: { model: "gpt-4o-mini", messages: [{ "role" => "user", "content" => params[:history] }] })
+    openai.chat(parameters: { model: "gpt-4o-mini", messages: [{ "role": "user", "content": params[:history] }] })
+  end
+end

@@ -7,8 +7,13 @@ rules:
     pattern-sources:
       - pattern: Langchain::LLM::$K.new(...)
       # A vector store's ask (question: is its keyword) retrieves passages and has its LLM
-      # write the answer: retrieval-augmented generation. The block form streams the answer.
-      - pattern: '$S.ask(..., question: ..., ...)'
+      # write the answer: retrieval-augmented generation. The block form streams the answer. The
+      # receiver is a store object; a bare class name (Faq.ask) is an app's own class method.
+      - patterns:
+          - pattern: '$S.ask(..., question: ..., ...)'
+          - metavariable-regex:
+              metavariable: $S
+              regex: ^(?!(?:::)?[A-Z]\w*(?:::[A-Z]\w*)*$)
       - patterns:
           - pattern-either:
               - pattern-inside: |
@@ -17,6 +22,9 @@ rules:
                   end
               - pattern-inside: '$S.ask(..., question: ..., ...) { |$X| ... }'
           - pattern: $X
+          - metavariable-regex:
+              metavariable: $S
+              regex: ^(?!(?:::)?[A-Z]\w*(?:::[A-Z]\w*)*$)
       - pattern: '$C.generate_content(..., contents: ..., ...)'
       - pattern: '$C.generate_content({ ..., contents: ..., ... })'
       - pattern: '$C.stream_generate_content(..., contents: ..., ...)'

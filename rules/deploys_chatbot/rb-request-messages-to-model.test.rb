@@ -1,4 +1,4 @@
-# lexcode-expect: 25
+# lexcode-expect: 26
 # Rails endpoints and an ActionCable channel that hand what a person typed, or the conversation so
 # far, to a language model.
 class ChatsController < ApplicationController
@@ -106,5 +106,12 @@ class ListShapesController < ApplicationController
     client.responses.create(model: "gpt-5", input: request.params[:messages])
     openai.chat(parameters: { model: "gpt-4o-mini", messages: params.fetch(:history, []) })
     openai.chat(parameters: { model: "gpt-4o-mini", messages: params.require(:messages) })
+  end
+end
+
+# The list picked out of the params with slice.
+class SlicedChatsController < ApplicationController
+  def create
+    openai.chat(parameters: { model: "gpt-4o-mini", messages: params.slice(:messages).values.flatten })
   end
 end

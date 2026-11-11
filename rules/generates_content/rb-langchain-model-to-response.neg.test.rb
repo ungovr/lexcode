@@ -150,3 +150,18 @@ class AssistantFormsController < ApplicationController
     @llm = llm
   end
 end
+
+# A class method called ask with a question: keyword on an app's own model is not a vector store.
+class FaqsController < ApplicationController
+  def show
+    entry = Faq.ask(question: params[:q])
+    render json: { answer: entry }
+  end
+end
+
+class TriviaRound
+  def next_answer(question)
+    answer = Trivia.ask(question: question)
+    return answer
+  end
+end
