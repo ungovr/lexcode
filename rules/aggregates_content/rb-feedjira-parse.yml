@@ -1,0 +1,19 @@
+rules:
+  - id: lexcode.aggregate.rb-feedjira-parse
+    languages: [ruby]
+    severity: INFO
+    message: Parses another publisher's RSS or Atom feed with Feedjira, which is reusing other publishers' content (aggregates_content).
+    patterns:
+      - pattern-either:
+          - pattern: Feedjira.parse($X, ...)
+          - pattern: Feedjira::Feed.parse($X, ...)
+          - pattern: Feedzirra::Feed.parse($X, ...)
+      - metavariable-regex:
+          metavariable: $X
+          regex: (?s)^(?!(File|IO|Pathname|StringIO|Rails\.root|Rails\.public_path|Dir)\b|<<|["']\s*<).*$
+    metadata:
+      activity: aggregates_content
+      mentioned: performs
+      definition: https://lexlint.io/activities/aggregates-content
+      provenance: ungovr-original
+      license: MIT

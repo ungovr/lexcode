@@ -1,0 +1,29 @@
+rules:
+  - id: lexcode.crawl.rb-crawler-framework
+    languages: [ruby]
+    severity: INFO
+    message: Defines a crawler on a crawling framework (Kimurai, Vessel, Wombat, Spidr), which is crawling the web (crawls_web).
+    pattern-either:
+      - pattern: |
+          class $C < Kimurai::Base
+            ...
+          end
+      - pattern: |
+          class $C < Vessel::Cargo
+            ...
+          end
+      - pattern: include Wombat::Crawler
+      - pattern: |
+          Wombat.crawl do
+            ...
+          end
+      - pattern: Wombat.crawl { ... }
+      - pattern: Spidr::Agent.new(...)
+      - pattern: Mechanize.new(...)
+      - pattern: Mechanize.start(...)
+    metadata:
+      activity: crawls_web
+      mentioned: performs
+      definition: https://lexlint.io/activities/crawls-web
+      provenance: ungovr-original
+      license: MIT

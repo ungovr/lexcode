@@ -1,0 +1,68 @@
+rules:
+  - id: lexcode.crawl.rb-browser-visit-loop
+    languages: [ruby]
+    severity: INFO
+    message: Drives a headless browser to open page after page in a loop, which is crawling the web (crawls_web).
+    patterns:
+      - pattern-either:
+          - patterns:
+              - pattern-either:
+                  - pattern-inside: |
+                      $L.$M(...) do |...|
+                        ...
+                      end
+                  - pattern-inside: |
+                      $L.$M(...) { |...| ... }
+              - metavariable-regex:
+                  metavariable: $M
+                  regex: ^(each|each_with_index|each_with_object|map|collect|flat_map|filter_map|each_slice|each_entry|times|upto|downto|step|each_value|each_key|each_pair|in_threads|in_processes)$
+          - pattern-inside: |
+              loop do
+                ...
+              end
+          - pattern-inside: |
+              loop { ... }
+          - pattern-inside: |
+              while $C
+                ...
+              end
+          - pattern-inside: |
+              until $C
+                ...
+              end
+          - pattern-inside: |
+              for $X in $Y
+                ...
+              end
+          - pattern-inside: |
+              for $X in $Y do
+                ...
+              end
+      - pattern-either:
+          - patterns:
+              - pattern-either:
+                  - pattern: $P.goto($URL, ...)
+                  - pattern: $P.go_to($URL, ...)
+                  - pattern: $P.navigate.to($URL, ...)
+                  - patterns:
+                      - pattern: $D.get($URL)
+                      - metavariable-regex:
+                          metavariable: $D
+                          regex: ^@{0,2}(\w*driver|browser|wd|\w+_browser|\w*webdriver)$
+              - metavariable-regex:
+                  metavariable: $URL
+                  regex: (?s)^(?!["']https?://(localhost|127\.|0\.0\.0\.0|\[::1\])).*$
+          - patterns:
+              - pattern-either:
+                  - pattern: visit($URL, ...)
+                  - pattern: $S.visit($URL, ...)
+              - metavariable-regex:
+                  metavariable: $URL
+                  regex: (?s)^["']https?://(?!localhost|127\.|0\.0\.0\.0|\[::1\]).*$
+    metadata:
+      activity: crawls_web
+      mentioned: performs
+      definition: https://lexlint.io/activities/crawls-web
+      provenance: ungovr-original
+      license: MIT
+      host_metavar: $URL
