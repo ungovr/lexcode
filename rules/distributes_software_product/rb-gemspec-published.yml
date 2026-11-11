@@ -13,13 +13,17 @@ rules:
               - metavariable-regex:
                   metavariable: $X
                   regex: '^(?!["'']?TODO)(?s).*'
+              - pattern-not: $S.metadata[$K] = $S.homepage
           - patterns:
               - pattern: $S.metadata = $H
               - metavariable-regex:
                   metavariable: $H
                   regex: '(?s).*(source_code_uri|homepage_uri|changelog_uri|bug_tracker_uri|documentation_uri|rubygems_mfa_required)'
-          - pattern: $S.executables = [...]
-          - pattern: $S.executables = %w[...]
+          - patterns:
+              - pattern: $S.executables = $L
+              - metavariable-regex:
+                  metavariable: $L
+                  regex: '^(\[\s*[^\s\]]|%w.\s*[^\s\]\)\}>])'
           - pattern: $S.executables << $X
       - pattern-either:
           - pattern-inside: |
