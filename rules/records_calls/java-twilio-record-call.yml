@@ -1,0 +1,42 @@
+rules:
+  - id: lexcode.calls.java-twilio-record-call
+    languages: [java]
+    severity: INFO
+    message: Places a Twilio call or opens a video room with recording turned on, or starts recording a live call, which is recording a call (records_calls).
+    patterns:
+      - pattern-either:
+          - patterns:
+              - pattern-either:
+                  - pattern: $X.setRecord($V)
+                  - pattern: $X.setRecordParticipantsOnConnect($V)
+              - metavariable-regex:
+                  metavariable: $V
+                  regex: ^(?!\s*false\s*$)
+              - pattern-either:
+                  - pattern-inside: |
+                      import com.twilio.rest.api.v2010.account.Call;
+                      ...
+                  - pattern-inside: |
+                      import com.twilio.rest.video.v1.Room;
+                      ...
+                  - pattern-inside: |
+                      import com.twilio.rest.api.v2010.account.*;
+                      ...
+                  - pattern-inside: |
+                      import com.twilio.rest.video.v1.*;
+                      ...
+          - patterns:
+              - pattern: Recording.creator(...)
+              - pattern-either:
+                  - pattern-inside: |
+                      import com.twilio.rest.api.v2010.account.call.Recording;
+                      ...
+                  - pattern-inside: |
+                      import com.twilio.rest.api.v2010.account.call.*;
+                      ...
+    metadata:
+      activity: records_calls
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-calls
+      provenance: ungovr-original
+      license: MIT

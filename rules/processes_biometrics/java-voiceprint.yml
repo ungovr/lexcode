@@ -1,0 +1,43 @@
+rules:
+  - id: lexcode.biometric.java-voiceprint
+    languages: [java]
+    severity: INFO
+    message: Enrolls or matches a speaker with Amazon Connect Voice ID or Azure speaker recognition, which is processing a voiceprint (processes_biometrics).
+    patterns:
+      - pattern-either:
+          # Amazon Connect Voice ID (AWS SDK v2 and v1)
+          - patterns:
+              - pattern-either:
+                  - pattern: $C.startSpeakerEnrollmentJob(...)
+                  - pattern: $C.startFraudsterRegistrationJob(...)
+                  - pattern: $C.evaluateSession(...)
+              - pattern-either:
+                  - pattern-inside: |
+                      import software.amazon.awssdk.services.voiceid.$X;
+                      ...
+                  - pattern-inside: |
+                      import software.amazon.awssdk.services.voiceid.model.$X;
+                      ...
+                  - pattern-inside: |
+                      import com.amazonaws.services.voiceid.$X;
+                      ...
+                  - pattern-inside: |
+                      import software.amazon.awssdk.services.voiceid.*;
+                      ...
+                  - pattern-inside: |
+                      import software.amazon.awssdk.services.voiceid.model.*;
+                      ...
+                  - pattern-inside: |
+                      import com.amazonaws.services.voiceid.*;
+                      ...
+          # Azure Speech: verification and identification models, and the profile client that enrolls voices
+          - pattern: SpeakerVerificationModel.fromProfile(...)
+          - pattern: SpeakerIdentificationModel.fromProfiles(...)
+          - pattern: new VoiceProfileClient(...)
+          - pattern: new SpeakerRecognizer(...)
+    metadata:
+      activity: processes_biometrics
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-biometrics
+      provenance: ungovr-original
+      license: MIT

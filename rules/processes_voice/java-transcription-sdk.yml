@@ -1,0 +1,90 @@
+rules:
+  - id: lexcode.voice.java-transcription-sdk
+    languages: [java]
+    severity: INFO
+    message: Sends recorded speech to a speech-to-text service from Java, which is transcribing human voices (processes_voice).
+    patterns:
+      - pattern-either:
+          # Amazon Transcribe, batch and streaming (AWS SDK v2 and v1). The client import keeps a local method of the same name out.
+          - patterns:
+              - pattern-either:
+                  - pattern: $C.startTranscriptionJob(...)
+                  - pattern: $C.startMedicalTranscriptionJob(...)
+                  - pattern: $C.startCallAnalyticsJob(...)
+                  - pattern: $C.startStreamTranscription(...)
+                  - pattern: $C.startMedicalStreamTranscription(...)
+                  - pattern: $C.startCallAnalyticsStreamTranscription(...)
+              - pattern-either:
+                  - pattern-inside: |
+                      import software.amazon.awssdk.services.transcribe.$CLIENT;
+                      ...
+                  - pattern-inside: |
+                      import software.amazon.awssdk.services.transcribestreaming.$CLIENT;
+                      ...
+                  - pattern-inside: |
+                      import com.amazonaws.services.transcribe.$CLIENT;
+                      ...
+                  - pattern-inside: |
+                      import software.amazon.awssdk.services.transcribe.*;
+                      ...
+                  - pattern-inside: |
+                      import software.amazon.awssdk.services.transcribestreaming.*;
+                      ...
+                  - pattern-inside: |
+                      import com.amazonaws.services.transcribe.*;
+                      ...
+          # Google Cloud Speech-to-Text (v1, v1p1beta1, v2)
+          - patterns:
+              - pattern-either:
+                  - pattern: $C.recognize(...)
+                  - pattern: $C.longRunningRecognizeAsync(...)
+                  - pattern: $C.batchRecognizeAsync(...)
+                  - pattern: $C.streamingRecognizeCallable()
+              - pattern-either:
+                  - pattern-inside: |
+                      import com.google.cloud.speech.$V.SpeechClient;
+                      ...
+                  - pattern-inside: |
+                      import com.google.cloud.speech.$V.*;
+                      ...
+          # Azure Speech: a recognizer is built over an audio config
+          - patterns:
+              - pattern: new SpeechRecognizer(...)
+              - pattern-either:
+                  - pattern-inside: |
+                      import com.microsoft.cognitiveservices.speech.SpeechRecognizer;
+                      ...
+                  - pattern-inside: |
+                      import com.microsoft.cognitiveservices.speech.*;
+                      ...
+          - pattern: new ConversationTranscriber(...)
+          - pattern: new MeetingTranscriber(...)
+          - pattern: new TranslationRecognizer(...)
+          # OpenAI Java SDK, and Spring AI's transcription prompt
+          - pattern: $C.audio().transcriptions().create(...)
+          - pattern: $C.audio().translations().create(...)
+          - pattern: new AudioTranscriptionPrompt(...)
+          # AssemblyAI and Deepgram Java SDKs
+          - pattern: $C.transcripts().transcribe(...)
+          - pattern: $C.transcripts().submit(...)
+          - pattern: $C.listen().v1().media().transcribeFile(...)
+          - pattern: $C.listen().v1().media().transcribeUrl(...)
+          # IBM Watson Speech to Text
+          - patterns:
+              - pattern-either:
+                  - pattern: $C.recognize(...)
+                  - pattern: $C.recognizeUsingWebSocket(...)
+                  - pattern: $C.createJob(...)
+              - pattern-either:
+                  - pattern-inside: |
+                      import com.ibm.watson.speech_to_text.v1.SpeechToText;
+                      ...
+                  - pattern-inside: |
+                      import com.ibm.watson.speech_to_text.v1.*;
+                      ...
+    metadata:
+      activity: processes_voice
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-voice
+      provenance: ungovr-original
+      license: MIT

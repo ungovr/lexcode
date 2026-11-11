@@ -1,0 +1,66 @@
+rules:
+  - id: lexcode.calls.java-meeting-recording-apis
+    languages: [java]
+    severity: INFO
+    message: Records a call or meeting through a platform API (LiveKit egress, an Amazon Chime capture pipeline, Amazon Connect contact recording, a Vonage record action), reads recorded Zoom meetings, sends a notetaker bot into video meetings, or turns on Daily cloud recording, which is recording or handling recorded calls (records_calls).
+    patterns:
+      - pattern-either:
+          # LiveKit server SDK: an egress records the people in a room
+          - patterns:
+              - pattern-either:
+                  - pattern: $C.startRoomCompositeEgress(...)
+                  - pattern: $C.startParticipantEgress(...)
+                  - pattern: $C.startTrackCompositeEgress(...)
+                  - pattern: $C.startTrackEgress(...)
+              - pattern-either:
+                  - pattern-inside: |
+                      import io.livekit.server.EgressServiceClient;
+                      ...
+                  - pattern-inside: |
+                      import io.livekit.server.*;
+                      ...
+          # Amazon Chime SDK media pipelines: a capture pipeline records a meeting
+          - patterns:
+              - pattern: $C.createMediaCapturePipeline(...)
+              - pattern-either:
+                  - pattern-inside: |
+                      import software.amazon.awssdk.services.chimesdkmediapipelines.$CLIENT;
+                      ...
+                  - pattern-inside: |
+                      import software.amazon.awssdk.services.chimesdkmediapipelines.*;
+                      ...
+          # Amazon Connect: recording a contact (a call) in flight
+          - patterns:
+              - pattern: $C.startContactRecording(...)
+              - pattern-either:
+                  - pattern-inside: |
+                      import software.amazon.awssdk.services.connect.$CLIENT;
+                      ...
+                  - pattern-inside: |
+                      import com.amazonaws.services.connect.$CLIENT;
+                      ...
+                  - pattern-inside: |
+                      import software.amazon.awssdk.services.connect.*;
+                      ...
+                  - pattern-inside: |
+                      import com.amazonaws.services.connect.*;
+                      ...
+          # Vonage Voice: the record action of an NCCO
+          - patterns:
+              - pattern: new RecordAction.Builder(...)
+              - pattern-either:
+                  - pattern-inside: |
+                      import com.vonage.client.voice.ncco.RecordAction;
+                      ...
+                  - pattern-inside: |
+                      import com.vonage.client.voice.ncco.*;
+                      ...
+          # Zoom cloud recordings, notetaker bots (Recall.ai, MeetingBaaS, Attendee) and Daily cloud recording, named in a string
+          - pattern-regex: |-
+              "[^"\n]*\bapi\.zoom\.us/v2/(meetings|users|accounts)/[^"\n]*recordings|"[^"\n]*(\brecall\.ai/api/v\d+|\bapi\.meetingbaas\.com/bots|\bapp\.attendee\.dev/api/v\d+/bots)|\benable_recording\\?"\s*:\s*\\?"(cloud|local|raw-tracks|cloud-audio-only|rtp-tracks)\\?"
+    metadata:
+      activity: records_calls
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-calls
+      provenance: ungovr-original
+      license: MIT

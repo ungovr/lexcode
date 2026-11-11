@@ -1,0 +1,19 @@
+rules:
+  - id: lexcode.biometric.java-device-biometric-prompt
+    languages: [java]
+    severity: INFO
+    message: Asks the phone to confirm the user with a fingerprint or face, which may be using biometric data (processes_biometrics).
+    patterns:
+      - pattern-either:
+          - pattern: new BiometricPrompt($A, $E, $CB)
+          - pattern: new android.hardware.biometrics.BiometricPrompt.Builder(...)
+          - pattern: new BiometricPrompt.Builder(...)
+          - pattern: (FingerprintManager $F).authenticate(...)
+          - pattern: (FingerprintManagerCompat $F).authenticate(...)
+    metadata:
+      activity: processes_biometrics
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/processes-biometrics
+      provenance: ungovr-original
+      license: MIT
