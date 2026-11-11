@@ -123,14 +123,14 @@ export function parseXml(input: string): XmlElement {
       let selfClosing = false;
       for (;;) {
         while (j < n && /\s/.test(text[j] as string)) j++;
-        if (j >= n) fail(`the tag ${name} is never finished`, start);
+        if (j >= n) fail('a tag is never finished', start);
         const c = text[j] as string;
         if (c === '>') {
           j++;
           break;
         }
         if (c === '/') {
-          if (text[j + 1] !== '>') fail(`the tag ${name} is malformed`, start);
+          if (text[j + 1] !== '>') fail('a tag is malformed', start);
           selfClosing = true;
           j += 2;
           break;
@@ -138,7 +138,7 @@ export function parseXml(input: string): XmlElement {
         let k = j;
         while (k < n && !/[\s=/>]/.test(text[k] as string)) k++;
         const attr = text.slice(j, k);
-        if (attr === '') fail(`the tag ${name} is malformed`, start);
+        if (attr === '') fail('a tag is malformed', start);
         while (k < n && /\s/.test(text[k] as string)) k++;
         if (text[k] !== '=') {
           attrs[attr] = '';
@@ -148,9 +148,9 @@ export function parseXml(input: string): XmlElement {
         k++;
         while (k < n && /\s/.test(text[k] as string)) k++;
         const q = text[k];
-        if (q !== '"' && q !== "'") fail(`an attribute of ${name} has no quoted value`, start);
+        if (q !== '"' && q !== "'") fail('an attribute has no quoted value', start);
         const close = text.indexOf(q as string, k + 1);
-        if (close === -1) fail(`an attribute of ${name} is never closed`, start);
+        if (close === -1) fail('an attribute is never closed', start);
         attrs[attr] = decode(text.slice(k + 1, close));
         j = close + 1;
       }
@@ -165,7 +165,7 @@ export function parseXml(input: string): XmlElement {
   }
 
   const open = stack[stack.length - 1];
-  if (open) throw new XmlError(`the element ${open.el.name} opened on line ${open.el.line} is never closed`, open.el.line);
+  if (open) throw new XmlError(`an element opened on line ${open.el.line} is never closed`, open.el.line);
   if (!root) throw new XmlError('no root element on line 1', 1);
   return root;
 }

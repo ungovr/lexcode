@@ -63,6 +63,21 @@ describe('parseXml', () => {
     expect((err as XmlError).message).toContain('line 2');
   });
 
+  it('an error message names a line and never quotes the document', () => {
+    const token = 'AKIAIOSFODNN7EXAMPLE';
+    for (const doc of [`<a>\n<${token}`, `<a>\n<b ${token}="`, `<a>\n<b ${token}=x>`, `<a>\n<${token}>\n</a>`, `<${token}>\n<b>\n</${token}>`, `<a>\n<b ${token}`]) {
+      let err: unknown;
+      try {
+        parseXml(doc);
+      } catch (e) {
+        err = e;
+      }
+      expect(err).toBeInstanceOf(XmlError);
+      expect((err as XmlError).message).not.toContain(token);
+      expect((err as XmlError).message).toMatch(/line \d+/);
+    }
+  });
+
   it('throws on a closing tag that does not match, an unterminated comment and an empty document', () => {
     expect(() => parseXml('<a>\n</b>')).toThrow(XmlError);
     expect(() => parseXml('<a><!-- never closed </a>')).toThrow(XmlError);
