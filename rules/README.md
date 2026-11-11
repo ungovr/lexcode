@@ -214,8 +214,15 @@ prefixes included (`releaseImplementation`, `fdroidImplementation`,
 `$name` and `${name}` in a coordinate resolve from the same file (`val name =`,
 `def name =`, `ext.name =`, `ext { name = }`, `extra["name"] =`), then the root
 build file's `ext`, then `gradle.properties` beside the file and at the build
-root; else the dependency is recorded without a version, and one notice counts
-them.
+root. A version that stays unresolved is recorded without a version, and one
+notice counts those (`N Gradle dependencies have no version lexcode can read
+(a platform BOM, a plugin or a computed value); recorded without a version`).
+A group or artifact that stays unresolved skips the dependency, and a different
+notice counts it (`N Gradle dependencies name their group or artifact through a
+value lexcode cannot read; skipped`). Two more notices count what is left out:
+a dependency named by a constant or variable lexcode does not evaluate (`not
+recorded`), and a catalog reference that matches no library in a catalog
+lexcode can read (`skipped`).
 
 A version catalog, `gradle/*.versions.toml` at the build root (the directory
 holding `settings.gradle(.kts)`, else the scan root), is named by its file
@@ -238,8 +245,9 @@ constants those sources declare. A module a settings file moves with
 
 Known gaps: Gradle lockfiles (`gradle.lockfile`) are not read, because a
 lockfile lists transitive dependencies with no way to tell the direct ones, and
-few apps commit one. `apply from:` scripts, precompiled `*.gradle.kts` plugins
-and `.groovy` sources under `buildSrc` are not read. A coordinate built by
+few apps commit one. `apply from:` scripts and `.groovy` sources under `buildSrc` are not read, and
+neither are the dependency declarations of precompiled `*.gradle.kts` plugins
+(their `findLibrary` and `findBundle` literals are). A coordinate built by
 string concatenation is not recorded. A dependency whose version comes from a
 BOM, or from a parent outside the repository, is recorded without a version.
 JVM Test Suite dependencies (`testing { suites { ... } }`) count as production.
@@ -262,8 +270,10 @@ paths (`com.google.samples.apps`, `org.springframework.samples`,
 The engine reads Kotlin with a parser that drops some constructs (measured on
 Opengrep 1.33.1): `value class`, `fun interface`, the `..<` range, some `in`
 and `->` forms in `when` branches, soft keywords used as identifiers, and
-`object : T by it`. The rest of such a file still matches, and the record
-reports the file as partly read, never silently. Two engine limits shape the
+`object : T by it`. The rest of such a file still matches, but a match inside
+the dropped construct is missing. The engine reports the file as partly parsed,
+and the scan counts it and says so in the record: `the engine could not read N
+files; their evidence is missing from this record`. Two engine limits shape the
 rules. A class literal in a pattern matches every class literal, so a rule does
 not key on one. A wildcard import binds no class, so a rule that guards on an
 import keeps its list of names for the wildcard arm.

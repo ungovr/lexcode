@@ -128,7 +128,10 @@ An engine rule can lose the literal pre-filter that lets it skip files that
 cannot match: a very large `pattern-either`, or a key pattern that has no
 literal in it, is read against every file. On a large Java or Kotlin codebase
 that is the difference between seconds and minutes. Check a new rule with the
-engine's `--time` on a real app before it merges. When it is slow, split the
+engine's `--time` on a real app before it merges: `"$(lexcode engine path)"
+scan --time --config <rule.yml> <dir>` runs the engine binary from lexcode's
+cache (`lexcode engine path` prints where it is) with only that rule over the
+app's source directory. When it is slow, split the
 rule, or add a `pattern-regex` conjunct that names the vendor's package or
 class so the engine can skip the file (see the anchor rules above).
 
@@ -151,12 +154,15 @@ Measured on Opengrep 1.33.1:
   keeps its quotes, so write `.*gpt-` to find a model name inside a string.
 - The parser drops a few constructs (`value class`, `fun interface`, `..<`,
   some `in` and `->` forms in `when`, soft keywords as identifiers,
-  `object : T by it`). A rule cannot match inside one; the scan reports the
-  file as partly read.
+  `object : T by it`). A rule cannot match inside one, though the rest of the
+  file still matches; the scan counts the file in its notice `the engine could
+  not read N files; their evidence is missing from this record`.
 - A path glob in `paths.exclude` also matches package directories
   (`com/google/samples/apps/...`), so Java and Kotlin source rules exclude
   `**/src/test/**` and the other test source sets and never a `samples`,
-  `example` or `demo` path.
+  `example` or `demo` path. Build-file rules (`maven-`, `gradle-`,
+  `gradle-kts-`) are not source rules and keep their sample and example
+  excludes.
 
 ## Performance tests
 
