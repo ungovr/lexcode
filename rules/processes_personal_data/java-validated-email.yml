@@ -1,0 +1,20 @@
+rules:
+  - id: lexcode.personal.java-validated-email
+    languages: [java]
+    severity: INFO
+    message: Validates an email address a person supplies in a form, request or stored object (Bean Validation or Hibernate Validator @Email), which is processing personal data (processes_personal_data).
+    pattern-either:
+      - pattern: |
+          @Email
+          $T $F;
+      - pattern: |
+          @Email(...)
+          $T $F;
+      - pattern: record $R(..., @Email $T $F, ...) { ... }
+      - pattern: record $R(..., @Email(...) $T $F, ...) { ... }
+    metadata:
+      activity: processes_personal_data
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-personal-data
+      provenance: ungovr-original
+      license: MIT

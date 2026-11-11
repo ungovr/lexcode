@@ -1,0 +1,39 @@
+rules:
+  - id: lexcode.personal.java-account-model
+    languages: [java]
+    severity: INFO
+    message: Declares user accounts and sign-in with Spring Security (a UserDetails or UserDetailsService class, a stored-user manager, form login or OAuth2 login), which is processing personal data (processes_personal_data).
+    pattern-either:
+      - pattern: |
+          class $C implements UserDetails { ... }
+      - pattern: |
+          class $C implements $A, UserDetails { ... }
+      - pattern: |
+          class $C implements UserDetails, $A { ... }
+      - pattern: |
+          class $C extends $B implements UserDetails { ... }
+      - pattern: |
+          class $C extends $B implements $A, UserDetails { ... }
+      - pattern: |
+          class $C extends $B implements UserDetails, $A { ... }
+      - pattern: |
+          class $C implements UserDetailsService { ... }
+      - pattern: |
+          class $C implements $A, UserDetailsService { ... }
+      - pattern: |
+          class $C implements UserDetailsService, $A { ... }
+      - pattern: |
+          class $C extends $B implements UserDetailsService { ... }
+      - pattern: |
+          class $C extends $B implements $A, UserDetailsService { ... }
+      - pattern: |
+          class $C extends $B implements UserDetailsService, $A { ... }
+      - pattern: new JdbcUserDetailsManager(...)
+      - pattern: $H.formLogin(...)
+      - pattern: $H.oauth2Login(...)
+    metadata:
+      activity: processes_personal_data
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-personal-data
+      provenance: ungovr-original
+      license: MIT
