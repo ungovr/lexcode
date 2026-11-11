@@ -1,0 +1,183 @@
+rules:
+  - id: lexcode.outreach.kt-send-in-scheduled-job
+    languages: [kotlin]
+    severity: INFO
+    message: Sends an email, text, call or push notification from a scheduled method, Quartz job or timer that no user action triggers, which is sending automated outreach (automated_outreach).
+    # The timer shapes are Spring's @Scheduled, a Quartz Job's execute(JobExecutionContext), a TimerTask
+    # (an `object : TimerTask()` or a subclass), a ScheduledExecutorService callback and the Kotlin
+    # stdlib's fixedRateTimer and timer. A queue listener or an @Async method is kt-send-in-queue-worker:
+    # the code does not show whether a person asked. A send that is a direct statement of a catch block
+    # is an alert to the operator about the job, not a message to people, so each send arm carries its
+    # own `try { } catch { ... send }` exclusion (the engine cannot parse a catch clause alone, and the
+    # send is matched by the same metavariables as the main match). A send nested deeper inside the
+    # catch block (in an `if`) is not excluded.
+    patterns:
+      - pattern-either:
+          - pattern-inside: |
+              @Scheduled(...)
+              fun $F(...) { ... }
+          - pattern-inside: |
+              @Scheduled(...)
+              fun $F(...): $RET { ... }
+          - pattern-inside: |
+              @Scheduled(...)
+              fun $F(...) = $E
+          - pattern-inside: |
+              @Scheduled(...)
+              fun $F(...): $RET = $E
+          - pattern-inside: |
+              @Scheduled(...)
+              suspend fun $F(...) { ... }
+          - pattern-inside: |
+              @Scheduled(...)
+              suspend fun $F(...): $RET { ... }
+          - pattern-inside: |
+              @Scheduled(...)
+              suspend fun $F(...) = $E
+          - pattern-inside: |
+              @Scheduled(...)
+              suspend fun $F(...): $RET = $E
+          - pattern-inside: |
+              fun execute($C: JobExecutionContext) { ... }
+          - pattern-inside: |
+              object : TimerTask() {
+                ...
+              }
+          - pattern-inside: |
+              class $K(...) : TimerTask() {
+                ...
+              }
+          - pattern-inside: |
+              $E.scheduleAtFixedRate(...)
+          - pattern-inside: |
+              $E.scheduleWithFixedDelay(...)
+          - pattern-inside: |
+              fixedRateTimer(...) { ... }
+          - pattern-inside: |
+              timer(...) { ... }
+      - pattern-either:
+          - patterns:
+              - pattern: Transport.send(...)
+              - pattern-not-inside: |
+                  try {
+                    ...
+                  } catch ($CEXC: $CTYPE) {
+                    ...
+                    Transport.send(...)
+                  }
+          - patterns:
+              - pattern: $M.send(...)
+              - metavariable-regex:
+                  metavariable: $M
+                  regex: '(?i)^(this\.)?\w*(mail|smtp)\w*$'
+              - pattern-not-inside: |
+                  try {
+                    ...
+                  } catch ($CEXC: $CTYPE) {
+                    ...
+                    $M.send(...)
+                  }
+          - patterns:
+              - pattern-either:
+                  - pattern: $X.$N(...)
+                  - pattern: $N(...)
+              - metavariable-regex:
+                  metavariable: $N
+                  regex: ^send\w*(Email|Mail|RawEmail|TemplatedEmail|Sms|SMS|Text|TextMessage|Push|PushNotification|Notification|Reminder|Digest|Newsletter|Alert)s?$
+              - pattern-not-inside: |
+                  try {
+                    ...
+                  } catch ($CEXC: $CTYPE) {
+                    ...
+                    $X.$N(...)
+                  }
+              - pattern-not-inside: |
+                  try {
+                    ...
+                  } catch ($CEXC: $CTYPE) {
+                    ...
+                    $N(...)
+                  }
+          - patterns:
+              - pattern: $SG.api(...)
+              - metavariable-regex:
+                  metavariable: $SG
+                  regex: (?i)^(this\.)?(sg|sendgrid\w*)$
+              - pattern-not-inside: |
+                  try {
+                    ...
+                  } catch ($CEXC: $CTYPE) {
+                    ...
+                    $SG.api(...)
+                  }
+          - patterns:
+              - pattern: Message.creator(...).create(...)
+              - pattern-regex: '(?s)import\s+com\.twilio\..*'
+              - pattern-not-inside: |
+                  try {
+                    ...
+                  } catch ($CEXC: $CTYPE) {
+                    ...
+                    Message.creator(...).create(...)
+                  }
+          - patterns:
+              - pattern: Call.creator(...).create(...)
+              - pattern-regex: '(?s)import\s+com\.twilio\..*'
+              - pattern-not-inside: |
+                  try {
+                    ...
+                  } catch ($CEXC: $CTYPE) {
+                    ...
+                    Call.creator(...).create(...)
+                  }
+          - patterns:
+              - pattern: FirebaseMessaging.getInstance().send(...)
+              - pattern-not-inside: |
+                  try {
+                    ...
+                  } catch ($CEXC: $CTYPE) {
+                    ...
+                    FirebaseMessaging.getInstance().send(...)
+                  }
+          - patterns:
+              - pattern: $FM.send(...)
+              - metavariable-regex:
+                  metavariable: $FM
+                  regex: (?i)^(this\.)?(\w*firebase\w*|fcm\w*)$
+              - pattern-not-inside: |
+                  try {
+                    ...
+                  } catch ($CEXC: $CTYPE) {
+                    ...
+                    $FM.send(...)
+                  }
+          - patterns:
+              - pattern: $R.emails().send(...)
+              - metavariable-regex:
+                  metavariable: $R
+                  regex: (?i)^(this\.)?\w*resend\w*$
+              - pattern-not-inside: |
+                  try {
+                    ...
+                  } catch ($CEXC: $CTYPE) {
+                    ...
+                    $R.emails().send(...)
+                  }
+          - patterns:
+              - pattern: $P.deliverMessage(...)
+              - pattern-regex: '(?s)import\s+com\.postmarkapp\..*'
+              - pattern-not-inside: |
+                  try {
+                    ...
+                  } catch ($CEXC: $CTYPE) {
+                    ...
+                    $P.deliverMessage(...)
+                  }
+      # Literal anchor inside the match: it lets the engine skip files with no send call.
+      - pattern-regex: '(Transport\.send|\.send\(|\bsend\w*(Email|Mail|RawEmail|TemplatedEmail|Sms|SMS|Text|TextMessage|Push|PushNotification|Notification|Reminder|Digest|Newsletter|Alert)s?\b|\.api\(|\.creator\(|\.deliverMessage\()'
+    metadata:
+      activity: automated_outreach
+      mentioned: performs
+      definition: https://lexlint.io/activities/automated-outreach
+      provenance: ungovr-original
+      license: MIT

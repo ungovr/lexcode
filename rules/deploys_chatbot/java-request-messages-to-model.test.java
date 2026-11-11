@@ -1,4 +1,4 @@
-// lexcode-expect: 6
+// lexcode-expect: 11
 package demo.ai;
 
 import java.util.List;
@@ -22,15 +22,15 @@ public class ChatController {
     private final ChatModel chatModel;
     private final OpenAIClient openai;
     private final AnthropicClient anthropic;
-    private final ChatLanguageModel langchain;
+    private final ChatLanguageModel languageModel;
 
     public ChatController(ChatClient chatClient, ChatModel chatModel, OpenAIClient openai, AnthropicClient anthropic,
-                          ChatLanguageModel langchain) {
+                          ChatLanguageModel languageModel) {
         this.chatClient = chatClient;
         this.chatModel = chatModel;
         this.openai = openai;
         this.anthropic = anthropic;
-        this.langchain = langchain;
+        this.languageModel = languageModel;
     }
 
     @PostMapping("/chat")
@@ -55,13 +55,41 @@ public class ChatController {
         return anthropic.messages().create(params);
     }
 
-    @PostMapping("/chat/langchain")
+    @PostMapping("/chat/languageModel")
     public Object langchain4j(@RequestBody ChatRequest req) {
-        return langchain.generate(req.getMessages());
+        return languageModel.generate(req.getMessages());
     }
 
     @PostMapping("/chat/langchain2")
     public Object langchain4jDirect(@RequestBody List<ChatMessage> history) {
-        return langchain.chat(history);
+        return languageModel.chat(history);
+    }
+
+    // The request's list reaches the call through a conversion, from an annotation with arguments, or
+    // into a builder of a named model request type or a model named with a camel-case AI part.
+    @PostMapping("/chat/mapped")
+    public String mapped(@RequestBody ChatRequest request) {
+        return chatClient.prompt().messages(request.getMessages().stream().toList()).call().content();
+    }
+
+    @PostMapping("/chat/required")
+    public String required(@RequestBody(required = true) ChatRequest request) {
+        return chatClient.prompt().messages(request.getMessages()).call().content();
+    }
+
+    @PostMapping("/chat/bedrock")
+    public Object bedrock(@RequestBody ChatRequest request) {
+        return ConverseRequest.builder().modelId("m").messages(request.getMessages()).build();
+    }
+
+    @PostMapping("/chat/langchain-request")
+    public Object langchainRequest(@RequestBody ChatRequest request) {
+        return dev.langchain4j.model.chat.request.ChatRequest.builder().messages(request.getMessages()).build();
+    }
+
+    @PostMapping("/chat/openai-named")
+    public Object named(@RequestBody ChatRequest request, ChatLanguageModel openAI) {
+        return openAI.chat(request.getMessages());
     }
 }
+

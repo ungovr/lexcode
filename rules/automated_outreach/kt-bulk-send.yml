@@ -1,0 +1,48 @@
+rules:
+  - id: lexcode.outreach.kt-bulk-send
+    languages: [kotlin]
+    severity: INFO
+    message: Sends one message to many recipients in a single batch call, push multicast or campaign send, which is sending automated outreach (automated_outreach).
+    # The AWS SDK for Kotlin takes a DSL lambda (`ses.sendBulkEmail { ... }`); `$S.sendBulkEmail(...)`
+    # matches that trailing-lambda call as well.
+    patterns:
+      - pattern-either:
+          - pattern: $S.sendBulkTemplatedEmail(...)
+          - pattern: $S.sendBulkEmail(...)
+          - pattern: $F.sendEachForMulticast(...)
+          - pattern: $F.sendEachForMulticastAsync(...)
+          - pattern: $F.sendMulticast(...)
+          - pattern: $F.sendMulticastAsync(...)
+          - pattern: $F.sendToTopic(...)
+          - pattern: $F.sendToDevice(...)
+          - patterns:
+              - pattern: $F.$METHOD(...)
+              - metavariable-regex:
+                  metavariable: $F
+                  regex: (?i)^(this\.)?(\w*firebase\w*|fcm\w*)$
+              - metavariable-regex:
+                  metavariable: $METHOD
+                  regex: ^(sendAll|sendAllAsync|sendEach|sendEachAsync)$
+          - patterns:
+              - pattern-either:
+                  - pattern: $P.sendMessages(...)
+                  - pattern: $P.sendUsersMessages(...)
+              - metavariable-regex:
+                  metavariable: $P
+                  regex: (?i)^(this\.)?\w*(pinpoint|campaign)\w*$
+          - patterns:
+              - pattern: $R.batch().send(...)
+              - metavariable-regex:
+                  metavariable: $R
+                  regex: (?i)^(this\.)?\w*(resend|mail|email)\w*$
+          - patterns:
+              - pattern: Notification.creator(...)
+              - pattern-regex: '(?s)import\s+com\.twilio\..*'
+      # Literal anchor inside the match: it lets the engine skip files with no batch call.
+      - pattern-regex: '(\.sendBulk(Templated)?Email\b|\.send(Each|All|Multicast|ToTopic|ToDevice)\w*\b|\.sendMessages\b|\.sendUsersMessages\b|\.batch\(\)\s*\.send\(|Notification\.creator\()'
+    metadata:
+      activity: automated_outreach
+      mentioned: performs
+      definition: https://lexlint.io/activities/automated-outreach
+      provenance: ungovr-original
+      license: MIT

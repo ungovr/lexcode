@@ -1,0 +1,71 @@
+rules:
+  - id: lexcode.chatbot.kt-history-turns
+    languages: [kotlin]
+    severity: INFO
+    message: Appends the user's message to a running history, sends the history to a language model and stores the reply back in it, which is deploying a chatbot (deploys_chatbot).
+    # Same order as java-history-turns and the Python, Go and Ruby rules: the user's turn is pushed,
+    # the history goes to the model, then the reply is pushed back. A prompt built in steps and sent
+    # once (a system line plus a user line, few-shot examples) pushes no reply after the call and does
+    # not match. The list form (Spring AI, LangChain4j, openai-kotlin, role strings) pushes with
+    # `add(...)` or `+=`; the params-builder form (the OpenAI and Anthropic Java SDKs from Kotlin:
+    # addUserMessage ... build() ... addMessage) is a separate branch because only the list form can
+    # be told apart by the words in the added value.
+    patterns:
+      - pattern-either:
+          - patterns:
+              - pattern-either:
+                  - pattern: $M.call(Prompt($H, ...))
+                  - pattern: $M.call($H)
+                  - pattern: $M.chat($H)
+                  - pattern: $M.generate($H)
+                  - pattern: $M.stream($H)
+                  - pattern: $B.messages($H)
+                  - pattern: ChatCompletionRequest(..., messages = $H, ...)
+              - pattern-either:
+                  - pattern-inside: |
+                      $H.add($U)
+                      ...
+                      $H.add($Z)
+                  - pattern-inside: |
+                      $H += $U
+                      ...
+                      $H += $Z
+                  - pattern-inside: |
+                      $H.add($U)
+                      ...
+                      $H += $Z
+                  - pattern-inside: |
+                      $H += $U
+                      ...
+                      $H.add($Z)
+              - metavariable-regex:
+                  metavariable: $U
+                  regex: '(?s)^.*(UserMessage|["]user["]|Role\.USER|MessageType\.USER|ChatRole\.User).*$'
+              - metavariable-regex:
+                  metavariable: $Z
+                  regex: '(?s)^(?!.*(UserMessage|["]user["]|Role\.USER|MessageType\.USER|ChatRole\.User)).*$'
+              # Literal anchor inside the match (the model call), so the engine skips files with no such call.
+              - pattern-regex: '(\.call\(|\.chat\(|\.generate\(|\.stream\(|\.messages\(|ChatCompletionRequest\()'
+          - patterns:
+              - pattern-either:
+                  - pattern: $C.create($H.build())
+                  - pattern: $C.createStreaming($H.build())
+                  - pattern: $C.stream($H.build())
+              - pattern-inside: |
+                  $H.addUserMessage($U)
+                  ...
+                  $H.addMessage($Z)
+              - pattern-regex: '\.(create|createStreaming|stream)\('
+          - patterns:
+              - pattern: $C.create($H.build())
+              - pattern-inside: |
+                  $H.addUserMessage($U)
+                  ...
+                  $H.addAssistantMessage($Z)
+              - pattern-regex: '\.create\('
+    metadata:
+      activity: deploys_chatbot
+      mentioned: performs
+      definition: https://lexlint.io/activities/deploys-chatbot
+      provenance: ungovr-original
+      license: MIT

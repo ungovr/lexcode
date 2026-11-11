@@ -1,0 +1,56 @@
+rules:
+  - id: lexcode.chatbot.kt-chat-memory
+    languages: [kotlin]
+    severity: INFO
+    message: Keeps the earlier turns of a conversation with a language model (a chat memory, a memory advisor or a chat session), where the code does not show who the conversation is with, which may be deploying a chatbot (deploys_chatbot).
+    # Signal strength, like java-chat-memory and the Gemini chat session in the Python rules: a model
+    # that remembers the last turn is conversational, but the code alone does not show a person on the
+    # other end. The Kotlin forms: LangChain4j's AiServices.builder(...).chatMemory(...) and
+    # .chatMemoryProvider { id -> ... } (a trailing lambda is its own pattern), the Spring AI
+    # *ChatMemoryAdvisor constructors (no `new` in Kotlin) and the Gemini chat session
+    # (`model.startChat()` in the Vertex AI, Google AI and Firebase AI SDKs, `client.chats.create(...)`
+    # in the GenAI SDK). Each branch has its own literal anchor, so a call reports once.
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: $S.chatMemory(...)
+              - pattern: $S.chatMemoryProvider(...)
+              - pattern: |
+                  $S.chatMemoryProvider { ... }
+              - pattern: |
+                  $S.chatMemoryProvider { $P -> ... }
+          - pattern-regex: '\.chatMemory(Provider)?\b'
+      - patterns:
+          - pattern-either:
+              - pattern: MessageWindowChatMemory.$F(...)
+              - pattern: TokenWindowChatMemory.$F(...)
+          - pattern-not-inside: $S.chatMemory(...)
+          - pattern-not-inside: $S.chatMemoryProvider(...)
+          - pattern-regex: '(Message|Token)WindowChatMemory\.'
+      - patterns:
+          - pattern-either:
+              - pattern: MessageChatMemoryAdvisor.builder(...)
+              - pattern: PromptChatMemoryAdvisor.builder(...)
+              - pattern: VectorStoreChatMemoryAdvisor.builder(...)
+              - pattern: MessageChatMemoryAdvisor(...)
+              - pattern: PromptChatMemoryAdvisor(...)
+              - pattern: VectorStoreChatMemoryAdvisor(...)
+          - pattern-regex: 'ChatMemoryAdvisor[.(]'
+      - patterns:
+          - pattern: $M.startChat(...)
+          - pattern-regex: '\.startChat\('
+      # `chats.create(...)` is a common name for an app's own chat table, so the receiver must be
+      # named for the GenAI client.
+      - patterns:
+          - pattern: $C.chats.create(...)
+          - metavariable-regex:
+              metavariable: $C
+              regex: (?i)^(this\.)?\w*(genai|gemini|aiclient|googleclient|client)\w*$
+          - pattern-regex: '\.chats\.create\('
+    metadata:
+      activity: deploys_chatbot
+      mentioned: performs
+      definition: https://lexlint.io/activities/deploys-chatbot
+      provenance: ungovr-original
+      license: MIT
+      strength: signal
