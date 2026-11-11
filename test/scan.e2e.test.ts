@@ -151,6 +151,38 @@ describe.skipIf(!engineAvailable)('lexcode scan over Ruby files and ERB views wi
   });
 });
 
+describe.skipIf(!engineAvailable)('lexcode scan over a Gemfile with the real engine', () => {
+  it('counts the gem component map toward the rules that ran, only when a Gemfile is in scope', async () => {
+    const scan = async (): Promise<EvidenceRecord> => {
+      out = [];
+      expect(await main(['scan', repo, '--rules', join(repo, '.rules'), '--json'], io())).toBe(0);
+      return JSON.parse(out.join('')) as EvidenceRecord;
+    };
+    const notFound = (rec: EvidenceRecord): unknown => rec.searched_not_found.find((r) => r.id === 'tracks_devices');
+    // The shared rules home holds no gem map; this copy adds one entry. It matches no gem a repository declares,
+    // so it can only count toward rulesRun through the `gem` branch of ecosystemsFound (src/commands/scan.ts).
+    const home = join(work, 'rules-home');
+    cpSync(RULES_HOME, home, { recursive: true });
+    writeFileSync(
+      join(home, 'components', 'gem.yml'),
+      [
+        'ecosystem: gem',
+        'entries:',
+        '  - match: "lexcode-fixture-gem"',
+        '    enables: [tracks_devices]',
+        '    says: "A gem that exists only in lexcode\'s test fixtures"',
+        '    source: https://rubygems.org/gems/lexcode-fixture-gem',
+        '',
+      ].join('\n'),
+    );
+    vi.stubEnv('LEXCODE_RULES_HOME', home);
+    expect(notFound(await scan())).toBeUndefined();
+    writeFileSync(join(repo, 'Gemfile'), 'source "https://rubygems.org"\ngem "rails"\n');
+    // The copy's one gem entry enables tracks_devices, and no Gemfile gem matches it: searched, not found.
+    expect(notFound(await scan())).toEqual({ id: 'tracks_devices', rules: 1 });
+  });
+});
+
 describe('lexcode scan failures', () => {
   it('exits 2 with a next step when no file is in scope', async () => {
     const empty = mkdtempSync(join(tmpdir(), 'lexcode-empty-'));

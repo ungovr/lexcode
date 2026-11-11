@@ -5,7 +5,9 @@ rules:
     message: Sends a picture drawn by an image model back in an HTTP response, which is generating images with AI that reach users (generates_images).
     mode: taint
     pattern-sources:
-      - pattern: $C.images.generate(...)
+      # ruby-openai passes parameters:, the openai gem passes prompt:; an images association's generate does neither.
+      - pattern: "$C.images.generate(..., parameters: ..., ...)"
+      - pattern: "$C.images.generate(..., prompt: ..., ...)"
       - pattern: $C.images.edit(...)
       - pattern: $C.images.variations(...)
       - pattern: $C.images.create_variation(...)

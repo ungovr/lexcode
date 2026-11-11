@@ -24,7 +24,7 @@ rules:
           - pattern: $R.set_cookie($N, ...)
       - metavariable-regex:
           metavariable: $N
-          regex: (?i)^:?["']?(_ga(_.*)?|_gid|_gat(_.*)?|_gcl_.*|_fbp|_fbc|_hjid|_hjSessionUser.*|ajs_(anonymous|user)_id|mp_.*_mixpanel|ph_.*_posthog|amplitude_id.*|_uetvid|_uetsid|_clck|_clsk|__utm.|ahoy_visit(or)?|(visitor|tracking|anonymous|device|browser)_?(id|token|uuid)|fingerprint)["']?$
+          regex: (?i)^:?["']?(_ga(_.*)?|_gid|_gat(_.*)?|_gcl_.*|_fbp|_fbc|_hjid|_hjSessionUser.*|ajs_(anonymous|user)_id|mp_.*_mixpanel|ph_.*_posthog|amplitude_id.*|_uetvid|_uetsid|_clck|_clsk|__utm.|ahoy_visit(or)?|(visitor|tracking|anonymous|device)_?(id|uuid)|fingerprint)["']?$
       - focus-metavariable: $N
     metadata:
       activity: tracks_devices

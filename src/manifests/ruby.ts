@@ -290,10 +290,13 @@ export function readRuby(root: string, files: string[]): ReaderResult {
 
     const recorded = new Map<string, Dependency>();
     const absent: string[] = [];
+    // A gem the lockfile lists under DEPENDENCIES is in it even with no spec: one resolved for no locked
+    // platform (tzinfo-data on Linux) and `bundler` never have one.
+    const direct = new Set((lock?.direct ?? []).map((d) => d.name));
     for (const [name, rec] of byName) {
       if (!rec.prod) continue;
       const version = lock?.specs.get(name);
-      if (lock && version === undefined) absent.push(name);
+      if (lock && version === undefined && !direct.has(name)) absent.push(name);
       recorded.set(name, { ecosystem: 'gem', name, ...(version !== undefined ? { version } : {}), manifest: rec.prod.manifest });
     }
 

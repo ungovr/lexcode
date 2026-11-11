@@ -117,7 +117,8 @@ A `.rb` file is scanned as it is. A `.rake`, `.ru` or `.gemspec` file, and an
 extension-less `Rakefile`, `Fastfile`, `Appfile` or `Capfile`, is copied whole
 to `<path>.lexcode.rb` in lexcode's temporary directory and scanned there; a
 finding in the copy is reported against the original path and line. A `Gemfile`
-is read as a manifest, not scanned as Ruby code.
+is read only as a manifest; `gems.rb` and the `.rb` files a Gemfile pulls in are
+read both ways.
 
 ### ERB views
 
@@ -138,3 +139,12 @@ author, in a class named like a message. A support or assistant chat, or a CRM
 that stores messages with sender and author keys, has that shape, so it can
 still raise the `operates_social_platform` signal. It is a worth-a-look row and
 never fails CI.
+
+### A known residual: `rb-gemspec-published`
+
+`lexcode.distribute.rb-gemspec-published` (activity
+`distributes_software_product`) reads a gemspec that fills in published-gem
+metadata such as `source_code_uri` or `rubygems_mfa_required`. An internal
+engine kept inside a monolith can set either, with a `source_code_uri` that
+points into the monolith's own tree, and so reads as a distributed product.
+Telling an in-repo path gem from a published one is not done yet.

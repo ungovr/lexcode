@@ -1,4 +1,4 @@
-# lexcode-expect: 5
+# lexcode-expect: 6
 require "openai"
 
 class ClipsController < ApplicationController
@@ -7,6 +7,14 @@ class ClipsController < ApplicationController
     client = OpenAI::Client.new(api_key: ENV["OPENAI_API_KEY"])
     job = client.videos.create(model: "sora-2", prompt: params[:prompt], seconds: "4")
     render json: { job_id: job.id, status: job.status }
+  end
+
+  # The client built inline, its constructor over several lines.
+  def remix
+    job = OpenAI::Client.new(
+      api_key: ENV["OPENAI_API_KEY"]
+    ).videos.create(model: "sora-2", prompt: params[:prompt])
+    render json: { job_id: job.id }
   end
 end
 

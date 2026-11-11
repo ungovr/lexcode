@@ -54,9 +54,9 @@ would end that for the whole set. Every rule says so in its metadata:
 
 ## Adding a package to the component map
 
-The component map (`rules/components/npm.yml`, `pypi.yml`, `go.yml`, `gem.yml`) says which
-activities a well-known package enables. It is written by hand, one entry per
-package, and nothing adds to it on its own:
+The component map (`rules/components/npm.yml`, `pypi.yml`, `go.yml`,
+`gem.yml`) says which activities a well-known package enables. It is
+written by hand, one entry per package, and nothing adds to it on its own:
 
 1. Find candidates with `lexcode deps <repo>... --unmapped`, run over several
    repositories: it lists every package the map does not know, the ones most
@@ -69,8 +69,10 @@ package, and nothing adds to it on its own:
 3. `says` quotes the vendor's own description of the package, verbatim, and
    `source` is the https page that holds it (the registry page, or the
    package's README in its published tarball when the registry page says too
-   little). `enables` lists activity ids whose class in `classes.yml` is
-   `evidence`.
+   little). When the description runs long, `says` may quote whole sentences
+   from its start, up to a sentence boundary, and drop the rest; it never cuts
+   inside a sentence or rewords one. `enables` lists activity ids whose class
+   in `classes.yml` is `evidence`.
 4. `npm test` checks the shape of every entry: no duplicates, known evidence
    ids, a quote and an https source.
 

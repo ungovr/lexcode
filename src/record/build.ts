@@ -76,7 +76,8 @@ function extensionsOf(rule: RuleMeta): string[] | 'all' {
 /**
  * Code languages a repository may hold, by the name a notice gives them and their extensions. A
  * language here that no rule reads is named in the record, so "not found" is never read as "not there"
- * when the code was never looked at: Canvas holds 6,721 Ruby files lexcode has no rule for (#12745).
+ * when the code was never looked at: Canvas held 6,721 Ruby files lexcode had no rule for (#12745),
+ * before Ruby got its rules in 1.1.
  */
 const CODE_LANGUAGES: [string, string[]][] = [
   ['Python', ['.py', '.pyi']],
