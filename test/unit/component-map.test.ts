@@ -13,6 +13,7 @@ const FILES = [
   { file: 'pypi.yml', ecosystem: 'pypi' },
   { file: 'go.yml', ecosystem: 'golang' },
   { file: 'gem.yml', ecosystem: 'gem' },
+  { file: 'maven.yml', ecosystem: 'maven' },
   { file: 'files.yml', ecosystem: 'files' },
 ] as const;
 
