@@ -5,8 +5,10 @@ rules:
     message: Creates a BigBlueButton web conference with recording turned on, which is recording a call (records_calls).
     patterns:
       - pattern-either:
-          - pattern: "$A.create_meeting(..., record: $V, ...)"
-          - pattern: "$A.create_meeting(..., { ..., record: $V, ... })"
+          # bigbluebutton-api-ruby takes (name, id, options); a call without both positionals is
+          # some other create_meeting, such as a calendar's.
+          - pattern: "$A.create_meeting($NAME, $ID, ..., record: $V, ...)"
+          - pattern: "$A.create_meeting($NAME, $ID, ..., { ..., record: $V, ... })"
           # The regular expression is a pre-filter: a hash pattern has no literal of its own, so
           # without it the engine parses every Ruby file to look for one.
           - patterns:

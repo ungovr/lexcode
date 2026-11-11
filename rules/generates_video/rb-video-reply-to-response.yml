@@ -5,8 +5,14 @@ rules:
     message: Hands a clip rendered by a video model back in an HTTP response, which is generating video with AI that reaches users (generates_video).
     mode: taint
     pattern-sources:
-      - pattern: '$C.videos.create(..., prompt: ..., ...)'
-      - pattern: '$C.videos.create({ ..., prompt: ..., ... })'
+      # The receiver has to look like a model client: a videos association with a prompt column is not.
+      - patterns:
+          - pattern-either:
+              - pattern: '$C.videos.create(..., prompt: ..., ...)'
+              - pattern: '$C.videos.create({ ..., prompt: ..., ... })'
+          - metavariable-regex:
+              metavariable: $C
+              regex: (?is)^.*(client|openai|llm|sora).*$
       - pattern: RubyLLM.animate(...)
     pattern-propagators:
       - pattern: $OUT = <... $R.dig(...) ...>

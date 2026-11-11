@@ -15,3 +15,12 @@ class ContactForm
   attr_accessor :email, :message
   validates :message, presence: true
 end
+
+class MailClientsController < ApplicationController
+  def reply_all
+    # An email client's reply-to-all builds an email; it keeps no chat conversation.
+    email = Mail.new(params[:raw])
+    email.reply_to_all(body: params[:body])
+    email.reply_to_sender(body: params[:body])
+  end
+end

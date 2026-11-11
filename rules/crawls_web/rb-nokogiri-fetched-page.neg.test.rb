@@ -52,6 +52,11 @@ class Partner
     JSON.parse(Net::HTTP.get(URI("https://api.exchangerate.host/latest")))
   end
 
+  # One documented partner API call whose answer is XML: Nokogiri.parse reads XML as well as HTML.
+  def tracking
+    Nokogiri.parse(HTTParty.get("https://api.carrier.example/v1/track.xml").body)
+  end
+
   # Nokogiri XML over a string the project builds itself.
   def own_sitemap(urls)
     builder = Nokogiri::XML::Builder.new { |xml| xml.urlset { urls.each { |u| xml.url { xml.loc u } } } }

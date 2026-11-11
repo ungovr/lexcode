@@ -62,9 +62,8 @@ describe('readRegularFile', () => {
   it.skipIf(!posix)('refuses a FIFO without blocking', () => {
     const d = dir();
     execFileSync('mkfifo', [join(d, 'pipe')]);
-    const t0 = Date.now();
+    // No clock: an open that blocked on the pipe would never return to reach this line, so returning is the check.
     expect(() => readRegularFile(join(d, 'pipe'))).toThrow(/not a regular file/);
-    expect(Date.now() - t0).toBeLessThan(2000);
   });
 
   it.skipIf(!posix)('refuses a symbolic link, even to a regular file, even for an explicit path', () => {
@@ -119,10 +118,9 @@ describe('the three declaration and configuration readers', () => {
     for (const name of ['ACTIVITIES.md', 'lexlint.yml', '.lexcode.yml']) {
       const root = dir();
       execFileSync('mkfifo', [join(root, name)]);
-      const t0 = Date.now();
       const run = (): unknown => (name === '.lexcode.yml' ? loadSidecar(root) : selectDeclaration(root));
+      // No clock: an open that blocked on the pipe would never return to reach the next name, so returning is the check.
       expect(run, name).toThrow(/not a regular file/);
-      expect(Date.now() - t0).toBeLessThan(2000);
     }
   });
 

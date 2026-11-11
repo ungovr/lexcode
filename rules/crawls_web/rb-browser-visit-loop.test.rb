@@ -1,4 +1,4 @@
-# lexcode-expect: 10
+# lexcode-expect: 19
 require "ferrum"
 require "selenium-webdriver"
 require "watir"
@@ -83,5 +83,38 @@ class CupriteCrawler
   def crawl_known(urls)
     urls.each { |u| page.visit("https://www.example.org/#{u}") }
     3.times { visit "https://www.example.org/archive" }
+  end
+end
+
+# Shapes the anchor must admit: a leading-dot chain, a trailing dot and safe navigation.
+class ChainShapesBrowser
+  def run(urls)
+    urls.each do |url|
+      @driver&.get(url)
+      @driver
+        .get(url)
+      @driver.
+        get url
+      @driver
+        .navigate
+        .to(url)
+      @driver&.navigate&.to(url)
+    end
+  end
+end
+
+# Shapes the anchor must also admit: an empty () after a no-arg method, a comment line or a
+# backslash between the two tokens, and (schema, Mailchimp) text after or far from the key.
+class ResidualShapesBrowser
+  def run(urls)
+    urls.each do |url|
+      @driver.navigate().to(url)
+      @driver # headless Chrome
+        .get(url)
+      @driver \
+        .get(url)
+      @driver.navigate # follow
+        .to(url)
+    end
   end
 end

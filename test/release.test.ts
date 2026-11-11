@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { parse } from 'yaml';
 import { bundledRulesDir, loadRuleSet } from '../src/rules/load.js';
 import { validateRuleFiles } from '../src/rules/validate.js';
+import type { RuleMeta } from '../src/types.js';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const rulesDir = bundledRulesDir();
@@ -16,6 +17,17 @@ interface Snapshot {
 }
 const snapshot = JSON.parse(readFileSync(join(rulesDir, 'registry.snapshot.json'), 'utf8')) as Snapshot;
 const snapshotIds = [...snapshot.activities, ...snapshot.held].map((a) => a.id);
+
+/** Evidence-class ids with no evidence-strength rule that satisfies `accept`. */
+function evidenceIdsWithoutRule(accept: (r: RuleMeta) => boolean): string[] {
+  const rs = loadRuleSet();
+  const uncovered: string[] = [];
+  for (const [id, cls] of rs.classes) {
+    if (cls !== 'evidence') continue;
+    if (!rs.rules.some((r) => r.activity === id && r.strength === 'evidence' && accept(r))) uncovered.push(id);
+  }
+  return uncovered;
+}
 
 describe('release: the rule set is complete and well formed', () => {
   it('every snapshot id has a class', () => {
@@ -46,13 +58,14 @@ describe('release: the rule set is complete and well formed', () => {
   // to a positive and a negative fixture. A component-map entry is not a rule
   // and does not count.
   it('evidence class is covered (the v1 publish gate)', () => {
-    const rs = loadRuleSet();
-    const uncovered: string[] = [];
-    for (const [id, cls] of rs.classes) {
-      if (cls !== 'evidence') continue;
-      if (!rs.rules.some((r) => r.activity === id && r.strength === 'evidence')) uncovered.push(id);
-    }
-    expect(uncovered).toEqual([]);
+    expect(evidenceIdsWithoutRule(() => true)).toEqual([]);
+  });
+
+  // The per-language gate (v1.1): Ruby joins the languages lexcode reads, so
+  // every evidence-class id also has a Ruby rule at evidence strength. The next
+  // language adds one line like this.
+  it('every evidence-class id has a Ruby rule', () => {
+    expect(evidenceIdsWithoutRule((r) => r.languages.includes('ruby'))).toEqual([]);
   });
 
   it('contributing forbids the three rule sets', () => {

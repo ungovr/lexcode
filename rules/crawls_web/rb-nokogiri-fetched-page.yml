@@ -8,7 +8,7 @@ rules:
           $NK(...)
       - metavariable-regex:
           metavariable: $NK
-          regex: ^Nokogiri(::HTML5?(::Document)?(\.parse)?|\.HTML5?|\.parse)$
+          regex: ^Nokogiri(::HTML5?(::Document)?(\.parse)?|\.HTML5?)$
       - pattern-either:
           - patterns:
               - pattern-either:

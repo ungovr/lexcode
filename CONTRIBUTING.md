@@ -10,6 +10,30 @@ with the fixtures first: a positive fixture showing the act, and a negative
 fixture for every exclusion the definition names. A rule that fires on a
 negative fixture cannot merge.
 
+A `pattern-regex` conjunct is an anchor: it lets the engine skip files that
+cannot match, which on a large Ruby codebase is the difference between seconds
+and minutes. It must admit every shape the rule's own patterns match: no
+required `(` after a method name (and an empty `()` allowed after a no-arg
+one), no fixed list of method names where the rule takes any, receiver words in
+any case, and `&.` as well as `.`. Between the two tokens of a call, and
+between the receiver and the dot, the anchors use the possessive separator
+`(?:\s|\\|#[^\n]*+)*+`: white space, a `\` continuation or a comment line.
+Because it is possessive it consumes the space before the next token, so a
+token that needs its own leading space is written `(?<=\s)token`, not
+`\s+token`.
+The positive fixture carries one paren-less line and one multi-line line
+(arguments over several lines, or a chain split on its dots) for each call the
+anchor names, because a fixture written with parentheses on one line cannot
+see a narrow anchor.
+
+`test/anchors.test.ts` checks that the anchors admit what the fixtures hold.
+For every Ruby rule with an anchor it runs the rule and a copy without the
+anchor over the rule's own positive fixture, and fails on any line the copy
+matches that the rule does not. It does not check that a fixture carries the
+shapes above, so that part is the author's: a shape missing from the fixture
+is a shape the check cannot see. A rule whose regex is the matcher or the
+selector, not a pre-filter, is listed in that test with its reason.
+
 ## Never copy a rule from another rule set
 
 Do not copy, translate or adapt any rule, pattern, fixture or message from
@@ -30,9 +54,9 @@ would end that for the whole set. Every rule says so in its metadata:
 
 ## Adding a package to the component map
 
-The component map (`rules/components/npm.yml`, `pypi.yml`, `go.yml`, `gem.yml`) says which
-activities a well-known package enables. It is written by hand, one entry per
-package, and nothing adds to it on its own:
+The component map (`rules/components/npm.yml`, `pypi.yml`, `go.yml`,
+`gem.yml`) says which activities a well-known package enables. It is
+written by hand, one entry per package, and nothing adds to it on its own:
 
 1. Find candidates with `lexcode deps <repo>... --unmapped`, run over several
    repositories: it lists every package the map does not know, the ones most
@@ -45,10 +69,59 @@ package, and nothing adds to it on its own:
 3. `says` quotes the vendor's own description of the package, verbatim, and
    `source` is the https page that holds it (the registry page, or the
    package's README in its published tarball when the registry page says too
-   little). `enables` lists activity ids whose class in `classes.yml` is
-   `evidence`.
+   little). When the description runs long, `says` may quote whole sentences
+   from its start, up to a sentence boundary, and drop the rest; it never cuts
+   inside a sentence or rewords one. `enables` lists activity ids whose class
+   in `classes.yml` is `evidence`.
 4. `npm test` checks the shape of every entry: no duplicates, known evidence
    ids, a quote and an https source.
+
+## Naming rules and fixtures
+
+A rule's id is `lexcode.<activity-short>.<what>`, where `<activity-short>` is
+the short name the activity's other rules already use (`crawl`, `outreach`,
+`chatbot`, `voice`, and so on). The file is `rules/<activity>/<what>.yml`, with a
+positive fixture `<what>.test.<ext>` and a negative fixture
+`<what>.neg.test.<ext>` beside it. TypeScript and JavaScript rules take the bare
+`<what>`. A rule for another language often says so in its name, as a suffix for
+Python (`-py`) and Go (`-go`) when a TypeScript rule already holds the bare
+name. Ruby rules always carry a prefix:
+
+| Language | Rule `<what>` part | File and fixtures |
+|---|---|---|
+| TypeScript, JavaScript | `<what>` | `<what>.yml`, `.test.ts`, `.neg.test.ts` |
+| Python | `<what>-py` (usual) | `<what>-py.yml`, `.test.py`, `.neg.test.py` |
+| Go | `<what>-go` (usual) | `<what>-go.yml`, `.test.go`, `.neg.test.go` |
+| Ruby | `rb-<what>` | `rb-<what>.yml`, `.test.rb`, `.neg.test.rb` |
+
+A Ruby rule is `lexcode.<activity-short>.rb-<what>`, file
+`rules/<activity>/rb-<what>.yml`, fixtures `rb-<what>.test.rb` and
+`rb-<what>.neg.test.rb`, and `languages: [ruby]`.
+
+## Performance tests
+
+A performance test checks a scaling ratio or a work counter, never a fixed
+time. CI runners differ in speed several-fold (a shared macOS runner once took
+2.8 seconds on a test budgeted at 2), so "under 2 seconds"
+passes on one runner and fails on the next with no code change, and a budget
+loose enough to be safe everywhere misses real regressions.
+
+Time the same function on N and 10N inputs inside one test and assert the
+ratio. Linear code costs about 10x and quadratic code about 100x, on any
+machine, so a bound of 30x separates them. `test/helpers/scaling.ts` does this:
+`measureScaling` warms up, takes the minimum of several repetitions per size,
+and loops a call that runs under 5 ms so the clock is not the noise; a ratio
+over the bound is measured again, up to three times in all, and the lowest
+counts, because runner noise only adds time and comes and goes while a
+quadratic regression is over the bound every time. `expectNearLinear` asserts
+the ratio. Keep the existing correctness assertions
+on the result it returns. Where the code has a natural counter (lines scanned,
+lookups made), assert the count instead. If a ratio test flakes, fix the
+measurement method; never widen the bound or skip the platform.
+
+A deadline test (an engine that outlives its deadline is stopped) is not a
+performance test, and its time bound only has to be far above the deadline it
+checks.
 
 ## Running the tests
 

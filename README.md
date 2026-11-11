@@ -58,14 +58,20 @@ named `test`, `tests`, `__tests__`, `spec`, `fixtures` or `testdata` unless you
 pass `--include-tests`. `app.scope` in `lexlint.yml` narrows the read, as the
 lint reads it.
 
-Languages: TypeScript, JavaScript (with JSX and TSX), Python and Go, plus the
-`<script>` blocks of Vue, Svelte, HTML and Jinja files. Code in any other
-language (Ruby, PHP, Java, Kotlin, Swift, C#, Rust and the like) is not read,
-and the scan names each such language with its file count in a notice, so a
-missing activity there reads as "not checked", never as "not there". Manifests: npm
+Languages: TypeScript, JavaScript (with JSX and TSX), Python, Go and Ruby
+(`.rb`, `.rake`, `.ru` and `.gemspec` files, and a `Rakefile`, `Fastfile`,
+`Appfile` or `Capfile`), plus the `<script>` blocks of Vue, Svelte, HTML,
+Jinja and ERB (`.erb`, so `.html.erb`) files. In an ERB view only the
+`<script>` blocks are read, as JavaScript; the Ruby inside the ERB tags is not
+(the tags are blanked, so line numbers hold). Code in any other language (PHP,
+Java, Kotlin, Swift, C#, Rust and the like) is not read, and the scan names
+each such language with its file count in a notice, so a missing activity
+there reads as "not checked", never as "not there". Manifests: npm
 (`package.json` with `package-lock.json`, `pnpm-lock.yaml` or `yarn.lock`),
-PyPI (`pyproject.toml`, `requirements*.txt`, `uv.lock`, `poetry.lock`) and Go
-(`go.mod`).
+PyPI (`pyproject.toml`, `requirements*.txt`, `uv.lock`, `poetry.lock`), Go
+(`go.mod`) and RubyGems (`Gemfile` or `gems.rb`, with `Gemfile.lock` or
+`gems.locked`, and `*.gemspec`). How Ruby and gems are read, in detail, is in
+[rules/README.md](rules/README.md).
 
 ## What it writes
 

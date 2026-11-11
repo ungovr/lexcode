@@ -71,3 +71,16 @@ class Account < ApplicationRecord
     invoices.create(period: Date.current)
   end
 end
+
+class TrainingScheduler
+  # An LMS enrolling an employee on a course: a "training job" here is a calendar booking.
+  def self.create_training_job(course:, employee:)
+    Enrollment.create!(course: course, employee: employee)
+  end
+end
+
+class EnrollmentsController < ApplicationController
+  def create
+    TrainingScheduler.create_training_job(course: Course.find(params[:course_id]), employee: current_user)
+  end
+end

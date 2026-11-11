@@ -3,10 +3,13 @@ import path from 'node:path';
 import { ToolError } from '../errors.js';
 
 // Opengrep has no Vue or Svelte parser (design section 6.10), so a JS or TS
-// rule never reads those files, nor the scripts inside an HTML or Jinja page.
+// rule never reads those files, nor the scripts inside an HTML or Jinja page
+// or an ERB view (`.erb`, whose ERB tags are blanked first).
 // lexcode copies each qualifying <script> body into a temporary file in which
 // every other character is a space (line breaks kept), so a finding's line
 // number is the line in the original file, and scans that.
+// Ruby files the engine will not take by name are copied whole instead: see
+// RUBY_BASENAMES and RUBY_COPY_EXTENSIONS below.
 
 const JSP_EXTENSIONS = new Set(['.jsp', '.jspf', '.tag']);
 const EXTRACT_EXTENSIONS = new Set([

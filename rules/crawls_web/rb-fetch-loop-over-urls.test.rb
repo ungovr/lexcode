@@ -1,4 +1,4 @@
-# lexcode-expect: 14
+# lexcode-expect: 19
 require "net/http"
 require "open-uri"
 require "faraday"
@@ -74,5 +74,33 @@ class PagePuller
 
   def in_parallel(urls)
     Parallel.map(urls, in_threads: 4) { |u| HTTParty.get(u) }
+  end
+end
+
+# Shapes the anchor must admit: a leading-dot chain, a trailing dot and safe navigation.
+class ChainShapesFetch
+  def run(urls)
+    urls.each do |url|
+      URI&.parse(url)&.open&.read
+      URI.parse(url).
+        open.
+        read
+      URI.parse(url)
+        .open
+        .read
+    end
+  end
+end
+
+# Shapes the anchor must also admit: an empty () after a no-arg method, a comment line or a
+# backslash between the two tokens, and (schema, Mailchimp) text after or far from the key.
+class ResidualShapesFetch
+  def run(urls)
+    urls.each do |url|
+      URI.parse(url) # the feed
+        .read
+      URI.parse(url) \
+        .open
+    end
   end
 end
