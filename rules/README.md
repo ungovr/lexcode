@@ -82,11 +82,11 @@ printed, never gated.
 ### Sakai, read with Java and the Maven manifest
 
 Measured 2026-11-11 over `sakaiproject/sakai` at commit `f86a5cb`, with lexcode
-`v1.2` (branch build at commit `28177a1`), against a reading of the same
+`v1.2` (branch build at commit `703f059`), against a reading of the same
 commit by an agent that had not seen the Java rules (the key's own header calls
 it unreviewed), kept unchanged. The reading includes 11 activities from code, marks 12 as
 absent and leaves 3 unsure. lexcode read 17,074 files (6,561 of them Java) and
-1,067 script copies drawn from HTML, JSP and Vue files, in 131 seconds and
+1,067 script copies drawn from HTML, JSP and Vue files, in 141 seconds and
 1.6 GB, and the check reports 0 FAIL.
 
 **Score: 7 of 11 found at evidence strength, one of them on other evidence, 1 signal only, 3 missed. No
@@ -130,11 +130,11 @@ dependencies recorded without a version, and the engine could not read 17 files
 ### Canvas Student, Teacher and Parent for Android, read with Kotlin and Gradle
 
 Measured 2026-11-11 over `instructure/canvas-android` at commit `896f61f`, with
-lexcode `v1.2` (branch build at commit `28177a1`), against a reading of
+lexcode `v1.2` (branch build at commit `703f059`), against a reading of
 the same commit by an agent that had not seen the Kotlin rules (the key's own
 header calls it unreviewed), kept unchanged. The reading includes 11 activities
 from code, marks 13 as absent and leaves 2 unsure. lexcode read 7,018 files (the `androidTest`
-files are not read by default, and 25 symbolic links are skipped) in 35 seconds
+files are not read by default, and 25 symbolic links are skipped) in 43 seconds
 and 2.0 GB, and the check reports 0 FAIL.
 
 **Score: 5 of 11 found at evidence strength, 1 signal only, 5 missed. One miss is
