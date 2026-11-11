@@ -18,6 +18,8 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import javax.servlet.http.HttpServletRequest;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.web.multipart.MultipartFile;
 
 // The application's own feed: producing it, reading it back from disk, and testing against loopback.
 public class OwnFeed {
@@ -64,15 +66,38 @@ public class OwnFeed {
     public SyndFeed fromOwnDevFetcher(FeedFetcher fetcher) throws Exception {
         return fetcher.retrieveFeed(new URL("http://localhost:8080/feed.xml"));
     }
+
+    // Local resources that read through the same method names.
+    public SyndFeed fromClasspath() throws IOException, FeedException {
+        return new SyndFeedInput().build(new XmlReader(new ClassPathResource("sample-feed.xml").getInputStream()));
+    }
+
+    public SyndFeed fromFileUrl(File f) throws IOException, FeedException {
+        return new SyndFeedInput().build(new XmlReader(f.toURI().toURL()));
+    }
+
+    public SyndFeed fromFileScheme(String path) throws IOException, FeedException {
+        return new SyndFeedInput().build(new XmlReader(new URL("file:" + path)));
+    }
+
+    public SyndFeed fromFileSchemeStream() throws IOException, FeedException {
+        return new SyndFeedInput().build(new XmlReader(new URL("file:/srv/feeds/seed.xml").openStream()));
+    }
+
+    public SyndFeed fromMultipart(MultipartFile upload) throws IOException, FeedException {
+        return new SyndFeedInput().build(new XmlReader(upload.getInputStream()));
+    }
 }
 
 class Importer {
-    // The project's own method with a name the library also uses.
+    // The project's own method with a name the library also uses, called with a receiver.
     Object retrieveFeed(String path) {
         return path.trim();
     }
 
-    Object run() {
-        return retrieveFeed("seed.xml");
+    Object run(Importer importer, Importer receiver) {
+        importer.retrieveFeed("seed.xml");
+        receiver.retrieveFeed("x");
+        return this.retrieveFeed("seed.xml");
     }
 }

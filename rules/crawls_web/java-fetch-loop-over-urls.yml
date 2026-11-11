@@ -4,6 +4,10 @@ rules:
     severity: INFO
     message: Fetches each URL in a list held in a variable, which may be crawling sites the operator does not run (crawls_web).
     patterns:
+      # A pre-filter: the `$C.get($URL)` arm below takes its receiver from a regular expression,
+      # which has no literal of its own, so without this the engine parses every Java file. It
+      # names a token of every call the arms below can match.
+      - pattern-regex: '(newBuilder\(URI\.create|\.uri\(|new URL\(|getForObject|getForEntity|headForHeaders|Request\.Builder|HttpGet\b|HttpHead\b|Unirest\.(get|head)|\w*([cC]lient|[hH]ttp)\w*\.get\(\w)'
       - pattern-either:
           - pattern-inside: |
               for ($T $URL : $L) {

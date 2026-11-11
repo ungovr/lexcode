@@ -4,6 +4,10 @@ rules:
     severity: INFO
     message: Drives a headless browser to open page after page in a loop, which is crawling the web (crawls_web).
     patterns:
+      # A pre-filter: the browser receiver below is a metavariable with a regular expression, which
+      # has no literal of its own, so without this the engine parses every Java file. It names a
+      # token of every call the arms below can match, and the receiver words of the `get` arm.
+      - pattern-regex: '(\.navigate\(|\bgetPage\(|(?i:driver|headless)\w*\.get\(|\bwd\.get\(|\bbrowser\.get\()'
       - pattern-either:
           - pattern-inside: |
               for ($T $X : $L) {
@@ -52,7 +56,6 @@ rules:
               - metavariable-regex:
                   metavariable: $D
                   regex: ^(this\.)?(\w*[wW]ebClient|\w*[hH]tmlUnit\w*)$
-          - pattern: (WebDriver $D).get($URL)
           - pattern: (WebDriver $D).navigate().to($URL)
           - pattern: (Page $D).navigate($URL)
           - pattern: (WebClient $D).getPage($URL)

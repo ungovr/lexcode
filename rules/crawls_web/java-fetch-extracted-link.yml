@@ -4,6 +4,9 @@ rules:
     severity: INFO
     message: Fetches a link taken from a page it has read (an anchor's href, an image's src), which is following links from site to site, crawling the web (crawls_web).
     patterns:
+      # A pre-filter: the link metavariable is a regular expression, which has no literal of its
+      # own, so without this the engine parses every Java file. It names the link read in the argument.
+      - pattern-regex: '(absUrl\(|attr\("(abs:)?(href|src)"\)|getAttribute\("(href|src)"\))'
       - pattern-either:
           - pattern: HttpRequest.newBuilder(URI.create($LINK))
           - pattern: $B.uri(URI.create($LINK))
