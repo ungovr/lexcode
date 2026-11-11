@@ -12,9 +12,17 @@ class SessionsController < ApplicationController
   end
 
   def record
-    visit = Visit.find_or_initialize_by(token: params[:token])
-    visit.ip_address = request.remote_ip
-    visit.save!
+    Visit.from_request(request)
+  end
+end
+
+# An assignment inside an ActiveRecord model sets a column.
+class Visit < ApplicationRecord
+  def self.from_request(request)
+    new(path: request.path).tap do |visit|
+      visit.ip_address = request.remote_ip
+      visit.save!
+    end
   end
 end
 

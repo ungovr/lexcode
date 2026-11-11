@@ -35,6 +35,38 @@ class RateLimiter
   end
 end
 
+# A plain object that carries the address to a check and is then dropped. It is not a model:
+# nothing here has a column.
+class QuizParticipant
+  attr_accessor :access_code, :ip_address
+end
+
+class QuizSubmissionsFilter < ApplicationController
+  def prepare_service
+    participant = QuizParticipant.new
+    participant.access_code = params[:access_code]
+    participant.ip_address = request.remote_ip
+    QuizEligibility.new(participant).ip_allowed?
+  end
+end
+
+# Request-scoped state: gone when the request ends.
+class Current < ActiveSupport::CurrentAttributes
+  attribute :ip_address
+end
+
+class CaptureCurrent < ApplicationController
+  before_action { Current.ip_address = request.ip }
+end
+
+# An in-memory counter keyed by the address.
+class Counter < ApplicationController
+  def hit
+    @counts ||= {}
+    @counts.update(request.remote_ip => 1)
+  end
+end
+
 # Logging and storing without the address.
 class OrdersController < ApplicationController
   def create
