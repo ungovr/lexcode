@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readdirSync, readFileSync, statSync, existsSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { basename, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse } from 'yaml';
 import { bundledRulesDir, loadRuleSet } from '../src/rules/load.js';
@@ -66,6 +66,23 @@ describe('release: the rule set is complete and well formed', () => {
   // language adds one line like this.
   it('every evidence-class id has a Ruby rule', () => {
     expect(evidenceIdsWithoutRule((r) => r.languages.includes('ruby'))).toEqual([]);
+  });
+
+  // Java and Kotlin (v1.2, Decision 14). The one Java exemption is
+  // distributes_software_product, whose JVM evidence lives in build files: it
+  // is met by a maven- or gradle- rule instead of a Java source rule. Kotlin has
+  // no exemption (the gradle-kts- rules read as Kotlin).
+  it('every evidence-class id has a Java rule', () => {
+    const buildFileRule = (r: RuleMeta): boolean => /^(?:maven|gradle)-/.test(basename(r.file));
+    expect(
+      evidenceIdsWithoutRule(
+        (r) => r.languages.includes('java') || (r.activity === 'distributes_software_product' && buildFileRule(r)),
+      ),
+    ).toEqual([]);
+  });
+
+  it('every evidence-class id has a Kotlin rule', () => {
+    expect(evidenceIdsWithoutRule((r) => r.languages.includes('kotlin'))).toEqual([]);
   });
 
   // The engine's `paths` excludes are unanchored globs, so `**/samples/**`
