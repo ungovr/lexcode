@@ -5,6 +5,8 @@ rules:
     message: Defines a follow or friendship relation between user accounts (a follower and followed pair, a friendship entity, or a finder keyed on the follower), which is how people connect on a social platform (operates_social_platform).
     pattern-either:
       - patterns:
+          - pattern-regex: '(?s)\A(?=[\s\S]*?(?:\bfollower))[\s\S]*'
+          - pattern-regex: '(?s)\A(?=[\s\S]*?(?:followed|followee|following))[\s\S]*'
           - pattern-either:
               - pattern: $T $F;
               - pattern: $T $F = $V;
@@ -22,6 +24,7 @@ rules:
               metavariable: $G
               regex: '^follower(User|Account|Member|Profile)?(Id)?$'
       - patterns:
+          - pattern-regex: '(?s)\A(?=[\s\S]*?(?:Friendship|FriendRequest|FriendConnection|UserFriend)\b)[\s\S]*'
           - pattern: class $C { ... }
           - metavariable-regex:
               metavariable: $C
