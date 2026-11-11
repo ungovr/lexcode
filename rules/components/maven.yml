@@ -131,16 +131,6 @@ entries:
     enables: [crawls_web]
     says: "Java library to automate Chromium, Firefox and WebKit with a single API."
     source: https://central.sonatype.com/artifact/com.microsoft.playwright/playwright
-  - match: "org.seleniumhq.selenium:selenium-java"
-    enables: [crawls_web]
-    says: "Selenium automates browsers. That's it! What you do with that power is entirely up to you."
-    source: https://central.sonatype.com/artifact/org.seleniumhq.selenium/selenium-java
-
-  # Feed readers
-  - match: "com.rometools:rome"
-    enables: [aggregates_content]
-    says: "ROME is a set of Atom/RSS Java utilities that make it easy to work in Java with most syndication formats."
-    source: https://central.sonatype.com/artifact/com.rometools/rome
 
   # Email, SMS and push senders
   - match: "nl.martijndwars:web-push"
