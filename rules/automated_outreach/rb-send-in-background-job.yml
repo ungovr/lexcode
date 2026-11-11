@@ -1,0 +1,57 @@
+rules:
+  - id: lexcode.outreach.rb-send-in-background-job
+    languages: [ruby]
+    severity: INFO
+    message: Sends a message from a queue worker, an ActiveJob or a notifier method, where the code does not show whether a person asked for it, which may be sending automated outreach (automated_outreach).
+    patterns:
+      - pattern-either:
+          - pattern-inside: |
+              class $CLS < ApplicationJob
+                ...
+              end
+          - pattern-inside: |
+              class $CLS < ActiveJob::Base
+                ...
+              end
+          - pattern-inside: |
+              class $CLS
+                ...
+                include Sidekiq::Worker
+                ...
+              end
+          - pattern-inside: |
+              class $CLS
+                ...
+                include Sidekiq::Job
+                ...
+              end
+          - pattern-inside: |
+              def self.perform(...)
+                ...
+              end
+          - patterns:
+              - pattern-inside: |
+                  def $NAME(...)
+                    ...
+                  end
+              - metavariable-regex:
+                  metavariable: $NAME
+                  regex: '(?i)^(?!.*devise)(.*(notif|alert|digest|remind|newsletter|broadcast|campaign|announce|blast|outreach|weekly|daily|marketing|drip|status_?change|status_?update|on_status).*)$'
+      - pattern-either:
+          - pattern: $X.deliver_now
+          - pattern: $X.deliver_now(...)
+          - pattern: $X.deliver_now!
+          - pattern: $X.deliver_later
+          - pattern: $X.deliver_later(...)
+          - pattern: $X.deliver_later!
+          - pattern: $S.send_email(...)
+          - pattern: $S.send_templated_email(...)
+          - pattern: Resend::Emails.send(...)
+          - pattern: '$C.messages.create(..., to: $TO, ...)'
+    metadata:
+      activity: automated_outreach
+      mentioned: performs
+      definition: https://lexlint.io/activities/automated-outreach
+      provenance: ungovr-original
+      license: MIT
+      strength: signal

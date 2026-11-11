@@ -1,0 +1,25 @@
+rules:
+  - id: lexcode.outreach.rb-sms-call-push-send
+    languages: [ruby]
+    severity: INFO
+    message: Sends a text, places a call or pushes a notification, where the code does not show whether a person just asked for it, which may be sending automated outreach (automated_outreach).
+    pattern-either:
+      - patterns:
+          - pattern: '$C.messages.create(..., to: $TO, ...)'
+          - pattern-not-regex: (?is)(code|otp|verif|passcode|password|\bpin\b)
+      - pattern: '$C.calls.create(..., to: $TO, ...)'
+      - pattern: Webpush.payload_send(...)
+      - pattern: Rpush::$K::Notification.create!(...)
+      - pattern: Rpush::$K::Notification.create(...)
+      - pattern: $X.send_sms(...)
+      - pattern: send_sms(...)
+      - pattern: '$S.publish(..., phone_number: $N, ...)'
+      - pattern: $V.sms.send(...)
+      - pattern: Telnyx::Message.create(...)
+    metadata:
+      activity: automated_outreach
+      mentioned: performs
+      definition: https://lexlint.io/activities/automated-outreach
+      provenance: ungovr-original
+      license: MIT
+      strength: signal

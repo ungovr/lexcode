@@ -1,0 +1,117 @@
+# Not a taint rule on purpose: the engine reads every file for a taint rule and only the files
+# that contain a model call for a pattern rule. The cost is that a value passed through a helper
+# method before the call is not followed; a local variable assigned from the request, or from an
+# ActionCable channel's data hash, is.
+rules:
+- id: lexcode.chatbot.rb-request-messages-to-model
+  languages:
+  - ruby
+  severity: INFO
+  message: Passes the conversation, or the message, that a person sent in a request or over a channel to a language model, which is deploying a chatbot (deploys_chatbot).
+  patterns:
+  - pattern-either:
+    - patterns:
+      - pattern-either:
+        - pattern: '$C.chat(parameters: {..., messages: $X, ...})'
+        - pattern: '$C.chat({..., messages: $X, ...})'
+        - pattern: '$C.chat(..., messages: $X, ...)'
+        - pattern: '$C.messages(parameters: {..., messages: $X, ...})'
+        - pattern: '$C.chat.completions.create(..., messages: $X, ...)'
+        - pattern: '$C.messages.create(..., messages: $X, ...)'
+        - pattern: '$C.messages.stream(..., messages: $X, ...)'
+        - pattern: '$C.converse(..., messages: $X, ...)'
+        - pattern: '$C.responses.create(..., input: $X, ...)'
+      - metavariable-regex:
+          metavariable: $X
+          regex: (?s)^.*\b(params|data|message_params|messages_params|chat_params|chat_message_params|conversation_params)\b.*[\[\s(,](:|["\'])(messages|message|user_message|chat_message|question|history|chat_history|conversation|conversation_history|thread)\b.*$
+    - patterns:
+      - pattern-either:
+        - pattern: '$C.chat(parameters: {..., messages: $X, ...})'
+        - pattern: '$C.chat({..., messages: $X, ...})'
+        - pattern: '$C.chat(..., messages: $X, ...)'
+        - pattern: '$C.messages(parameters: {..., messages: $X, ...})'
+        - pattern: '$C.chat.completions.create(..., messages: $X, ...)'
+        - pattern: '$C.messages.create(..., messages: $X, ...)'
+        - pattern: '$C.messages.stream(..., messages: $X, ...)'
+        - pattern: '$C.converse(..., messages: $X, ...)'
+        - pattern: '$C.responses.create(..., input: $X, ...)'
+      - pattern-either:
+        - pattern-inside: '$X = params[$K]
+
+            ...
+
+            '
+        - pattern-inside: '$X = params.dig(..., $K)
+
+            ...
+
+            '
+        - pattern-inside: '$X = params.fetch($K, ...)
+
+            ...
+
+            '
+        - pattern-inside: '$X = params.require($K)
+
+            ...
+
+            '
+        - pattern-inside: '$X = params[...][$K]
+
+            ...
+
+            '
+        - pattern-inside: '$X = chat_params[$K]
+
+            ...
+
+            '
+        - pattern-inside: '$X = message_params[$K]
+
+            ...
+
+            '
+      - metavariable-regex:
+          metavariable: $K
+          regex: ^:?["\']?(messages|message|user_message|chat_message|question|history|chat_history|conversation|conversation_history|thread)["\']?$
+    - patterns:
+      - pattern-either:
+        - pattern: '$C.chat(parameters: {..., messages: $X, ...})'
+        - pattern: '$C.chat({..., messages: $X, ...})'
+        - pattern: '$C.chat(..., messages: $X, ...)'
+        - pattern: '$C.messages(parameters: {..., messages: $X, ...})'
+        - pattern: '$C.chat.completions.create(..., messages: $X, ...)'
+        - pattern: '$C.messages.create(..., messages: $X, ...)'
+        - pattern: '$C.messages.stream(..., messages: $X, ...)'
+        - pattern: '$C.converse(..., messages: $X, ...)'
+        - pattern: '$C.responses.create(..., input: $X, ...)'
+      - pattern-either:
+        - pattern-inside: '$X = data[$K]
+
+            ...
+
+            '
+        - pattern-inside: '$X = data.dig(..., $K)
+
+            ...
+
+            '
+        - pattern-inside: '$X = data.fetch($K, ...)
+
+            ...
+
+            '
+        - pattern-inside: '$X = data.require($K)
+
+            ...
+
+            '
+      - metavariable-regex:
+          metavariable: $K
+          regex: ^:?["\']?(messages|message|user_message|chat_message|question|history|chat_history|conversation|conversation_history|thread)["\']?$
+  metadata:
+    activity: deploys_chatbot
+    mentioned: performs
+    definition: https://lexlint.io/activities/deploys-chatbot
+    provenance: ungovr-original
+    license: MIT

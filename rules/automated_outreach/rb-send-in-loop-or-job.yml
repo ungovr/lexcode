@@ -1,0 +1,82 @@
+rules:
+  - id: lexcode.outreach.rb-send-in-loop-or-job
+    languages: [ruby]
+    severity: INFO
+    message: Sends an email, text or call once per recipient in a loop, or from a rake task or scheduler block that no user action triggers, which is sending automated outreach (automated_outreach).
+    patterns:
+      - pattern-either:
+          - patterns:
+              - pattern-inside: |
+                  $L.$ITER do |...|
+                    ...
+                  end
+              - metavariable-regex:
+                  metavariable: $ITER
+                  regex: ^(each|each_with_index|each_with_object|each_slice|each_cons|each_entry|find_each|find_in_batches|in_batches|each_batch|map|flat_map|filter_map|collect|reverse_each|each_pair)$
+              - metavariable-regex:
+                  metavariable: $L
+                  regex: '(?is)^(?!.*(relay|host|server|retr|attempt|backoff|endpoint|smtp|fallback|provider|transport|mirror|failover|\bports?\b)).*$'
+          - patterns:
+              - pattern-inside: |
+                  for $LV in $L
+                    ...
+                  end
+              - metavariable-regex:
+                  metavariable: $L
+                  regex: '(?is)^(?!.*(relay|host|server|retr|attempt|backoff|endpoint|smtp|fallback|provider|transport|mirror|failover|\bports?\b)).*$'
+          - pattern-inside: |
+              task ... do
+                ...
+              end
+          - patterns:
+              - pattern-either:
+                  - pattern-inside: |
+                      $SCH.every(...) do
+                        ...
+                      end
+                  - pattern-inside: |
+                      $SCH.cron(...) do
+                        ...
+                      end
+                  - pattern-inside: |
+                      every(...) do
+                        ...
+                      end
+      - pattern-either:
+          - pattern: $X.deliver_now
+          - pattern: $X.deliver_now(...)
+          - pattern: $X.deliver_now!
+          - pattern: $X.deliver_later
+          - pattern: $X.deliver_later(...)
+          - pattern: $X.deliver_later!
+          - patterns:
+              - pattern-either:
+                  - pattern: $M.$ACT(...).deliver
+                  - pattern: $M.$ACT.deliver
+              - metavariable-regex:
+                  metavariable: $M
+                  regex: ^.*(Mailer|Mail)$
+          - pattern: $S.send_email(...)
+          - pattern: $S.send_templated_email(...)
+          - pattern: $S.send_raw_email(...)
+          - pattern: $P.deliver_with_template(...)
+          - patterns:
+              - pattern: $P.deliver(...)
+              - metavariable-regex:
+                  metavariable: $P
+                  regex: (?i)^.*(postmark|mailer|mailgun|sendgrid).*$
+          - pattern: Resend::Emails.send(...)
+          - pattern: '$C.messages.create(..., to: $TO, ...)'
+          - pattern: '$C.calls.create(..., to: $TO, ...)'
+          - patterns:
+              - pattern: $S.send_message(...)
+              - pattern-not: '$S.send_message(..., queue_url: ..., ...)'
+              - metavariable-regex:
+                  metavariable: $S
+                  regex: (?i)^(\w*smtp\w*|\w*mail\w*|\w*gun\w*|\w*bot\w*|@\w*mail\w*|@\w*smtp\w*)$
+    metadata:
+      activity: automated_outreach
+      mentioned: performs
+      definition: https://lexlint.io/activities/automated-outreach
+      provenance: ungovr-original
+      license: MIT

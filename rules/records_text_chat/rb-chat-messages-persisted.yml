@@ -1,0 +1,70 @@
+rules:
+  - id: lexcode.chat.rb-chat-messages-persisted
+    languages: [ruby]
+    severity: INFO
+    message: Writes what a person typed in a request or over a channel to a conversation or message record, which is keeping a text chat (records_text_chat).
+    # Not a taint rule on purpose: the engine reads every file for a taint rule and only the files
+    # that contain the sink for a pattern rule, and this sink is rare. The cost is that a value
+    # copied into a local variable before the write is not followed.
+    patterns:
+      - pattern-either:
+          - patterns:
+              - pattern-either:
+                  - pattern: $CHAT.messages.create($...ARGS)
+                  - pattern: $CHAT.messages.create!($...ARGS)
+                  - pattern: $CHAT.add_message($...ARGS)
+                  - pattern: $CHAT.post_message($...ARGS)
+              - metavariable-regex:
+                  metavariable: $CHAT
+                  regex: (?i)^.*(chat|conversation|room|thread|channel|transcript|dialog|inbox).*$
+              - metavariable-regex:
+                  metavariable: $...ARGS
+                  regex: (?s)^.*\b(params|message_params|messages_params|chat_params|chat_message_params|conversation_params)\b.*$
+          - patterns:
+              - pattern-either:
+                  - pattern: ChatMessage.create($...ARGS)
+                  - pattern: ChatMessage.create!($...ARGS)
+                  - pattern: ChatMessages.create($...ARGS)
+                  - pattern: ChatMessages.create!($...ARGS)
+                  - pattern: Chat::Message.create($...ARGS)
+                  - pattern: Chat::Message.create!($...ARGS)
+                  - pattern: Chats::Message.create($...ARGS)
+                  - pattern: Chats::Message.create!($...ARGS)
+                  - pattern: ConversationMessage.create($...ARGS)
+                  - pattern: ConversationMessage.create!($...ARGS)
+                  - pattern: Conversation.create($...ARGS)
+                  - pattern: Conversation.create!($...ARGS)
+                  - pattern: Conversations::Message.create($...ARGS)
+                  - pattern: Conversations::Message.create!($...ARGS)
+                  - pattern: Chat.create($...ARGS)
+                  - pattern: Chat.create!($...ARGS)
+                  - pattern: ChatTurn.create($...ARGS)
+                  - pattern: ChatTurn.create!($...ARGS)
+                  - pattern: Transcript.create($...ARGS)
+                  - pattern: Transcript.create!($...ARGS)
+                  - pattern: TranscriptEntry.create($...ARGS)
+                  - pattern: TranscriptEntry.create!($...ARGS)
+                  - pattern: LiveChatMessage.create($...ARGS)
+                  - pattern: LiveChatMessage.create!($...ARGS)
+              - metavariable-regex:
+                  metavariable: $...ARGS
+                  regex: (?s)^.*\b(params|message_params|messages_params|chat_params|chat_message_params|conversation_params)\b.*$
+          - patterns:
+              - pattern-inside: |
+                  class $CLS < ApplicationCable::Channel
+                    ...
+                  end
+              - pattern-either:
+                  - pattern: $K.create($...ARGS)
+                  - pattern: $K.create!($...ARGS)
+                  - pattern: $CHAT.messages.create($...ARGS)
+                  - pattern: $CHAT.messages.create!($...ARGS)
+              - metavariable-regex:
+                  metavariable: $...ARGS
+                  regex: (?s)^.*\bdata\b.*$
+    metadata:
+      activity: records_text_chat
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-text-chat
+      provenance: ungovr-original
+      license: MIT
