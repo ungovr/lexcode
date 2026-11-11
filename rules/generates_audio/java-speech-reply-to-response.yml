@@ -6,10 +6,11 @@ rules:
     mode: taint
     pattern-sources:
       - pattern: $C.audio().speech().create(...)
-      - pattern: $S.SpeakText(...)
-      - pattern: $S.SpeakTextAsync(...)
-      - pattern: $S.SpeakSsml(...)
-      - pattern: $S.SpeakSsmlAsync(...)
+      - patterns:
+          - pattern: $S.$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(SpeakText|SpeakTextAsync|SpeakSsml|SpeakSsmlAsync)$
       - patterns:
           - pattern: ($T $M).$F(...)
           - metavariable-regex:
@@ -76,18 +77,13 @@ rules:
               regex: '^(?!(ResponseEntity|Response|ServerResponse)\.)'
           - focus-metavariable: $X
       - pattern: ResponseEntity.ok($X)
-      - pattern: ResponseEntity.$S(...).body($X)
-      - pattern: ResponseEntity.$S(...).$T(...).body($X)
-      - pattern: ResponseEntity.$S(...).$T(...).$U(...).body($X)
+      - pattern: ResponseEntity.$S(...). ... .body($X)
       - pattern: new ResponseEntity<>($X, ...)
       - pattern: new ResponseEntity<$T>($X, ...)
-      - pattern: ServerResponse.$S(...).bodyValue($X)
-      - pattern: ServerResponse.$S(...).$T(...).bodyValue($X)
-      - pattern: ServerResponse.$S(...).body($X, ...)
-      - pattern: ServerResponse.$S(...).$T(...).body($X, ...)
+      - pattern: ServerResponse.$S(...). ... .bodyValue($X)
+      - pattern: ServerResponse.$S(...). ... .body($X, ...)
       - pattern: Response.ok($X)
-      - pattern: Response.$S(...).entity($X)
-      - pattern: Response.$S(...).$T(...).entity($X)
+      - pattern: Response.$S(...). ... .entity($X)
       - patterns:
           - pattern: $RESP.getWriter().$M(..., $X, ...)
           - metavariable-regex:
@@ -108,36 +104,35 @@ rules:
               metavariable: $M
               regex: ^(write|print|println|append|printf|format)$
       - patterns:
-          - pattern: (ServletOutputStream $O).$M(..., $X, ...)
-          - metavariable-regex:
-              metavariable: $M
-              regex: ^(write|print|println)$
-      - patterns:
           - pattern: $SRC.transferTo($RESP.getOutputStream())
           - focus-metavariable: $SRC
       - patterns:
           - pattern: $U.copy($SRC, $RESP.getOutputStream())
           - focus-metavariable: $SRC
-      - pattern: (SseEmitter $E).send($X)
-      - pattern: (ResponseBodyEmitter $E).send($X)
-      - pattern: (WebSocketSession $S).sendMessage(new TextMessage($X))
-      - pattern: (WebSocketSession $S).sendMessage(new BinaryMessage($X))
-      - pattern: $S.getBasicRemote().sendText($X)
-      - pattern: $S.getBasicRemote().sendBinary($X)
-      - pattern: $S.getAsyncRemote().sendText($X)
-      - pattern: $S.getAsyncRemote().sendBinary($X)
       - patterns:
-          - pattern: ($TT $T).$M(..., $X)
+          - pattern: ($TT $E).$M(..., $X, ...)
           - metavariable-regex:
               metavariable: $TT
-              regex: ^(SimpMessagingTemplate|SimpMessageSendingOperations|SimpMessagingOperations)$
+              regex: ^([\w.]+\.)?(SseEmitter|ResponseBodyEmitter|ServletOutputStream|HttpServerResponse|SimpMessagingTemplate|SimpMessageSendingOperations|SimpMessagingOperations|ChannelHandlerContext|Model|ModelMap|RedirectAttributes|ModelAndView|HttpServletRequest)$
           - metavariable-regex:
               metavariable: $M
-              regex: ^(convertAndSend|convertAndSendToUser)$
+              regex: ^(send|write|print|println|end|writeAndFlush|convertAndSend|convertAndSendToUser|addAttribute|addFlashAttribute|addObject|setAttribute)$
+      - patterns:
+          - pattern: (WebSocketSession $S).sendMessage(new $K($X))
+          - metavariable-regex:
+              metavariable: $K
+              regex: ^(TextMessage|BinaryMessage)$
+      - patterns:
+          - pattern: $S.$R().$M($X)
+          - metavariable-regex:
+              metavariable: $R
+              regex: ^(getBasicRemote|getAsyncRemote)$
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(sendText|sendBinary)$
       - patterns:
           - pattern: $S.next($X)
           - pattern-inside: Flux.create(...)
-      - pattern: (ChannelHandlerContext $C).writeAndFlush($X)
       - patterns:
           - pattern: $C.$M($X)
           - metavariable-regex:
@@ -150,14 +145,7 @@ rules:
       - pattern: $C.response().end($X)
       - pattern: $C.response().write($X)
       - pattern: $C.response().$H(...).end($X)
-      - pattern: (HttpServerResponse $R).end($X)
-      - pattern: (HttpServerResponse $R).write($X)
-      - pattern: (Model $M).addAttribute(..., $X)
-      - pattern: (ModelMap $M).addAttribute(..., $X)
-      - pattern: (RedirectAttributes $M).addFlashAttribute(..., $X)
-      - pattern: (ModelAndView $M).addObject(..., $X)
       - pattern: new ModelAndView(..., $X)
-      - pattern: (HttpServletRequest $R).setAttribute($K, $X)
       - pattern: $P.setDataSource($X)
       - patterns:
           - pattern: ($TT $T).write($X, ...)

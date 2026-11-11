@@ -9,32 +9,17 @@ rules:
       - pattern: $C.chat().completions().createStreaming(...)
       - patterns:
           - pattern-either:
-              - pattern: $C.responses().$M((ResponseCreateParams $P))
-              - pattern: $C.responses().$M(ResponseCreateParams.builder(). ... .build())
+              - pattern: $C.$K().$M(($PT $P))
+              - pattern: $C.$K().$M($PT.builder(). ... .build())
+          - metavariable-regex:
+              metavariable: $K
+              regex: ^(responses|completions|messages)$
           - metavariable-regex:
               metavariable: $M
               regex: ^(create|createStreaming)$
-      - patterns:
-          - pattern-either:
-              - pattern: $C.completions().$M((CompletionCreateParams $P))
-              - pattern: $C.completions().$M(CompletionCreateParams.builder(). ... .build())
           - metavariable-regex:
-              metavariable: $M
-              regex: ^(create|createStreaming)$
-      - patterns:
-          - pattern-either:
-              - pattern: $C.messages().$M((MessageCreateParams $P))
-              - pattern: $C.messages().$M(MessageCreateParams.builder(). ... .build())
-          - metavariable-regex:
-              metavariable: $M
-              regex: ^(create|createStreaming)$
-      - patterns:
-          - pattern-either:
-              - pattern: $C.messages().$M((BetaMessageCreateParams $P))
-              - pattern: $C.messages().$M(BetaMessageCreateParams.builder(). ... .build())
-          - metavariable-regex:
-              metavariable: $M
-              regex: ^(create|createStreaming)$
+              metavariable: $PT
+              regex: ^(ResponseCreateParams|CompletionCreateParams|MessageCreateParams|BetaMessageCreateParams)$
       - patterns:
           - pattern-either:
               - pattern: $C.invokeModel(InvokeModelRequest.builder(). ... .modelId($ID). ... .build())
