@@ -1,0 +1,23 @@
+rules:
+  - id: lexcode.crawl.kt-jsoup-fetch
+    languages: [kotlin]
+    severity: INFO
+    message: Downloads a web page from a site the operator may not run with Jsoup or Ksoup, which is scraping and crawling the web (crawls_web).
+    patterns:
+      - pattern-either:
+          - pattern: Jsoup.connect($URL)
+          - pattern: Jsoup.parse(URL($URL), ...)
+          - pattern: Jsoup.parse(java.net.URI.create($URL).toURL(), ...)
+          - pattern: Jsoup.parse(URI.create($URL).toURL(), ...)
+          - pattern: Ksoup.parseGetRequest($URL)
+          - pattern: Ksoup.parseGetRequestBlocking($URL)
+      - metavariable-regex:
+          metavariable: $URL
+          regex: (?s)^(?!"https?://(localhost|127\.|0\.0\.0\.0|\[::1\])).*$
+    metadata:
+      activity: crawls_web
+      mentioned: performs
+      definition: https://lexlint.io/activities/crawls-web
+      provenance: ungovr-original
+      license: MIT
+      host_metavar: $URL

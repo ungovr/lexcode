@@ -1,0 +1,60 @@
+rules:
+  - id: lexcode.crawl.kt-crawler-framework
+    languages: [kotlin]
+    severity: INFO
+    message: Builds a crawler on a crawling framework or crawler library (crawler4j, WebMagic, crawler-commons, Apache Nutch, StormCrawler), which is crawling the web (crawls_web).
+    pattern-either:
+      # Each library is read only in a file that imports it, so a project class that shares a name
+      # (WebCrawler, Spider, Fetcher) is not taken for the library's.
+      - patterns:
+          - pattern-regex: '(?s)import\s+edu\.uci\.ics\.crawler4j\..*'
+          - pattern-either:
+              - pattern: |
+                  class $C : WebCrawler(...) {
+                    ...
+                  }
+              - pattern: |
+                  class $C(...) : WebCrawler(...) {
+                    ...
+                  }
+              - pattern: |
+                  object : WebCrawler(...) {
+                    ...
+                  }
+              - pattern: CrawlController(...)
+      - patterns:
+          - pattern-regex: '(?s)import\s+us\.codecraft\.webmagic\..*'
+          - pattern-either:
+              - pattern: |
+                  class $C : PageProcessor {
+                    ...
+                  }
+              - pattern: |
+                  class $C(...) : PageProcessor {
+                    ...
+                  }
+              - pattern: Spider.create(...)
+      - patterns:
+          - pattern-regex: '(?s)import\s+crawlercommons\..*'
+          - pattern-either:
+              - pattern: SiteMapParser(...)
+              - pattern: SimpleRobotRulesParser(...)
+      - patterns:
+          - pattern-regex: '(?s)import\s+org\.apache\.nutch\..*'
+          - pattern-either:
+              - pattern: Injector(...)
+              - pattern: Generator(...)
+              - pattern: Fetcher(...)
+      - patterns:
+          - pattern-regex: '(?s)import\s+(com\.digitalpebble|org\.apache)\.stormcrawler\..*'
+          - pattern-either:
+              - pattern: FetcherBolt(...)
+              - pattern: SimpleFetcherBolt(...)
+              - pattern: JSoupParserBolt(...)
+              - pattern: SiteMapParserBolt(...)
+    metadata:
+      activity: crawls_web
+      mentioned: performs
+      definition: https://lexlint.io/activities/crawls-web
+      provenance: ungovr-original
+      license: MIT

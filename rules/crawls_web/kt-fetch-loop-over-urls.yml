@@ -1,0 +1,117 @@
+rules:
+  - id: lexcode.crawl.kt-fetch-loop-over-urls
+    languages: [kotlin]
+    severity: INFO
+    message: Fetches each URL in a list held in a variable, which may be crawling sites the operator does not run (crawls_web).
+    patterns:
+      # A pre-filter: the HTTP client receiver below is a metavariable with a regular expression,
+      # which has no literal of its own, so without this the engine parses every Kotlin file. It
+      # names a token of every call the arms below can match.
+      - pattern-regex: '(newBuilder\(URI|\.uri\(|URL\(|getForObject|getForEntity|headForHeaders|Request\.Builder|HttpGet\b|HttpHead\b|Unirest\.|Fuel\.|\.http(Get|Head)\(|\w*([cC]lient|[hH]ttp)\w*\.(get|head|prepareGet|request)(\(\w| \{))'
+      - pattern-either:
+          # The page address is a named loop variable: a `for` loop, or a lambda parameter written
+          # out (`urls.forEach { u -> ... }`, `forEachIndexed { i, u -> ... }`).
+          - patterns:
+              - pattern-either:
+                  - pattern-inside: |
+                      for ($URL in $L) $BODY
+                  - patterns:
+                      - pattern-either:
+                          - pattern-inside: |
+                              $L.$M { $URL -> ... }
+                          - pattern-inside: |
+                              $L.$M { $I, $URL -> ... }
+                          - pattern-inside: |
+                              $L?.$M { $URL -> ... }
+                          - pattern-inside: |
+                              $L?.$M { $I, $URL -> ... }
+                      - metavariable-regex:
+                          metavariable: $M
+                          regex: ^(forEach|forEachIndexed|forEachOrdered|map|mapNotNull|flatMap|mapIndexed|onEachIndexed|filter|filterNot|onEach|associateWith|associate|all|any|none|collect|collectLatest|flatMapMerge|flatMapConcat|mapLatest|transform|peek|firstNotNullOfOrNull|sumOf|count|groupBy|partition)$
+              - pattern-either:
+                  - pattern: HttpRequest.newBuilder(URI.create($URL))
+                  - pattern: HttpRequest.newBuilder(URI($URL))
+                  - pattern: $B.uri(URI.create($URL))
+                  - pattern: $B.uri(URI($URL))
+                  - pattern: URL($URL).openStream()
+                  - pattern: URL($URL).openConnection()
+                  - pattern: URL($URL).readText(...)
+                  - pattern: URL($URL).readBytes()
+                  - pattern: $R.getForObject($URL, ...)
+                  - pattern: $R.getForEntity($URL, ...)
+                  - pattern: $R.headForHeaders($URL, ...)
+                  - pattern: Request.Builder().url($URL)
+                  - pattern: $W.get().uri($URL, ...)
+                  - pattern: HttpGet($URL)
+                  - pattern: HttpHead($URL)
+                  - pattern: Unirest.get($URL)
+                  - pattern: Unirest.head($URL)
+                  - pattern: Fuel.get($URL)
+                  - pattern: Fuel.head($URL)
+                  - pattern: $URL.httpGet(...)
+                  - pattern: $URL.httpHead(...)
+                  - patterns:
+                      - pattern-either:
+                          - pattern: $C.$K($URL)
+                          - pattern: $C.$K(urlString = $URL)
+                          - pattern: $C.$K(Url($URL))
+                          - pattern: $C.$K { url($URL) }
+                      - metavariable-regex:
+                          metavariable: $K
+                          regex: ^(get|head|prepareGet|request)$
+                      - metavariable-regex:
+                          metavariable: $C
+                          regex: ^(this\.)?(?!\w*([cC]ache|[sS]tore|[sS]torage|[rR]edis|[mM]emcache|[sS]3|[aA]ws|[hH]eaders?|[cC]ookies?|[pP]arams?))(\w*[cC]lient|\w*[hH]ttp\w*)$
+          # The page address is the implicit lambda parameter `it`, alone as the argument. A scope
+          # function (`let`, `also`) is one value, not a list, and is not read.
+          - patterns:
+              - pattern-either:
+                  - pattern-inside: |
+                      $L.$M { ... }
+                  - pattern-inside: |
+                      $L?.$M { ... }
+              - metavariable-regex:
+                  metavariable: $M
+                  regex: ^(forEach|forEachIndexed|forEachOrdered|map|mapNotNull|flatMap|mapIndexed|onEachIndexed|filter|filterNot|onEach|associateWith|associate|all|any|none|collect|collectLatest|flatMapMerge|flatMapConcat|mapLatest|transform|peek|firstNotNullOfOrNull|sumOf|count|groupBy|partition)$
+              - pattern-either:
+                  - pattern: HttpRequest.newBuilder(URI.create(it))
+                  - pattern: HttpRequest.newBuilder(URI(it))
+                  - pattern: $B.uri(URI.create(it))
+                  - pattern: $B.uri(URI(it))
+                  - pattern: URL(it).openStream()
+                  - pattern: URL(it).openConnection()
+                  - pattern: URL(it).readText(...)
+                  - pattern: URL(it).readBytes()
+                  - pattern: $R.getForObject(it, ...)
+                  - pattern: $R.getForEntity(it, ...)
+                  - pattern: $R.headForHeaders(it, ...)
+                  - pattern: Request.Builder().url(it)
+                  - pattern: $W.get().uri(it, ...)
+                  - pattern: HttpGet(it)
+                  - pattern: HttpHead(it)
+                  - pattern: Unirest.get(it)
+                  - pattern: Unirest.head(it)
+                  - pattern: Fuel.get(it)
+                  - pattern: Fuel.head(it)
+                  - pattern: it.httpGet(...)
+                  - pattern: it.httpHead(...)
+                  - patterns:
+                      - pattern-either:
+                          - pattern: $C.$K(it)
+                          - pattern: $C.$K(urlString = it)
+                          - pattern: $C.$K(Url(it))
+                          - pattern: $C.$K { url(it) }
+                      - metavariable-regex:
+                          metavariable: $K
+                          regex: ^(get|head|prepareGet|request)$
+                      - metavariable-regex:
+                          metavariable: $C
+                          regex: ^(this\.)?(?!\w*([cC]ache|[sS]tore|[sS]torage|[rR]edis|[mM]emcache|[sS]3|[aA]ws|[hH]eaders?|[cC]ookies?|[pP]arams?))(\w*[cC]lient|\w*[hH]ttp\w*)$
+    metadata:
+      activity: crawls_web
+      mentioned: performs
+      definition: https://lexlint.io/activities/crawls-web
+      provenance: ungovr-original
+      license: MIT
+      strength: signal
+      host_metavar: $URL

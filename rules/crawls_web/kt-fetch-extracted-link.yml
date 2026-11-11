@@ -1,0 +1,43 @@
+rules:
+  - id: lexcode.crawl.kt-fetch-extracted-link
+    languages: [kotlin]
+    severity: INFO
+    message: Fetches a link taken from a page it has read (an anchor's href, an image's src), which is following links from site to site, crawling the web (crawls_web).
+    patterns:
+      # A pre-filter: the link metavariable is a regular expression, which has no literal of its
+      # own, so without this the engine parses every Kotlin file. It names the link read in the argument.
+      - pattern-regex: '(absUrl\(|attr\("(abs:)?(href|src)"\)|getAttribute\("(href|src)"\))'
+      - pattern-either:
+          - pattern: HttpRequest.newBuilder(URI.create($LINK))
+          - pattern: HttpRequest.newBuilder(URI($LINK))
+          - pattern: $B.uri(URI.create($LINK))
+          - pattern: $B.uri(URI($LINK))
+          - pattern: URL($LINK).openStream()
+          - pattern: URL($LINK).openConnection()
+          - pattern: URL($LINK).readText(...)
+          - pattern: URL($LINK).readBytes()
+          - pattern: $R.getForObject($LINK, ...)
+          - pattern: $R.getForEntity($LINK, ...)
+          - pattern: Request.Builder().url($LINK)
+          - pattern: HttpGet($LINK)
+          - pattern: HttpHead($LINK)
+          - pattern: $W.get().uri($LINK, ...)
+          - patterns:
+              - pattern-either:
+                  - pattern: $C.$K($LINK)
+                  - pattern: $C.$K(urlString = $LINK)
+              - metavariable-regex:
+                  metavariable: $K
+                  regex: ^(get|head|prepareGet|request)$
+              - metavariable-regex:
+                  metavariable: $C
+                  regex: ^(this\.)?(?!\w*([cC]ache|[sS]tore|[sS]torage|[rR]edis|[mM]emcache|[sS]3|[aA]ws|[hH]eaders?|[cC]ookies?|[pP]arams?))(\w*[cC]lient|\w*[hH]ttp\w*)$
+      - metavariable-regex:
+          metavariable: $LINK
+          regex: ^[\w.?]+\.(absUrl\("[^"]*"\)|attr\("(abs:)?(href|src)"\)|getAttribute\("(href|src)"\))$
+    metadata:
+      activity: crawls_web
+      mentioned: performs
+      definition: https://lexlint.io/activities/crawls-web
+      provenance: ungovr-original
+      license: MIT
