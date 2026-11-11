@@ -1,0 +1,22 @@
+rules:
+  - id: lexcode.esign.rb-signature-capture
+    languages: [ruby]
+    severity: INFO
+    message: Stores a signature a person drew or captured as an attachment on a record, which is collecting electronic signatures (collects_e_signatures).
+    patterns:
+      - pattern-either:
+          - pattern: has_one_attached $SIG, ...
+          - pattern: has_one_base64_attached $SIG, ...
+          - pattern: has_attached_file $SIG, ...
+          - pattern: mount_uploader $SIG, ...
+          - pattern: mount_base64_uploader $SIG, ...
+          - pattern: $R.$SIG.attach(...)
+      - metavariable-regex:
+          metavariable: $SIG
+          regex: '(?i)^:?["'']?(?:(?:customer|client|guest|member|patient|participant|signee|signer|tenant|guarantor|applicant|borrower|buyer|seller|employee|witness|parent|guardian|user|drawn|handwritten|electronic|e)_)?signature(?:_(?:image|img|png|svg|data|file|photo|scan|drawing))?["'']?$'
+    metadata:
+      activity: collects_e_signatures
+      mentioned: performs
+      definition: https://lexlint.io/glossary#collects-electronic-signatures
+      provenance: ungovr-original
+      license: MIT
