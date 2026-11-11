@@ -30,7 +30,7 @@ would end that for the whole set. Every rule says so in its metadata:
 
 ## Adding a package to the component map
 
-The component map (`rules/components/npm.yml`, `pypi.yml`, `go.yml`) says which
+The component map (`rules/components/npm.yml`, `pypi.yml`, `go.yml`, `gem.yml`) says which
 activities a well-known package enables. It is written by hand, one entry per
 package, and nothing adds to it on its own:
 

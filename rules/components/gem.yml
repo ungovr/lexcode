@@ -1,0 +1,220 @@
+ecosystem: gem
+entries:
+
+  # Analytics SDKs
+  - match: "analytics-ruby"
+    enables: [tracks_devices, processes_personal_data]
+    says: "The Segment.io ruby analytics library"
+    source: https://rubygems.org/gems/analytics-ruby
+  - match: "mixpanel-ruby"
+    enables: [tracks_devices, processes_personal_data]
+    says: "The official Mixpanel tracking library for ruby"
+    source: https://rubygems.org/gems/mixpanel-ruby
+  - match: "rudder-sdk-ruby"
+    enables: [tracks_devices, processes_personal_data]
+    says: "The Rudder ruby analytics library"
+    source: https://rubygems.org/gems/rudder-sdk-ruby
+  - match: "ahoy_matey"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Simple, powerful, first-party analytics for Rails"
+    source: https://rubygems.org/gems/ahoy_matey
+
+  # Crash and error reporting SDKs
+  - match: "sentry-ruby"
+    enables: [tracks_devices, processes_personal_data]
+    says: "A gem that provides a client interface for the Sentry error logger"
+    source: https://rubygems.org/gems/sentry-ruby
+  - match: "sentry-rails"
+    enables: [tracks_devices, processes_personal_data]
+    says: "A gem that provides Rails integration for the Sentry error logger"
+    source: https://rubygems.org/gems/sentry-rails
+  - match: "sentry-sidekiq"
+    enables: [tracks_devices, processes_personal_data]
+    says: "A gem that provides Sidekiq integration for the Sentry error logger"
+    source: https://rubygems.org/gems/sentry-sidekiq
+  - match: "sentry-inst_jobs"
+    enables: [tracks_devices, processes_personal_data]
+    says: "An inst-jobs integration for the Sentry error logger"
+    source: https://rubygems.org/gems/sentry-inst_jobs
+  - match: "bugsnag"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Ruby notifier for bugsnag.com"
+    source: https://rubygems.org/gems/bugsnag
+  - match: "rollbar"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Track and debug errors in your Ruby applications with ease using Rollbar."
+    source: https://rubygems.org/gems/rollbar
+  - match: "honeybadger"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Honeybadger.io unifies error tracking, performance and uptime monitoring, and logging in one powerfully simple platform."
+    source: https://rubygems.org/gems/honeybadger
+  - match: "airbrake"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Airbrake is an online tool that provides robust exception tracking in any of your Ruby applications."
+    source: https://rubygems.org/gems/airbrake
+
+  # Model SDKs
+  - match: "ruby-openai"
+    enables: [generates_content]
+    says: "OpenAI API + Ruby!"
+    source: https://rubygems.org/gems/ruby-openai
+  - match: "openai"
+    enables: [generates_content]
+    says: "Ruby library to access the OpenAI API"
+    source: https://rubygems.org/gems/openai
+  - match: "anthropic"
+    enables: [generates_content]
+    says: "Ruby library to access the Anthropic API"
+    source: https://rubygems.org/gems/anthropic
+  - match: "gemini-ai"
+    enables: [generates_content]
+    says: "A Ruby Gem for interacting with Gemini through Vertex AI, Generative Language API, or AI Studio, Google's generative AI services."
+    source: https://rubygems.org/gems/gemini-ai
+  - match: "ollama-ai"
+    enables: [generates_content]
+    says: "A Ruby gem for interacting with Ollama's API that allows you to run open source AI LLMs (Large Language Models) locally."
+    source: https://rubygems.org/gems/ollama-ai
+  - match: "ruby_llm"
+    enables: [generates_content]
+    says: "The Ruby AI framework. Build AI features the Ruby way, with conventions that feel at home in Rails: switch models without rewriting your code, then grow from a single call to production agents that run code in a sandbox, follow skills, and resume across jobs."
+    source: https://rubygems.org/gems/ruby_llm
+  - match: "langchainrb"
+    enables: [generates_content]
+    says: "Build LLM-backed Ruby applications with Ruby's Langchain.rb"
+    source: https://rubygems.org/gems/langchainrb
+  - match: "aws-sdk-bedrockruntime"
+    enables: [generates_content]
+    says: "Official AWS Ruby gem for Amazon Bedrock Runtime. This gem is part of the AWS SDK for Ruby."
+    source: https://rubygems.org/gems/aws-sdk-bedrockruntime
+  - match: "inst_llm"
+    enables: [generates_content]
+    says: "Foundation-model agnostic LLM client for AWS Bedrock"
+    source: https://rubygems.org/gems/inst_llm
+
+  # Speech synthesis
+  - match: "aws-sdk-polly"
+    enables: [generates_audio]
+    says: "Official AWS Ruby gem for Amazon Polly. This gem is part of the AWS SDK for Ruby."
+    source: https://rubygems.org/gems/aws-sdk-polly
+  - match: "google-cloud-text_to_speech"
+    enables: [generates_audio]
+    says: "Synthesizes natural-sounding speech by applying powerful neural network models."
+    source: https://rubygems.org/gems/google-cloud-text_to_speech
+  - match: "elevenlabs"
+    enables: [generates_audio]
+    says: "This gem provides a convenient Ruby interface to the ElevenLabs TTS, Voice Cloning, Voice Design, Voice dialogues, TTS Streaming, Music Generation and Streaming endpoints."
+    source: https://rubygems.org/gems/elevenlabs
+
+  # Speech-to-text
+  - match: "aws-sdk-transcribeservice"
+    enables: [processes_voice]
+    says: "Official AWS Ruby gem for Amazon Transcribe Service. This gem is part of the AWS SDK for Ruby."
+    source: https://rubygems.org/gems/aws-sdk-transcribeservice
+  - match: "aws-sdk-transcribestreamingservice"
+    enables: [processes_voice]
+    says: "Official AWS Ruby gem for Amazon Transcribe Streaming Service. This gem is part of the AWS SDK for Ruby."
+    source: https://rubygems.org/gems/aws-sdk-transcribestreamingservice
+  - match: "google-cloud-speech"
+    enables: [processes_voice]
+    says: "Converts audio to text by applying powerful neural network models."
+    source: https://rubygems.org/gems/google-cloud-speech
+  - match: "assemblyai"
+    enables: [processes_voice]
+    says: "The AssemblyAI Ruby SDK provides an easy-to-use interface for interacting with the AssemblyAI API, which supports async, audio intelligence models, as well as the latest LeMUR models. The Ruby SDK does not support Streaming STT at this time."
+    source: https://rubygems.org/gems/assemblyai
+
+  # Crawling and scraping libraries
+  - match: "mechanize"
+    enables: [crawls_web]
+    says: "The Mechanize library is used for automating interaction with websites."
+    source: https://rubygems.org/gems/mechanize
+  - match: "spidr"
+    enables: [crawls_web]
+    says: "Spidr is a versatile Ruby web spidering library that can spider a site, multiple domains, certain links or infinitely."
+    source: https://rubygems.org/gems/spidr
+  - match: "kimurai"
+    enables: [crawls_web]
+    says: "Modern web scraping framework written in Ruby and based on Capybara/Nokogiri"
+    source: https://rubygems.org/gems/kimurai
+  - match: "anemone"
+    enables: [crawls_web]
+    says: "Anemone web-spider framework"
+    source: https://rubygems.org/gems/anemone
+
+  # Feed readers
+  - match: "feedjira"
+    enables: [aggregates_content]
+    says: "A feed parsing library"
+    source: https://rubygems.org/gems/feedjira
+  - match: "simple-rss"
+    enables: [aggregates_content]
+    says: "Parse RSS, Atom, and JSON Feed with normalized entries, HTTP fetching, website feed discovery, and JSON/XML serialization."
+    source: https://rubygems.org/gems/simple-rss
+  - match: "feedparser"
+    enables: [aggregates_content]
+    says: "feedparser - web feed parser and normalizer (RSS, Atom, JSON Feed, HTML h-entry, etc.)"
+    source: https://rubygems.org/gems/feedparser
+
+  # Email, SMS and push senders
+  - match: "twilio-ruby"
+    enables: [automated_outreach]
+    says: "The official library for communicating with the Twilio REST API, building TwiML, and generating Twilio JWT Capability Tokens"
+    source: https://rubygems.org/gems/twilio-ruby
+  - match: "sendgrid-ruby"
+    enables: [automated_outreach]
+    says: "Official Twilio SendGrid Gem to Interact with Twilio SendGrids API in native Ruby"
+    source: https://rubygems.org/gems/sendgrid-ruby
+  - match: "mailgun-ruby"
+    enables: [automated_outreach]
+    says: "Mailgun's Official Ruby SDK for interacting with the Mailgun API."
+    source: https://rubygems.org/gems/mailgun-ruby
+  - match: "postmark"
+    enables: [automated_outreach]
+    says: "Use this gem to send emails through Postmark HTTP API and retrieve info about bounces."
+    source: https://rubygems.org/gems/postmark
+  - match: "mailchimpmarketing"
+    enables: [automated_outreach]
+    says: "The official Ruby client library for the Mailchimp Marketing API"
+    source: https://rubygems.org/gems/MailchimpMarketing
+  - match: "aws-sdk-ses"
+    enables: [automated_outreach]
+    says: "Official AWS Ruby gem for Amazon Simple Email Service (Amazon SES). This gem is part of the AWS SDK for Ruby."
+    source: https://rubygems.org/gems/aws-sdk-ses
+  - match: "aws-sdk-sesv2"
+    enables: [automated_outreach]
+    says: "Official AWS Ruby gem for Amazon Simple Email Service (Amazon SES V2). This gem is part of the AWS SDK for Ruby."
+    source: https://rubygems.org/gems/aws-sdk-sesv2
+  - match: "aws-sdk-sns"
+    enables: [automated_outreach]
+    says: "Official AWS Ruby gem for Amazon Simple Notification Service (Amazon SNS). This gem is part of the AWS SDK for Ruby."
+    source: https://rubygems.org/gems/aws-sdk-sns
+  - match: "fcm"
+    enables: [automated_outreach]
+    says: "fcm provides ruby bindings to Firebase Cloud Messaging (FCM) a cross-platform messaging solution that lets you reliably deliver messages and notifications at no cost to Android, iOS or Web browsers."
+    source: https://rubygems.org/gems/fcm
+  - match: "rpush"
+    enables: [automated_outreach]
+    says: "The push notification service for Ruby."
+    source: https://rubygems.org/gems/rpush
+
+  # Identity verification
+  - match: "yoti"
+    enables: [relies_on_digital_identity]
+    says: "This gem contains the tools you need to quickly integrate your Ruby back-end with Yoti, so that your users can share their identity details with your application in a secure and trusted way."
+    source: https://rubygems.org/gems/yoti
+
+  # E-signature
+  - match: "docusign_esign"
+    enables: [collects_e_signatures]
+    says: "The Docusign package makes integrating Docusign into your apps and websites a super fast and painless process. The library is open sourced on GitHub, look for the docusign-esign-ruby-client repository."
+    source: https://rubygems.org/gems/docusign_esign
+  - match: "dropbox-sign"
+    enables: [collects_e_signatures]
+    says: "Official Dropbox Sign APIv3 OpenAPI Ruby SDK"
+    source: https://rubygems.org/gems/dropbox-sign
+
+  # Chat SDKs
+  - match: "stream-chat-ruby"
+    enables: [records_text_chat]
+    says: "Ruby client for Stream Chat."
+    source: https://rubygems.org/gems/stream-chat-ruby
