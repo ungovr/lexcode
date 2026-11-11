@@ -50,6 +50,28 @@ package, and nothing adds to it on its own:
 4. `npm test` checks the shape of every entry: no duplicates, known evidence
    ids, a quote and an https source.
 
+## Naming rules and fixtures
+
+A rule's id is `lexcode.<activity-short>.<what>`, where `<activity-short>` is
+the short name the activity's other rules already use (`crawl`, `outreach`,
+`chatbot`, `voice`, and so on). The file is `rules/<activity>/<what>.yml`, with a
+positive fixture `<what>.test.<ext>` and a negative fixture
+`<what>.neg.test.<ext>` beside it. TypeScript and JavaScript rules take the bare
+`<what>`. A rule for another language often says so in its name, as a suffix for
+Python (`-py`) and Go (`-go`) when a TypeScript rule already holds the bare
+name. Ruby rules always carry a prefix:
+
+| Language | Rule `<what>` part | File and fixtures |
+|---|---|---|
+| TypeScript, JavaScript | `<what>` | `<what>.yml`, `.test.ts`, `.neg.test.ts` |
+| Python | `<what>-py` (usual) | `<what>-py.yml`, `.test.py`, `.neg.test.py` |
+| Go | `<what>-go` (usual) | `<what>-go.yml`, `.test.go`, `.neg.test.go` |
+| Ruby | `rb-<what>` | `rb-<what>.yml`, `.test.rb`, `.neg.test.rb` |
+
+A Ruby rule is `lexcode.<activity-short>.rb-<what>`, file
+`rules/<activity>/rb-<what>.yml`, fixtures `rb-<what>.test.rb` and
+`rb-<what>.neg.test.rb`, and `languages: [ruby]`.
+
 ## Running the tests
 
 ```
