@@ -5,6 +5,7 @@
 //   FAKE_OPENGREP_PID_FILE  write this process id there at the start of a scan run
 //   FAKE_OPENGREP_GRANDCHILD_PID_FILE  in the sleep modes, start a worker process and write its id there
 //   FAKE_OPENGREP_ARGV_LOG  append one JSON line {argv, cwd, env} per scan run
+//   FAKE_OPENGREP_ERRORS    JSON array that replaces the engine's errors
 //   FAKE_OPENGREP_RESULTS   JSON array that replaces the default results (ok and errors modes)
 //   FAKE_OPENGREP_VERSION   the version to print and report (default 1.33.1)
 import { spawn } from 'node:child_process';
@@ -115,6 +116,7 @@ if (mode === 'errors') {
     { code: 3, level: 'error', type: ['Syntax error', []], path: 'b.py', message: 'syntax error' },
   ];
 }
+if (process.env.FAKE_OPENGREP_ERRORS) errors = JSON.parse(process.env.FAKE_OPENGREP_ERRORS);
 if (mode === 'fatal') {
   errors = [{ code: 7, level: 'error', type: 'InvalidRuleSchemaError', rule_id: 'lexcode.test.rule', message: 'rule is broken: missing pattern' }];
 }

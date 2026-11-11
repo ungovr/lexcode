@@ -9,31 +9,32 @@ class. Every rule is original to UnGovr and MIT licensed. The recall table below
 is measured against the truth sets, per activity.
 
 <!-- recall:start -->
-Measured 2026-11-11 over the UnGovr monorepo and the pinned starter
-templates, against hand-read answer keys. Found counts evidence of either
+Measured 2026-11-11 over the UnGovr monorepo, 6 pinned starter templates and 2 real apps,
+against hand-read answer keys. Found counts evidence of either
 kind for the activity or its family; signal only counts the misses where
 lexcode showed a worth-a-look row and nothing stronger. Recall is printed,
 never gated.
 
 | Activity | Expected | Found | Signal only | Missed in |
 |---|---:|---:|---:|---|
-| `aggregates_content` | 1 | 0 | 1 | monorepo |
-| `automated_outreach` | 1 | 1 | 0 |  |
-| `crawls_web` | 1 | 1 | 0 |  |
-| `deploys_chatbot` | 1 | 1 | 0 |  |
-| `distributes_software_product` | 2 | 2 | 0 |  |
-| `generates_content` | 2 | 2 | 0 |  |
-| `generates_text` | 1 | 1 | 0 |  |
+| `aggregates_content` | 2 | 0 | 1 | monorepo, nowinandroid |
+| `automated_outreach` | 2 | 2 | 0 |  |
+| `crawls_web` | 2 | 2 | 0 |  |
+| `deploys_chatbot` | 2 | 1 | 0 | canvas-android |
+| `distributes_software_product` | 5 | 3 | 0 | nowinandroid, canvas-android |
+| `generates_content` | 3 | 2 | 0 | canvas-android |
+| `generates_text` | 2 | 1 | 0 | canvas-android |
+| `operates_social_platform` | 2 | 0 | 1 | canvas-android, sakai |
 | `processes_biometrics` | 1 | 1 | 0 |  |
-| `processes_personal_data` | 6 | 6 | 0 |  |
-| `processes_voice` | 1 | 1 | 0 |  |
-| `records_calls` | 1 | 0 | 0 | monorepo |
-| `records_text_chat` | 1 | 1 | 0 |  |
-| `ships_consumer_interface` | 5 | 0 | 2 | vercel-chatbot, nextjs-subscription-payments, obytes-expo, full-stack-fastapi, bullet-train |
-| `ships_encryption` | 5 | 1 | 0 | vercel-chatbot, obytes-expo, full-stack-fastapi, bullet-train |
-| `ships_mobile_app` | 2 | 2 | 0 |  |
+| `processes_personal_data` | 9 | 9 | 0 |  |
+| `processes_voice` | 3 | 3 | 0 |  |
+| `records_calls` | 2 | 0 | 0 | monorepo, sakai |
+| `records_text_chat` | 2 | 2 | 0 |  |
+| `ships_consumer_interface` | 8 | 0 | 2 | vercel-chatbot, nextjs-subscription-payments, obytes-expo, full-stack-fastapi, spring-petclinic, nowinandroid, canvas-android, sakai |
+| `ships_encryption` | 6 | 3 | 0 | vercel-chatbot, obytes-expo, full-stack-fastapi |
+| `ships_mobile_app` | 4 | 4 | 0 |  |
 | `statutory_requests` | 1 | 0 | 1 | monorepo |
-| `tracks_devices` | 2 | 2 | 0 |  |
+| `tracks_devices` | 5 | 4 | 0 | sakai |
 <!-- recall:end -->
 
 <!-- canvas:start -->
@@ -299,7 +300,13 @@ Vue, Svelte, HTML, Jinja and ERB, and the block is read as JavaScript. Inside a
 block, `<%= ... %>` becomes `_` padded with spaces to its length, every other
 `<% ... %>` tag becomes spaces, a `<%-- ... --%>` comment runs to `--%>`, and EL
 (`${...}`, `#{...}`) becomes `_` padded, with line breaks kept so line numbers
-hold. A `<script>` inside a JSP comment is still read, because extraction finds
-the element before the comment is blanked. A JSTL action inside a script body
-(`<c:if>` and the like) is not blanked. Thymeleaf templates are `.html` and
-already read; FreeMarker and Velocity templates are not read.
+hold. A namespaced tag inside a script body (a JSF component such as `<h:outputText
+value="#{msgs.x}"/>`, a JSTL action such as `<c:if test="${a}">` or `</c:if>`,
+`<jsp:expression>`: `<` or `</`, a prefix, a colon, a name, up to its closing
+`>`, past quoted values) also becomes `_` padded, so it stays valid JavaScript
+in a string and in an expression; `<![CDATA[` and a `]]>` that closes it become
+spaces. A comparison such as `a < b:c`, an unprefixed HTML tag and a namespaced
+tag with no closing `>` are left alone. A `<script>` inside a JSP comment is
+still read, because extraction finds the element before the comment is blanked.
+Thymeleaf templates are `.html` and already read; FreeMarker and Velocity
+templates are not read.

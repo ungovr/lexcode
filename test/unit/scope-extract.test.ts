@@ -363,6 +363,61 @@ describe('JSP views', () => {
     expect(blankJspTags('plain();')).toBe('plain();');
   });
 
+  describe('namespaced tags and CDATA markers in a JSP script body', () => {
+    const pad = (tag: string): string => '_' + ' '.repeat(tag.length - 1);
+
+    it('blanks a tag inside a JavaScript string to a padded underscore, so the string still parses', () => {
+      const tag = '<h:outputText value="#{msgs.cdfm_newflag}"/>';
+      expect(blankJspTags(`var newFlag = "${tag}";`)).toBe(`var newFlag = "${pad(tag)}";`);
+      const single = `<h:outputText value='#{authorMessages.im_description}' escape="false"/>`;
+      expect(blankJspTags(`add('${single}');`)).toBe(`add('${pad(single)}');`);
+    });
+
+    it('blanks a tag in expression position to an identifier', () => {
+      const tag = '<c:out value="${x}"/>';
+      expect(blankJspTags(`var a = ${tag};`)).toBe(`var a = ${pad(tag)};`);
+    });
+
+    it('blanks every form: open, close, self-closing and any prefix (h f c fmt jsp x)', () => {
+      for (const tag of ['<h:outputText value="a">', '</h:outputText>', '<f:view/>', '<c:if test="${a > b}">', '</c:if>', '<fmt:message key="k"/>', '<jsp:expression>', '</jsp:expression>', '<x:y.z-w q="1">']) {
+        const out = blankJspTags(`a(); ${tag} b();`);
+        expect(out).toBe(`a(); ${pad(tag)} b();`);
+        expect(out.length).toBe(`a(); ${tag} b();`.length);
+      }
+    });
+
+    it('steps over a ">" and a "<script>" inside a quoted attribute value', () => {
+      const tag = '<h:outputText value="<script>" escape="false" />';
+      expect(blankJspTags(`x = ${tag}; y();`)).toBe(`x = ${pad(tag)}; y();`);
+      const gt = '<c:if test="${a > b}">';
+      expect(blankJspTags(`${gt} z();`)).toBe(`${pad(gt)} z();`);
+    });
+
+    it('keeps line breaks across a multi-line tag', () => {
+      const tag = '<h:outputText\n    value="#{a.b}"\n    rendered="true"/>';
+      const out = blankJspTags(`a();\n${tag}\nb();`);
+      expect(out.split('\n').length).toBe(`a();\n${tag}\nb();`.split('\n').length);
+      expect(out).toBe(`a();\n_${' '.repeat('<h:outputText'.length - 1)}\n${' '.repeat('    value="#{a.b}"'.length)}\n${' '.repeat('    rendered="true"/>'.length)}\nb();`);
+    });
+
+    it('blanks the CDATA markers to spaces and keeps what is between them', () => {
+      expect(blankJspTags('<![CDATA[\nvar a = 1 < 2;\n]]>')).toBe(`${' '.repeat(9)}\nvar a = 1 < 2;\n${' '.repeat(3)}`);
+    });
+
+    it('leaves a comparison, an unprefixed HTML tag, a ternary, a tag that never closes and a stray "]]>" alone', () => {
+      for (const src of ['if (a < b:c) {}', 'if (a <b) {}', 'var h = "<div class=\'a\'>x</div>";', 'x = c ? a<b : d;', 'x = "<h:outputText value=\'a\'";', 'if (a[b[0]]>c) {}', 'var u = "http://x"; if (a<b) {}', 'c?a<b:d; foo(y=>y);']) {
+        expect(blankJspTags(src)).toBe(src);
+      }
+    });
+
+    it('works end to end: the extracted copy of a JSP keeps the line and has no JSF tag left', () => {
+      const view = ['<%@ taglib uri="x" prefix="h" %>', '<script>', '  var m = "<h:outputText value="#{msgs.m}"/>"; track("x");', '</script>', ''].join('\n');
+      const r = blankOutsideScripts(view, { jsp: true })!;
+      sameShape(view, r.text);
+      expect(lines(r.text)[2]).toBe(`  var m = "${pad('<h:outputText value="#{msgs.m}"/>')}"; track("x");`);
+    });
+  });
+
   it('ends EL at its closing brace, past nested braces and quoted braces', () => {
     const quoted = "x = ${fn:join(map['}'], \"{\")}; y();";
     const inner = "${fn:join(map['}'], \"{\")}";

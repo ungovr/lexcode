@@ -6,7 +6,16 @@ rules:
     # No literal anchor of its own: a whole-file regex on the words every name starts with keeps the engine's
     # pre-filter, so a file with none of selfie, liveness or face is not matched at all (K6 fix round 1).
     patterns:
-      - pattern-regex: '(?is)\A(?=.*(?:selfie|liveness|face_?(?:image|photo|img|picture|pic|capture|snapshot|scan))).*'
+      - pattern-either:
+          - pattern-regex: '(?is)\A(?=.*selfie).*'
+          - pattern-regex: '(?is)\A(?=.*liveness).*'
+          - pattern-regex: '(?is)\A(?=.*face_?image).*'
+          - pattern-regex: '(?is)\A(?=.*face_?photo).*'
+          - pattern-regex: '(?is)\A(?=.*face_?img).*'
+          - pattern-regex: '(?is)\A(?=.*face_?pic).*'
+          - pattern-regex: '(?is)\A(?=.*face_?capture).*'
+          - pattern-regex: '(?is)\A(?=.*face_?snapshot).*'
+          - pattern-regex: '(?is)\A(?=.*face_?scan).*'
       - pattern-either:
           # A class (an entity, a DTO, a request model) with both fields
           - patterns:

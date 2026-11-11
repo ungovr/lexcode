@@ -6,7 +6,11 @@ rules:
     severity: INFO
     message: 'Stores or sends a message addressed from one user account to another (a direct or private message class with a sender and a recipient, or a WebSocket send to one named user), which is how people talk on a social platform (operates_social_platform).'
     patterns:
-      - pattern-regex: '(?s)\A(?=.*(recipient|receiver|toUser|convertAndSendToUser)).*'
+      - pattern-either:
+          - pattern-regex: '(?s)\A(?=.*recipient).*'
+          - pattern-regex: '(?s)\A(?=.*receiver).*'
+          - pattern-regex: '(?s)\A(?=.*toUser).*'
+          - pattern-regex: '(?s)\A(?=.*convertAndSendToUser).*'
       - pattern-either:
             - patterns:
                 - pattern-either:

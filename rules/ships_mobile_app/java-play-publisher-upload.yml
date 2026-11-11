@@ -12,12 +12,6 @@ rules:
       - pattern: (AndroidPublisher $P).edits().tracks().update(...)
     paths:
       exclude:
-        - "**/example/**"
-        - "**/examples/**"
-        - "**/sample/**"
-        - "**/samples/**"
-        - "**/demo/**"
-        - "**/demos/**"
         - "**/src/test/**"
     metadata:
       activity: ships_mobile_app

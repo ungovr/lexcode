@@ -4,7 +4,16 @@ rules:
     severity: INFO
     message: 'Holds a face or selfie image beside an image of a photo ID, the shape of document-and-selfie identity verification, whose result the app acts on (relies_on_digital_identity). The verifier usually matches the face to the ID photo, so ask about processes_biometrics too.'
     patterns:
-      - pattern-regex: '(?is)\A(?=.*(?:selfie|liveness|face_?(?:image|photo|img|picture|pic|capture|snapshot|scan))).*'
+      - pattern-either:
+          - pattern-regex: '(?is)\A(?=.*selfie).*'
+          - pattern-regex: '(?is)\A(?=.*liveness).*'
+          - pattern-regex: '(?is)\A(?=.*face_?image).*'
+          - pattern-regex: '(?is)\A(?=.*face_?photo).*'
+          - pattern-regex: '(?is)\A(?=.*face_?img).*'
+          - pattern-regex: '(?is)\A(?=.*face_?pic).*'
+          - pattern-regex: '(?is)\A(?=.*face_?capture).*'
+          - pattern-regex: '(?is)\A(?=.*face_?snapshot).*'
+          - pattern-regex: '(?is)\A(?=.*face_?scan).*'
       - pattern-either:
           # A class (an entity, a DTO, a request model) with both, as constructor parameters
           - patterns:

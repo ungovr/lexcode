@@ -6,7 +6,12 @@ rules:
     severity: INFO
     message: 'Declares an Android sign-up screen (an Activity or Fragment, or a Compose screen, for registering an account), a screen that members of the public use to reach a service (ships_consumer_interface).'
     patterns:
-      - pattern-regex: '(?s)\A(?=.*(SignUp|Signup|Register|Registration|CreateAccount)).*'
+      - pattern-either:
+          - pattern-regex: '(?s)\A(?=.*SignUp).*'
+          - pattern-regex: '(?s)\A(?=.*Signup).*'
+          - pattern-regex: '(?s)\A(?=.*Register).*'
+          - pattern-regex: '(?s)\A(?=.*Registration).*'
+          - pattern-regex: '(?s)\A(?=.*CreateAccount).*'
       - pattern-either:
             - patterns:
                 - pattern-either:

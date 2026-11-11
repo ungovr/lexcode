@@ -26,12 +26,6 @@ rules:
       - pattern: class $C extends android.app.Application { ... }
     paths:
       exclude:
-        - "**/example/**"
-        - "**/examples/**"
-        - "**/sample/**"
-        - "**/samples/**"
-        - "**/demo/**"
-        - "**/demos/**"
         - "**/src/test/**"
         - "**/src/androidTest/**"
         - "**/src/sharedTest/**"

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readdirSync, readFileSync, statSync, existsSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { basename, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse } from 'yaml';
 import { bundledRulesDir, loadRuleSet } from '../src/rules/load.js';
@@ -27,6 +27,44 @@ function evidenceIdsWithoutRule(accept: (r: RuleMeta) => boolean): string[] {
     if (!rs.rules.some((r) => r.activity === id && r.strength === 'evidence' && accept(r))) uncovered.push(id);
   }
   return uncovered;
+}
+
+/** Every `pattern-regex` string in a parsed rule file, however deep. */
+function patternRegexes(node: unknown): string[] {
+  if (Array.isArray(node)) return node.flatMap(patternRegexes);
+  if (node === null || typeof node !== 'object') return [];
+  return Object.entries(node as Record<string, unknown>).flatMap(([k, v]) =>
+    k === 'pattern-regex' && typeof v === 'string' ? [v] : patternRegexes(v),
+  );
+}
+
+/** Why a whole-file lookahead pre-filter would lose matches in a large file, or null when it is fine or not one. */
+function wholeFileLookaheadProblem(rx: string): string | null {
+  const start = rx.search(/\\A\(\?=/);
+  if (start === -1) return null;
+  const lookaheads = rx.split('(?=').length - 1;
+  if (lookaheads > 1) return 'second lookahead';
+  // Walk the lookahead to its closing parenthesis, ignoring escapes and character classes.
+  let depth = 0;
+  let inClass = false;
+  for (let i = start + 2; i < rx.length; i++) {
+    const ch = rx[i] as string;
+    if (ch === '\\') {
+      i++;
+      continue;
+    }
+    if (inClass) {
+      if (ch === ']') inClass = false;
+      continue;
+    }
+    if (ch === '[') inClass = true;
+    else if (ch === '(') depth++;
+    else if (ch === ')') {
+      depth--;
+      if (depth === 0) return null;
+    } else if (ch === '|' && depth >= 1) return 'alternation';
+  }
+  return null;
 }
 
 describe('release: the rule set is complete and well formed', () => {
@@ -66,6 +104,110 @@ describe('release: the rule set is complete and well formed', () => {
   // language adds one line like this.
   it('every evidence-class id has a Ruby rule', () => {
     expect(evidenceIdsWithoutRule((r) => r.languages.includes('ruby'))).toEqual([]);
+  });
+
+  // Java and Kotlin (v1.2, Decision 14). The one Java exemption is
+  // distributes_software_product, whose JVM evidence lives in build files: it
+  // is met by a maven- or gradle- rule instead of a Java source rule. Kotlin has
+  // no exemption (the gradle-kts- rules read as Kotlin).
+  it('every evidence-class id has a Java rule', () => {
+    const buildFileRule = (r: RuleMeta): boolean => /^(?:maven|gradle)-/.test(basename(r.file));
+    expect(
+      evidenceIdsWithoutRule(
+        (r) => r.languages.includes('java') || (r.activity === 'distributes_software_product' && buildFileRule(r)),
+      ),
+    ).toEqual([]);
+  });
+
+  it('every evidence-class id has a Kotlin rule', () => {
+    expect(evidenceIdsWithoutRule((r) => r.languages.includes('kotlin'))).toEqual([]);
+  });
+
+  // The engine's `paths` excludes are unanchored globs, so `**/samples/**`
+  // also drops a JVM package path (com/google/samples/apps/..., org/springframework/
+  // samples/petclinic, every com/example package). A Java or Kotlin source rule
+  // therefore carries none of them; build-file and config rules name real
+  // directories and keep theirs.
+  it('no Java or Kotlin source rule excludes a sample, example or demo path', () => {
+    const hits: string[] = [];
+    const walk = (dir: string): void => {
+      for (const e of readdirSync(dir)) {
+        const p = join(dir, e);
+        if (statSync(p).isDirectory()) walk(p);
+        else if (/^(java|kt)-.*\.yml$/.test(e) && !/\.test\.yml$/.test(e)) {
+          const doc = parse(readFileSync(p, 'utf8')) as { rules?: { id: string; paths?: { exclude?: string[] } }[] };
+          for (const rule of doc.rules ?? []) {
+            for (const glob of rule.paths?.exclude ?? []) {
+              if (/\/(samples?|examples?|demos?)\//.test(glob)) hits.push(`${rule.id}: ${glob}`);
+            }
+          }
+        }
+      }
+    };
+    walk(rulesDir);
+    expect(hits).toEqual([]);
+  });
+
+  // Build-file and config rules name real directories, so they keep these
+  // excludes, but a singular without its plural (or the reverse) is a slip: the
+  // gradle-kts- rules once had `sample` and not `samples`.
+  it('a rule that excludes a sample, example or demo directory excludes the plural and the singular alike', () => {
+    const hits: string[] = [];
+    const walk = (dir: string): void => {
+      for (const e of readdirSync(dir)) {
+        const p = join(dir, e);
+        if (statSync(p).isDirectory()) walk(p);
+        else if (e.endsWith('.yml') && !e.endsWith('.test.yml') && !/^(java|kt)-/.test(e)) {
+          const doc = parse(readFileSync(p, 'utf8')) as { rules?: { id: string; paths?: { exclude?: string[] } }[] };
+          for (const rule of doc?.rules ?? []) {
+            const ex = new Set(rule.paths?.exclude ?? []);
+            for (const word of ['sample', 'example', 'demo']) {
+              if (ex.has(`**/${word}/**`) !== ex.has(`**/${word}s/**`)) hits.push(`${rule.id}: ${word}/${word}s`);
+            }
+          }
+        }
+      }
+    };
+    walk(rulesDir);
+    expect(hits).toEqual([]);
+  });
+
+  // A whole-file pre-filter is a `pattern-regex` of the form (?s)\A(?=.*LITERAL).* whose range is the whole
+  // file, so the engine can skip a file without LITERAL. With more than one alternative in the lookahead, or
+  // two lookaheads, the engine's regex silently stops matching in a large file (measured on opengrep 1.33.1:
+  // post-model and direct-message from 160 KB, analytics-calls from 120 KB; one literal held to 950 KB)
+  // and the rule loses real matches with no error recorded. One literal per pattern-regex, joined with
+  // a `pattern-either` for "any of these".
+  it('no whole-file pre-filter lookahead holds an alternation or a second lookahead', () => {
+    const bad: string[] = [];
+    const walk = (dir: string): void => {
+      for (const e of readdirSync(dir)) {
+        const p = join(dir, e);
+        if (statSync(p).isDirectory()) walk(p);
+        else if (e.endsWith('.yml') && !e.endsWith('.test.yml')) {
+          const doc = parse(readFileSync(p, 'utf8')) as unknown;
+          for (const rx of patternRegexes(doc)) {
+            const why = wholeFileLookaheadProblem(rx);
+            if (why) bad.push(`${e}: ${why}: ${rx}`);
+          }
+        }
+      }
+    };
+    walk(rulesDir);
+    expect(bad).toEqual([]);
+  });
+
+  it('the pre-filter guard sees the shapes it exists for, and passes the one-literal form', () => {
+    expect(wholeFileLookaheadProblem('(?s)\\A(?=.*(Post|Tweet)).*')).toMatch(/alternation/);
+    expect(wholeFileLookaheadProblem('(?s)\\A(?=[\\s\\S]*?(?:A|B))[\\s\\S]*')).toMatch(/alternation/);
+    expect(wholeFileLookaheadProblem('(?is)\\A(?=.*a)(?=.*b).*')).toMatch(/second lookahead/);
+    expect(wholeFileLookaheadProblem('(?s)\\A(?=.*Post\\b).*')).toBeNull();
+    expect(wholeFileLookaheadProblem('(?s)\\A(?=.*com\\.openai\\.).*')).toBeNull();
+    // An alternation in an ordinary (not whole-file) regex is fine.
+    expect(wholeFileLookaheadProblem('\\b(find|exists)By(Follower|Followee)\\b')).toBeNull();
+    // An escaped bar, and a bar inside a character class, are not alternations.
+    expect(wholeFileLookaheadProblem('(?s)\\A(?=.*a\\|b).*')).toBeNull();
+    expect(wholeFileLookaheadProblem('(?s)\\A(?=.*[|]x).*')).toBeNull();
   });
 
   it('contributing forbids the three rule sets', () => {

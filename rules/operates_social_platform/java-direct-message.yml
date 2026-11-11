@@ -6,6 +6,14 @@ rules:
     pattern-either:
       - patterns:
           - pattern-either:
+              - pattern-regex: '(?s)\A(?=.*DirectMessage\b).*'
+              - pattern-regex: '(?s)\A(?=.*PrivateMessage\b).*'
+              - pattern-regex: '(?s)\A(?=.*ChatMessage\b).*'
+              - pattern-regex: '(?s)\A(?=.*UserMessage\b).*'
+              - pattern-regex: '(?s)\A(?=.*InboxMessage\b).*'
+              - pattern-regex: '(?s)\A(?=.*Dm\b).*'
+              - pattern-regex: '(?s)\A(?=.*DM\b).*'
+          - pattern-either:
               - pattern: $T $F;
               - pattern: $T $F = $V;
           - pattern-either:

@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, readdir, rm, stat } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { availableParallelism, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -162,6 +162,62 @@ describe.skipIf(skipStub)('runEngine with the fake engine', () => {
     const r = await run({ engine: STUB, configFile: 'c.yml', targets: ['a.py'], root: dir });
     expect(r.fileErrors).toBe(2);
     expect(r.matches).toHaveLength(1);
+  });
+
+  describe('a partial parse of an XML file', () => {
+    // Columns are 1-based BYTES and `end` is exclusive, as the engine reports them.
+    const span = (line: number, col: number, len: number, endLine = line, endCol = col + len) => ({
+      file: 'pom.xml',
+      start: { line, col, offset: 0 },
+      end: { line: endLine, col: endCol, offset: len },
+    });
+    const partial = (path: string, ...spans: unknown[]) =>
+      JSON.stringify([{ code: 3, level: 'warn', type: ['PartialParsing', spans], path, message: 'Syntax error', spans }]);
+    const pom = '<project>\n  <build>\n    <?m2e ignore?>\n    <name>x</name>\n      <?m2e execute?>\n  </build>\n</project>\n';
+    const errorsFor = async (file: string, content: string | null, errors: string): Promise<number> => {
+      if (content !== null) await writeFile(join(dir, file), content);
+      setEnv('FAKE_OPENGREP_ERRORS', errors);
+      return (await run({ engine: STUB, configFile: 'c.yml', targets: [file], root: dir })).fileErrors;
+    };
+
+    it('is not a file error when it dropped only processing instructions (a pom with <?m2e ...?>)', async () => {
+      expect(await errorsFor('pom.xml', pom, partial('scan-root/pom.xml', span(3, 5, 14), span(5, 7, 15)))).toBe(0);
+    });
+
+    it('is a file error when any dropped span is not a processing instruction', async () => {
+      expect(await errorsFor('pom.xml', pom, partial('scan-root/pom.xml', span(3, 5, 14), span(4, 5, 14)))).toBe(1);
+    });
+
+    it('is a file error when a span starts at a processing instruction but runs over other dropped text', async () => {
+      for (const tail of ['<!bogus>', ' & x', '<!-- unterminated']) {
+        const text = `<project>\n  <?m2e ignore?>${tail}\n</project>\n`;
+        const len = 14 + tail.length;
+        expect(await errorsFor('pom.xml', text, partial('scan-root/pom.xml', span(2, 3, len)))).toBe(1);
+      }
+      // two instructions run together in one span are more than one instruction
+      expect(await errorsFor('pom.xml', '<p>\n  <?a b?><?c d?>\n</p>\n', partial('scan-root/pom.xml', span(2, 3, 14)))).toBe(1);
+      // a span that ends before the instruction does
+      expect(await errorsFor('pom.xml', pom, partial('scan-root/pom.xml', span(3, 5, 6)))).toBe(1);
+    });
+
+    it('reads columns as bytes: a non-ASCII character before the instruction on the same line', async () => {
+      const text = '<project>\n  <!-- caf\u00e9 --> <?m2e ignore?>\n</project>\n';
+      // the text before the instruction is 17 bytes but 16 characters, so the instruction starts at byte column 18.
+      const prefixBytes = Buffer.byteLength('  <!-- caf\u00e9 --> ');
+      expect(await errorsFor('pom.xml', text, partial('scan-root/pom.xml', span(2, prefixBytes + 1, 14)))).toBe(0);
+      expect(await errorsFor('pom.xml', text, partial('scan-root/pom.xml', span(2, prefixBytes, 14)))).toBe(1);
+    });
+
+    it('is a file error when the file cannot be reread, or the engine named no span or no end', async () => {
+      expect(await errorsFor('missing.xml', null, partial('scan-root/missing.xml', span(3, 5, 14)))).toBe(1);
+      expect(await errorsFor('pom.xml', pom, partial('scan-root/pom.xml'))).toBe(1);
+      const noEnd = { file: 'pom.xml', start: { line: 3, col: 5, offset: 0 } };
+      expect(await errorsFor('pom.xml', pom, partial('scan-root/pom.xml', noEnd))).toBe(1);
+    });
+
+    it('stays a file error for a source file, even where the dropped text is a <? ... ?> span', async () => {
+      expect(await errorsFor('A.kt', pom, partial('scan-root/A.kt', span(3, 5, 14)))).toBe(1);
+    });
   });
 
   it('throws a ToolError carrying the engine message for a fatal rule error', async () => {

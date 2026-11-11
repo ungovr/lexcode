@@ -288,11 +288,6 @@ rules:
               regex: ^(NeuralNetwork|MultiLayerPerceptron|Perceptron|Adaline|Hopfield|Kohonen|CompetitiveNetwork)$
     paths:
       exclude:
-        - "**/example/**"
-        - "**/examples/**"
-        - "**/sample/**"
-        - "**/demo/**"
-        - "**/demos/**"
         - "**/src/test/**"
     metadata:
       activity: trains_models
