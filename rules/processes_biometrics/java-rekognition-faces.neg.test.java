@@ -1,47 +1,76 @@
 // lexcode-expect: 0
-// Amazon Rekognition calls that look at an image without recognizing a person: label and
-// text detection, content moderation, and plain face detection, which finds that a face
-// is present and returns its box and attributes but matches it to no one. Also local
-// methods named like the matching calls.
+// Calls that sit beside Amazon Rekognition face matching and are not it. Amazon Rekognition
+// detection (a face box and attributes, labels, text, moderation) names no person, and the
+// Rekognition types are written in full here with no import. A local photo library has
+// compareFaces, indexFaces, searchFaces and searchUsers methods of its own and calls them
+// on a receiver, which is the shape the matching calls take.
 package demo.faces;
 
-import software.amazon.awssdk.core.SdkBytes;
-import software.amazon.awssdk.services.rekognition.RekognitionClient;
-import software.amazon.awssdk.services.rekognition.model.DetectFacesRequest;
-import software.amazon.awssdk.services.rekognition.model.DetectLabelsRequest;
-import software.amazon.awssdk.services.rekognition.model.DetectModerationLabelsRequest;
-import software.amazon.awssdk.services.rekognition.model.DetectTextRequest;
-import software.amazon.awssdk.services.rekognition.model.Image;
-
 public class PhotoScreening {
-  private final RekognitionClient rekognition = RekognitionClient.create();
+  private final software.amazon.awssdk.services.rekognition.RekognitionClient rekognition =
+      software.amazon.awssdk.services.rekognition.RekognitionClient.create();
 
-  private Image image(byte[] bytes) {
-    return Image.builder().bytes(SdkBytes.fromByteArray(bytes)).build();
+  private software.amazon.awssdk.services.rekognition.model.Image image(byte[] bytes) {
+    return software.amazon.awssdk.services.rekognition.model.Image.builder()
+        .bytes(software.amazon.awssdk.core.SdkBytes.fromByteArray(bytes))
+        .build();
   }
 
   public int countFaces(byte[] bytes) {
-    return rekognition.detectFaces(DetectFacesRequest.builder().image(image(bytes)).build()).faceDetails().size();
+    return rekognition
+        .detectFaces(software.amazon.awssdk.services.rekognition.model.DetectFacesRequest.builder().image(image(bytes)).build())
+        .faceDetails()
+        .size();
   }
 
   public Object labels(byte[] bytes) {
-    return rekognition.detectLabels(DetectLabelsRequest.builder().image(image(bytes)).build());
-  }
-
-  public Object text(byte[] bytes) {
-    return rekognition.detectText(DetectTextRequest.builder().image(image(bytes)).build());
+    return rekognition.detectLabels(
+        software.amazon.awssdk.services.rekognition.model.DetectLabelsRequest.builder().image(image(bytes)).build());
   }
 
   public Object moderation(byte[] bytes) {
-    return rekognition.detectModerationLabels(DetectModerationLabelsRequest.builder().image(image(bytes)).build());
+    return rekognition.detectModerationLabels(
+        software.amazon.awssdk.services.rekognition.model.DetectModerationLabelsRequest.builder().image(image(bytes)).build());
+  }
+}
+
+// A local photo library that shares method names with the matching calls.
+class PhotoLibrary {
+  private final Library library;
+
+  PhotoLibrary(Library library) {
+    this.library = library;
   }
 
-  // Local methods that share names with the matching calls.
-  public boolean compareFaces(String a, String b) {
-    return a.equalsIgnoreCase(b);
+  boolean sameAlbum(String a, String b) {
+    return library.compareFaces(a, b);
   }
 
-  public void check(String a, String b) {
-    compareFaces(a, b);
+  void add(String name) {
+    library.indexFaces(name);
   }
+
+  Object find(String name) {
+    library.searchFaces(name);
+    library.searchFacesByImage(name);
+    library.searchUsers(name);
+    library.searchUsersByImage(name);
+    return library.startFaceSearch(name);
+  }
+}
+
+interface Library {
+  boolean compareFaces(String a, String b);
+
+  void indexFaces(String name);
+
+  Object searchFaces(String name);
+
+  Object searchFacesByImage(String name);
+
+  Object searchUsers(String name);
+
+  Object searchUsersByImage(String name);
+
+  Object startFaceSearch(String name);
 }

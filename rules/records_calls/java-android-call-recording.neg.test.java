@@ -1,6 +1,6 @@
 // lexcode-expect: 0
 // Android calling code that carries a call without keeping it: placing a call, routing
-// audio to the speaker, a WebRTC audio module with no sample callback, and recording the
+// audio to the speaker, a WebRTC audio module that only carries the call, and recording the
 // user's own voice alone (a voice note, which is processes_voice and not this activity).
 package demo.calls;
 

@@ -1,26 +1,24 @@
 // lexcode-expect: 0
 // Video and meeting platform code that carries or reads a call without recording it: a
 // LiveKit token and room listing, a Chime meeting without a capture pipeline, a Zoom
-// meetings lookup that never touches recordings, a Daily room with recording off, a
-// Vonage connect action, and local methods named after recording calls.
+// meetings lookup that never touches recordings, a Daily room with recording off, and a
+// Vonage connect action, with the vendor types written in full and no import. A local
+// archive has startRoomCompositeEgress, startParticipantEgress, startTrackCompositeEgress,
+// startTrackEgress, createMediaCapturePipeline and startContactRecording methods of its
+// own and calls them on a receiver, and a RecordAction.Builder of its own.
 package demo.meetings;
 
-import io.livekit.server.AccessToken;
-import io.livekit.server.RoomServiceClient;
-import software.amazon.awssdk.services.chimesdkmeetings.ChimeSdkMeetingsClient;
-import software.amazon.awssdk.services.chimesdkmeetings.model.CreateMeetingRequest;
-import com.vonage.client.voice.ncco.ConnectAction;
-
 public class MeetingDesk {
-  private final RoomServiceClient rooms;
-  private final ChimeSdkMeetingsClient chime = ChimeSdkMeetingsClient.create();
+  private final io.livekit.server.RoomServiceClient rooms;
+  private final software.amazon.awssdk.services.chimesdkmeetings.ChimeSdkMeetingsClient chime =
+      software.amazon.awssdk.services.chimesdkmeetings.ChimeSdkMeetingsClient.create();
 
-  public MeetingDesk(RoomServiceClient rooms) {
+  public MeetingDesk(io.livekit.server.RoomServiceClient rooms) {
     this.rooms = rooms;
   }
 
   public String joinToken(String key, String secret, String identity) {
-    AccessToken token = new AccessToken(key, secret);
+    io.livekit.server.AccessToken token = new io.livekit.server.AccessToken(key, secret);
     token.setIdentity(identity);
     return token.toJwt();
   }
@@ -30,7 +28,8 @@ public class MeetingDesk {
   }
 
   public Object startMeeting(String token) {
-    return chime.createMeeting(CreateMeetingRequest.builder().clientRequestToken(token).build());
+    return chime.createMeeting(
+        software.amazon.awssdk.services.chimesdkmeetings.model.CreateMeetingRequest.builder().clientRequestToken(token).build());
   }
 
   public String zoomMeetingList() {
@@ -41,26 +40,51 @@ public class MeetingDesk {
     return "{\"properties\":{\"enable_chat\":true,\"enable_recording\":\"off\"}}";
   }
 
-  public ConnectAction bridge(String number) {
-    return new ConnectAction.Builder().build();
+  public Object bridge(String number) {
+    return new com.vonage.client.voice.ncco.ConnectAction.Builder().build();
+  }
+}
+
+// A local meeting archive that shares method names with the recording APIs.
+class MeetingArchive {
+  private final Archive archive;
+
+  MeetingArchive(Archive archive) {
+    this.archive = archive;
   }
 
-  // Local methods whose names echo recording APIs, and calls to them.
-  public void tidy() {
-    startRoomCompositeEgress("main");
-    createMediaCapturePipeline("p1");
-    startContactRecording("c1");
+  void tidy(String id) {
+    archive.startRoomCompositeEgress(id);
+    archive.startParticipantEgress(id);
+    archive.startTrackCompositeEgress(id);
+    archive.startTrackEgress(id);
+    archive.createMediaCapturePipeline(id);
+    archive.startContactRecording(id);
   }
 
-  public void startRoomCompositeEgress(String room) {
-    System.out.println("composite layout for " + room);
+  Object prompt() {
+    return new RecordAction.Builder().build();
   }
+}
 
-  public void createMediaCapturePipeline(String id) {
-    System.out.println("pipeline label " + id);
-  }
+interface Archive {
+  void startRoomCompositeEgress(String id);
 
-  public void startContactRecording(String id) {
-    System.out.println("contact " + id);
+  void startParticipantEgress(String id);
+
+  void startTrackCompositeEgress(String id);
+
+  void startTrackEgress(String id);
+
+  void createMediaCapturePipeline(String id);
+
+  void startContactRecording(String id);
+}
+
+class RecordAction {
+  static class Builder {
+    Object build() {
+      return new Object();
+    }
   }
 }

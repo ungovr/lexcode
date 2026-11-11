@@ -1,53 +1,69 @@
 // lexcode-expect: 0
 // Twilio calls placed or handled without recording: a plain call, record turned off, a
-// hang-up, a text message, a video room without recording, and a local Recording class
-// that is not Twilio's.
+// hang-up, a text message and a video room without recording, with the Twilio types
+// written in full and no import. A local call log has Recording.creator, setRecord and
+// setRecordParticipantsOnConnect calls of its own, which are not Twilio's.
 package demo.calls;
-
-import com.twilio.Twilio;
-import com.twilio.rest.api.v2010.account.Call;
-import com.twilio.rest.api.v2010.account.Message;
-import com.twilio.rest.video.v1.Room;
-import com.twilio.type.PhoneNumber;
-import java.net.URI;
 
 public class OutboundCalls {
   public OutboundCalls(String sid, String token) {
-    Twilio.init(sid, token);
+    com.twilio.Twilio.init(sid, token);
   }
 
-  public Call place(String to, String from, String url) {
-    return Call.creator(new PhoneNumber(to), new PhoneNumber(from), URI.create(url))
-        .setStatusCallback(URI.create("https://example.org/status"))
+  public Object place(String to, String from, String url) {
+    return com.twilio.rest.api.v2010.account.Call.creator(
+            new com.twilio.type.PhoneNumber(to), new com.twilio.type.PhoneNumber(from), java.net.URI.create(url))
+        .setStatusCallback(java.net.URI.create("https://example.org/status"))
         .create();
   }
 
-  public Call placeUnrecorded(String to, String from, String url) {
-    return Call.creator(new PhoneNumber(to), new PhoneNumber(from), URI.create(url))
+  public Object placeUnrecorded(String to, String from, String url) {
+    return com.twilio.rest.api.v2010.account.Call.creator(
+            new com.twilio.type.PhoneNumber(to), new com.twilio.type.PhoneNumber(from), java.net.URI.create(url))
         .setRecord(false)
         .create();
   }
 
   public void hangUp(String callSid) {
-    Call.updater(callSid).setStatus(Call.UpdateStatus.COMPLETED).update();
+    com.twilio.rest.api.v2010.account.Call.updater(callSid)
+        .setStatus(com.twilio.rest.api.v2010.account.Call.UpdateStatus.COMPLETED)
+        .update();
   }
 
-  public Message remind(String to, String from, String body) {
-    return Message.creator(new PhoneNumber(to), new PhoneNumber(from), body).create();
+  public Object remind(String to, String from, String body) {
+    return com.twilio.rest.api.v2010.account.Message.creator(
+            new com.twilio.type.PhoneNumber(to), new com.twilio.type.PhoneNumber(from), body)
+        .create();
   }
 
-  public Room openRoom(String name) {
-    return Room.creator().setUniqueName(name).setRecordParticipantsOnConnect(false).create();
+  public Object openRoom(String name) {
+    return com.twilio.rest.video.v1.Room.creator().setUniqueName(name).setRecordParticipantsOnConnect(false).create();
   }
 }
 
-// A local audit entry, not a Twilio recording.
+// A local call log with the same call shapes, not Twilio.
+class CallLog {
+  private final LogEntry entry;
+
+  CallLog(LogEntry entry) {
+    this.entry = entry;
+  }
+
+  void note(String callId) {
+    entry.setRecord(true);
+    entry.setRecordParticipantsOnConnect(true);
+    Recording.creator(callId);
+  }
+}
+
+interface LogEntry {
+  LogEntry setRecord(boolean value);
+
+  LogEntry setRecordParticipantsOnConnect(boolean value);
+}
+
 class Recording {
   static Recording creator(String callId) {
     return new Recording();
-  }
-
-  Recording setRecord(boolean value) {
-    return this;
   }
 }

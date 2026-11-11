@@ -1,7 +1,7 @@
 // lexcode-expect: 0
 // Speech synthesis and text-only calls that sit beside speech recognition and are not it:
 // Polly, Azure and Google reading typed text aloud, and local classes with a recognize or
-// startTranscriptionJob method of their own.
+// startTranscriptionJob method of their own, and a local SpeechRecognizer class.
 package demo.voice;
 
 import com.google.cloud.texttospeech.v1.SynthesisInput;
@@ -50,6 +50,23 @@ class MinutesIndex {
     archive.startTranscriptionJob(name);
     archive.recognize(name, "en");
     archive.transcribe(name);
+    archive.startStreamTranscription(name);
+    archive.longRunningRecognizeAsync(name);
+    archive.recognizeUsingWebSocket(name);
+    new SpeechRecognizer(name).listen();
+  }
+}
+
+// A local keyword spotter named like the Azure recognizer, with no speech SDK behind it.
+class SpeechRecognizer {
+  private final String keyword;
+
+  SpeechRecognizer(String keyword) {
+    this.keyword = keyword;
+  }
+
+  boolean listen() {
+    return !keyword.isEmpty();
   }
 }
 
@@ -59,4 +76,10 @@ interface Archive {
   void recognize(String name, String language);
 
   void transcribe(String name);
+
+  void startStreamTranscription(String name);
+
+  void longRunningRecognizeAsync(String name);
+
+  void recognizeUsingWebSocket(String name);
 }

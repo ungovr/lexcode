@@ -2,7 +2,8 @@
 // Face and image code that finds a face without recognizing anyone: ML Kit face detection
 // (boxes and smile probability), the Android FaceDetector that counts faces, OpenCV
 // cascade detection that draws a rectangle, and a sharpness filter. Also a local
-// FingerprintMatcher that compares file checksums, not fingers.
+// FingerprintMatcher, FingerprintTemplate and NBiometricClient that handle file checksums and
+// cache keys, not fingers.
 package demo.faces;
 
 import android.graphics.Bitmap;
@@ -56,4 +57,19 @@ class Uploads {
   boolean duplicate(String sha1, String other) {
     return new FingerprintMatcher().same(sha1, other);
   }
+
+  Object stamp(String name) {
+    return new FingerprintTemplate(name);
+  }
+
+  Object client() {
+    return new NBiometricClient();
+  }
 }
+
+// Page-layout and cache classes that share names with fingerprint and biometric types.
+class FingerprintTemplate {
+  FingerprintTemplate(String name) {}
+}
+
+class NBiometricClient {}
