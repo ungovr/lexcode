@@ -8,6 +8,7 @@ import { readLexlintYml } from '../../src/declaration/lexlint-yml.js';
 import { selectDeclaration } from '../../src/declaration/select.js';
 import { ToolError } from '../../src/errors.js';
 import { makeRuleSet } from '../helpers/ruleset.js';
+import { expectNearLinear, measureScaling } from '../helpers/scaling.js';
 
 // An invented declaration pair with the shape of a real multi-component one.
 const EXAMPLE = fileURLToPath(new URL('../repos/example-decl/', import.meta.url));
@@ -174,17 +175,22 @@ describe('readLexlintYml', () => {
     expect(scope).toBeUndefined();
   });
 
-  it('reads a 37,000-line lexlint.yml in under 2,000 ms', () => {
-    const f = join(dir, 'lexlint.yml');
-    const text = largeLexlintYml(37_000);
-    expect(text.split('\n').length).toBeGreaterThanOrEqual(37_000);
-    writeFileSync(f, text);
-    const t0 = performance.now();
-    const { declaration } = readLexlintYml(f);
-    const ms = performance.now() - t0;
-    expect(ms).toBeLessThan(2000);
-    expect(declaration.declared.size).toBe(6);
-    expect(declaration.declared.get('generates_content')).toBe('declared');
+  it('reads a 37,000-line lexlint.yml in time that grows near-linearly with its length', () => {
+    const m = measureScaling({
+      small: 3_700,
+      large: 37_000,
+      setup: (n) => {
+        const f = join(dir, `lexlint-${n}.yml`);
+        const text = largeLexlintYml(n);
+        expect(text.split('\n').length).toBeGreaterThanOrEqual(n);
+        writeFileSync(f, text);
+        return f;
+      },
+      run: (f) => readLexlintYml(f),
+    });
+    expectNearLinear(m, 'readLexlintYml');
+    expect(m.result.declaration.declared.size).toBe(6);
+    expect(m.result.declaration.declared.get('generates_content')).toBe('declared');
   });
 
   it('activities_left_out go to absent and app.scope is returned', () => {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readPypi } from '../../src/manifests/pypi.js';
+import { expectNearLinear, measureScaling } from '../helpers/scaling.js';
 import { tree } from './helpers.js';
 
 describe('readPypi', () => {
@@ -197,17 +198,20 @@ describe('readPypi', () => {
 });
 
 describe('readPypi on very large manifests', () => {
-  it('reads 20,000 Poetry dependencies in under 2 seconds, each with its own line', () => {
-    const body = Array.from({ length: 20_000 }, (_, i) => `pkg-${i} = "^1.${i}"`);
-    const text = ['[tool.poetry.dependencies]', 'python = "^3.11"', ...body, ''].join('\n');
-    const root = tree({ 'pyproject.toml': text });
-    const t0 = performance.now();
-    const r = readPypi(root, ['pyproject.toml']);
-    const ms = performance.now() - t0;
-    expect(r.deps).toHaveLength(20_000);
-    expect(r.deps.find((d) => d.name === 'pkg-0')?.manifest).toBe('pyproject.toml:3');
-    expect(r.deps.find((d) => d.name === 'pkg-19999')?.manifest).toBe('pyproject.toml:20002');
-    expect(ms).toBeLessThan(2000);
+  it('reads 20,000 Poetry dependencies, each with its own line, in time that grows near-linearly with the count', () => {
+    const m = measureScaling({
+      small: 2_000,
+      large: 20_000,
+      setup: (n) => {
+        const body = Array.from({ length: n }, (_, i) => `pkg-${i} = "^1.${i}"`);
+        return tree({ 'pyproject.toml': ['[tool.poetry.dependencies]', 'python = "^3.11"', ...body, ''].join('\n') });
+      },
+      run: (root) => readPypi(root, ['pyproject.toml']),
+    });
+    expectNearLinear(m, 'readPypi (Poetry)');
+    expect(m.result.deps).toHaveLength(20_000);
+    expect(m.result.deps.find((d) => d.name === 'pkg-0')?.manifest).toBe('pyproject.toml:3');
+    expect(m.result.deps.find((d) => d.name === 'pkg-19999')?.manifest).toBe('pyproject.toml:20002');
   });
 
   it('still points a Poetry dependency written as its own table at that table', () => {
@@ -216,15 +220,19 @@ describe('readPypi on very large manifests', () => {
     expect(r.deps).toEqual([{ ecosystem: 'pypi', name: 'requests', version: '2.31.0', manifest: 'pyproject.toml:4' }]);
   });
 
-  it('reads 20,000 PEP 621 dependencies whose text cannot be found on any line in under 2 seconds', () => {
+  it('reads 20,000 PEP 621 dependencies whose text cannot be found on any line, in time that grows near-linearly with the count', () => {
     // A TOML escape means the parsed string is not a substring of the file.
-    const specs = Array.from({ length: 20_000 }, (_, i) => `"pkg-${i}\\u0041>=1"`);
-    const text = ['[project]', 'name = "x"', `dependencies = [${specs.join(', ')}]`, ''].join('\n');
-    const root = tree({ 'pyproject.toml': text });
-    const t0 = performance.now();
-    const r = readPypi(root, ['pyproject.toml']);
-    expect(r.deps).toHaveLength(20_000);
-    expect(performance.now() - t0).toBeLessThan(2000);
+    const m = measureScaling({
+      small: 2_000,
+      large: 20_000,
+      setup: (n) => {
+        const specs = Array.from({ length: n }, (_, i) => `"pkg-${i}\\u0041>=1"`);
+        return tree({ 'pyproject.toml': ['[project]', 'name = "x"', `dependencies = [${specs.join(', ')}]`, ''].join('\n') });
+      },
+      run: (root) => readPypi(root, ['pyproject.toml']),
+    });
+    expectNearLinear(m, 'readPypi (PEP 621)');
+    expect(m.result.deps).toHaveLength(20_000);
   });
 });
 

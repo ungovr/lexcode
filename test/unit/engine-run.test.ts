@@ -245,6 +245,7 @@ describe.skipIf(skipStub)('runEngine with the fake engine', () => {
     expect(err).toBeInstanceOf(ToolError);
     expect((err as Error).message).toMatch(/did not finish within 1\.5 seconds/);
     expect((err as Error).message).toContain('LEXCODE_ENGINE_DEADLINE');
+    // A deadline test, not a runner-speed budget: 15 s is 10x the 1.5 s deadline the engine was given, so it only proves the stuck engine was stopped.
     expect(Date.now() - t0).toBeLessThan(15_000);
     const engine = Number(await readFile(pidFile, 'utf8'));
     const worker = Number(await readFile(workerFile, 'utf8'));
