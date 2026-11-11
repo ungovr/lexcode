@@ -23,7 +23,6 @@ rules:
               metavariable: $M
               regex: ^(debug|info|warn|error|fatal|unknown|add)$
       # A write to the database: the address is the value of an address-named column.
-      # One sink per call shape: the engine drops the match when they share a pattern-either.
       - patterns:
           - pattern: "$C.$M(..., $K: $V, ...)"
           - metavariable-regex:
