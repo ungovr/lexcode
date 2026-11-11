@@ -1,0 +1,25 @@
+rules:
+  - id: lexcode.distribute.gradle-kts-desktop-installer
+    languages: [kotlin]
+    severity: INFO
+    message: Applies a Gradle plugin that builds a desktop installer or native launcher (jlink, jpackage, Launch4j, install4j, macAppBundle), by id or by a catalog alias named for it, or declares Compose Multiplatform native distributions, which is packaged software made for others to install (distributes_software_product).
+    pattern-either:
+      - pattern-regex: '(?m)^[ \t]*(?:(?:id|apply)[ \t]*\([ \t]*(?:plugin[ \t]*=[ \t]*)?"(?:org\.beryx\.jlink|org\.beryx\.runtime|org\.panteleyev\.jpackageplugin|edu\.sc\.seis\.launch4j|edu\.sc\.seis\.macAppBundle|com\.install4j\.gradle|io\.github\.fvarrui\.javapackager\.plugin)"[ \t]*\)|alias[ \t]*\([ \t]*\w+\.plugins\.(?:\w+\.)*(?:jlink|jpackage|launch4j|install4j|javapackager|macappbundle)(?:\.\w+)*[ \t]*\))(?![^\n]*\bapply[ \t]+false\b)'
+      - pattern: |
+          nativeDistributions { ... }
+    paths:
+      include:
+        - "*.gradle.kts"
+        - "gradle-kts-desktop-installer.*"
+      exclude:
+        - "**/example/**"
+        - "**/examples/**"
+        - "**/sample/**"
+        - "**/demo/**"
+        - "**/demos/**"
+    metadata:
+      activity: distributes_software_product
+      mentioned: performs
+      definition: https://lexlint.io/activities/distributes-software-product
+      provenance: ungovr-original
+      license: MIT

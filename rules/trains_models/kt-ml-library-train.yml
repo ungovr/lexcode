@@ -1,0 +1,223 @@
+rules:
+  - id: lexcode.train.kt-ml-library-train
+    languages: [kotlin]
+    severity: INFO
+    message: Fits a model with Weka, Tribuo, Smile, Apache OpenNLP or Neuroph, which is training models (trains_models).
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: $X.buildClassifier(...)
+              - pattern: $X.buildClusterer(...)
+              - pattern: $X.buildAssociations(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import weka.classifiers.$A
+                  ...
+              - pattern-inside: |
+                  import weka.classifiers.$A.$B
+                  ...
+              - pattern-inside: |
+                  import weka.classifiers.*
+                  ...
+              - pattern-inside: |
+                  import weka.classifiers.$A.*
+                  ...
+              - pattern-inside: |
+                  import weka.clusterers.$A
+                  ...
+              - pattern-inside: |
+                  import weka.clusterers.*
+                  ...
+              - pattern-inside: |
+                  import weka.associations.$A
+                  ...
+              - pattern-inside: |
+                  import weka.associations.*
+                  ...
+      - patterns:
+          - pattern: $N.train(...)
+          - metavariable-type:
+              metavariable: $N
+              types: [Trainer, Trainer<$G>, Trainer<*>]
+          - pattern-either:
+              - pattern-inside: |
+                  import org.tribuo.Trainer
+                  ...
+              - pattern-inside: |
+                  import org.tribuo.*
+                  ...
+              - pattern-inside: |
+                  import org.tribuo.$P1.$P2
+                  ...
+              - pattern-inside: |
+                  import org.tribuo.$P1.$P2.$P3
+                  ...
+              - pattern-inside: |
+                  import org.tribuo.$P1.$P2.$P3.$P4
+                  ...
+              - pattern-inside: |
+                  import org.tribuo.$P1.$P2.$P3.$P4.$P5
+                  ...
+              - pattern-inside: |
+                  import org.tribuo.$P1.*
+                  ...
+              - pattern-inside: |
+                  import org.tribuo.$P1.$P2.*
+                  ...
+              - pattern-inside: |
+                  import org.tribuo.$P1.$P2.$P3.*
+                  ...
+      - patterns:
+          - pattern: $N.train(...)
+          - pattern-either:
+              - pattern-inside: |
+                  val $N = $T(...)
+                  ...
+              - pattern-inside: |
+                  val $N = $T(...).$X(...)
+                  ...
+              - pattern-inside: |
+                  class $C(...) {
+                    ...
+                    val $N = $T(...)
+                    ...
+                  }
+          - metavariable-regex:
+              metavariable: $T
+              regex: ^\w+Trainer$
+          - pattern-either:
+              - pattern-inside: |
+                  import org.tribuo.Trainer
+                  ...
+              - pattern-inside: |
+                  import org.tribuo.*
+                  ...
+              - pattern-inside: |
+                  import org.tribuo.$P1.$P2
+                  ...
+              - pattern-inside: |
+                  import org.tribuo.$P1.$P2.$P3
+                  ...
+              - pattern-inside: |
+                  import org.tribuo.$P1.$P2.$P3.$P4
+                  ...
+              - pattern-inside: |
+                  import org.tribuo.$P1.$P2.$P3.$P4.$P5
+                  ...
+              - pattern-inside: |
+                  import org.tribuo.$P1.*
+                  ...
+              - pattern-inside: |
+                  import org.tribuo.$P1.$P2.*
+                  ...
+              - pattern-inside: |
+                  import org.tribuo.$P1.$P2.$P3.*
+                  ...
+      - patterns:
+          - pattern: $C.fit(...)
+          - metavariable-regex:
+              metavariable: $C
+              regex: ^(RandomForest|GradientTreeBoost|LogisticRegression|SVM|DecisionTree|KNN|LDA|QDA|RDA|OLS|LASSO|RidgeRegression|ElasticNet|KMeans|XMeans|GMeans|DBSCAN|HierarchicalClustering|AdaBoost|NaiveBayes|Maxent|MLP)$
+          - pattern-either:
+              - pattern-inside: |
+                  import smile.classification.*
+                  ...
+              - pattern-inside: |
+                  import smile.classification.$K
+                  ...
+              - pattern-inside: |
+                  import smile.regression.*
+                  ...
+              - pattern-inside: |
+                  import smile.regression.$K
+                  ...
+              - pattern-inside: |
+                  import smile.clustering.*
+                  ...
+              - pattern-inside: |
+                  import smile.clustering.$K
+                  ...
+      - patterns:
+          - pattern: $C.train(...)
+          - metavariable-regex:
+              metavariable: $C
+              regex: ^\w+ME$
+          - pattern-either:
+              - pattern-inside: |
+                  import opennlp.tools.*
+                  ...
+              - pattern-inside: |
+                  import opennlp.tools.$A.*
+                  ...
+              - pattern-inside: |
+                  import opennlp.tools.$A.$K
+                  ...
+              - pattern-inside: |
+                  import opennlp.tools.$A.$B.$K
+                  ...
+      - patterns:
+          - pattern: $N.learn(...)
+          - metavariable-type:
+              metavariable: $N
+              types: [NeuralNetwork, MultiLayerPerceptron, Perceptron, Adaline, Hopfield, Kohonen, CompetitiveNetwork]
+          - pattern-either:
+              - pattern-inside: |
+                  import org.neuroph.*
+                  ...
+              - pattern-inside: |
+                  import org.neuroph.$A.$K
+                  ...
+              - pattern-inside: |
+                  import org.neuroph.$A.*
+                  ...
+              - pattern-inside: |
+                  import org.neuroph.$A.$B.$K
+                  ...
+              - pattern-inside: |
+                  import org.neuroph.$A.$B.*
+                  ...
+      - patterns:
+          - pattern: $N.learn(...)
+          - pattern-either:
+              - pattern-inside: |
+                  val $N = $T(...)
+                  ...
+              - pattern-inside: |
+                  class $C(...) {
+                    ...
+                    val $N = $T(...)
+                    ...
+                  }
+          - metavariable-regex:
+              metavariable: $T
+              regex: ^(NeuralNetwork|MultiLayerPerceptron|Perceptron|Adaline|Hopfield|Kohonen|CompetitiveNetwork)$
+          - pattern-either:
+              - pattern-inside: |
+                  import org.neuroph.*
+                  ...
+              - pattern-inside: |
+                  import org.neuroph.$A.$K
+                  ...
+              - pattern-inside: |
+                  import org.neuroph.$A.*
+                  ...
+              - pattern-inside: |
+                  import org.neuroph.$A.$B.$K
+                  ...
+              - pattern-inside: |
+                  import org.neuroph.$A.$B.*
+                  ...
+    paths:
+      exclude:
+        - "**/example/**"
+        - "**/examples/**"
+        - "**/sample/**"
+        - "**/demo/**"
+        - "**/demos/**"
+        - "**/src/test/**"
+    metadata:
+      activity: trains_models
+      mentioned: performs
+      definition: https://lexlint.io/activities/trains-models
+      provenance: ungovr-original
+      license: MIT

@@ -1,0 +1,155 @@
+rules:
+  - id: lexcode.train.kt-spark-ml-fit
+    languages: [kotlin]
+    severity: INFO
+    message: Fits a Spark MLlib estimator, pipeline or cross-validator to a dataset, or calls an MLlib train method, which is training models (trains_models). Feature transformers such as StringIndexer and StandardScaler are data preparation and are not matched.
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - patterns:
+                  - pattern: $N.fit(...)
+                  - metavariable-type:
+                      metavariable: $N
+                      types: [LogisticRegression, DecisionTreeClassifier, RandomForestClassifier, GBTClassifier, NaiveBayes, LinearSVC, MultilayerPerceptronClassifier, FMClassifier, OneVsRest, LinearRegression, GeneralizedLinearRegression, DecisionTreeRegressor, RandomForestRegressor, GBTRegressor, IsotonicRegression, AFTSurvivalRegression, FMRegressor, KMeans, BisectingKMeans, GaussianMixture, LDA, ALS, FPGrowth, Pipeline, CrossValidator, TrainValidationSplit]
+              - patterns:
+                  - pattern-either:
+                      - pattern: $N.fit(...)
+                  - pattern-either:
+                      - pattern-inside: |
+                          val $N = $T(...)
+                          ...
+                      - pattern-inside: |
+                          var $N = $T(...)
+                          ...
+                      - pattern-inside: |
+                          val $N = $T(...).$X(...)
+                          ...
+                      - pattern-inside: |
+                          val $N = $T(...).$X(...).$Y(...)
+                          ...
+                      - pattern-inside: |
+                          val $N = $T(...).$X(...).$Y(...).$Z(...)
+                          ...
+                      - pattern-inside: |
+                          class $C(...) {
+                            ...
+                            val $N = $T(...)
+                            ...
+                          }
+                  - metavariable-regex:
+                      metavariable: $T
+                      regex: ^(LogisticRegression|DecisionTreeClassifier|RandomForestClassifier|GBTClassifier|NaiveBayes|LinearSVC|MultilayerPerceptronClassifier|FMClassifier|OneVsRest|LinearRegression|GeneralizedLinearRegression|DecisionTreeRegressor|RandomForestRegressor|GBTRegressor|IsotonicRegression|AFTSurvivalRegression|FMRegressor|KMeans|BisectingKMeans|GaussianMixture|LDA|ALS|FPGrowth|Pipeline|CrossValidator|TrainValidationSplit)$
+              - patterns:
+                  - pattern-either:
+                      - pattern: $T(...).fit(...)
+                      - pattern: $T(...).$X(...).fit(...)
+                      - pattern: $T(...).$X(...).$Y(...).fit(...)
+                      - pattern: $T(...).$X(...).$Y(...).$Z(...).fit(...)
+                  - metavariable-regex:
+                      metavariable: $T
+                      regex: ^(LogisticRegression|DecisionTreeClassifier|RandomForestClassifier|GBTClassifier|NaiveBayes|LinearSVC|MultilayerPerceptronClassifier|FMClassifier|OneVsRest|LinearRegression|GeneralizedLinearRegression|DecisionTreeRegressor|RandomForestRegressor|GBTRegressor|IsotonicRegression|AFTSurvivalRegression|FMRegressor|KMeans|BisectingKMeans|GaussianMixture|LDA|ALS|FPGrowth|Pipeline|CrossValidator|TrainValidationSplit)$
+          - pattern-either:
+              - pattern-inside: |
+                  import org.apache.spark.ml.Pipeline
+                  ...
+              - pattern-inside: |
+                  import org.apache.spark.ml.*
+                  ...
+              - pattern-inside: |
+                  import org.apache.spark.ml.classification.$K
+                  ...
+              - pattern-inside: |
+                  import org.apache.spark.ml.classification.*
+                  ...
+              - pattern-inside: |
+                  import org.apache.spark.ml.regression.$K
+                  ...
+              - pattern-inside: |
+                  import org.apache.spark.ml.regression.*
+                  ...
+              - pattern-inside: |
+                  import org.apache.spark.ml.clustering.$K
+                  ...
+              - pattern-inside: |
+                  import org.apache.spark.ml.clustering.*
+                  ...
+              - pattern-inside: |
+                  import org.apache.spark.ml.recommendation.$K
+                  ...
+              - pattern-inside: |
+                  import org.apache.spark.ml.recommendation.*
+                  ...
+              - pattern-inside: |
+                  import org.apache.spark.ml.fpm.$K
+                  ...
+              - pattern-inside: |
+                  import org.apache.spark.ml.fpm.*
+                  ...
+              - pattern-inside: |
+                  import org.apache.spark.ml.tuning.$K
+                  ...
+              - pattern-inside: |
+                  import org.apache.spark.ml.tuning.*
+                  ...
+      - patterns:
+          - pattern-either:
+              - pattern: $C.train(...)
+              - pattern: $C.trainClassifier(...)
+              - pattern: $C.trainRegressor(...)
+          - metavariable-regex:
+              metavariable: $C
+              regex: ^(NaiveBayes|DecisionTree|RandomForest|GradientBoostedTrees|KMeans|ALS|SVMWithSGD|LogisticRegressionWithSGD|LogisticRegressionWithLBFGS|LinearRegressionWithSGD|RidgeRegressionWithSGD|LassoWithSGD|LDA|GaussianMixture|BisectingKMeans|IsotonicRegression)$
+          - pattern-either:
+              - pattern-inside: |
+                  import org.apache.spark.mllib.*
+                  ...
+              - pattern-inside: |
+                  import org.apache.spark.mllib.classification.$K
+                  ...
+              - pattern-inside: |
+                  import org.apache.spark.mllib.classification.*
+                  ...
+              - pattern-inside: |
+                  import org.apache.spark.mllib.regression.$K
+                  ...
+              - pattern-inside: |
+                  import org.apache.spark.mllib.regression.*
+                  ...
+              - pattern-inside: |
+                  import org.apache.spark.mllib.clustering.$K
+                  ...
+              - pattern-inside: |
+                  import org.apache.spark.mllib.clustering.*
+                  ...
+              - pattern-inside: |
+                  import org.apache.spark.mllib.recommendation.$K
+                  ...
+              - pattern-inside: |
+                  import org.apache.spark.mllib.recommendation.*
+                  ...
+              - pattern-inside: |
+                  import org.apache.spark.mllib.tree.$K
+                  ...
+              - pattern-inside: |
+                  import org.apache.spark.mllib.tree.*
+                  ...
+              - pattern-inside: |
+                  import org.apache.spark.mllib.fpm.$K
+                  ...
+              - pattern-inside: |
+                  import org.apache.spark.mllib.fpm.*
+                  ...
+    paths:
+      exclude:
+        - "**/example/**"
+        - "**/examples/**"
+        - "**/sample/**"
+        - "**/demo/**"
+        - "**/demos/**"
+        - "**/src/test/**"
+    metadata:
+      activity: trains_models
+      mentioned: performs
+      definition: https://lexlint.io/activities/trains-models
+      provenance: ungovr-original
+      license: MIT

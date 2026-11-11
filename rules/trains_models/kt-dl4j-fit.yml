@@ -1,0 +1,226 @@
+rules:
+  - id: lexcode.train.kt-dl4j-fit
+    languages: [kotlin]
+    severity: INFO
+    message: Calls fit on a Deeplearning4j or ND4J SameDiff network, graph or trainer, which trains a neural network on data the app holds (trains_models).
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - patterns:
+                  - pattern: $N.fit(...)
+                  - metavariable-type:
+                      metavariable: $N
+                      type: MultiLayerNetwork
+              - patterns:
+                  - pattern: $N.fit(...)
+                  - pattern-inside: |
+                      val $N = MultiLayerNetwork(...)
+                      ...
+              - patterns:
+                  - pattern: $N.fit(...)
+                  - pattern-inside: |
+                      var $N = MultiLayerNetwork(...)
+                      ...
+              - patterns:
+                  - pattern: $N.fit(...)
+                  - pattern-inside: |
+                      class $C(...) {
+                        ...
+                        val $N = MultiLayerNetwork(...)
+                        ...
+                      }
+              - patterns:
+                  - pattern: $N.fit(...)
+                  - pattern-inside: |
+                      class $C {
+                        ...
+                        val $N = MultiLayerNetwork(...)
+                        ...
+                      }
+              - pattern: MultiLayerNetwork(...).fit(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import org.deeplearning4j.nn.multilayer.MultiLayerNetwork
+                  ...
+              - pattern-inside: |
+                  import org.deeplearning4j.nn.multilayer.*
+                  ...
+      - patterns:
+          - pattern-either:
+              - patterns:
+                  - pattern: $N.fit(...)
+                  - metavariable-type:
+                      metavariable: $N
+                      type: ComputationGraph
+              - patterns:
+                  - pattern: $N.fit(...)
+                  - pattern-inside: |
+                      val $N = ComputationGraph(...)
+                      ...
+              - patterns:
+                  - pattern: $N.fit(...)
+                  - pattern-inside: |
+                      var $N = ComputationGraph(...)
+                      ...
+              - patterns:
+                  - pattern: $N.fit(...)
+                  - pattern-inside: |
+                      class $C(...) {
+                        ...
+                        val $N = ComputationGraph(...)
+                        ...
+                      }
+              - patterns:
+                  - pattern: $N.fit(...)
+                  - pattern-inside: |
+                      class $C {
+                        ...
+                        val $N = ComputationGraph(...)
+                        ...
+                      }
+              - pattern: ComputationGraph(...).fit(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import org.deeplearning4j.nn.graph.ComputationGraph
+                  ...
+              - pattern-inside: |
+                  import org.deeplearning4j.nn.graph.*
+                  ...
+      - patterns:
+          - pattern-either:
+              - patterns:
+                  - pattern: $N.fit(...)
+                  - metavariable-type:
+                      metavariable: $N
+                      type: SameDiff
+              - patterns:
+                  - pattern: $N.fit(...)
+                  - pattern-inside: |
+                      val $N = SameDiff(...)
+                      ...
+              - patterns:
+                  - pattern: $N.fit(...)
+                  - pattern-inside: |
+                      var $N = SameDiff(...)
+                      ...
+              - patterns:
+                  - pattern: $N.fit(...)
+                  - pattern-inside: |
+                      class $C(...) {
+                        ...
+                        val $N = SameDiff(...)
+                        ...
+                      }
+              - patterns:
+                  - pattern: $N.fit(...)
+                  - pattern-inside: |
+                      class $C {
+                        ...
+                        val $N = SameDiff(...)
+                        ...
+                      }
+              - pattern: SameDiff(...).fit(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import org.nd4j.autodiff.samediff.SameDiff
+                  ...
+              - pattern-inside: |
+                  import org.nd4j.autodiff.samediff.*
+                  ...
+      - patterns:
+          - pattern-either:
+              - patterns:
+                  - pattern: $N.fit(...)
+                  - metavariable-type:
+                      metavariable: $N
+                      type: EarlyStoppingTrainer
+              - patterns:
+                  - pattern: $N.fit(...)
+                  - pattern-inside: |
+                      val $N = EarlyStoppingTrainer(...)
+                      ...
+              - patterns:
+                  - pattern: $N.fit(...)
+                  - pattern-inside: |
+                      var $N = EarlyStoppingTrainer(...)
+                      ...
+              - patterns:
+                  - pattern: $N.fit(...)
+                  - pattern-inside: |
+                      class $C(...) {
+                        ...
+                        val $N = EarlyStoppingTrainer(...)
+                        ...
+                      }
+              - patterns:
+                  - pattern: $N.fit(...)
+                  - pattern-inside: |
+                      class $C {
+                        ...
+                        val $N = EarlyStoppingTrainer(...)
+                        ...
+                      }
+              - pattern: EarlyStoppingTrainer(...).fit(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import org.deeplearning4j.earlystopping.trainer.EarlyStoppingTrainer
+                  ...
+              - pattern-inside: |
+                  import org.deeplearning4j.earlystopping.trainer.*
+                  ...
+      - patterns:
+          - pattern-either:
+              - patterns:
+                  - pattern: $N.fit(...)
+                  - metavariable-type:
+                      metavariable: $N
+                      type: SparkDl4jMultiLayer
+              - patterns:
+                  - pattern: $N.fit(...)
+                  - pattern-inside: |
+                      val $N = SparkDl4jMultiLayer(...)
+                      ...
+              - patterns:
+                  - pattern: $N.fit(...)
+                  - pattern-inside: |
+                      var $N = SparkDl4jMultiLayer(...)
+                      ...
+              - patterns:
+                  - pattern: $N.fit(...)
+                  - pattern-inside: |
+                      class $C(...) {
+                        ...
+                        val $N = SparkDl4jMultiLayer(...)
+                        ...
+                      }
+              - patterns:
+                  - pattern: $N.fit(...)
+                  - pattern-inside: |
+                      class $C {
+                        ...
+                        val $N = SparkDl4jMultiLayer(...)
+                        ...
+                      }
+              - pattern: SparkDl4jMultiLayer(...).fit(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import org.deeplearning4j.spark.impl.multilayer.SparkDl4jMultiLayer
+                  ...
+              - pattern-inside: |
+                  import org.deeplearning4j.spark.impl.multilayer.*
+                  ...
+    paths:
+      exclude:
+        - "**/example/**"
+        - "**/examples/**"
+        - "**/sample/**"
+        - "**/demo/**"
+        - "**/demos/**"
+        - "**/src/test/**"
+        - "**/src/androidTest/**"
+    metadata:
+      activity: trains_models
+      mentioned: performs
+      definition: https://lexlint.io/activities/trains-models
+      provenance: ungovr-original
+      license: MIT

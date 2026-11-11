@@ -1,0 +1,88 @@
+rules:
+  - id: lexcode.train.kt-kotlindl-fit
+    languages: [kotlin]
+    severity: INFO
+    message: Calls fit on a KotlinDL network, which trains a neural network on data the app holds (trains_models).
+    patterns:
+      - pattern-either:
+          - pattern: $M.fit(..., epochs = $E, ...)
+          - pattern: $M.fit(dataset = $D, ...)
+          - patterns:
+              - pattern: $N.fit(...)
+              - metavariable-type:
+                  metavariable: $N
+                  type: Sequential
+          - patterns:
+              - pattern: $N.fit(...)
+              - metavariable-type:
+                  metavariable: $N
+                  type: Functional
+          - patterns:
+              - pattern: $N.fit(...)
+              - metavariable-type:
+                  metavariable: $N
+                  type: GraphTrainableModel
+          - patterns:
+              - pattern: $N.fit(...)
+              - metavariable-type:
+                  metavariable: $N
+                  type: TrainableModel
+          - patterns:
+              - pattern: $N.fit(...)
+              - pattern-inside: |
+                  val $N = Sequential.of(...)
+                  ...
+          - patterns:
+              - pattern: $N.fit(...)
+              - pattern-inside: |
+                  class $C(...) {
+                    ...
+                    val $N = Sequential.of(...)
+                    ...
+                  }
+          - pattern: Sequential.of(...).fit(...)
+          - patterns:
+              - pattern: $N.fit(...)
+              - pattern-inside: |
+                  val $N = Functional.of(...)
+                  ...
+          - patterns:
+              - pattern: $N.fit(...)
+              - pattern-inside: |
+                  class $C(...) {
+                    ...
+                    val $N = Functional.of(...)
+                    ...
+                  }
+          - pattern: Functional.of(...).fit(...)
+      - pattern-either:
+          - pattern-inside: |
+              import org.jetbrains.kotlinx.dl.api.core.Sequential
+              ...
+          - pattern-inside: |
+              import org.jetbrains.kotlinx.dl.api.core.Functional
+              ...
+          - pattern-inside: |
+              import org.jetbrains.kotlinx.dl.api.core.GraphTrainableModel
+              ...
+          - pattern-inside: |
+              import org.jetbrains.kotlinx.dl.api.core.TrainableModel
+              ...
+          - pattern-inside: |
+              import org.jetbrains.kotlinx.dl.api.core.*
+              ...
+    paths:
+      exclude:
+        - "**/example/**"
+        - "**/examples/**"
+        - "**/sample/**"
+        - "**/demo/**"
+        - "**/demos/**"
+        - "**/src/test/**"
+        - "**/src/androidTest/**"
+    metadata:
+      activity: trains_models
+      mentioned: performs
+      definition: https://lexlint.io/activities/trains-models
+      provenance: ungovr-original
+      license: MIT
