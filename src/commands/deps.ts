@@ -5,6 +5,7 @@ import { readGo } from '../manifests/go.js';
 import { readNpm } from '../manifests/npm.js';
 import { normalizePypiName } from '../manifests/purl.js';
 import { readPypi } from '../manifests/pypi.js';
+import { readGradle } from '../manifests/gradle.js';
 import { readMaven } from '../manifests/maven.js';
 import { readRuby } from '../manifests/ruby.js';
 import { classOf, loadRuleSet } from '../rules/load.js';
@@ -50,7 +51,7 @@ export function collectDeps(roots: string[], rs: RuleSet): DepRow[] {
       includeTests: false,
     };
     const files = listFiles(root, spec).files;
-    const deps = [readNpm(root, files), readPypi(root, files), readGo(root, files), readRuby(root, files), readMaven(root, files)].flatMap((r) => r.deps);
+    const deps = [readNpm(root, files), readPypi(root, files), readGo(root, files), readRuby(root, files), readMaven(root, files), readGradle(root, files)].flatMap((r) => r.deps);
     for (const dep of deps) {
       const k = key(dep);
       let row = rows.get(k);

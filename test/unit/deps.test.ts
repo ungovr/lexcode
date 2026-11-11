@@ -56,6 +56,17 @@ describe('collectDeps', () => {
     ]);
   });
 
+  it('lists the Gradle dependencies of a repository under the maven ecosystem', () => {
+    const a = tree({
+      'settings.gradle.kts': '',
+      'gradle/libs.versions.toml': '[libraries]\nokhttp = "com.squareup.okhttp3:okhttp:4.12.0"\njunit = "junit:junit:4.13.2"\n',
+      'app/build.gradle.kts': 'dependencies {\n    implementation(libs.okhttp)\n    testImplementation(libs.junit)\n    implementation("io.sentry:sentry:7.3.0")\n}\n',
+    });
+    const rows = collectDeps([a], rs);
+    expect(rows.map((r) => `${r.ecosystem}:${r.name}`)).toEqual(['maven:com.squareup.okhttp3:okhttp', 'maven:io.sentry:sentry']);
+    expect(rows[0]?.manifests).toEqual([`${a}:app/build.gradle.kts:2`]);
+  });
+
   it('counts a package once per repository however many manifests name it', () => {
     const a = tree({ 'package.json': pkg({ lodash: '4.17.21' }), 'web/package.json': pkg({ lodash: '4.17.20' }) });
     const row = collectDeps([a], rs).find((r) => r.name === 'lodash');
