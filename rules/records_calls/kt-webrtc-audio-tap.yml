@@ -1,0 +1,18 @@
+rules:
+  - id: lexcode.calls.kt-webrtc-audio-tap
+    languages: [kotlin]
+    severity: INFO
+    message: Receives the audio samples of a WebRTC call as they are captured or played, which may be recording a call (records_calls).
+    patterns:
+      # The sample callbacks are named for the audio module's builder, so the file must import it
+      - pattern-regex: '(?sm)^import\s+org\.webrtc\.audio\..*'
+      - pattern-either:
+          - pattern: $B.setSamplesReadyCallback(...)
+          - pattern: $B.setPlaybackSamplesReadyCallback(...)
+    metadata:
+      activity: records_calls
+      strength: signal
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-calls
+      provenance: ungovr-original
+      license: MIT

@@ -1,0 +1,27 @@
+rules:
+  - id: lexcode.voice.kt-local-speech-engines
+    languages: [kotlin]
+    severity: INFO
+    message: Runs a speech recognizer inside the app (Vosk, CMU Sphinx or PocketSphinx, whisper.cpp or sherpa-onnx), which is transcribing human voices (processes_voice).
+    patterns:
+      - pattern-either:
+          # Vosk, Sphinx, PocketSphinx and sherpa-onnx: the engines' own classes, written in full, which the
+          # engine resolves through the file's imports (a named import, a wildcard and an alias), so a
+          # project class of the same name is not taken for them
+          - pattern: org.vosk.Recognizer(...)
+          - pattern: org.vosk.android.SpeechService(...)
+          - pattern: edu.cmu.sphinx.api.StreamSpeechRecognizer(...)
+          - pattern: edu.cmu.sphinx.api.LiveSpeechRecognizer(...)
+          - pattern: edu.cmu.pocketsphinx.SpeechRecognizerSetup.defaultSetup(...)
+          - pattern: com.k2fsa.sherpa.onnx.OfflineRecognizer(...)
+          - pattern: com.k2fsa.sherpa.onnx.OnlineRecognizer(...)
+          # whisper.cpp through WhisperJNI: full is the transcription call, so the import keeps a method of that name out
+          - patterns:
+              - pattern-regex: '(?sm)^import\s+io\.github\.givimad\.whisperjni\..*'
+              - pattern: $W.full(...)
+    metadata:
+      activity: processes_voice
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-voice
+      provenance: ungovr-original
+      license: MIT

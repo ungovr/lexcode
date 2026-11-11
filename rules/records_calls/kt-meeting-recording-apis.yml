@@ -1,0 +1,36 @@
+rules:
+  - id: lexcode.calls.kt-meeting-recording-apis
+    languages: [kotlin]
+    severity: INFO
+    message: Records a call or meeting through a platform API (LiveKit egress, an Amazon Chime capture pipeline, Amazon Connect contact recording, a Vonage record action), reads recorded Zoom meetings, sends a notetaker bot into video meetings, or turns on Daily cloud recording, which is recording or handling recorded calls (records_calls).
+    patterns:
+      - pattern-either:
+          # LiveKit server SDK: an egress records the people in a room. Each vendor's calls need that
+          # vendor's own import line, which keeps a class with a method of the same name out.
+          - patterns:
+              - pattern-regex: '(?sm)^import\s+io\.livekit\.server\..*'
+              - pattern-either:
+                  - pattern: $C.startRoomCompositeEgress(...)
+                  - pattern: $C.startParticipantEgress(...)
+                  - pattern: $C.startTrackCompositeEgress(...)
+                  - pattern: $C.startTrackEgress(...)
+          # Amazon Chime SDK media pipelines: a capture pipeline records a meeting
+          - patterns:
+              - pattern-regex: '(?sm)^import\s+(aws\.sdk\.kotlin\.services|software\.amazon\.awssdk\.services|com\.amazonaws\.services)\.chimesdkmediapipelines\..*'
+              - pattern: $C.createMediaCapturePipeline(...)
+          # Amazon Connect: recording a contact (a call) in flight
+          - patterns:
+              - pattern-regex: '(?sm)^import\s+(aws\.sdk\.kotlin\.services|software\.amazon\.awssdk\.services|com\.amazonaws\.services)\.connect\..*'
+              - pattern: $C.startContactRecording(...)
+          # Vonage Voice: the record action of an NCCO, with its class written in full so an import
+          # (named, wildcard or alias) resolves it
+          - pattern: com.vonage.client.voice.ncco.RecordAction.Builder(...)
+          # Zoom cloud recordings, notetaker bots (Recall.ai, MeetingBaaS, Attendee) and Daily cloud recording, named in a string
+          - pattern-regex: |-
+              "[^"\n]*\bapi\.zoom\.us/v2/(meetings|users|accounts)/[^"\n]*recordings|"[^"\n]*(\brecall\.ai/api/v\d+|\bapi\.meetingbaas\.com/bots|\bapp\.attendee\.dev/api/v\d+/bots)|\benable_recording\\?"\s*(:|\bto\b|,)\s*\\?"(cloud|local|raw-tracks|cloud-audio-only|rtp-tracks)\\?"
+    metadata:
+      activity: records_calls
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-calls
+      provenance: ungovr-original
+      license: MIT

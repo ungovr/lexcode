@@ -1,0 +1,74 @@
+rules:
+  - id: lexcode.voice.kt-transcription-sdk
+    languages: [kotlin]
+    severity: INFO
+    message: Sends recorded speech to a speech-to-text service from Kotlin, which is transcribing human voices (processes_voice).
+    patterns:
+      - pattern-either:
+          # Amazon Transcribe, batch and streaming (AWS SDK for Kotlin, SDK v2 and v1 for Java). The
+          # import line keeps a class with a method of the same name out, and also pre-filters the file.
+          - patterns:
+              - pattern-regex: '(?sm)^import\s+(aws\.sdk\.kotlin\.services\.transcribe(streaming)?|software\.amazon\.awssdk\.services\.transcribe(streaming)?|com\.amazonaws\.services\.transcribe)\..*'
+              - pattern-either:
+                  - pattern: $C.startTranscriptionJob(...)
+                  - pattern: $C.startMedicalTranscriptionJob(...)
+                  - pattern: $C.startCallAnalyticsJob(...)
+                  - pattern: $C.startStreamTranscription(...)
+                  - pattern: $C.startMedicalStreamTranscription(...)
+                  - pattern: $C.startCallAnalyticsStreamTranscription(...)
+          # Google Cloud Speech-to-Text (v1, v1p1beta1, v2)
+          - patterns:
+              - pattern-regex: '(?sm)^import\s+com\.google\.cloud\.speech\..*'
+              - pattern-either:
+                  - pattern: $C.recognize(...)
+                  - pattern: $C.longRunningRecognizeAsync(...)
+                  - pattern: $C.batchRecognizeAsync(...)
+                  - pattern: $C.streamingRecognizeCallable(...)
+          # Azure Speech: the recognizer resolves through its package, so a wildcard import, an import
+          # alias (the usual way to tell it from android.speech.SpeechRecognizer) and a qualified name all match
+          - pattern: com.microsoft.cognitiveservices.speech.SpeechRecognizer(...)
+          - patterns:
+              - pattern-regex: '(?sm)^import\s+com\.microsoft\.cognitiveservices\.speech\..*'
+              - pattern-either:
+                  - pattern: ConversationTranscriber(...)
+                  - pattern: MeetingTranscriber(...)
+                  - pattern: TranslationRecognizer(...)
+          # OpenAI Java SDK, and the aallam Kotlin client
+          - patterns:
+              - pattern-regex: '(?sm)^import\s+com\.openai\..*'
+              - pattern-either:
+                  - pattern: $C.audio().transcriptions().create(...)
+                  - pattern: $C.audio().translations().create(...)
+          - patterns:
+              - pattern-regex: '(?sm)^import\s+com\.aallam\.openai\..*'
+              - pattern-either:
+                  - pattern: TranscriptionRequest(...)
+                  - pattern: TranslationRequest(...)
+          # Spring AI's transcription prompt
+          - patterns:
+              - pattern-regex: '(?sm)^import\s+org\.springframework\.ai\..*'
+              - pattern: AudioTranscriptionPrompt(...)
+          # AssemblyAI and Deepgram Java SDKs
+          - patterns:
+              - pattern-regex: '(?sm)^import\s+com\.assemblyai\..*'
+              - pattern-either:
+                  - pattern: $C.transcripts().transcribe(...)
+                  - pattern: $C.transcripts().submit(...)
+          - patterns:
+              - pattern-regex: '(?sm)^import\s+com\.deepgram\..*'
+              - pattern-either:
+                  - pattern: $C.listen().v1().media().transcribeFile(...)
+                  - pattern: $C.listen().v1().media().transcribeUrl(...)
+          # IBM Watson Speech to Text
+          - patterns:
+              - pattern-regex: '(?sm)^import\s+com\.ibm\.watson\.speech_to_text\..*'
+              - pattern-either:
+                  - pattern: $C.recognize(...)
+                  - pattern: $C.recognizeUsingWebSocket(...)
+                  - pattern: $C.createJob(...)
+    metadata:
+      activity: processes_voice
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-voice
+      provenance: ungovr-original
+      license: MIT

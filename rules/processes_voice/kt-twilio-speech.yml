@@ -1,0 +1,19 @@
+rules:
+  - id: lexcode.voice.kt-twilio-speech
+    languages: [kotlin]
+    severity: INFO
+    message: Takes a caller's speech through Twilio TwiML, with speech recognition or a transcribed voicemail, which is processing human voices (processes_voice).
+    patterns:
+      - pattern-either:
+          # The SPEECH input mode, written in full: the engine resolves it through the file's imports
+          - pattern: $B.input(..., com.twilio.twiml.voice.Gather.Input.SPEECH, ...)
+          # A voicemail record that Twilio transcribes. transcribe is a common name, so the file must import the Record verb.
+          - patterns:
+              - pattern-regex: '(?sm)^import\s+com\.twilio\.twiml\.voice\.(Record|\*)(\s|;|$).*'
+              - pattern: $B.transcribe(true)
+    metadata:
+      activity: processes_voice
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-voice
+      provenance: ungovr-original
+      license: MIT
