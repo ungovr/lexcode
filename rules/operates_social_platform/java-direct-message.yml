@@ -1,0 +1,38 @@
+rules:
+  - id: lexcode.social.java-direct-message
+    languages: [java]
+    severity: INFO
+    message: Stores or sends a message addressed from one user account to another (a direct or private message entity with a sender and a recipient, or a WebSocket send to one named user), which is how people talk on a social platform (operates_social_platform).
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: $T $F;
+              - pattern: $T $F = $V;
+          - pattern-either:
+              - pattern-inside: |
+                  class $C { ... $T2 $G; ... }
+              - pattern-inside: |
+                  class $C { ... $T2 $G = $W; ... }
+          - pattern-not-inside: |
+              $RET $M(...) { ... }
+          - metavariable-regex:
+              metavariable: $C
+              regex: '^(?!.*(Email|Mail|Sms|Notification|Log|Event|Contact|Audit|Queue|Jms|Kafka)).*(DirectMessage|PrivateMessage|ChatMessage|UserMessage|InboxMessage|Dm|DM)$'
+          - metavariable-regex:
+              metavariable: $F
+              regex: '^(recipient|receiver|toUser|recipientId|receiverId|toUserId)$'
+          - metavariable-regex:
+              metavariable: $G
+              regex: '^(sender|fromUser|senderId|fromUserId|author|authorId)$'
+      - patterns:
+          - pattern: $T.convertAndSendToUser($U, $D, ...)
+          - metavariable-regex:
+              metavariable: $D
+              regex: '(?i)^"([^"]*(message|chat|private|direct)[^"]*|([^"]*[/._-])?dms?([/._-][^"]*)?)"$'
+    metadata:
+      activity: operates_social_platform
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/operates-social-platform
+      provenance: ungovr-original
+      license: MIT

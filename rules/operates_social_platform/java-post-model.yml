@@ -1,0 +1,44 @@
+rules:
+  - id: lexcode.social.java-post-model
+    languages: [java]
+    severity: INFO
+    message: Declares a post that a user writes and other users react to (a post, tweet or reply class with likes, upvotes or reactions, or with an author and comments or replies), which is how content is shared on a social platform (operates_social_platform).
+    patterns:
+      - pattern: class $C { ... }
+      - metavariable-regex:
+          metavariable: $C
+          regex: '^(\w*[a-z0-9])?(Post|Tweet|Toot|Reply|ForumPost|WallPost|StatusUpdate)$'
+      - pattern-either:
+          - patterns:
+              - pattern-either:
+                  - pattern: |
+                      class $C { ... $T $L; ... }
+                  - pattern: |
+                      class $C { ... $T $L = $V; ... }
+              - metavariable-regex:
+                  metavariable: $L
+                  regex: '^(likes?|numberOfLikes|numLikes|likeCount|likesCount|reactions?|reactionCount|upvotes?|downvotes?|numberOfThreadReactions|numberOfThreadUpvotes|shareCount|retweetCount|favorites)$'
+          - patterns:
+              - pattern-either:
+                  - pattern: |
+                      class $C { ... $T2 $A; ... }
+                  - pattern: |
+                      class $C { ... $T2 $A = $V2; ... }
+              - pattern-either:
+                  - pattern: |
+                      class $C { ... $T3 $M; ... }
+                  - pattern: |
+                      class $C { ... $T3 $M = $V3; ... }
+              - metavariable-regex:
+                  metavariable: $A
+                  regex: '^(author|authorId|creator|creatorId|creatorUserName|poster|posterId|owner|ownerId|user|userId|createdBy)$'
+              - metavariable-regex:
+                  metavariable: $M
+                  regex: '^(comments|replies|numberOfComments|commentCount)$'
+    metadata:
+      activity: operates_social_platform
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/operates-social-platform
+      provenance: ungovr-original
+      license: MIT
