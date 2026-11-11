@@ -4,7 +4,7 @@
 // payments and Checkout sit next to Stripe Identity without being it. The vendor guards are
 // tested too: this file imports one class of a vendor's package (Yoti's YotiClient, unused, which no Yoti guard names) and calls the generic names
 // VerificationSession.create, VerificationReport.retrieve, IdentityVerificationSheet.create,
-// rememberIdentityVerificationSheet, OnfidoFactory.create, DefaultApi (the default name of every
+// IdentityVerificationSheet.rememberIdentityVerificationSheet, OnfidoFactory.create, DefaultApi (the default name of every
 // OpenAPI-generated client), Inquiry.fromTemplate, Sdk.createLaunchIntent,
 // DigitalIdentityClient.builder, DocScanClient.builder, YotiClientBuilder.newInstance, JumioSDK and
 // SNSMobileSDK.Builder on classes of the project's own. Without each call's own vendor import
@@ -31,7 +31,6 @@ import demo.kyc.VerificationReport
 import demo.kyc.YotiClientBuilder
 import demo.sms.VerificationSession
 import demo.ui.IdentityVerificationSheet
-import demo.ui.rememberIdentityVerificationSheet
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 
 class SignIn {
@@ -58,7 +57,7 @@ class SignIn {
 
   fun ownSheet(activity: Activity): Any = IdentityVerificationSheet.create(activity, null) { result -> result }
 
-  fun ownRememberedSheet(): Any = rememberIdentityVerificationSheet(null) { result -> result }
+  fun ownRememberedSheet(): Any = IdentityVerificationSheet.rememberIdentityVerificationSheet(null) { result -> result }
 
   fun ownOnfido(context: android.content.Context): Any = OnfidoFactory.create(context)
 

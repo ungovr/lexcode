@@ -3,7 +3,9 @@ rules:
     languages: [java]
     severity: INFO
     message: Stores a signature a person drew or captured on the record of an agreement, waiver or consent, which is collecting electronic signatures (collects_e_signatures).
+    # A whole-file regex keeps the engine's literal pre-filter (K6 fix round 1).
     patterns:
+      - pattern-regex: '(?is)\A(?=.*signature).*'
       - pattern: $T $SIG;
       - metavariable-regex:
           metavariable: $SIG

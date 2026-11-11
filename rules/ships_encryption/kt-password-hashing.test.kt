@@ -1,11 +1,13 @@
-// lexcode-expect: 11
+// lexcode-expect: 12
 // Hashing passwords with a library the app bundles: Spring Security's BCrypt, Argon2, SCrypt and
-// PBKDF2 encoders (constructors and static factories), the delegating encoder, jBCrypt, Favre's
-// bcrypt (an import-guarded BCrypt) and argon2-jvm.
+// PBKDF2 encoders (constructors and static factories), the delegating encoder, jBCrypt (by a
+// wildcard import, and by its full name), Favre's bcrypt (an exact import) and argon2-jvm. The
+// two BCrypt libraries share a class name, so each has its own import-guarded branch.
 package demo.auth
 
 import at.favre.lib.crypto.bcrypt.BCrypt
 import de.mkammerer.argon2.Argon2Factory
+import org.mindrot.jbcrypt.*
 import org.springframework.security.crypto.argon2.Argon2PasswordEncoder
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
 import org.springframework.security.crypto.factory.PasswordEncoderFactories
@@ -29,6 +31,8 @@ class Passwords {
   fun favre(raw: String): String = BCrypt.withDefaults().hashToString(12, raw.toCharArray())
 
   fun favreCost(raw: String): ByteArray = BCrypt.with(BCrypt.Version.VERSION_2A).hash(12, raw.toByteArray())
+
+  fun jbcryptByImport(raw: String): String = BCrypt.hashpw(raw, "salt")
 
   fun jbcrypt(raw: String): String = org.mindrot.jbcrypt.BCrypt.hashpw(raw, org.mindrot.jbcrypt.BCrypt.gensalt())
 

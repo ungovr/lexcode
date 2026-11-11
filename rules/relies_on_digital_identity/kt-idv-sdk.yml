@@ -21,19 +21,12 @@ rules:
                   import com.stripe.model.identity.*
                   ...
       - patterns:
-          - pattern: IdentityVerificationSheet.create(...)
+          - pattern-either:
+              - pattern: IdentityVerificationSheet.create(...)
+              - pattern: IdentityVerificationSheet.rememberIdentityVerificationSheet(...)
           - pattern-either:
               - pattern-inside: |
                   import com.stripe.android.identity.IdentityVerificationSheet
-                  ...
-              - pattern-inside: |
-                  import com.stripe.android.identity.*
-                  ...
-      - patterns:
-          - pattern: rememberIdentityVerificationSheet(...)
-          - pattern-either:
-              - pattern-inside: |
-                  import com.stripe.android.identity.rememberIdentityVerificationSheet
                   ...
               - pattern-inside: |
                   import com.stripe.android.identity.*

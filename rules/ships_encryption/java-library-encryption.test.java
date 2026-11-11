@@ -1,4 +1,4 @@
-// lexcode-expect: 27
+// lexcode-expect: 29
 // Encryption and key agreement through libraries the product bundles: Bouncy Castle (block and
 // stream ciphers, key agreement, OpenPGP, CMS), Google Tink, libsodium bindings, Jasypt and
 // Spring Security Crypto, Nimbus JOSE JWE and JJWT encryption, the Signal protocol, Olm,
@@ -17,11 +17,13 @@ import com.nimbusds.jose.JWEAlgorithm;
 import com.nimbusds.jose.JWEHeader;
 import com.nimbusds.jose.JWEObject;
 import com.nimbusds.jose.Payload;
+import com.nimbusds.jose.crypto.DirectEncrypter;
 import com.nimbusds.jose.crypto.RSAEncrypter;
 import io.jsonwebtoken.Jwts;
 import java.util.Properties;
 import javax.crypto.Cipher;
 import org.abstractj.kalium.crypto.Box;
+import org.apache.commons.crypto.stream.CryptoOutputStream;
 import org.apache.commons.crypto.utils.Utils;
 import org.bouncycastle.cms.CMSEnvelopedDataGenerator;
 import org.bouncycastle.crypto.agreement.X25519Agreement;
@@ -126,6 +128,10 @@ public class Vault {
     return jwe.serialize();
   }
 
+  public Object nimbusDirect(byte[] key) throws Exception {
+    return new DirectEncrypter(key);
+  }
+
   public String jjwtEncrypted(javax.crypto.SecretKey key) {
     return Jwts.builder().subject("someone").encryptWith(key, Jwts.ENC.A256GCM).compact();
   }
@@ -144,6 +150,10 @@ public class Vault {
 
   public Object commonsCrypto(Properties properties) throws Exception {
     return Utils.getCipherInstance("AES/CTR/NoPadding", properties);
+  }
+
+  public Object commonsStream(java.io.OutputStream output, Object cipher, int bufferSize) throws Exception {
+    return new CryptoOutputStream(output, cipher, bufferSize);
   }
 
   public Object awsEncryptionSdk() {

@@ -6,7 +6,8 @@
 // else is excluded too: Bouncy Castle digests, signers and certificate parsing, Tink's MAC and
 // signature primitives, Nimbus JOSE signing (a JWS, not a JWE) and JJWT signing. Last, project
 // classes that share a library's method names, with no import of the library: a Vault with an
-// encryptWith method, a Utils with getCipherInstance, and a Box. JJWT and Tink are used by their
+// encryptWith method, a Utils with getCipherInstance, a Box, the six Nimbus encrypter names and a
+// CryptoOutputStream. JJWT and Tink are used by their
 // full names, so the file has no io.jsonwebtoken or Commons Crypto import to switch those calls on.
 package demo.crypto;
 
@@ -17,7 +18,14 @@ import com.nimbusds.jose.JWSHeader;
 import com.nimbusds.jose.JWSObject;
 import com.nimbusds.jose.Payload;
 import com.nimbusds.jose.crypto.MACSigner;
+import demo.jose.AESEncrypter;
+import demo.jose.DirectEncrypter;
+import demo.jose.ECDHEncrypter;
+import demo.jose.PasswordBasedEncrypter;
+import demo.jose.RSAEncrypter;
+import demo.jose.X25519Encrypter;
 import demo.keys.Box;
+import demo.stream.CryptoOutputStream;
 import demo.util.Utils;
 import demo.vault.Vault;
 import java.net.URL;
@@ -159,6 +167,34 @@ public class PlatformCrypto {
 
   public Object projectCipherInstance(java.util.Properties properties) throws Exception {
     return Utils.getCipherInstance("AES/CTR/NoPadding", properties);
+  }
+
+  public Object projectRsa(Object key) {
+    return new RSAEncrypter(key);
+  }
+
+  public Object projectDirect(Object key) {
+    return new DirectEncrypter(key);
+  }
+
+  public Object projectAes(Object key) {
+    return new AESEncrypter(key);
+  }
+
+  public Object projectEcdh(Object key) {
+    return new ECDHEncrypter(key);
+  }
+
+  public Object projectX25519(Object key) {
+    return new X25519Encrypter(key);
+  }
+
+  public Object projectPassword(String password) {
+    return new PasswordBasedEncrypter(password, 16, 1000);
+  }
+
+  public Object projectStream(java.io.OutputStream output) {
+    return new CryptoOutputStream(output);
   }
 
   public Object projectBox(byte[] publicKey, byte[] privateKey) {

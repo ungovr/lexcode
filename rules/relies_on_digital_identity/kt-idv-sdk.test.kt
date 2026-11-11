@@ -1,6 +1,7 @@
 // lexcode-expect: 13
 // Checking who a person is with an identity-verification service: Stripe Identity on the
-// server and in the Android app (the view-based sheet and the Compose one), Onfido (server and
+// server and in the Android app (the view-based sheet and the Compose one, both members of the
+// interface's companion object), Onfido (server and
 // app), Yoti (identity client, document scan and the older client builder), Persona, Veriff,
 // Jumio and Sumsub.
 package demo.kyc
@@ -11,7 +12,6 @@ import com.jumio.sdk.JumioSDK
 import com.onfido.android.sdk.capture.OnfidoFactory
 import com.onfido.api.DefaultApi
 import com.stripe.android.identity.IdentityVerificationSheet
-import com.stripe.android.identity.rememberIdentityVerificationSheet
 import com.stripe.model.identity.VerificationReport
 import com.stripe.model.identity.VerificationSession
 import com.stripe.param.identity.VerificationSessionCreateParams
@@ -36,7 +36,8 @@ class Verification {
   fun stripeSheet(activity: Activity): Any =
       IdentityVerificationSheet.create(activity, IdentityVerificationSheet.Configuration(null)) { result -> result }
 
-  fun stripeComposeSheet(): Any = rememberIdentityVerificationSheet(IdentityVerificationSheet.Configuration(null)) { result -> result }
+  fun stripeComposeSheet(): Any =
+      IdentityVerificationSheet.rememberIdentityVerificationSheet(IdentityVerificationSheet.Configuration(null)) { result -> result }
 
   fun onfido(context: Context): Any = OnfidoFactory.create(context)
 

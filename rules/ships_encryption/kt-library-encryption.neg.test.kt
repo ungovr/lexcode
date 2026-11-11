@@ -4,34 +4,18 @@
 // (plain, and through the JDK's own provider), KeyAgreement and the PBKDF2 SecretKeyFactory,
 // the Android Keystore's own AES key, the digests, HMACs, signatures and stock TLS beside them.
 // Library code that does something else is excluded too: Bouncy Castle digests, signers and
-// certificate parsing, Tink's MAC and signature primitives, Nimbus JOSE signing (a JWS, not a
-// JWE) and JJWT signing. Last, project classes that share a library's names, with no import of
-// the library: a Vault with an encryptWith method, a Utils with getCipherInstance, a Box, a
-// SessionCipher, a GroupCipher, an OlmAccount, an OlmMachine, an Encryptors and an AesBytesEncryptor.
-// JJWT and Tink are used by their full names, so the file has no io.jsonwebtoken or Commons
-// Crypto import to switch those calls on.
+// certificate parsing, and Tink's MAC and signature primitives. Last, project classes that share
+// a library's names, with no import of the library: a Box and a SecretBox (libsodium-jni and
+// Kalium). Tink is used by its full name, so the file has no Tink primitive import to switch the
+// getPrimitive calls on.
 package demo.crypto
 
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import com.google.crypto.tink.KeysetHandle
 import com.google.crypto.tink.PublicKeySign
-import com.nimbusds.jose.JWSAlgorithm
-import com.nimbusds.jose.JWSHeader
-import com.nimbusds.jose.JWSObject
-import com.nimbusds.jose.Payload
-import com.nimbusds.jose.crypto.MACSigner
-import demo.chat.GroupCipher
-import demo.chat.OlmAccount
-import demo.chat.OlmMachine
-import demo.chat.OlmSession
-import demo.chat.SessionCipher
 import demo.keys.Box
 import demo.keys.SecretBox
-import demo.keys.Encryptors
-import demo.keys.AesBytesEncryptor
-import demo.util.Utils
-import demo.vault.Vault
 import java.net.URL
 import java.security.KeyStore
 import java.security.MessageDigest
@@ -46,15 +30,12 @@ import javax.crypto.spec.PBEKeySpec
 import javax.crypto.spec.SecretKeySpec
 import javax.net.ssl.HttpsURLConnection
 import javax.net.ssl.SSLContext
-import org.apache.commons.codec.digest.DigestUtils
 import org.bouncycastle.cert.X509CertificateHolder
 import org.bouncycastle.crypto.digests.SHA256Digest
 import org.bouncycastle.crypto.signers.Ed25519Signer
 import org.bouncycastle.openssl.PEMParser
 
 class PlatformCrypto(private val keyset: KeysetHandle) {
-  private val vault = Vault()
-
   fun platformCipher(key: SecretKey, plain: ByteArray): ByteArray {
     val cipher = Cipher.getInstance("AES/GCM/NoPadding")
     cipher.init(Cipher.ENCRYPT_MODE, key)
@@ -145,35 +126,7 @@ class PlatformCrypto(private val keyset: KeysetHandle) {
     return signer.sign(data)
   }
 
-  fun jws(secret: ByteArray): String {
-    val jws = JWSObject(JWSHeader(JWSAlgorithm.HS256), Payload("claims"))
-    jws.sign(MACSigner(secret))
-    return jws.serialize()
-  }
-
-  fun jwt(key: SecretKey): String = io.jsonwebtoken.Jwts.builder().subject("someone").signWith(key).compact()
-
-  fun checksum(text: String): String = DigestUtils.sha256Hex(text)
-
-  fun projectEncryptWith(): String = vault.encryptWith("key-1", "text")
-
-  fun projectCipherInstance(properties: java.util.Properties): Any = Utils.getCipherInstance("AES/CTR/NoPadding", properties)
-
   fun projectBox(publicKey: ByteArray, privateKey: ByteArray): Any = Box(publicKey, privateKey)
 
   fun projectSecretBox(key: ByteArray): Any = SecretBox(key)
-
-  fun projectSession(store: Any, address: Any): Any = SessionCipher(store, address)
-
-  fun projectGroup(store: Any, name: Any): Any = GroupCipher(store, name)
-
-  fun projectOlm(): Any = OlmAccount()
-
-  fun projectOlmSession(): Any = OlmSession()
-
-  fun projectMachine(user: String): Any = OlmMachine(user, "device")
-
-  fun projectSpring(password: String, salt: String): Any = Encryptors.text(password, salt)
-
-  fun projectSpringBytes(password: String, salt: String): Any = AesBytesEncryptor(password, salt)
 }

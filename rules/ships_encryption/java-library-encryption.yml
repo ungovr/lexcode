@@ -71,13 +71,37 @@ rules:
       - pattern: Encryptors.stronger(...)
       - pattern: Encryptors.standard(...)
       - pattern: Encryptors.delux(...)
-      # JOSE encryption (a JWE, not a JWS)
-      - pattern: new RSAEncrypter(...)
-      - pattern: new DirectEncrypter(...)
-      - pattern: new AESEncrypter(...)
-      - pattern: new ECDHEncrypter(...)
-      - pattern: new X25519Encrypter(...)
-      - pattern: new PasswordBasedEncrypter(...)
+      # Nimbus JOSE encryption (a JWE, not a JWS), read only in a file that imports one of its encrypters
+      - patterns:
+          - pattern-either:
+              - pattern: new RSAEncrypter(...)
+              - pattern: new DirectEncrypter(...)
+              - pattern: new AESEncrypter(...)
+              - pattern: new ECDHEncrypter(...)
+              - pattern: new X25519Encrypter(...)
+              - pattern: new PasswordBasedEncrypter(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import com.nimbusds.jose.crypto.RSAEncrypter;
+                  ...
+              - pattern-inside: |
+                  import com.nimbusds.jose.crypto.DirectEncrypter;
+                  ...
+              - pattern-inside: |
+                  import com.nimbusds.jose.crypto.AESEncrypter;
+                  ...
+              - pattern-inside: |
+                  import com.nimbusds.jose.crypto.ECDHEncrypter;
+                  ...
+              - pattern-inside: |
+                  import com.nimbusds.jose.crypto.X25519Encrypter;
+                  ...
+              - pattern-inside: |
+                  import com.nimbusds.jose.crypto.PasswordBasedEncrypter;
+                  ...
+              - pattern-inside: |
+                  import com.nimbusds.jose.crypto.*;
+                  ...
       - patterns:
           - pattern: $B.encryptWith(...)
           - pattern-either:
@@ -104,7 +128,15 @@ rules:
               import org.apache.commons.crypto.utils.Utils;
               ...
       - pattern: CryptoCipherFactory.getCryptoCipher(...)
-      - pattern: new CryptoOutputStream(...)
+      - patterns:
+          - pattern: new CryptoOutputStream(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import org.apache.commons.crypto.stream.CryptoOutputStream;
+                  ...
+              - pattern-inside: |
+                  import org.apache.commons.crypto.stream.*;
+                  ...
       - pattern: AwsCrypto.builder()
       - pattern: AwsCrypto.standard()
       - pattern: PGPainless.encryptAndOrSign()
