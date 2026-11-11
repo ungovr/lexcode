@@ -1,4 +1,4 @@
-# lexcode-expect: 40
+# lexcode-expect: 43
 require "anthropic"
 require "openai"
 
@@ -320,5 +320,22 @@ class RecordRoutes < Sinatra::Base
   post "/records/chain" do
     push = RubyLLM.chat.ask("Say hi.").content
     push.post.strip
+  end
+end
+
+# Sinatra streams the text to the client through the block's output object.
+class StreamRoutes < Sinatra::Base
+  get "/stream" do
+    answer = RubyLLM.chat.ask("Say hi.").content
+    stream do |out|
+      out.puts answer
+    end
+  end
+
+  get "/stream/sse", provides: "text/event-stream" do
+    chat = RubyLLM.chat
+    stream(:keep_open) do |out|
+      chat.ask(params[:q]) { |chunk| out << "data: #{chunk.content}\n\n" }
+    end
   end
 end

@@ -1,4 +1,4 @@
-# lexcode-expect: 17
+# lexcode-expect: 18
 require "langchain"
 
 class ArticlesController < ApplicationController
@@ -131,5 +131,14 @@ class AskStreamController < ApplicationController
     end
   ensure
     response.stream.close
+  end
+end
+
+# A store held in a constant is still a store object.
+STORE = Langchain::Vectorsearch::Pgvector.new(url: ENV.fetch("DATABASE_URL"), index_name: "docs", llm: Langchain::LLM::OpenAI.new(api_key: ENV.fetch("OPENAI_API_KEY")))
+
+class ConstantStoreController < ApplicationController
+  def show
+    render json: { answer: STORE.ask(question: params[:q]).chat_completion }
   end
 end

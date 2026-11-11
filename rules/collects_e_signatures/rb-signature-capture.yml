@@ -28,7 +28,7 @@ rules:
           end
       - metavariable-regex:
           metavariable: $C
-          regex: '(?s).*(?-i:(?:Waiver|Agreement|Contract|Consent|Lease|Authori[sz]ation|Acknowledg(?:e)?ment|Attestation|Disclosure|Confidentiality|(?:Liability|Medical|Photo)Release|Sign[Oo]ff|E[Ss]ign(?:ature)?|Signature(?:Request|Form|Pad)|(?<!Certificate)(?<!Code)Signing(?:Request|Session)|WorkOrder|PermissionSlip|Enrol+ment|Approval)s?(?![a-z]))'
+          regex: '(?s).*(?-i:(?:Waiver|Agreement|Contract|Consent|Lease|Authori[sz]ation|Acknowledg(?:e)?ment|Attestation|Disclosure|Confidentiality|(?:Liability|Medical|Photo)Release|Sign[Oo]ff|E[Ss]ign(?:ature)?|Signature(?:Request|Form|Pad)|(?<!Certificate)(?<!Certificate::)(?<!Code)Signing(?:Request|Session)|WorkOrder|PermissionSlip|Enrol+ment|Approval)s?(?![a-z]))'
     metadata:
       activity: collects_e_signatures
       mentioned: performs

@@ -350,3 +350,11 @@ class SideEffectRoutes < Sinatra::Base
     logger.info "answer: #{answer}" if settings.verbose
   end
 end
+
+class NestedLogRoutes < Sinatra::Base
+  # A log call whose arguments nest two levels deep is still only a log call.
+  post "/logs/nested" do
+    answer = RubyLLM.chat.ask("Say hi.").content
+    logger.info(format("%s", truncate(answer, length: 40)))
+  end
+end

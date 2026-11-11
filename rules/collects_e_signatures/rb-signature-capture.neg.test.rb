@@ -103,3 +103,12 @@ end
 class CodeSigningSession < ApplicationRecord
   has_one_attached :signature
 end
+
+# The namespaced form of an X.509 request and of a certificate signing session.
+class Certificate::SigningRequest < ApplicationRecord
+  has_one_attached :signature
+end
+
+class Certificate::SigningSession < ApplicationRecord
+  has_one_attached :signature
+end
