@@ -5,9 +5,10 @@ rules:
     message: Uses a Mechanize agent to fetch a page from a site the operator may not run, which is crawling the web (crawls_web).
     patterns:
       # The regular expression is a pre-filter and a scope: a `get` on a receiver has no literal of
-      # its own, so without it the engine parses every Ruby file, and it only reads the part of a
-      # file after a Mechanize agent is built.
-      - pattern-regex: '(?s)Mechanize(?:\(\s*\))?(?:\s|\\|#[^\n]*+)*+&?\.(?:\s|\\|#[^\n]*+)*+(new|start).*'
+      # its own, so without it the engine parses every Ruby file. It reads the whole of a file that
+      # builds a Mechanize agent anywhere, since an agent memoized in a method defined below its
+      # use (`@agent ||= Mechanize.new`) is the usual service-object shape.
+      - pattern-regex: '(?s)\A(?=.*?Mechanize(?:\(\s*\))?(?:\s|\\|#[^\n]*+)*+&?\.(?:\s|\\|#[^\n]*+)*+(?:new|start)).*'
       - pattern: $A.get($URL, ...)
       - metavariable-regex:
           metavariable: $A

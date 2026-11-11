@@ -20,19 +20,19 @@ rules:
                   - pattern-inside: |
                       class $K
                         ...
-                        $X = $LIB.new(...)
+                        <... $LIB.new(...) ...>
                         ...
                       end
                   - pattern-inside: |
                       def $M(...)
                         ...
-                        $X = $LIB.new(...)
+                        <... $LIB.new(...) ...>
                         ...
                       end
                   - pattern-inside: |
                       def self.$M(...)
                         ...
-                        $X = $LIB.new(...)
+                        <... $LIB.new(...) ...>
                         ...
                       end
           - patterns:
