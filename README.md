@@ -54,23 +54,28 @@ files (including any named `*.min.js`, `*.bundle.js`, `vendor.*.js` or
 `*.vendor.js`), never a file with a line over 100,000 characters (generated
 code, counted in a notice), never symbolic links, never files over 5 MB, never a
 file you cannot open for reading (counted in a notice), and never directories
-named `test`, `tests`, `__tests__`, `spec`, `fixtures`, `testdata`, `androidTest`,
-`testFixtures` or `integrationTest` unless you pass `--include-tests`. `app.scope` in `lexlint.yml` narrows the read, as the
+named `test`, `tests`, `__tests__`, `spec`, `fixtures`, `testdata`,
+`androidTest`, `testFixtures` or `integrationTest` unless you pass
+`--include-tests`. `app.scope` in `lexlint.yml` narrows the read, as the
 lint reads it.
 
-Languages: TypeScript, JavaScript (with JSX and TSX), Python, Go and Ruby
+Languages: TypeScript, JavaScript (with JSX and TSX), Python, Go, Ruby
 (`.rb`, `.rake`, `.ru` and `.gemspec` files, and a `Rakefile`, `Fastfile`,
-`Appfile` or `Capfile`), plus the `<script>` blocks of Vue, Svelte, HTML,
-Jinja and ERB (`.erb`, so `.html.erb`) files. In an ERB view only the
-`<script>` blocks are read, as JavaScript; the Ruby inside the ERB tags is not
+`Appfile` or `Capfile`), Java (`.java`) and Kotlin (`.kt`, `.kts`), plus the
+`<script>` blocks of Vue, Svelte, HTML, Jinja, ERB (`.erb`, so `.html.erb`) and
+JSP (`.jsp`, `.jspf`, `.tag`) files. In an ERB or JSP view only the `<script>`
+blocks are read, as JavaScript; the Ruby or Java inside the template tags is not
 (the tags are blanked, so line numbers hold). Code in any other language (PHP,
-Java, Kotlin, Swift, C#, Rust and the like) is not read, and the scan names
-each such language with its file count in a notice, so a missing activity
-there reads as "not checked", never as "not there". Manifests: npm
+Swift, C#, Rust and the like) is not read, and the scan names each such
+language with its file count in a notice, so a missing activity there reads as
+"not checked", never as "not there". Manifests: npm
 (`package.json` with `package-lock.json`, `pnpm-lock.yaml` or `yarn.lock`),
 PyPI (`pyproject.toml`, `requirements*.txt`, `uv.lock`, `poetry.lock`), Go
-(`go.mod`) and RubyGems (`Gemfile` or `gems.rb`, with `Gemfile.lock` or
-`gems.locked`, and `*.gemspec`). How Ruby and gems are read, in detail, is in
+(`go.mod`), RubyGems (`Gemfile` or `gems.rb`, with `Gemfile.lock` or
+`gems.locked`, and `*.gemspec`) and Maven (`pom.xml`, and Gradle's `build.gradle`
+and `build.gradle.kts` with their version catalogs, `gradle/*.versions.toml`,
+and the constants and `findLibrary` lookups in `buildSrc` and `build-logic`).
+How Ruby, gems, Java, Kotlin, Maven and Gradle are read, in detail, is in
 [rules/README.md](rules/README.md).
 
 ## What it writes

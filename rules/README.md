@@ -2,7 +2,7 @@
 
 This directory is the rule set lexcode runs: one YAML rule per file, one
 directory per LexLint activity, positive and negative fixtures beside each rule,
-component maps for npm, PyPI, Go and gem packages under `components/`, and
+component maps for npm, PyPI, Go, gem and Maven packages under `components/`, and
 `classes.yml`, which gives every activity id in the pinned registry snapshot
 (`registry.snapshot.json`, CC BY 4.0, credit "LexLint (UnGovr)") one detection
 class. Every rule is original to UnGovr and MIT licensed. The recall table below
@@ -148,3 +148,158 @@ metadata such as `source_code_uri` or `rubygems_mfa_required`. An internal
 engine kept inside a monolith can set either, with a `source_code_uri` that
 points into the monolith's own tree, and so reads as a distributed product.
 Telling an in-repo path gem from a published one is not done yet.
+
+## Java, Kotlin, JSP and the Maven ecosystem
+
+How lexcode reads Java and Kotlin, where the engine cannot, and what a Maven or
+Gradle manifest counts. Maven and Gradle share one ecosystem, `maven`: both
+resolve from Maven repositories, a dependency is named `<groupId>:<artifactId>`,
+its package URL is `pkg:maven/<groupId>/<artifactId>@<version>`, and one
+component map (`components/maven.yml`) serves both. Its evidence rule id is
+`lexcode.manifest.maven`. Nothing is fetched: a parent POM, BOM or Gradle plugin
+that is not in the repository is not read.
+
+### Maven
+
+Every `pom.xml` is read with a small element reader (comments, CDATA,
+processing instructions and the five XML entities are handled; no XML library
+is added). A dependency's version resolves in this order: its own `<version>`,
+then `<dependencyManagement>` up the parent chain inside the repository,
+including a BOM imported with `<scope>import</scope>` when that BOM's pom is in
+the repository. `${...}` resolves from the pom's `<properties>`, then
+`project.version`, `project.groupId` and `project.parent.version` (with their
+`pom.` and bare `version` aliases), then the parent chain. The parent is the
+`<relativePath>` file (default `../pom.xml`) when that file is the named parent,
+else a scanned pom with the parent's `groupId:artifactId`.
+
+Whatever is left unresolved is recorded without a version, and the reader gives
+one notice per kind for the whole scan, never one per dependency: `N Maven
+dependencies take their version from a parent POM or BOM outside this
+repository; recorded without a version`, and `N Maven dependencies have a
+version lexcode cannot resolve (an undefined property or no managed version);
+recorded without a version`. A Spring Boot app whose versions all come from
+`spring-boot-starter-parent` reads as the first notice, once.
+
+Scopes: `test` is skipped and counted. `compile`, `runtime`, `provided`,
+`system` and optional dependencies count. Dependencies under `<build>` (plugins
+and their dependencies) and `<reporting>` are not read; those under
+`<profiles>` are. A dependency on another module of the same repository is the
+app's own code and is not recorded.
+
+### Gradle
+
+Every `build.gradle` and `build.gradle.kts` is read as tokens, with braces
+counted, and never evaluated. Only a declaration directly inside a
+`dependencies {}` block counts, and nothing inside `buildscript {}`,
+`plugins {}`, `pluginManagement {}` or `constraints {}` is a dependency. A
+closure after a declaration (`implementation('g:a:v') { exclude group: 'x' }`)
+does not end the block, and its `exclude` is not read as a dependency.
+
+The forms read are `conf "g:a:v"`, `conf("g:a:v")`, `conf('g:a:v') { ... }`,
+`conf group: 'g', name: 'a', version: 'v'`, `conf(group = "g", name = "a",
+version = "v")`, `"conf"("g:a:v")`, `add("conf", "g:a:v")`, and catalog
+accessors (`conf(libs.x.y)`, `conf libs.x.y`, `libs.bundles.z`). `project(...)`,
+`files(...)`, `fileTree(...)`, `platform(...)`, `enforcedPlatform(...)` and
+`kotlin("...")` name no component and are not recorded.
+
+A configuration is development, skipped and counted, when a camel-case segment
+of its name is `test` or `debug` (so `testImplementation`,
+`androidTestImplementation`, `testFixturesApi` and `debugImplementation`), or
+when its name is `kapt`, `ksp` or `annotationProcessor` or starts with one of
+them followed by a capital (`kaptTest`, `kspJvm`), or is `lintChecks`,
+`lintPublish`, `detektPlugins` or `ktlint`. Everything else counts, flavor
+prefixes included (`releaseImplementation`, `fdroidImplementation`,
+`compileOnly`).
+
+`$name` and `${name}` in a coordinate resolve from the same file (`val name =`,
+`def name =`, `ext.name =`, `ext { name = }`, `extra["name"] =`), then the root
+build file's `ext`, then `gradle.properties` beside the file and at the build
+root. A version that stays unresolved is recorded without a version, and one
+notice counts those (`N Gradle dependencies have no version lexcode can read
+(a platform BOM, a plugin or a computed value); recorded without a version`).
+A group or artifact that stays unresolved skips the dependency, and a different
+notice counts it (`N Gradle dependencies name their group or artifact through a
+value lexcode cannot read; skipped`). Two more notices count what is left out:
+a dependency named by a constant or variable lexcode does not evaluate (`not
+recorded`), and a catalog reference that matches no library in a catalog
+lexcode can read (`skipped`).
+
+A version catalog, `gradle/*.versions.toml` at the build root (the directory
+holding `settings.gradle(.kts)`, else the scan root), is named by its file
+stem. Accessors are lowercased, and `-`, `_` and `.` count as the same
+separator. Library entries may be `"g:a:v"`, `{ module = "g:a", version.ref =
+"k" }`, `{ group, name, version }` or a version table (`strictly`, then
+`require`, then `prefer`). A catalog entry is recorded only where a build file
+references it, at the referencing line; an entry nothing references is not a
+dependency.
+
+Convention plugins are read too. The build files under `buildSrc/`,
+`build-logic/` and any directory `settings.gradle(.kts)` names in
+`includeBuild("...")` are build tooling: their own dependencies are skipped and
+counted. Their `.kt` and `.kts` sources are read for `findLibrary("alias")` and
+`findBundle("alias")` literals, recorded under the configuration named on the
+same line (`add("conf", ...)`, `"conf"(...)`), else `implementation`. A
+reference such as `Libs.OKHTTP` in a build file is read from the `object`
+constants those sources declare. A module a settings file moves with
+`project(':x').projectDir = ...` is followed to its new directory.
+
+Known gaps: Gradle lockfiles (`gradle.lockfile`) are not read, because a
+lockfile lists transitive dependencies with no way to tell the direct ones, and
+few apps commit one. `apply from:` scripts and `.groovy` sources under `buildSrc` are not read, and
+neither are the dependency declarations of precompiled `*.gradle.kts` plugins
+(their `findLibrary` and `findBundle` literals are). A coordinate built by
+string concatenation is not recorded. A dependency whose version comes from a
+BOM, or from a parent outside the repository, is recorded without a version.
+JVM Test Suite dependencies (`testing { suites { ... } }`) count as production.
+
+### The Java gate exemption
+
+The release test requires every evidence-class activity to have a Java rule and
+a Kotlin rule. One Java exemption stands: `distributes_software_product`, whose
+JVM evidence lives in build files, is met by a `maven-` or `gradle-` rule.
+
+### Java and Kotlin files
+
+Test source sets are left out like `test`: the directories `androidTest`,
+`testFixtures` and `integrationTest` are skipped unless `--include-tests`. The
+`samples`, `example` and `demo` path excludes some rules use are not used on
+Java or Kotlin source rules, because the engine's path globs also match package
+paths (`com.google.samples.apps`, `org.springframework.samples`,
+`com.example`) and would drop a whole app.
+
+The engine reads Kotlin with a parser that drops some constructs (measured on
+Opengrep 1.33.1): `value class`, `fun interface`, the `..<` range, some `in`
+and `->` forms in `when` branches, soft keywords used as identifiers, and
+`object : T by it`. The rest of such a file still matches, but a match inside
+the dropped construct is missing. The engine reports the file as partly parsed,
+and the scan counts it and says so in the record: `the engine could not read N
+files; their evidence is missing from this record`. Two engine limits shape the
+rules. A class literal in a pattern matches every class literal, so a rule does
+not key on one. A wildcard import binds no class, so a rule that guards on an
+import keeps its list of names for the wildcard arm.
+
+The definitions the rules follow, one line each:
+
+- The platform's own crypto (the JDK's and Android's) is not
+  `ships_encryption`; a bundled library that encrypts is, and bundled password
+  hashing is a signal.
+- Signing a PDF with a key is a signal.
+- An Android app is `ships_mobile_app` evidence only; it says nothing else.
+- Publishing to GitHub Packages is not `distributes_software_product`.
+- A Spark feature transformer is not training.
+- A WebRTC audio callback is a signal for `records_calls`.
+- An `ANDROID_ID` read counts as `tracks_devices` only when it is sent off the
+  device; starting a crash-reporting SDK counts.
+- "Transcript" alone is not chat.
+
+### JSP
+
+`.jsp`, `.jspf` and `.tag` files join the `<script>` block extraction used for
+Vue, Svelte, HTML, Jinja and ERB, and the block is read as JavaScript. Inside a
+block, `<%= ... %>` becomes `_` padded with spaces to its length, every other
+`<% ... %>` tag becomes spaces, a `<%-- ... --%>` comment runs to `--%>`, and EL
+(`${...}`, `#{...}`) becomes `_` padded, with line breaks kept so line numbers
+hold. A `<script>` inside a JSP comment is still read, because extraction finds
+the element before the comment is blanked. A JSTL action inside a script body
+(`<c:if>` and the like) is not blanked. Thymeleaf templates are `.html` and
+already read; FreeMarker and Velocity templates are not read.
