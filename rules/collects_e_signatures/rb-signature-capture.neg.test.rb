@@ -93,3 +93,22 @@ class Request
     Digest::SHA256.hexdigest(body)
   end
 end
+
+# An X.509 certificate signing request and a code-signing session carry a "signature", and
+# neither is a person signing a document.
+class CertificateSigningRequest < ApplicationRecord
+  has_one_attached :signature
+end
+
+class CodeSigningSession < ApplicationRecord
+  has_one_attached :signature
+end
+
+# The namespaced form of an X.509 request and of a certificate signing session.
+class Certificate::SigningRequest < ApplicationRecord
+  has_one_attached :signature
+end
+
+class Certificate::SigningSession < ApplicationRecord
+  has_one_attached :signature
+end

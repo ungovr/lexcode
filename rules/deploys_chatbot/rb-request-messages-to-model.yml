@@ -21,9 +21,28 @@ rules:
                   - pattern: '$C.messages.stream(..., messages: $X, ...)'
                   - pattern: '$C.converse(..., messages: $X, ...)'
                   - pattern: '$C.responses.create(..., input: $X, ...)'
-              - metavariable-regex:
+              # The request params value itself, read by a conversation key: alone, joined to a system
+              # message, spread or mapped. The same key inside one message's content, or inside an
+              # interpolated string, is text pasted into a single prompt: a one-shot tool.
+              - metavariable-pattern:
                   metavariable: $X
-                  regex: '(?s)^.*\b(params|message_params|messages_params|chat_params|chat_message_params|conversation_params)\b.*[\[\s(,](:|["\x27])(messages|chat_messages|history|chat_history|conversation|conversation_history)\b.*$'
+                  patterns:
+                    - pattern-either:
+                        - pattern: $P[$K]
+                        - pattern: $P.dig(..., $K)
+                        - pattern: $P.fetch($K, ...)
+                        - pattern: $P.require($K)
+                        - pattern: $P.slice(..., $K, ...)
+                    - pattern-not-inside: '{..., content: $V, ...}'
+                    - pattern-not-inside: '{..., "content" => $V, ...}'
+                    - pattern-not-inside: '{..., "content": $V, ...}'
+                    - pattern-not-inside: '"...#{$E}..."'
+                    - metavariable-regex:
+                        metavariable: $P
+                        regex: '^(.*\.)?(params|message_params|messages_params|chat_params|chat_message_params|conversation_params)\b'
+                    - metavariable-regex:
+                        metavariable: $K
+                        regex: '^:?["\x27]?(messages|chat_messages|history|chat_history|conversation|conversation_history)["\x27]?$'
           - patterns:
               - pattern-either:
                   - pattern: '$C.chat(parameters: {..., messages: $X, ...})'
@@ -75,9 +94,28 @@ rules:
                   - pattern: '$C.messages.stream(..., messages: $X, ...)'
                   - pattern: '$C.converse(..., messages: $X, ...)'
                   - pattern: '$C.responses.create(..., input: $X, ...)'
-              - metavariable-regex:
+              # The channel's data value itself, read by a conversation key: alone, joined to a system
+              # message, spread or mapped. The same key inside one message's content, or inside an
+              # interpolated string, is text pasted into a single prompt: a one-shot tool.
+              - metavariable-pattern:
                   metavariable: $X
-                  regex: '(?s)^.*\bdata\b.*[\[\s(,](:|["\x27])(messages|chat_messages|history|chat_history|conversation|conversation_history)\b.*$'
+                  patterns:
+                    - pattern-either:
+                        - pattern: $P[$K]
+                        - pattern: $P.dig(..., $K)
+                        - pattern: $P.fetch($K, ...)
+                        - pattern: $P.require($K)
+                        - pattern: $P.slice(..., $K, ...)
+                    - pattern-not-inside: '{..., content: $V, ...}'
+                    - pattern-not-inside: '{..., "content" => $V, ...}'
+                    - pattern-not-inside: '{..., "content": $V, ...}'
+                    - pattern-not-inside: '"...#{$E}..."'
+                    - metavariable-regex:
+                        metavariable: $P
+                        regex: '^data\b'
+                    - metavariable-regex:
+                        metavariable: $K
+                        regex: '^:?["\x27]?(messages|chat_messages|history|chat_history|conversation|conversation_history)["\x27]?$'
           - patterns:
               - pattern-inside: |
                   class $CLS < ApplicationCable::Channel
