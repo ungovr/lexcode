@@ -1,0 +1,76 @@
+rules:
+  - id: lexcode.outreach.cs-send-in-scheduled-job
+    languages: [csharp]
+    severity: INFO
+    message: Sends an email, text, call or push notification from a timer, a recurring job or a scheduled function that no user action triggers, which is sending automated outreach (automated_outreach).
+    # The timer shapes: a hosted worker's PeriodicTimer loop, a System.Threading.Timer callback, a
+    # System.Timers.Timer Elapsed handler, an Azure Functions timer trigger (isolated worker and
+    # in-process), a Hangfire recurring job (the static API or the injected IRecurringJobManager) and a
+    # Quartz job. A queued job, a message consumer or a plain BackgroundService is
+    # cs-send-in-background-job: the code does not show whether a person asked for the message.
+    # System.Threading is imported implicitly by the .NET SDK, so its Timer is matched by its fully
+    # qualified and short forms (Decision 10); Hangfire and Quartz types are fully qualified, so an app's
+    # own IJob or RecurringJob does not match. A generic base or call is written without its type
+    # arguments where the engine needs it, and Quartz's IJob also after another base. Unlike the Java
+    # rule, a send in a catch block is not left out: the engine cannot take a catch clause alone as a
+    # pattern. The send set is cs-send-in-loop's.
+    patterns:
+      - pattern-either:
+          - pattern-inside: |
+              while (await $TM.WaitForNextTickAsync(...)) $BODY
+          - pattern-inside: new System.Threading.Timer(...)
+          - pattern-inside: new Timer(...)
+          - pattern-inside: System.Threading.Timer $TV = new(...);
+          - pattern-inside: Timer $TV = new(...);
+          - pattern-inside: $TE.Elapsed += $H;
+          - pattern-inside: |
+              $RET $FN(..., [Microsoft.Azure.Functions.Worker.TimerTrigger(...)] $PT $PV, ...) { ... }
+          - pattern-inside: |
+              $RET $FN(..., [Microsoft.Azure.WebJobs.TimerTrigger(...)] $PT $PV, ...) { ... }
+          - pattern-inside: Hangfire.RecurringJob.AddOrUpdate(...)
+          - pattern-inside: Hangfire.RecurringJob.AddOrUpdate<$JT>(...)
+          - pattern-inside: (Hangfire.IRecurringJobManager $RM).AddOrUpdate(...)
+          - pattern-inside: (Hangfire.IRecurringJobManager $RM).AddOrUpdate<$JT>(...)
+          - pattern-inside: |
+              class $K : Quartz.IJob { ... }
+          - pattern-inside: |
+              class $K : $B, Quartz.IJob { ... }
+      - pattern-either:
+          - patterns:
+              - pattern: $M.$SM(...)
+              - metavariable-regex:
+                  metavariable: $M
+                  regex: (?i)^(this\.)?_?\w*(mail|smtp)\w*$
+              - metavariable-regex:
+                  metavariable: $SM
+                  regex: ^(Send|SendAsync|SendMailAsync)$
+          # A SignalR client proxy (`hub.Clients.User(id).SendNotification(...)`) pushes to an open page,
+          # not a person's inbox or phone, so a receiver reached through Clients is not a send.
+          - patterns:
+              - pattern: $X.$N(...)
+              - metavariable-regex:
+                  metavariable: $X
+                  regex: ^(?!(.*\.)?Clients\b)
+              - metavariable-regex:
+                  metavariable: $N
+                  regex: ^Send\w*(Email|Mail|EmailMessage|MailMessage|Sms|SMS|SmsMessage|Text|TextMessage|Push|PushNotification|Notification|Reminder|Digest|Newsletter|Alert)s?(Async)?$
+          - patterns:
+              - pattern: $N(...)
+              - metavariable-regex:
+                  metavariable: $N
+                  regex: ^Send\w*(Email|Mail|EmailMessage|MailMessage|Sms|SMS|SmsMessage|Text|TextMessage|Push|PushNotification|Notification|Reminder|Digest|Newsletter|Alert)s?(Async)?$
+          - pattern: Twilio.Rest.Api.V2010.Account.MessageResource.Create(...)
+          - pattern: Twilio.Rest.Api.V2010.Account.MessageResource.CreateAsync(...)
+          - pattern: Twilio.Rest.Api.V2010.Account.CallResource.Create(...)
+          - pattern: Twilio.Rest.Api.V2010.Account.CallResource.CreateAsync(...)
+          - pattern: FirebaseAdmin.Messaging.FirebaseMessaging.DefaultInstance.SendAsync(...)
+          - pattern: FirebaseMessaging.DefaultInstance.SendAsync(...)
+          - pattern: (FirebaseAdmin.Messaging.FirebaseMessaging $F).SendAsync(...)
+      # Literal anchor inside the match: it lets the engine skip files with no send call.
+      - pattern-regex: '(\.Send(Async|MailAsync)?\(|\bSend\w*(Email|Mail|Sms|SMS|Text|Push|Notification|Reminder|Digest|Newsletter|Alert)\w*\(|Resource\s*\.\s*Create(Async)?\()'
+    metadata:
+      activity: automated_outreach
+      mentioned: performs
+      definition: https://lexlint.io/activities/automated-outreach
+      provenance: ungovr-original
+      license: MIT

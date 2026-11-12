@@ -1,0 +1,123 @@
+rules:
+  - id: lexcode.chat.cs-chat-messages-persisted
+    languages: [csharp]
+    severity: INFO
+    message: Writes the text of a chat to a chat message, conversation or transcript record or table, which is keeping a text chat (records_text_chat).
+    # A form the app only saves is not a chat, so the record is named for a chat, as in the Java and
+    # PHP rules: a DbSet named for chat messages (`db.ChatMessages.Add`), a chat message entity handed to
+    # a store (a context, a repository, a collection, a Cosmos DB container), a store named for chat
+    # messages (a chat message repository, a MongoDB collection), or an SQL insert into a table named for
+    # one (Dapper, Entity Framework Core's raw SQL). A contact, feedback or ticket record, a chat ROOM
+    # that holds no text, and a bare Conversation do not match.
+    #
+    # Turns kept in memory for a session are not kept (the definition: an assistant that keeps no
+    # transcript is deploys_chatbot alone): Microsoft.Extensions.AI's own ChatMessage added to a message
+    # list, a view model's ChatMessages collection, a state object's ChatHistory, a session object. So a
+    # chat-named set counts on a receiver named for a store (`db.ChatMessages.Add`) or with EF Core's
+    # asynchronous add, never on `this` or a state object with List's Add or AddRange; the entity branch
+    # needs a receiver named for a store and leaves Microsoft.Extensions.AI's ChatMessage out; and a list
+    # named for the chat history counts only with a store's method (an insert, a save, an asynchronous add).
+    # A receiver that begins with chat, conversation, prompt, session or history and ends in a bare
+    # Context (`chatContext`, `conversationContext`) is taken for a holder object, and its synchronous
+    # Add stays out as ambiguous; with a store suffix (`chatDb`, `chatDbContext`) it is a store.
+    #
+    # The C# counterpart of php/rb-assistant-turns-stored: a message or turn record (or an entry named
+    # for a chat or transcript) handed to a DbContext or repository with a literal user or assistant role
+    # in its initializer (`Role = "assistant"`,
+    # `Role = MessageRole.User`). The role is read by a regular expression inside the match rather than
+    # an initializer key pattern, the shape measured as expensive under #12745.
+    pattern-either:
+      - patterns:
+          - pattern: $CTX.$SET.$W(...)
+          - metavariable-regex:
+              metavariable: $SET
+              regex: ^(Chat(Message|Msg|Turn|Entry|History|Histories|Log|Transcript)|Conversation(Message|Turn|Entry|Transcript)|Dialog(Message|Turn))s?$
+          - metavariable-regex:
+              metavariable: $CTX
+              # A store suffix (db, dbcontext, ctx, uow, repo, repository, store, dao, database) counts
+              # whatever the prefix (chatDbContext, chatDb); a bare Context suffix only without a holder
+              # prefix, so chatContext.ChatMessages.Add stays out as ambiguous.
+              regex: (?i)^(this\.)?_?\w*(db|dbcontext|ctx|uow|unitofwork|repo|repository|store|dao|database)$|^(?!(this\.)?_?(chat|conversation|prompt|session|history))(this\.)?_?\w*context$
+          - metavariable-regex:
+              metavariable: $W
+              regex: ^(Add|AddAsync|AddRange|AddRangeAsync)$
+          - pattern-regex: '\.(Add|AddAsync|AddRange|AddRangeAsync)\('
+      - patterns:
+          - pattern: $CTX.$SET.$W(...)
+          - metavariable-regex:
+              metavariable: $SET
+              regex: ^(Chat(Message|Msg|Turn|Entry|History|Histories|Log|Transcript)|Conversation(Message|Turn|Entry|Transcript)|Dialog(Message|Turn))s?$
+          # EF Core's asynchronous adds; an in-memory list has neither, so any receiver counts.
+          - metavariable-regex:
+              metavariable: $W
+              regex: ^(AddAsync|AddRangeAsync)$
+          - pattern-regex: '\.(AddAsync|AddRangeAsync)\('
+      # On Opengrep 1.33.1 `new $T(...) { ... }` matches a plain constructor, a bare initializer
+      # (`new T { ... }`) and a constructor with an initializer; `new $T { ... }` matches only the bare one.
+      - patterns:
+          - pattern: $R.$W(<... new $T(...) { ... } ...>)
+          - pattern-not-inside: $R.$W(new Microsoft.Extensions.AI.ChatMessage(...) { ... })
+          # A receiver with a store suffix whatever its prefix (chatDb.Messages, conversationDb), or a
+          # Context suffix without a holder prefix, optionally with a set after it (`db.Messages`); a
+          # holder named for a chat, conversation, prompt, session or history (`chatContext.Messages`)
+          # does not count.
+          - metavariable-regex:
+              metavariable: $R
+              regex: (?i)^(this\.)?_?\w*(db|dbcontext|ctx|uow|unitofwork|repo|repository|store|dao|database)(\.\w+)?$|^(?!(this\.)?_?(chat|conversation|prompt|session|history))(this\.)?_?\w*context(\.\w+)?$
+          # A message or turn record, or an entry named for a chat or transcript; an account's
+          # UserRoleEntry or MemberEntry carries a role that is not a conversation's.
+          - metavariable-regex:
+              metavariable: $T
+              regex: ^(\w+\.)*(\w*(Message|Turn)|(Chat|Conversation|Transcript|Dialog)\w*Entry)$
+          - metavariable-regex:
+              metavariable: $W
+              regex: ^(Add|AddAsync|Insert|InsertAsync|InsertOne|InsertOneAsync|Save|SaveAsync|Create|CreateAsync|CreateItemAsync|Upsert|UpsertAsync|UpsertItemAsync|Store|StoreAsync)$
+          - pattern-regex: '\bRole\s*=\s*("(user|assistant|model|bot|ai)"|\w*Role\s*\.\s*(User|Assistant|Model|Bot)\b)'
+      # A pattern-not beside a pattern-regex anchor is not applied on Opengrep 1.33.1;
+      # pattern-not-inside is.
+      - patterns:
+          - pattern: $R.$W(<... new $T(...) { ... } ...>)
+          - pattern-not-inside: $R.$W(new Microsoft.Extensions.AI.ChatMessage(...))
+          - metavariable-regex:
+              metavariable: $R
+              regex: (?i)^(this\.)?_?\w*(db|dbcontext|ctx|uow|unitofwork|repo|repository|store|dao|database|collection|container|table)$|^(?!(this\.)?_?(chat|conversation|prompt|session|history))(this\.)?_?\w*context$
+          - metavariable-regex:
+              metavariable: $T
+              regex: ^(\w+\.)*(Chat(Message|Msg|Turn|Entry|History|Log|Transcript)|Conversation(Message|Turn|Entry|Transcript)|Dialog(Message|Turn))$
+          - metavariable-regex:
+              metavariable: $W
+              regex: ^(Add|AddAsync|AddRange|AddRangeAsync|Insert|InsertAsync|InsertOne|InsertOneAsync|InsertMany|InsertManyAsync|Save|SaveAsync|Create|CreateAsync|CreateItemAsync|Upsert|UpsertAsync|UpsertItemAsync|Store|StoreAsync)$
+          - pattern-regex: '\b(Add|Insert|Save|Create|Upsert|Store)\w*\('
+      - patterns:
+          - pattern: $R.$W(...)
+          - metavariable-regex:
+              metavariable: $R
+              regex: (?i)^(this\.)?_?\w*(chat(message|msg|history|log|turn|entry|transcript)?s?|conversation(message|msg|turn|entry|transcript)s?|dialog(message|turn)s?)(repository|repo|dao|store|collection|container|table)$
+          - metavariable-regex:
+              metavariable: $W
+              regex: ^(Add|AddAsync|AddRange|AddRangeAsync|Insert|InsertAsync|InsertOne|InsertOneAsync|InsertMany|InsertManyAsync|Save|SaveAsync|Create|CreateAsync|CreateItemAsync|Upsert|UpsertAsync|UpsertItemAsync|Store|StoreAsync)$
+          - pattern-regex: '\b(Add|Insert|Save|Create|Upsert|Store)\w*\('
+      - patterns:
+          - pattern: $R.$W(...)
+          - metavariable-regex:
+              metavariable: $R
+              regex: (?i)^(this\.)?_?\w*(chat(message|msg|history|log|turn|entry|transcript)s?|conversation(message|msg|turn|entry|transcript)s?)$
+          - metavariable-regex:
+              metavariable: $W
+              regex: ^(AddAsync|AddRangeAsync|Insert|InsertAsync|InsertOne|InsertOneAsync|InsertMany|InsertManyAsync|Save|SaveAsync|CreateItemAsync|Upsert|UpsertAsync|UpsertItemAsync|ReplaceOneAsync)$
+          - pattern-regex: '\b(Add|Insert|Save|Create|Upsert|Replace)\w*\('
+      - patterns:
+          - pattern: $C.$EX($SQL, ...)
+          - metavariable-regex:
+              metavariable: $EX
+              regex: ^(Execute|ExecuteAsync|ExecuteScalar|ExecuteScalarAsync|ExecuteSqlRaw|ExecuteSqlRawAsync|ExecuteSqlInterpolated|ExecuteSqlInterpolatedAsync|ExecuteSql|ExecuteSqlAsync)$
+          - metavariable-regex:
+              metavariable: $SQL
+              regex: '(?is)^[$@]*"+\s*insert\s+into\s+[\[`"]?(\w+[\]`"]?\.[\[`"]?)?(\w+_)?(chat_?(messages?|msgs?|history|logs?|turns?|entries|transcripts?)|conversation_?(messages?|turns?|entries|transcripts?)|dialog_?(messages?|turns?))\b'
+          - pattern-regex: '(?i)insert\s+into'
+    metadata:
+      activity: records_text_chat
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-text-chat
+      provenance: ungovr-original
+      license: MIT

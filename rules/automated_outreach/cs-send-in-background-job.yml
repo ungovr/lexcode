@@ -1,0 +1,91 @@
+rules:
+  - id: lexcode.outreach.cs-send-in-background-job
+    languages: [csharp]
+    severity: INFO
+    message: Sends a message from a background worker, a queued job, a message consumer or an event handler, where the code does not show whether a person asked for it, which may be sending automated outreach (automated_outreach).
+    # Signal strength, as in the other languages' rules: the mail a person asked for (a welcome
+    # message, a receipt) is often sent from a queued job or an event handler too. The loop and timer
+    # shapes are the evidence rules; this one is the worth-a-look row for everything that runs off a
+    # request. The shapes: a hosted BackgroundService, a MassTransit consumer, a MediatR notification
+    # handler, an NServiceBus handler, an Azure Functions queue or Service Bus trigger, and a Hangfire
+    # background job (the static API or the injected IBackgroundJobClient). A request handler
+    # (IRequestHandler, a controller) is a person's own request and is not a shape here.
+    #
+    # Microsoft.Extensions.Hosting is imported implicitly by the .NET SDK, so BackgroundService is
+    # matched by its fully qualified and short forms (Decision 10); the other types are fully qualified,
+    # so an app's own IConsumer does not match. A generic base is written without its type arguments,
+    # and the interfaces are also matched after another base. The send set is cs-send-in-loop's.
+    patterns:
+      - pattern-either:
+          - pattern-inside: |
+              class $K : Microsoft.Extensions.Hosting.BackgroundService { ... }
+          - pattern-inside: |
+              class $K : BackgroundService { ... }
+          - pattern-inside: |
+              class $K : MassTransit.IConsumer { ... }
+          - pattern-inside: |
+              class $K : $B, MassTransit.IConsumer { ... }
+          - pattern-inside: |
+              class $K : MediatR.INotificationHandler { ... }
+          - pattern-inside: |
+              class $K : $B, MediatR.INotificationHandler { ... }
+          - pattern-inside: |
+              class $K : NServiceBus.IHandleMessages { ... }
+          - pattern-inside: |
+              class $K : $B, NServiceBus.IHandleMessages { ... }
+          - pattern-inside: |
+              $RET $FN(..., [Microsoft.Azure.Functions.Worker.QueueTrigger(...)] $PT $PV, ...) { ... }
+          - pattern-inside: |
+              $RET $FN(..., [Microsoft.Azure.Functions.Worker.ServiceBusTrigger(...)] $PT $PV, ...) { ... }
+          - pattern-inside: |
+              $RET $FN(..., [Microsoft.Azure.WebJobs.QueueTrigger(...)] $PT $PV, ...) { ... }
+          - pattern-inside: |
+              $RET $FN(..., [Microsoft.Azure.WebJobs.ServiceBusTrigger(...)] $PT $PV, ...) { ... }
+          - pattern-inside: Hangfire.BackgroundJob.Enqueue(...)
+          - pattern-inside: Hangfire.BackgroundJob.Enqueue<$JT>(...)
+          - pattern-inside: Hangfire.BackgroundJob.Schedule(...)
+          - pattern-inside: Hangfire.BackgroundJob.Schedule<$JT>(...)
+          - pattern-inside: (Hangfire.IBackgroundJobClient $JC).Enqueue(...)
+          - pattern-inside: (Hangfire.IBackgroundJobClient $JC).Enqueue<$JT>(...)
+          - pattern-inside: (Hangfire.IBackgroundJobClient $JC).Schedule(...)
+          - pattern-inside: (Hangfire.IBackgroundJobClient $JC).Schedule<$JT>(...)
+      - pattern-either:
+          - patterns:
+              - pattern: $M.$SM(...)
+              - metavariable-regex:
+                  metavariable: $M
+                  regex: (?i)^(this\.)?_?\w*(mail|smtp)\w*$
+              - metavariable-regex:
+                  metavariable: $SM
+                  regex: ^(Send|SendAsync|SendMailAsync)$
+          # A SignalR client proxy (`hub.Clients.User(id).SendNotification(...)`) pushes to an open page,
+          # not a person's inbox or phone, so a receiver reached through Clients is not a send.
+          - patterns:
+              - pattern: $X.$N(...)
+              - metavariable-regex:
+                  metavariable: $X
+                  regex: ^(?!(.*\.)?Clients\b)
+              - metavariable-regex:
+                  metavariable: $N
+                  regex: ^Send\w*(Email|Mail|EmailMessage|MailMessage|Sms|SMS|SmsMessage|Text|TextMessage|Push|PushNotification|Notification|Reminder|Digest|Newsletter|Alert)s?(Async)?$
+          - patterns:
+              - pattern: $N(...)
+              - metavariable-regex:
+                  metavariable: $N
+                  regex: ^Send\w*(Email|Mail|EmailMessage|MailMessage|Sms|SMS|SmsMessage|Text|TextMessage|Push|PushNotification|Notification|Reminder|Digest|Newsletter|Alert)s?(Async)?$
+          - pattern: Twilio.Rest.Api.V2010.Account.MessageResource.Create(...)
+          - pattern: Twilio.Rest.Api.V2010.Account.MessageResource.CreateAsync(...)
+          - pattern: Twilio.Rest.Api.V2010.Account.CallResource.Create(...)
+          - pattern: Twilio.Rest.Api.V2010.Account.CallResource.CreateAsync(...)
+          - pattern: FirebaseAdmin.Messaging.FirebaseMessaging.DefaultInstance.SendAsync(...)
+          - pattern: FirebaseMessaging.DefaultInstance.SendAsync(...)
+          - pattern: (FirebaseAdmin.Messaging.FirebaseMessaging $F).SendAsync(...)
+      # Literal anchor inside the match: it lets the engine skip files with no send call.
+      - pattern-regex: '(\.Send(Async|MailAsync)?\(|\bSend\w*(Email|Mail|Sms|SMS|Text|Push|Notification|Reminder|Digest|Newsletter|Alert)\w*\(|Resource\s*\.\s*Create(Async)?\()'
+    metadata:
+      activity: automated_outreach
+      mentioned: performs
+      definition: https://lexlint.io/activities/automated-outreach
+      provenance: ungovr-original
+      license: MIT
+      strength: signal

@@ -1,0 +1,67 @@
+rules:
+  - id: lexcode.outreach.cs-sms-call-push-send
+    languages: [csharp]
+    severity: INFO
+    message: Sends a text, places a call or pushes a notification, where the code does not show whether a person just asked for it, which may be sending automated outreach (automated_outreach).
+    # Signal strength, as in the other languages' rules: a text or a push is often the transactional
+    # kind. A one-time code, a verification or a password is left out by the words in the call, and
+    # Twilio Verify is not matched at all. Email is not in this rule: a single email is mostly the
+    # transactional kind, and the loop, timer and bulk rules take the mass shapes.
+    #
+    # Twilio's MessageResource and CallResource are fully qualified, so an app's own MessageResource
+    # does not match; so are the typed clients (Firebase, Azure Communication Services SMS, Web Push).
+    # FirebaseMessaging also has its short form, the short name being the vendor's own (Decision 10).
+    # Amazon SNS counts only with a PhoneNumber, so a publish to a topic does not. Vonage's SendAnSms and
+    # the Azure Notification Hubs native and template sends are the vendors' own method names.
+    pattern-either:
+      # The words are read in the call's arguments; on Opengrep 1.33.1 a pattern-not-regex drops a match
+      # only when its own match covers the whole finding, so the SNS initializer's covers it.
+      - patterns:
+          - pattern-either:
+              - pattern: Twilio.Rest.Api.V2010.Account.MessageResource.Create($...ARGS)
+              - pattern: Twilio.Rest.Api.V2010.Account.MessageResource.CreateAsync($...ARGS)
+              - patterns:
+                  - pattern: $V.$M($...ARGS)
+                  - metavariable-regex:
+                      metavariable: $M
+                      regex: ^SendAnSms(Async)?$
+              - pattern: (Azure.Communication.Sms.SmsClient $S).SendAsync($...ARGS)
+              - pattern: (Azure.Communication.Sms.SmsClient $S).Send($...ARGS)
+          - metavariable-regex:
+              metavariable: $...ARGS
+              regex: (?is)^(?!.*(code|otp|verif|passcode|password|\bpin\b))
+          - pattern-regex: '(Resource\s*\.\s*Create(Async)?\(|\.SendAnSms\w*\(|\.Send(Async)?\()'
+      - patterns:
+          - pattern-either:
+              # Every construction form: plain, bare initializer, constructor with initializer, target-typed.
+              - pattern: new Amazon.SimpleNotificationService.Model.PublishRequest(...) { ... }
+              - pattern: Amazon.SimpleNotificationService.Model.PublishRequest $R = new(...) { ... };
+          - pattern-not-regex: (?is)(new\s+[\w.]*PublishRequest\s*(\(\s*\))?|PublishRequest\s+\w+\s*=\s*new\s*\(\s*\))\s*\{[^}]*(code|otp|verif|passcode|password|\bpin\b)[^}]*\}
+          - pattern-regex: '\bPhoneNumber\s*='
+      - patterns:
+          - pattern-either:
+              - pattern: Twilio.Rest.Api.V2010.Account.CallResource.Create(...)
+              - pattern: Twilio.Rest.Api.V2010.Account.CallResource.CreateAsync(...)
+          - pattern-regex: 'CallResource\s*\.\s*Create'
+      - patterns:
+          - pattern-either:
+              - pattern: FirebaseAdmin.Messaging.FirebaseMessaging.DefaultInstance.SendAsync(...)
+              - pattern: FirebaseMessaging.DefaultInstance.SendAsync(...)
+              - pattern: (FirebaseAdmin.Messaging.FirebaseMessaging $F).SendAsync(...)
+              - pattern: (WebPush.WebPushClient $W).SendNotificationAsync(...)
+              - pattern: (WebPush.WebPushClient $W).SendNotification(...)
+              - pattern: (Lib.Net.Http.WebPush.PushServiceClient $P).RequestPushMessageDeliveryAsync(...)
+          - pattern-regex: '\.(SendAsync|SendNotification|SendNotificationAsync|RequestPushMessageDeliveryAsync)\('
+      - patterns:
+          - pattern: $H.$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^Send(Fcm|FcmV1|Apple|Windows|Baidu|Adm|Mpns|Template)NativeNotificationAsync$|^SendTemplateNotificationAsync$
+          - pattern-regex: '\.Send\w*NotificationAsync\('
+    metadata:
+      activity: automated_outreach
+      mentioned: performs
+      definition: https://lexlint.io/activities/automated-outreach
+      provenance: ungovr-original
+      license: MIT
+      strength: signal
