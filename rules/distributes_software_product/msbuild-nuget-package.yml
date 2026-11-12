@@ -1,0 +1,37 @@
+rules:
+  - id: lexcode.distribute.msbuild-nuget-package
+    languages: [generic]
+    severity: INFO
+    message: Declares a NuGet package (a package id, packing on build or by explicit opt-in, a .NET tool, a package license, or a .nuspec), which makes a library, tool or template available for others to install (distributes_software_product).
+    # Each element is matched at the start of its line, so one inside a comment that opens on the same
+    # line is not. Assembly metadata (Authors, Company, Version, Description) is set by apps too and is
+    # not matched; neither is IsPackable, GeneratePackageOnBuild or PackAsTool set to false.
+    pattern-either:
+      - pattern-regex: '(?im)^[ \t]*<PackageId>[ \t]*[^<\s]'
+      - pattern-regex: '(?im)^[ \t]*<PackAsTool>[ \t]*true[ \t]*</PackAsTool>'
+      - pattern-regex: '(?im)^[ \t]*<GeneratePackageOnBuild>[ \t]*true[ \t]*</GeneratePackageOnBuild>'
+      - pattern-regex: '(?im)^[ \t]*<IsPackable>[ \t]*true[ \t]*</IsPackable>'
+      - pattern-regex: '(?im)^[ \t]*<PackageLicense(?:Expression|File|Url)>[ \t]*[^<\s]'
+      # A .nuspec names its package in <metadata><id>; no project file has an <id> element.
+      - pattern-regex: '(?m)^[ \t]*<id>[ \t]*[^<\s]'
+    paths:
+      include:
+        - "*.csproj"
+        - "*.fsproj"
+        - "*.vbproj"
+        - "*.props"
+        - "*.nuspec"
+        - "msbuild-nuget-package.*"
+      exclude:
+        - "**/example/**"
+        - "**/examples/**"
+        - "**/sample/**"
+        - "**/samples/**"
+        - "**/demo/**"
+        - "**/demos/**"
+    metadata:
+      activity: distributes_software_product
+      mentioned: performs
+      definition: https://lexlint.io/activities/distributes-software-product
+      provenance: ungovr-original
+      license: MIT

@@ -1,0 +1,10 @@
+<!-- lexcode-expect: 1 -->
+<!-- A WiX Toolset project that builds the Windows installer (.msi) of a desktop app. -->
+<Project Sdk="WixToolset.Sdk/5.0.2">
+  <PropertyGroup>
+    <OutputName>ContosoLedgerSetup</OutputName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Ledger\Ledger.csproj" />
+  </ItemGroup>
+</Project>

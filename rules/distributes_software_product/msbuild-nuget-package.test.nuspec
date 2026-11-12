@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- lexcode-expect: 1 -->
+<!-- A .nuspec that packs a project template for `dotnet new install`: its package id is the match. -->
+<package xmlns="http://schemas.microsoft.com/packaging/2012/06/nuspec.xsd">
+  <metadata>
+    <id>Contoso.Service.Template</id>
+    <version>0.0.0</version>
+    <title>Contoso Service Template</title>
+    <authors>Contoso</authors>
+    <description>A service template with logging and health checks.</description>
+    <license type="expression">MIT</license>
+    <packageTypes>
+      <packageType name="Template" />
+    </packageTypes>
+    <dependencies>
+      <dependency id="Contoso.Logging" version="2.0.0" />
+    </dependencies>
+  </metadata>
+  <files>
+    <file src="content\**" target="content" />
+  </files>
+</package>

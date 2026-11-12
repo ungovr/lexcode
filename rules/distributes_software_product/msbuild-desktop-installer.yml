@@ -1,0 +1,42 @@
+rules:
+  - id: lexcode.distribute.msbuild-desktop-installer
+    languages: [generic]
+    severity: INFO
+    message: Packages a Windows desktop app for others to install (an MSIX package, ClickOnce manifests or publishing, a WiX installer or a Windows Application Packaging Project), which is distributing a software product (distributes_software_product).
+    # Each setting is matched at the start of its line and only with the value that turns packaging
+    # on: an unpackaged app (WindowsPackageType None, MSIX tooling off) and a web app's publish profile
+    # (Web Deploy, a folder copy) are not matched.
+    pattern-either:
+      # MSIX in a single project (WinUI, WPF, WinForms, MAUI's Windows head).
+      - pattern-regex: '(?im)^[ \t]*<EnableMsixTooling>[ \t]*true[ \t]*</EnableMsixTooling>'
+      - pattern-regex: '(?im)^[ \t]*<WindowsPackageType>[ \t]*MSIX[ \t]*</WindowsPackageType>'
+      - pattern-regex: '(?im)^[ \t]*<GenerateAppxPackageOnBuild>[ \t]*true[ \t]*</GenerateAppxPackageOnBuild>'
+      # ClickOnce: a publish profile that publishes with it, or a project that makes its manifests.
+      - pattern-regex: '(?im)^[ \t]*<PublishProtocol>[ \t]*ClickOnce[ \t]*</PublishProtocol>'
+      - pattern-regex: '(?im)^[ \t]*<GenerateManifests>[ \t]*true[ \t]*</GenerateManifests>'
+      # A WiX Toolset installer project, and a Windows Application Packaging Project (.wapproj).
+      - pattern-regex: '(?im)^[ \t]*<Project[ \t]+Sdk="WixToolset\.Sdk\b'
+      - pattern-regex: '(?im)^[ \t]*<Import[ \t]+Project="[^"\n]*\bMicrosoft\.DesktopBridge\.targets"'
+    paths:
+      include:
+        - "*.csproj"
+        - "*.fsproj"
+        - "*.vbproj"
+        - "*.props"
+        - "*.pubxml"
+        - "*.wixproj"
+        - "*.wapproj"
+        - "msbuild-desktop-installer.*"
+      exclude:
+        - "**/example/**"
+        - "**/examples/**"
+        - "**/sample/**"
+        - "**/samples/**"
+        - "**/demo/**"
+        - "**/demos/**"
+    metadata:
+      activity: distributes_software_product
+      mentioned: performs
+      definition: https://lexlint.io/activities/distributes-software-product
+      provenance: ungovr-original
+      license: MIT
