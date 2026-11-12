@@ -1,0 +1,29 @@
+rules:
+  - id: lexcode.distribute.composer-package
+    languages: [json]
+    severity: INFO
+    message: Declares a Composer package of an installable type (a library, a Composer plugin, or a type an installer places into another app, such as a framework bundle or a CMS plugin), which is software made available for others to install (distributes_software_product).
+    patterns:
+      - pattern: |
+          {..., "name": $NAME, ..., "type": $TYPE, ...}
+      # A project is an application its adopter runs as their own, a starter or template
+      # included, and is not distributing a product.
+      - metavariable-regex:
+          metavariable: $TYPE
+          regex: '^"(?!project")[^"]+"$'
+      - focus-metavariable: $TYPE
+      # Only the top-level object: an inline package under "repositories" is a dependency.
+      - pattern-not-inside: |
+          $K: {...}
+      - pattern-not-inside: |
+          [...]
+    paths:
+      include:
+        - "composer.json"
+        - "composer-package.*"
+    metadata:
+      activity: distributes_software_product
+      mentioned: performs
+      definition: https://lexlint.io/activities/distributes-software-product
+      provenance: ungovr-original
+      license: MIT

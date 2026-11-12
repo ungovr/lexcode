@@ -1,0 +1,90 @@
+rules:
+  - id: lexcode.train.php-ml-library-train
+    languages: [php]
+    severity: INFO
+    message: Fits a machine-learning model to training data with Rubix ML or PHP-ML, which is training models (trains_models).
+    patterns:
+      - pattern-either:
+          - pattern: $E->train(...)
+          - pattern: $E->partial(...)
+          - pattern: $E->partialTrain(...)
+      - pattern-either:
+          # A file that imports an estimator. A `use` pattern binds its alias form too, and its
+          # trailing metavariable also covers deeper names in the same namespace.
+          - pattern-inside: |
+              use Rubix\ML\Classifiers\$C;
+              ...
+          - pattern-inside: |
+              use Rubix\ML\Regressors\$C;
+              ...
+          - pattern-inside: |
+              use Rubix\ML\Clusterers\$C;
+              ...
+          - pattern-inside: |
+              use Rubix\ML\AnomalyDetectors\$C;
+              ...
+          - pattern-inside: |
+              use Rubix\ML\PersistentModel;
+              ...
+          - pattern-inside: |
+              use Rubix\ML\Pipeline;
+              ...
+          - pattern-inside: |
+              use Rubix\ML\GridSearch;
+              ...
+          - pattern-inside: |
+              use Rubix\ML\CommitteeMachine;
+              ...
+          - pattern-inside: |
+              use Rubix\ML\BootstrapAggregator;
+              ...
+          - pattern-inside: |
+              use Phpml\Classification\$C;
+              ...
+          - pattern-inside: |
+              use Phpml\Regression\$C;
+              ...
+          - pattern-inside: |
+              use Phpml\NeuralNetwork\$C;
+              ...
+          - pattern-inside: |
+              use Phpml\Pipeline;
+              ...
+          # A class written fully qualified with no import. Here a metavariable stands for one
+          # name segment only, so each estimator namespace is written out.
+          - pattern-inside: |
+              $E = new \Rubix\ML\Classifiers\$C(...);
+              ...
+          - pattern-inside: |
+              $E = new \Rubix\ML\Regressors\$C(...);
+              ...
+          - pattern-inside: |
+              $E = new \Rubix\ML\Clusterers\$C(...);
+              ...
+          - pattern-inside: |
+              $E = new \Rubix\ML\AnomalyDetectors\$C(...);
+              ...
+          - pattern-inside: |
+              $E = new \Rubix\ML\$C(...);
+              ...
+          - pattern-inside: |
+              $E = new \Phpml\Classification\$C(...);
+              ...
+          - pattern-inside: |
+              $E = new \Phpml\Classification\Linear\$C(...);
+              ...
+          - pattern-inside: |
+              $E = new \Phpml\Classification\Ensemble\$C(...);
+              ...
+          - pattern-inside: |
+              $E = new \Phpml\Regression\$C(...);
+              ...
+          - pattern-inside: |
+              $E = new \Phpml\$C(...);
+              ...
+    metadata:
+      activity: trains_models
+      mentioned: performs
+      definition: https://lexlint.io/activities/trains-models
+      provenance: ungovr-original
+      license: MIT

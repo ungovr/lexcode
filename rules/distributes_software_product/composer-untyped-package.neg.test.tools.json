@@ -1,0 +1,7 @@
+{
+    "name": "acme/tools-rector",
+    "description": "Rector, kept apart from the app's own dependencies",
+    "require-dev": {
+        "rector/rector": "^2.0"
+    }
+}

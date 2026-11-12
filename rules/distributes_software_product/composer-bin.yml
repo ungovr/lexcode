@@ -1,0 +1,27 @@
+rules:
+  - id: lexcode.distribute.composer-bin
+    languages: [json]
+    severity: INFO
+    message: Declares a command-line program in a Composer package that is not a project, which is software made available for others to install (distributes_software_product).
+    patterns:
+      - pattern: |
+          {..., "name": $NAME, ..., "bin": $BIN, ...}
+      # A project is an application its adopter runs as their own, a starter or template
+      # included, and is not distributing a product.
+      - pattern-not: |
+          {..., "type": "project", ...}
+      - focus-metavariable: $BIN
+      - pattern-not-inside: |
+          $K: {...}
+      - pattern-not-inside: |
+          [...]
+    paths:
+      include:
+        - "composer.json"
+        - "composer-bin.*"
+    metadata:
+      activity: distributes_software_product
+      mentioned: performs
+      definition: https://lexlint.io/activities/distributes-software-product
+      provenance: ungovr-original
+      license: MIT

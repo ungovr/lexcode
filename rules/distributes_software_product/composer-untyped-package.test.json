@@ -1,0 +1,14 @@
+{
+    "name": "acme/money",
+    "description": "Money and currency value objects",
+    "license": "MIT",
+    "require": {
+        "php": "^8.1",
+        "ext-bcmath": "*"
+    },
+    "autoload": {
+        "psr-4": {
+            "Acme\\Money\\": "src/"
+        }
+    }
+}

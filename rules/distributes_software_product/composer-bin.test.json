@@ -1,0 +1,15 @@
+{
+    "name": "acme/sitemap-check",
+    "description": "A command-line tool that checks a sitemap for dead links",
+    "license": "MIT",
+    "bin": ["bin/sitemap-check"],
+    "require": {
+        "php": "^8.2",
+        "symfony/console": "^7.1"
+    },
+    "autoload": {
+        "psr-4": {
+            "Acme\\SitemapCheck\\": "src/"
+        }
+    }
+}

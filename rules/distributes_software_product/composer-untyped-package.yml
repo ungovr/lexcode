@@ -1,0 +1,26 @@
+rules:
+  - id: lexcode.distribute.composer-untyped-package
+    languages: [json]
+    severity: INFO
+    message: Declares a named Composer package with autoloaded code and no type, which Composer reads as a library; it may be published for others to install or may only be loaded inside the same repository (distributes_software_product).
+    patterns:
+      - pattern: |
+          {..., "name": $NAME, ..., "autoload": $AUTOLOAD, ...}
+      - pattern-not: |
+          {..., "type": $TYPE, ...}
+      - focus-metavariable: $NAME
+      - pattern-not-inside: |
+          $K: {...}
+      - pattern-not-inside: |
+          [...]
+    paths:
+      include:
+        - "composer.json"
+        - "composer-untyped-package.*"
+    metadata:
+      activity: distributes_software_product
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/distributes-software-product
+      provenance: ungovr-original
+      license: MIT
