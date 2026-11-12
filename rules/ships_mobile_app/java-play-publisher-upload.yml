@@ -1,0 +1,21 @@
+rules:
+  - id: lexcode.mobile.java-play-publisher-upload
+    languages: [java]
+    severity: INFO
+    message: Uploads an Android bundle or APK, or moves a release track, through the Google Play Developer API, which is distributing a mobile app through Google's store (ships_mobile_app).
+    pattern-either:
+      - pattern: (AndroidPublisher.Edits $E).bundles().upload(...)
+      - pattern: (AndroidPublisher.Edits $E).apks().upload(...)
+      - pattern: (AndroidPublisher.Edits $E).tracks().update(...)
+      - pattern: (AndroidPublisher $P).edits().bundles().upload(...)
+      - pattern: (AndroidPublisher $P).edits().apks().upload(...)
+      - pattern: (AndroidPublisher $P).edits().tracks().update(...)
+    paths:
+      exclude:
+        - "**/src/test/**"
+    metadata:
+      activity: ships_mobile_app
+      mentioned: performs
+      definition: https://lexlint.io/activities/ships-mobile-app
+      provenance: ungovr-original
+      license: MIT

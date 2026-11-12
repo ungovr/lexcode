@@ -1,0 +1,89 @@
+rules:
+  - id: lexcode.outreach.java-send-in-queue-worker
+    languages: [java]
+    severity: INFO
+    message: Sends a message from a queue listener, an async method, a background worker or a timer, where the code does not show whether a person asked for it, which may be sending automated outreach (automated_outreach).
+    # Signal strength: the mail a person asked for (a welcome message, a receipt, a password reset)
+    # is often sent from an @Async method or a queue listener too. The timer and the loop shapes
+    # are the evidence rules; this one is the worth-a-look row for everything that runs off a
+    # request. A call to a method named for a send (sendReminders, sendNewsletter) counts as
+    # the send here, since the worker usually hands the message to a service of the app's own.
+    patterns:
+      - pattern-either:
+          - pattern-inside: |
+              @Async
+              $RET $F(...) {
+                ...
+              }
+          - pattern-inside: |
+              @Async(...)
+              $RET $F(...) {
+                ...
+              }
+          - pattern-inside: |
+              @KafkaListener(...)
+              $RET $F(...) {
+                ...
+              }
+          - pattern-inside: |
+              @RabbitListener(...)
+              $RET $F(...) {
+                ...
+              }
+          - pattern-inside: |
+              @JmsListener(...)
+              $RET $F(...) {
+                ...
+              }
+          - pattern-inside: |
+              @SqsListener(...)
+              $RET $F(...) {
+                ...
+              }
+          - pattern-inside: |
+              @Scheduled(...)
+              $RET $F(...) {
+                ...
+              }
+          - pattern-inside: |
+              $RET doWork() {
+                ...
+              }
+      - pattern-either:
+          - pattern: Transport.send(...)
+          - patterns:
+              - pattern: $M.send(...)
+              - metavariable-regex:
+                  metavariable: $M
+                  regex: '(?i)^(this\.)?\w*(mail|smtp)\w*$'
+          - patterns:
+              - pattern-either:
+                  - pattern: $X.$N(...)
+                  - pattern: $N(...)
+              - metavariable-regex:
+                  metavariable: $N
+                  regex: ^(send|dispatch|notify|deliver)\w*(Email|Mail|RawEmail|TemplatedEmail|Sms|SMS|Text|TextMessage|Push|PushNotification|Notification|Reminder|Digest|Newsletter|Alert|Announcement|Campaign)s?$
+          - patterns:
+              - pattern: $SG.api(...)
+              - metavariable-regex:
+                  metavariable: $SG
+                  regex: (?i)^(this\.)?(sg|sendgrid\w*)$
+          - pattern: Message.creator(...).create(...)
+          - pattern: Call.creator(...).create(...)
+          - pattern: FirebaseMessaging.getInstance().send(...)
+          - patterns:
+              - pattern: $FM.send(...)
+              - metavariable-regex:
+                  metavariable: $FM
+                  regex: (?i)^(this\.)?(\w*firebase\w*|fcm\w*)$
+          - pattern: $R.emails().send(...)
+          - pattern: $P.deliverMessage(...)
+      # Literal anchor inside the match: it lets the engine skip files with no send call.
+      - pattern-regex: '(Transport\.send|\.send\(|\b(send|dispatch|notify|deliver)\w*(Email|Mail|RawEmail|TemplatedEmail|Sms|SMS|Text|TextMessage|Push|PushNotification|Notification|Reminder|Digest|Newsletter|Alert|Announcement|Campaign)s?\(|\.api\(|\.creator\(|\.deliverMessage\()'
+    metadata:
+      activity: automated_outreach
+      mentioned: performs
+      definition: https://lexlint.io/activities/automated-outreach
+      provenance: ungovr-original
+      license: MIT
+      strength: signal

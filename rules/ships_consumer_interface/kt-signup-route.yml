@@ -1,0 +1,111 @@
+# The regular expressions in this file repeat across its arms (each arm names the same properties,
+# classes or paths again). Edit every copy together, or an arm drifts from the others.
+rules:
+  - id: lexcode.consumer.kt-signup-route
+    languages: [kotlin]
+    severity: INFO
+    message: 'Serves a public sign-up page or endpoint (a Spring MVC, JAX-RS, servlet or Ktor route), a screen that members of the public use to reach a service (ships_consumer_interface).'
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern-regex: '@(Get|Post|Put|Request)Mapping\(\s*(value\s*=\s*|path\s*=\s*)?[\[{]?\s*"/?(api/)?(v[0-9]+/)?(accounts/|auth/|users/)?(sign-?up|register|registration|create-account)/?"'
+              - pattern-regex: '@Path\(\s*(value\s*=\s*)?"/?(api/)?(v[0-9]+/)?(accounts/|auth/|users/)?(sign-?up|register|registration|create-account)/?"'
+              - pattern-regex: '@WebServlet\(\s*((value|urlPatterns)\s*=\s*)?[\[{]?\s*"/?(accounts/|auth/|users/)?(sign-?up|register|registration|create-account)/?"'
+          - pattern-not-inside: |
+              @PreAuthorize(...)
+              fun $FN(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @PreAuthorize(...)
+              fun $FN(...) = $FE
+          - pattern-not-inside: |
+              @Secured(...)
+              fun $FN(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @Secured(...)
+              fun $FN(...) = $FE
+          - pattern-not-inside: |
+              @RolesAllowed(...)
+              fun $FN(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @RolesAllowed(...)
+              fun $FN(...) = $FE
+          - pattern-not-inside:
+              patterns:
+                  - pattern: |
+                      @RequestMapping($...A)
+                      class $C(...) {
+                        ...
+                      }
+                  - metavariable-regex:
+                      metavariable: $...A
+                      regex: '^((value|path)\s*=\s*)?\[?\s*"/?(api/)?(admin|staff|internal|manage|backoffice|operators?)(/[^"]*)?"'
+      - patterns:
+          - pattern-either:
+              - pattern: |
+                    get($P) {
+                      <... call.$M(...) ...>
+                    }
+              - pattern: |
+                    post($P) {
+                      <... call.$M(...) ...>
+                    }
+              - pattern: |
+                    put($P) {
+                      <... call.$M(...) ...>
+                    }
+              - pattern: |
+                    route($P) {
+                      ...
+                      get {
+                        <... call.$M(...) ...>
+                      }
+                      ...
+                    }
+              - pattern: |
+                    route($P) {
+                      ...
+                      post {
+                        <... call.$M(...) ...>
+                      }
+                      ...
+                    }
+              - pattern: |
+                    route($P) {
+                      ...
+                      put {
+                        <... call.$M(...) ...>
+                      }
+                      ...
+                    }
+          - metavariable-regex:
+              metavariable: $P
+              regex: '^"/?(api/)?(v[0-9]+/)?(accounts/|auth/|users/)?(sign-?up|register|registration|create-account)/?"$'
+          - metavariable-regex:
+              metavariable: $M
+              regex: '^(respond\w*|receive\w*|parameters|principal)$'
+          - pattern-not-inside: |
+              authenticate(...) {
+                ...
+              }
+          - pattern-not-inside:
+              patterns:
+                  - pattern: |
+                      route($R) {
+                        ...
+                      }
+                  - metavariable-regex:
+                      metavariable: $R
+                      regex: '^"/?(api/)?(admin|staff|internal|manage|backoffice|operators?)(/.*)?"$'
+    metadata:
+      activity: ships_consumer_interface
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/ships-consumer-interface
+      provenance: ungovr-original
+      license: MIT

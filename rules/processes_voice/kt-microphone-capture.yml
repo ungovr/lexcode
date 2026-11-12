@@ -1,0 +1,43 @@
+rules:
+  - id: lexcode.voice.kt-microphone-capture
+    languages: [kotlin]
+    severity: INFO
+    message: Opens the microphone to capture sound, which is recording a human voice (processes_voice).
+    patterns:
+      - pattern-either:
+          # Android MediaRecorder, AudioRecord.Builder and AudioRecord with a microphone-type source. The
+          # source is named through the platform's own constant, which the engine resolves through the
+          # file's imports, so a project's own AudioSource list or setAudioSource method is not taken for it.
+          - patterns:
+              - pattern-either:
+                  - pattern: setAudioSource($S)
+                  - pattern: $R.setAudioSource($S)
+                  - pattern: android.media.AudioRecord($S, ...)
+              - metavariable-pattern:
+                  metavariable: $S
+                  pattern-either:
+                    - pattern: android.media.MediaRecorder.AudioSource.MIC
+                    - pattern: android.media.MediaRecorder.AudioSource.DEFAULT
+                    - pattern: android.media.MediaRecorder.AudioSource.CAMCORDER
+                    - pattern: android.media.MediaRecorder.AudioSource.UNPROCESSED
+                    - pattern: android.media.MediaRecorder.AudioSource.VOICE_RECOGNITION
+                    - pattern: android.media.MediaRecorder.AudioSource.VOICE_COMMUNICATION
+                    - pattern: android.media.MediaRecorder.AudioSource.VOICE_PERFORMANCE
+          # javax.sound.sampled on a desktop or server JVM
+          - pattern: javax.sound.sampled.AudioSystem.getTargetDataLine(...)
+          # (a class literal in a pattern matches every class literal, so the capture line is named by regex)
+          - patterns:
+              - pattern: javax.sound.sampled.DataLine.Info(...)
+              - pattern-regex: 'DataLine\.Info\(\s*(javax\.sound\.sampled\.)?TargetDataLine::class\.java'
+          # CameraX video recording with the microphone on (the argument is the muted-at-start flag)
+          - patterns:
+              - pattern-regex: '(?sm)^import\s+androidx\.camera\.video\..*'
+              - pattern-either:
+                  - pattern: $P.withAudioEnabled()
+                  - pattern: $P.withAudioEnabled(false)
+    metadata:
+      activity: processes_voice
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-voice
+      provenance: ungovr-original
+      license: MIT

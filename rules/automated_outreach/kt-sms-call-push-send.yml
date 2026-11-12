@@ -1,0 +1,73 @@
+rules:
+  - id: lexcode.outreach.kt-sms-call-push-send
+    languages: [kotlin]
+    severity: INFO
+    message: Sends a text, places a call or pushes a notification, where the code does not show whether a person just asked for it, which may be sending automated outreach (automated_outreach).
+    # Signal strength, as in java-sms-call-push-send and the JS, Python and Ruby rules: a text or a push
+    # is often the transactional kind. A one-time code, a verification or a password is left out by the
+    # words in the call, and Twilio Verify is not matched at all. Email is not in this rule: a single
+    # email is mostly the transactional kind, and the loop, timer and bulk rules take the mass shapes.
+    # The AWS SDK for Kotlin publishes a text with a DSL lambda (`sns.publish { phoneNumber = ...;
+    # message = ... }`), in either property order.
+    patterns:
+      - pattern-either:
+          - patterns:
+              - pattern: Call.creator(...).create(...)
+              - pattern-regex: '(?s)import\s+com\.twilio\..*'
+          - pattern: FirebaseMessaging.getInstance().send(...)
+          - pattern: FirebaseMessaging.getInstance().sendAsync(...)
+          - patterns:
+              - pattern-either:
+                  - pattern: $P.send(Notification($SUB, $PAYLOAD, ...))
+                  - pattern: $P.sendAsync(Notification($SUB, $PAYLOAD, ...))
+              - pattern-regex: '(?s)import\s+nl\.martijndwars\.webpush\..*'
+          - patterns:
+              - pattern-either:
+                  - pattern: $FM.send(...)
+                  - pattern: $FM.sendAsync(...)
+              - metavariable-regex:
+                  metavariable: $FM
+                  regex: (?i)^(this\.)?(\w*firebase\w*|fcm\w*)$
+          - patterns:
+              - pattern: Message.creator($TO, $FROM, $BODY).create(...)
+              - metavariable-regex:
+                  metavariable: $BODY
+                  regex: '(?is)^(?!.*(code|otp|verif|passcode|password|\bpin\b)).*$'
+          - patterns:
+              - pattern-either:
+                  - pattern: $S.sendTextMessage($TO, $SC, $BODY, ...)
+                  - pattern: PublishRequest.builder().phoneNumber($P).message($BODY)
+                  - pattern: PublishRequest().withPhoneNumber($P).withMessage($BODY)
+                  - pattern: $Q.PublishRequest().withPhoneNumber($P).withMessage($BODY)
+                  - pattern: |
+                      $S.publish {
+                        ...
+                        phoneNumber = $P
+                        ...
+                        message = $BODY
+                        ...
+                      }
+                  - pattern: |
+                      $S.publish {
+                        ...
+                        message = $BODY
+                        ...
+                        phoneNumber = $P
+                        ...
+                      }
+                  - pattern: $X.sendSms(..., $BODY)
+                  - pattern: $X.sendSMS(..., $BODY)
+                  - pattern: sendSms(..., $BODY)
+                  - pattern: sendSMS(..., $BODY)
+              - metavariable-regex:
+                  metavariable: $BODY
+                  regex: '(?is)^(?!.*(code|otp|verif|passcode|password|\bpin\b)).*$'
+      # Literal anchor inside the match: it lets the engine skip files with no send call.
+      - pattern-regex: '(\.creator\(|\.send(Async)?\(|\.sendTextMessage\(|\.phoneNumber\(|\.withPhoneNumber\(|\bsend(Sms|SMS)\(|\.publish\b)'
+    metadata:
+      activity: automated_outreach
+      mentioned: performs
+      definition: https://lexlint.io/activities/automated-outreach
+      provenance: ungovr-original
+      license: MIT
+      strength: signal

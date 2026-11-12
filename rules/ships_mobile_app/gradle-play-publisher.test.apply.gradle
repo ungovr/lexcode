@@ -1,0 +1,8 @@
+// lexcode-expect: 1
+// The older apply-plugin form of the same upload setup.
+apply plugin: 'com.github.triplet.play'
+
+play {
+    serviceAccountCredentials = file('play-service-account.json')
+    track = 'production'
+}

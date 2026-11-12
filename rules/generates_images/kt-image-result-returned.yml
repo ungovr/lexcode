@@ -1,0 +1,135 @@
+rules:
+  - id: lexcode.image.kt-image-result-returned
+    languages:
+      - kotlin
+    severity: INFO
+    message: Returns a picture drawn by an image model from a function, which may be generating images with AI that reach users (generates_images).
+    mode: taint
+    pattern-sources:
+      - patterns:
+          - pattern-regex: (?s)\A(?=.*com\.openai\.).*
+          - pattern-either:
+              - pattern: $C.images().generate(...)
+              - pattern: $C.images().edit(...)
+              - pattern: $C.images().createVariation(...)
+      - patterns:
+          - pattern-regex: (?s)\A(?=.*com\.aallam\.openai\.).*
+          - pattern-either:
+              - pattern: $O.imageURL(...)
+              - pattern: $O.imageJSON(...)
+      - patterns:
+          - pattern-regex: (?s)\A(?=.*com\.google\.genai\.).*
+          - pattern-either:
+              - pattern: $C.models.generateImages(...)
+              - pattern: $C.models.editImage(...)
+              - pattern: $C.models.upscaleImage(...)
+      - patterns:
+          - pattern-regex: (?s)\A(?=.*com\.google\.firebase\.vertexai\.).*
+          - pattern: $M.generateImages(...)
+      - patterns:
+          - pattern-regex: (?s)\A(?=.*com\.google\.firebase\.ai\.).*
+          - pattern: $M.generateImages(...)
+      - patterns:
+          - pattern-regex: (?s)\A(?=.*\.services\.bedrockruntime\.).*
+          - pattern-either:
+              - pattern: $C.invokeModel { ...; modelId = $ID; ... }
+              - pattern: InvokeModelRequest { ...; modelId = $ID; ... }
+              - pattern: InvokeModelRequest.builder(). ... .modelId($ID). ... .build()
+              - pattern: $C.invokeModelWithResponseStream { ...; modelId = $ID; ... }
+              - pattern: InvokeModelWithResponseStreamRequest { ...; modelId = $ID; ... }
+              - pattern: InvokeModelWithResponseStreamRequest.builder(). ... .modelId($ID). ... .build()
+          - metavariable-regex:
+              metavariable: $ID
+              regex: (?i)^"[^"]*(titan-image|nova-canvas|stability|stable-diffusion|stable-image|sd3)[^"]*"$
+      - patterns:
+          - pattern-regex: (?s)\A(?=.*com\.azure\.ai\.openai\.).*
+          - pattern-either:
+              - pattern: $C.getImageGenerations(...)
+              - pattern: $C.getImageGenerationsWithResponse(...)
+      - patterns:
+          - pattern-regex: (?s)\A(?=.*dev\.langchain4j\.).*
+          - pattern: $M.generate(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: (?i)^(this\.)?_?\w*(image|dalle|diffusion)\w*$
+      - patterns:
+          - pattern-regex: (?s)\A(?=.*org\.springframework\.ai\.).*
+          - pattern: ImagePrompt(...)
+    pattern-propagators:
+      - pattern: $S.$M { $X -> ... }
+        from: $S
+        to: $X
+      - pattern: $S?.$M { $X -> ... }
+        from: $S
+        to: $X
+      - patterns:
+          - pattern: $S.$M { <... $IT ...> }
+          - metavariable-regex:
+              metavariable: $IT
+              regex: ^it$
+        from: $S
+        to: $IT
+      - patterns:
+          - pattern: $S?.$M { <... $IT ...> }
+          - metavariable-regex:
+              metavariable: $IT
+              regex: ^it$
+        from: $S
+        to: $IT
+    pattern-sinks:
+      - patterns:
+          - pattern: return $X
+          - pattern-not-inside:
+              patterns:
+                - pattern-either:
+                    - pattern: |
+                        @$A(...)
+                        fun $F(...): $R {
+                          ...
+                        }
+                    - pattern: |
+                        @$A
+                        fun $F(...): $R {
+                          ...
+                        }
+                - metavariable-regex:
+                    metavariable: $A
+                    regex: ^(GetMapping|PostMapping|PutMapping|PatchMapping|DeleteMapping|RequestMapping|ResponseBody|SendTo|SendToUser|QueryMapping|MutationMapping|SubscriptionMapping|GET|POST|PUT|DELETE|HEAD|Get|Post|Put|Patch|Delete|Route)$
+          - pattern-not-inside: |
+              { $P -> ... }
+          - pattern-not-inside: |
+              { $P, $Q -> ... }
+          - pattern-not-inside: |
+              { $P, $Q, $W -> ... }
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  fun $F(...) = $X
+              - pattern-inside: |
+                  fun $F(...): $R = $X
+          - focus-metavariable: $X
+          - pattern-not-inside:
+              patterns:
+                - pattern-either:
+                    - pattern: |
+                        @$A(...)
+                        fun $F(...) = $X
+                    - pattern: |
+                        @$A(...)
+                        fun $F(...): $R = $X
+                    - pattern: |
+                        @$A
+                        fun $F(...) = $X
+                    - pattern: |
+                        @$A
+                        fun $F(...): $R = $X
+                - metavariable-regex:
+                    metavariable: $A
+                    regex: ^(GetMapping|PostMapping|PutMapping|PatchMapping|DeleteMapping|RequestMapping|ResponseBody|SendTo|SendToUser|QueryMapping|MutationMapping|SubscriptionMapping|GET|POST|PUT|DELETE|HEAD|Get|Post|Put|Patch|Delete|Route)$
+    metadata:
+      activity: generates_images
+      mentioned: performs
+      definition: https://lexlint.io/activities/generates-images
+      provenance: ungovr-original
+      license: MIT
+      strength: signal

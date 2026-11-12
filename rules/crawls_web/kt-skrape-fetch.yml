@@ -1,0 +1,24 @@
+rules:
+  - id: lexcode.crawl.kt-skrape-fetch
+    languages: [kotlin]
+    severity: INFO
+    message: Requests a web page from a site the operator may not run with skrape{it}, which is scraping and crawling the web (crawls_web).
+    patterns:
+      # Read only in a file that imports skrape{it}, so a project function named skrape with a
+      # request block of its own is not taken for it. The regular expression is also the pre-filter.
+      - pattern-regex: '(?s)import\s+it\.skrape\..*'
+      - pattern-inside: |
+          skrape($F) {
+            ...
+          }
+      - pattern: url = $URL
+      - metavariable-regex:
+          metavariable: $URL
+          regex: (?s)^(?!"https?://(localhost|127\.|0\.0\.0\.0|\[::1\])).*$
+    metadata:
+      activity: crawls_web
+      mentioned: performs
+      definition: https://lexlint.io/activities/crawls-web
+      provenance: ungovr-original
+      license: MIT
+      host_metavar: $URL

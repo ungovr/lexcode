@@ -1,0 +1,46 @@
+rules:
+  - id: lexcode.biometric.java-rekognition-faces
+    languages: [java]
+    severity: INFO
+    message: Matches or indexes faces with Amazon Rekognition from Java, which is recognizing people from face geometry (processes_biometrics).
+    patterns:
+      - pattern-either:
+          - pattern: $C.compareFaces(...)
+          - pattern: $C.indexFaces(...)
+          - pattern: $C.searchFaces(...)
+          - pattern: $C.searchFacesByImage(...)
+          - pattern: $C.searchUsers(...)
+          - pattern: $C.searchUsersByImage(...)
+          - pattern: $C.startFaceSearch(...)
+      # The Rekognition import keeps a local method of the same name out.
+      - pattern-either:
+          - pattern-inside: |
+              import software.amazon.awssdk.services.rekognition.$X;
+              ...
+          - pattern-inside: |
+              import software.amazon.awssdk.services.rekognition.model.$X;
+              ...
+          - pattern-inside: |
+              import com.amazonaws.services.rekognition.$X;
+              ...
+          - pattern-inside: |
+              import com.amazonaws.services.rekognition.model.$X;
+              ...
+          - pattern-inside: |
+              import software.amazon.awssdk.services.rekognition.*;
+              ...
+          - pattern-inside: |
+              import software.amazon.awssdk.services.rekognition.model.*;
+              ...
+          - pattern-inside: |
+              import com.amazonaws.services.rekognition.*;
+              ...
+          - pattern-inside: |
+              import com.amazonaws.services.rekognition.model.*;
+              ...
+    metadata:
+      activity: processes_biometrics
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-biometrics
+      provenance: ungovr-original
+      license: MIT

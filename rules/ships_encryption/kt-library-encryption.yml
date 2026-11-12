@@ -1,0 +1,88 @@
+rules:
+  - id: lexcode.crypto.kt-library-encryption
+    languages: [kotlin]
+    severity: INFO
+    message: Encrypts data or agrees keys with a cryptography library the product bundles (Bouncy Castle, Tink or libsodium), which is shipping encryption (ships_encryption).
+    # The platform's own cryptography (javax.crypto Cipher and KeyAgreement, SecretKeyFactory, the Android
+    # Keystore, MessageDigest, Mac, TLS) is not evidence; a cipher built through a bundled provider is.
+    pattern-either:
+      # Bouncy Castle lightweight API, OpenPGP and CMS
+      - pattern: GCMBlockCipher(...)
+      - pattern: GCMBlockCipher.newInstance(...)
+      - pattern: CCMBlockCipher(...)
+      - pattern: EAXBlockCipher(...)
+      - pattern: OCBBlockCipher(...)
+      - pattern: PaddedBufferedBlockCipher(...)
+      - pattern: BufferedBlockCipher(...)
+      - pattern: ChaCha20Poly1305()
+      - pattern: X25519Agreement()
+      - pattern: ECDHBasicAgreement()
+      - pattern: PGPEncryptedDataGenerator(...)
+      - pattern: CMSEnvelopedDataGenerator()
+      # A JCA cipher built through the Bouncy Castle provider
+      - patterns:
+          - pattern-either:
+              - pattern: Cipher.getInstance($A, "BC")
+              - pattern: Cipher.getInstance($A, BouncyCastleProvider.PROVIDER_NAME)
+          - pattern-either:
+              - pattern-inside: |
+                  import javax.crypto.Cipher
+                  ...
+              - pattern-inside: |
+                  import javax.crypto.*
+                  ...
+      # Google Tink
+      - pattern: AeadConfig.register()
+      - patterns:
+          - pattern: $K.getPrimitive(...)
+          - pattern-regex: \b(?:Aead|HybridEncrypt|StreamingAead|DeterministicAead)::class\.java\b
+      # libsodium bindings: Lazysodium (distinctive method names), then libsodium-jni and Kalium class by class
+      - pattern: $S.cryptoSecretBoxEasy(...)
+      - pattern: $S.cryptoBoxEasy(...)
+      - pattern: $S.cryptoBoxSealEasy(...)
+      - pattern: $S.cryptoAeadXChaCha20Poly1305IetfEncrypt(...)
+      - pattern: $S.cryptoAeadChaCha20Poly1305IetfEncrypt(...)
+      - pattern: $S.cryptoAeadAES256GCMEncrypt(...)
+      - pattern: $S.cryptoSecretStreamInitPush(...)
+      - patterns:
+          - pattern: SecretBox(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import org.libsodium.jni.crypto.SecretBox
+                  ...
+              - pattern-inside: |
+                  import org.libsodium.jni.crypto.*
+                  ...
+      - patterns:
+          - pattern: Box(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import org.libsodium.jni.crypto.Box
+                  ...
+              - pattern-inside: |
+                  import org.libsodium.jni.crypto.*
+                  ...
+      - patterns:
+          - pattern: SecretBox(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import org.abstractj.kalium.crypto.SecretBox
+                  ...
+              - pattern-inside: |
+                  import org.abstractj.kalium.crypto.*
+                  ...
+      - patterns:
+          - pattern: Box(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import org.abstractj.kalium.crypto.Box
+                  ...
+              - pattern-inside: |
+                  import org.abstractj.kalium.crypto.*
+                  ...
+    metadata:
+      activity: ships_encryption
+      mentioned: performs
+      definition: https://lexlint.io/glossary#ships-encryption
+      provenance: ungovr-original
+      license: MIT

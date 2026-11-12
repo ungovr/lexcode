@@ -1,0 +1,73 @@
+rules:
+  - id: lexcode.identity.java-selfie-and-id-document
+    languages: [java]
+    severity: INFO
+    message: 'Holds a face or selfie image beside an image of a photo ID, the shape of document-and-selfie identity verification, whose result the app acts on (relies_on_digital_identity). The verifier usually matches the face to the ID photo, so ask about processes_biometrics too.'
+    # No literal anchor of its own: a whole-file regex on the words every name starts with keeps the engine's
+    # pre-filter, so a file with none of selfie, liveness or face is not matched at all (K6 fix round 1).
+    patterns:
+      - pattern-either:
+          - pattern-regex: '(?is)\A(?=.*selfie).*'
+          - pattern-regex: '(?is)\A(?=.*liveness).*'
+          - pattern-regex: '(?is)\A(?=.*face_?image).*'
+          - pattern-regex: '(?is)\A(?=.*face_?photo).*'
+          - pattern-regex: '(?is)\A(?=.*face_?img).*'
+          - pattern-regex: '(?is)\A(?=.*face_?pic).*'
+          - pattern-regex: '(?is)\A(?=.*face_?capture).*'
+          - pattern-regex: '(?is)\A(?=.*face_?snapshot).*'
+          - pattern-regex: '(?is)\A(?=.*face_?scan).*'
+      - pattern-either:
+          # A class (an entity, a DTO, a request model) with both fields
+          - patterns:
+              - pattern: $T $FACE;
+              - metavariable-regex:
+                  metavariable: $FACE
+                  regex: '(?i)^(?!(?-i:[A-Z][A-Z0-9_]*)$)(?:selfie|liveness|face_?(?:image|photo|img|picture|pic|capture|snapshot|scan))\w*$'
+              - pattern-inside: |
+                  class $C {
+                    ...
+                    $U $DOC;
+                    ...
+                  }
+              - metavariable-regex:
+                  metavariable: $DOC
+                  regex: '(?i)^(?!(?-i:[A-Z][A-Z0-9_]*)$)(?:photo_?id_?(?:image|img|photo|card|doc|document|scan|front|back|upload|file)|id_?(?:document|doc|card|photo|image|img|scan|front|back)|identity_?(?:document|doc|card)|identification_?(?:image|photo|document|doc|card)|passport_?(?:image|photo|scan|page|front)|drivers?_?licen[cs]e_?(?:image|photo|scan|front|back)|document_?(?:image|photo|front|back|scan))\w*$'
+          # An endpoint that takes both as parameters, in either order
+          - patterns:
+              - pattern-either:
+                  - pattern: |
+                      $R $M(..., $T1 $FACE, ..., $T2 $DOC, ...) {
+                        ...
+                      }
+                  - pattern: |
+                      $R $M(..., $T2 $DOC, ..., $T1 $FACE, ...) {
+                        ...
+                      }
+              - focus-metavariable: $FACE
+              - metavariable-regex:
+                  metavariable: $FACE
+                  regex: '(?i)^(?!(?-i:[A-Z][A-Z0-9_]*)$)(?:selfie|liveness|face_?(?:image|photo|img|picture|pic|capture|snapshot|scan))\w*$'
+              - metavariable-regex:
+                  metavariable: $DOC
+                  regex: '(?i)^(?!(?-i:[A-Z][A-Z0-9_]*)$)(?:photo_?id_?(?:image|img|photo|card|doc|document|scan|front|back|upload|file)|id_?(?:document|doc|card|photo|image|img|scan|front|back)|identity_?(?:document|doc|card)|identification_?(?:image|photo|document|doc|card)|passport_?(?:image|photo|scan|page|front)|drivers?_?licen[cs]e_?(?:image|photo|scan|front|back)|document_?(?:image|photo|front|back|scan))\w*$'
+          # A multipart request that sends both
+          - patterns:
+              - pattern: $B.addFormDataPart($FACE, ...)
+              - metavariable-regex:
+                  metavariable: $FACE
+                  regex: '(?i)^"(?:selfie|liveness|face_?(?:image|photo|img|picture|pic|capture|snapshot|scan))\w*"$'
+              - pattern-inside: |
+                  $R $M(...) {
+                    ...
+                    $X.addFormDataPart($DOC, ...);
+                    ...
+                  }
+              - metavariable-regex:
+                  metavariable: $DOC
+                  regex: '(?i)^"(?:photo_?id_?(?:image|img|photo|card|doc|document|scan|front|back|upload|file)|id_?(?:document|doc|card|photo|image|img|scan|front|back)|identity_?(?:document|doc|card)|identification_?(?:image|photo|document|doc|card)|passport_?(?:image|photo|scan|page|front)|drivers?_?licen[cs]e_?(?:image|photo|scan|front|back)|document_?(?:image|photo|front|back|scan))\w*"$'
+    metadata:
+      activity: relies_on_digital_identity
+      mentioned: performs
+      definition: https://lexlint.io/glossary#relies-on-a-digital-identity
+      provenance: ungovr-original
+      license: MIT

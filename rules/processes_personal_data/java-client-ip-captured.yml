@@ -1,0 +1,96 @@
+rules:
+  - id: lexcode.personal.java-client-ip-captured
+    languages: [java]
+    severity: INFO
+    message: Writes the visitor's IP address into a log or a database, which is processing personal data (processes_personal_data).
+    mode: taint
+    pattern-sources:
+      - pattern: $R.getRemoteAddr()
+      - pattern: $R.getRemoteHost()
+      - patterns:
+          - pattern: $R.getHeader($H)
+          - metavariable-regex:
+              metavariable: $H
+              regex: (?i)^"(x-forwarded-for|x-real-ip|forwarded|cf-connecting-ip|true-client-ip|x-client-ip)"$
+    # The address is not what is logged when it only feeds a comparison or a verification call
+    # (a presence check, a captcha check whose error message is logged).
+    pattern-sanitizers:
+      - patterns:
+          - pattern: $C.$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(check|verify|validate|is|has|can|allow|authenticate|authorize)([A-Z]\w*)?$
+    options:
+      taint_assume_safe_comparisons: true
+      taint_assume_safe_booleans: true
+    pattern-sinks:
+      # A log line.
+      - patterns:
+          - pattern: $L.$M(...)
+          - metavariable-regex:
+              metavariable: $L
+              regex: ^(log|logger|LOG|LOGGER|_log|_logger|auditLog|accessLog)$
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(trace|debug|info|warn|error|fatal|log)$
+      # A mapped diagnostic context entry, which every later log line carries.
+      - pattern: MDC.put(...)
+      # A JDBC or Spring JDBC write.
+      - patterns:
+          - pattern-either:
+              - pattern: $J.update($Q, ...)
+              - pattern: $J.batchUpdate($Q, ...)
+              - pattern: $J.execute($Q, ...)
+          - metavariable-regex:
+              metavariable: $Q
+              regex: (?i)^"\s*(insert|update|merge|upsert|replace)\b
+      - patterns:
+          - pattern-either:
+              - pattern: $S.setString(...)
+              - pattern: $S.setObject(...)
+          - pattern-either:
+              - pattern-inside: |
+                  try ($T $PS = $C.prepareStatement($Q)) { ... }
+              - pattern-inside: |
+                  $PS = $C.prepareStatement($Q);
+                  ...
+          - metavariable-regex:
+              metavariable: $Q
+              regex: (?i)^"\s*(insert|update|merge|upsert|replace)\b
+      # A setter for an address-named property on an object the same method saves.
+      - patterns:
+          - pattern: $O.$SET(...)
+          - metavariable-regex:
+              metavariable: $SET
+              regex: ^set(Ip|IP|IpAddress|IPAddress|IpAddr|ClientIp|ClientIP|RemoteAddr|RemoteIp|RemoteAddress|LastIp|LastIpAddress|LastLoginIp|ForwardedFor|XForwardedFor)$
+          - pattern-either:
+              - pattern-inside: |
+                  $RT $M(...) {
+                    ...
+                    $X.save(...);
+                    ...
+                  }
+              - pattern-inside: |
+                  $RT $M(...) {
+                    ...
+                    $X.saveAndFlush(...);
+                    ...
+                  }
+              - pattern-inside: |
+                  $RT $M(...) {
+                    ...
+                    $X.persist(...);
+                    ...
+                  }
+              - pattern-inside: |
+                  $RT $M(...) {
+                    ...
+                    $X.insert(...);
+                    ...
+                  }
+    metadata:
+      activity: processes_personal_data
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-personal-data
+      provenance: ungovr-original
+      license: MIT

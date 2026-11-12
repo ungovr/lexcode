@@ -1,0 +1,34 @@
+rules:
+  - id: lexcode.chat.kt-chat-message-entity
+    languages: [kotlin]
+    severity: INFO
+    message: Maps chat messages or conversation turns to a table or a collection with a persistence annotation, which is keeping a text chat (records_text_chat).
+    # The class is named for a chat message (ChatMessage, ConversationTurn, LiveChatTranscript,
+    # ChatMessageEntity) and carries a persistence annotation (@Entity, which is JPA's and Room's,
+    # @Document, @Table). A transfer object with no annotation stores nothing; a contact message, a
+    # ticket, a chat room, a bare Transcript (an academic or caption transcript), a bare Conversation
+    # and a bare Message (an inbox message between people) hold no chat text. The `(...)` after the
+    # annotation and after the class name also matches a class with no argument list.
+    patterns:
+      # A pre-filter: files with none of the three annotations are not parsed.
+      - pattern-regex: '(?s)@(Entity|Document|Table)\b.*'
+      - pattern-either:
+          - pattern: |
+              @Entity(...)
+              class $K(...)
+          - pattern: |
+              @Document(...)
+              class $K(...)
+          - pattern: |
+              @Table(...)
+              class $K(...)
+      - focus-metavariable: $K
+      - metavariable-regex:
+          metavariable: $K
+          regex: ^\w*(Chat(Message|Msg|Turn|Entry|History|Log|Transcript)|Conversation(Message|Turn|Entry|Transcript))s?(Entity|Table|Document|Row|Record)?$
+    metadata:
+      activity: records_text_chat
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-text-chat
+      provenance: ungovr-original
+      license: MIT

@@ -138,6 +138,70 @@ export function engineTargets(rules: RuleMeta[], files: string[]): string[] {
   return files.filter((f) => wanted.has(posix.extname(f).toLowerCase()));
 }
 
+/**
+ * The size past which a whole-file lookahead pre-filter (`(?s)\A(?=.*LITERAL).*`) may stop matching: on the
+ * pinned engine the lookahead gives up after about a million backtracking steps, with no error recorded, so
+ * a rule that first checks a whole file for a name can lose a match in a file over about 1 MB
+ * (rules/README.md, known gaps).
+ */
+export const PREFILTER_REACH_BYTES = 1_000_000;
+
+/** The name a notice gives the files with an extension: the code language, the settings format, or the extension. */
+function languageName(ext: string): string {
+  const code = CODE_LANGUAGES.find(([, exts]) => exts.includes(ext));
+  if (code) return code[0];
+  const settings = Object.entries(LANGUAGE_EXTENSIONS).find(([, exts]) => exts.includes(ext));
+  return settings ? settings[0].toUpperCase() : ext;
+}
+
+/**
+ * Per language, how many of the files handed to the engine are over PREFILTER_REACH_BYTES and in a language
+ * that at least one loaded rule pre-filters with a whole-file lookahead: most first, then by name. The
+ * languages come from the loaded rules (`wholeFilePrefilter`), so a rule added for another language, or
+ * one from `--rules`, moves the set with it; `bytesOf` is asked only about files in those languages.
+ */
+export function largePrefilteredFiles(
+  rules: RuleMeta[],
+  targets: string[],
+  bytesOf: (file: string) => number,
+): { language: string; files: number }[] {
+  const exts = new Set<string>();
+  let all = false;
+  for (const r of rules) {
+    if (!r.wholeFilePrefilter) continue;
+    const e = extensionsOf(r);
+    if (e === 'all') all = true;
+    else for (const x of e) exts.add(x);
+  }
+  if (!all && exts.size === 0) return [];
+  const counts = new Map<string, number>();
+  for (const f of targets) {
+    const ext = posix.extname(f).toLowerCase();
+    if (!all && !exts.has(ext)) continue;
+    if (bytesOf(f) <= PREFILTER_REACH_BYTES) continue;
+    const name = languageName(ext);
+    counts.set(name, (counts.get(name) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([language, n]) => ({ language, files: n }))
+    .sort((a, b) => b.files - a.files || (a.language < b.language ? -1 : a.language > b.language ? 1 : 0));
+}
+
+/** The notice for `largePrefilteredFiles`, or undefined when there is no such file. */
+export function prefilterReachNotice(large: { language: string; files: number }[]): string | undefined {
+  const n = large.reduce((t, l) => t + l.files, 0);
+  if (n === 0) return undefined;
+  const langs =
+    large.length === 1
+      ? (large[0] as (typeof large)[number]).language
+      : large.map((l) => `${l.files.toLocaleString('en-US')} ${l.language}`).join(', ');
+  return (
+    `${n.toLocaleString('en-US')} ${plural(n, 'file', 'files')} handed to the engine ${plural(n, 'is', 'are')} over ` +
+    `${PREFILTER_REACH_BYTES.toLocaleString('en-US')} bytes (${langs}); rules that first check a whole file for a name can miss ` +
+    `matches in a file that large, so evidence in ${plural(n, 'it', 'them')} may be missing from this record`
+  );
+}
+
 /** The per-activity counts, plus how many code rules (not map entries, not rules for json, yaml or xml settings files) had a file to read. */
 export class RulesRun extends Map<string, number> {
   codeRulesRan = 0;
@@ -210,7 +274,8 @@ function plural(n: number, one: string, many: string): string {
 }
 
 /** What the "nothing was looked at" notice names: every language and view type the rules read (README, "Languages"). */
-export const READ_LANGUAGES = 'TypeScript, JavaScript, Python, Go and Ruby, and script blocks in HTML, Vue, Svelte, Jinja and ERB';
+export const READ_LANGUAGES =
+  'TypeScript, JavaScript, Python, Go, Ruby, Java and Kotlin, and script blocks in HTML, Vue, Svelte, Jinja, ERB and JSP';
 
 export function buildRecord(i: BuildInput): EvidenceRecord {
   const { rs } = i;

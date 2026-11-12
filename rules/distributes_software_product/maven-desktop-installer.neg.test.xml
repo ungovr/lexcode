@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- lexcode-expect: 0 -->
+<!-- A server application's build: it makes a fat jar and a container image, runs the application
+     for development, and generates sources. None of that is an installer for desktop software.
+     A jpackage-style name appears only in a property and a comment. -->
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.example.internal</groupId>
+  <artifactId>billing-api</artifactId>
+  <version>3.2.0</version>
+
+  <properties>
+    <jpackage-maven-plugin.version>1.6.5</jpackage-maven-plugin.version>
+  </properties>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-maven-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>com.google.cloud.tools</groupId>
+        <artifactId>jib-maven-plugin</artifactId>
+      </plugin>
+      <!-- launch4j-maven-plugin is not used: this service runs on a server. -->
+    </plugins>
+  </build>
+</project>

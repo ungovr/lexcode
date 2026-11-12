@@ -1,0 +1,21 @@
+rules:
+  - id: lexcode.personal.java-device-location
+    languages: [java]
+    severity: INFO
+    message: Reads the person's precise location from an Android device (the fused location client or LocationManager), which is processing personal data (processes_personal_data).
+    pattern-either:
+      - pattern: (FusedLocationProviderClient $C).getLastLocation()
+      - pattern: (FusedLocationProviderClient $C).getCurrentLocation(...)
+      - pattern: (FusedLocationProviderClient $C).requestLocationUpdates(...)
+      - pattern: LocationServices.getFusedLocationProviderClient(...).getLastLocation()
+      - pattern: LocationServices.getFusedLocationProviderClient(...).getCurrentLocation(...)
+      - pattern: LocationServices.getFusedLocationProviderClient(...).requestLocationUpdates(...)
+      - pattern: (LocationManager $M).requestLocationUpdates(...)
+      - pattern: (LocationManager $M).getLastKnownLocation(...)
+      - pattern: (LocationManager $M).requestSingleUpdate(...)
+    metadata:
+      activity: processes_personal_data
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-personal-data
+      provenance: ungovr-original
+      license: MIT

@@ -1,0 +1,42 @@
+rules:
+  - id: lexcode.personal.kt-device-location
+    languages: [kotlin]
+    severity: INFO
+    message: Reads the person's precise location from an Android device (the fused location client or LocationManager), which is processing personal data (processes_personal_data).
+    pattern-either:
+      # The fused location client. The method names are generic, so the file has to import the client.
+      - patterns:
+          - pattern-either:
+              - pattern: $C.lastLocation
+              - pattern: $C.getLastLocation()
+              - pattern: $C.getCurrentLocation(...)
+              - pattern: $C.requestLocationUpdates(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import com.google.android.gms.location.FusedLocationProviderClient
+                  ...
+              - pattern-inside: |
+                  import com.google.android.gms.location.LocationServices
+                  ...
+              - pattern-inside: |
+                  import com.google.android.gms.location.*
+                  ...
+      # LocationManager.
+      - patterns:
+          - pattern-either:
+              - pattern: $M.requestLocationUpdates(...)
+              - pattern: $M.getLastKnownLocation(...)
+              - pattern: $M.requestSingleUpdate(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import android.location.LocationManager
+                  ...
+              - pattern-inside: |
+                  import android.location.*
+                  ...
+    metadata:
+      activity: processes_personal_data
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-personal-data
+      provenance: ungovr-original
+      license: MIT

@@ -1,0 +1,29 @@
+rules:
+  - id: lexcode.consumer.java-signup-screen
+    languages: [java]
+    severity: INFO
+    message: Declares an Android sign-up screen (an Activity or Fragment for registering an account), a screen that members of the public use to reach a service (ships_consumer_interface).
+    patterns:
+      - pattern-either:
+          - pattern: |
+              class $C extends Activity { ... }
+          - pattern: |
+              class $C extends AppCompatActivity { ... }
+          - pattern: |
+              class $C extends FragmentActivity { ... }
+          - pattern: |
+              class $C extends ComponentActivity { ... }
+          - pattern: |
+              class $C extends Fragment { ... }
+          - pattern: |
+              class $C extends DialogFragment { ... }
+      - metavariable-regex:
+          metavariable: $C
+          regex: '^(?!.*(Admin|Staff|Employee|Operator|Internal|Support|Debug|Test|Mock)).*(SignUp|Signup|Register|Registration|CreateAccount)(Activity|Fragment|Screen|Dialog|Flow\w*)$'
+    metadata:
+      activity: ships_consumer_interface
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/ships-consumer-interface
+      provenance: ungovr-original
+      license: MIT

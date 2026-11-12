@@ -90,6 +90,14 @@ describe('matchComponents', () => {
     expect(matchComponents([d], [], [entry({ ecosystem: 'npm', match: 'aws-sdk-s3', enables: ['x'] })]).components).toEqual([]);
   });
 
+  it('matches a Maven coordinate case-insensitively, and its evidence rule reads lexcode.manifest.maven', () => {
+    const d: Dependency = { ecosystem: 'maven', name: 'com.twilio.sdk:twilio', version: '10.1.0', manifest: 'pom.xml:12' };
+    const r = matchComponents([d], [], [entry({ ecosystem: 'maven', match: 'Com.Twilio.SDK:Twilio', enables: ['automated_outreach'] })]);
+    expect(r.components[0]?.purl).toBe('pkg:maven/com.twilio.sdk/twilio@10.1.0');
+    expect(r.evidence[0]?.ev.rule).toBe('lexcode.manifest.maven');
+    expect(matchComponents([d], [], [entry({ ecosystem: 'gem', match: 'com.twilio.sdk:twilio', enables: ['x'] })]).components).toEqual([]);
+  });
+
   it('matches PyPI names after PEP 503 normalization on both sides', () => {
     const d: Dependency = {
       ecosystem: 'pypi',

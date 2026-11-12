@@ -1,0 +1,47 @@
+rules:
+  - id: lexcode.chat.java-chat-memory-store
+    languages: [java]
+    severity: INFO
+    message: Stores the turns of a conversation with an assistant in a database through a chat memory store or repository, which is keeping a text chat (records_text_chat).
+    # A store the program writes (an implementation of LangChain4j's ChatMemoryStore or Spring AI's
+    # ChatMemoryRepository) or one of Spring AI's database-backed repositories. The in-memory stores
+    # keep the turns only until the process ends and are not matched.
+    pattern-either:
+      - pattern: |
+          class $K implements ChatMemoryStore {
+            ...
+          }
+      - pattern: |
+          class $K implements ChatMemoryRepository {
+            ...
+          }
+      - pattern: |
+          class $K extends $B implements ChatMemoryStore {
+            ...
+          }
+      - pattern: |
+          class $K extends $B implements ChatMemoryRepository {
+            ...
+          }
+      - pattern: |
+          new ChatMemoryStore() {
+            ...
+          }
+      - pattern: |
+          new ChatMemoryRepository() {
+            ...
+          }
+      - patterns:
+          - pattern-either:
+              - pattern: $T.builder()
+              - pattern: $T.create(...)
+              - pattern: new $T(...)
+          - metavariable-regex:
+              metavariable: $T
+              regex: ^(Jdbc|Cassandra|Mongo|Neo4j|CosmosDB|Redis)ChatMemoryRepository$
+    metadata:
+      activity: records_text_chat
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-text-chat
+      provenance: ungovr-original
+      license: MIT

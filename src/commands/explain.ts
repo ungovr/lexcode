@@ -12,7 +12,7 @@ const CLASS_MEANING: Record<string, string> = {
   'declaration-only': 'never read from code; only a declaration can carry it',
 };
 
-const PURL_ECOSYSTEM: Record<string, Dependency['ecosystem']> = { npm: 'npm', pypi: 'pypi', golang: 'golang', gem: 'gem' };
+const PURL_ECOSYSTEM: Record<string, Dependency['ecosystem']> = { npm: 'npm', pypi: 'pypi', golang: 'golang', gem: 'gem', maven: 'maven' };
 
 type Explained =
   | { kind: 'purl'; purl: string; enables: string[]; unsupported?: string }
@@ -42,7 +42,9 @@ function resolveArg(arg: string, rs: RuleSet): Explained {
     const parsed = parsePurl(arg);
     const ecosystem = PURL_ECOSYSTEM[parsed.type];
     if (ecosystem === undefined) return { kind: 'purl', purl: arg, enables: [], unsupported: parsed.type };
-    const dep: Dependency = { ecosystem, name: parsed.name, ...(parsed.version ? { version: parsed.version } : {}), manifest: 'purl' };
+    // A Maven purl is pkg:maven/<group>/<artifact>; the dependency name is <group>:<artifact>.
+    const name = ecosystem === 'maven' ? parsed.name.replace(/\/([^/]*)$/, ':$1') : parsed.name;
+    const dep: Dependency = { ecosystem, name, ...(parsed.version ? { version: parsed.version } : {}), manifest: 'purl' };
     const hit = matchComponents([dep], [], rs.components).components[0];
     return { kind: 'purl', purl: arg, enables: hit ? [...hit.enables] : [] };
   }
@@ -124,7 +126,7 @@ function ruleText(r: RuleMeta, renamedFrom?: string): string {
 
 function purlText(e: Extract<Explained, { kind: 'purl' }>): string {
   if (e.unsupported) {
-    return `${e.purl}\nlexcode reads npm, PyPI and Go modules, so a "${e.unsupported}" package has no entry in the dependency map.`;
+    return `${e.purl}\nlexcode reads npm, PyPI, Go, RubyGems and Maven packages, so a "${e.unsupported}" package has no entry in the dependency map.`;
   }
   return e.enables.length > 0
     ? `${e.purl}\nenables: ${e.enables.join(', ')}`

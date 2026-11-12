@@ -1,0 +1,25 @@
+rules:
+  - id: lexcode.distribute.gradle-maven-publication
+    languages: [generic]
+    severity: INFO
+    message: Signs a Gradle publication, or publishes it to Sonatype, which makes the artifact available for others to depend on (distributes_software_product).
+    pattern-either:
+      - pattern-regex: '(?m)^[ \t]*(?:signing[ \t]*\{[ \t]*)?sign[ \t]*\(?[ \t]*publishing\.publications\b'
+      - pattern-regex: '(?s)^publishing[ \t]*\{(?:(?!\n\}).)*?\n[ \t]+repositories[ \t]*\{(?:(?!\n\}).)*?(?:oss\.sonatype\.org|central\.sonatype\.com)'
+    paths:
+      include:
+        - "*.gradle"
+        - "gradle-maven-publication.*"
+      exclude:
+        - "**/example/**"
+        - "**/examples/**"
+        - "**/sample/**"
+        - "**/samples/**"
+        - "**/demo/**"
+        - "**/demos/**"
+    metadata:
+      activity: distributes_software_product
+      mentioned: performs
+      definition: https://lexlint.io/activities/distributes-software-product
+      provenance: ungovr-original
+      license: MIT

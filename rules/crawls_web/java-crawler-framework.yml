@@ -1,0 +1,48 @@
+rules:
+  - id: lexcode.crawl.java-crawler-framework
+    languages: [java]
+    severity: INFO
+    message: Builds a crawler on a crawling framework or crawler library (crawler4j, WebMagic, crawler-commons, Apache Nutch, StormCrawler), which is crawling the web (crawls_web).
+    pattern-either:
+      # Each library is read only in a file that imports it, so a project class that shares a name
+      # (WebCrawler, Spider, Fetcher) is not taken for the library's.
+      - patterns:
+          - pattern-regex: '(?s)import\s+edu\.uci\.ics\.crawler4j\..*'
+          - pattern-either:
+              - pattern: |
+                  class $C extends WebCrawler {
+                    ...
+                  }
+              - pattern: new CrawlController(...)
+      - patterns:
+          - pattern-regex: '(?s)import\s+us\.codecraft\.webmagic\..*'
+          - pattern-either:
+              - pattern: |
+                  class $C implements PageProcessor {
+                    ...
+                  }
+              - pattern: Spider.create(...)
+      - patterns:
+          - pattern-regex: '(?s)import\s+crawlercommons\..*'
+          - pattern-either:
+              - pattern: new SiteMapParser(...)
+              - pattern: new SimpleRobotRulesParser(...)
+      - patterns:
+          - pattern-regex: '(?s)import\s+org\.apache\.nutch\..*'
+          - pattern-either:
+              - pattern: new Injector(...)
+              - pattern: new Generator(...)
+              - pattern: new Fetcher(...)
+      - patterns:
+          - pattern-regex: '(?s)import\s+(com\.digitalpebble|org\.apache)\.stormcrawler\..*'
+          - pattern-either:
+              - pattern: new FetcherBolt(...)
+              - pattern: new SimpleFetcherBolt(...)
+              - pattern: new JSoupParserBolt(...)
+              - pattern: new SiteMapParserBolt(...)
+    metadata:
+      activity: crawls_web
+      mentioned: performs
+      definition: https://lexlint.io/activities/crawls-web
+      provenance: ungovr-original
+      license: MIT

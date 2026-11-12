@@ -1,0 +1,54 @@
+rules:
+  - id: lexcode.chat.kt-chat-memory-store
+    languages: [kotlin]
+    severity: INFO
+    message: Stores the turns of a conversation with an assistant in a database through a chat memory store or repository, which is keeping a text chat (records_text_chat).
+    # A store the program writes (an implementation of LangChain4j's ChatMemoryStore or Spring AI's
+    # ChatMemoryRepository) or one of Spring AI's database-backed repositories. The in-memory stores
+    # keep the turns only until the process ends and are not matched. Each library has its own branch
+    # and its own import guard (the regular expression also pre-filters files), so an app's own
+    # `ChatMemoryStore` or `ChatMemoryRepository` interface and the classes that implement it
+    # do not match. A class with a primary constructor and a class with none are the same
+    # `class $K(...)` pattern in Kotlin. The database-backed repository names (`JdbcChatMemoryRepository`
+    # and the rest) are matched by name alone, with no import guard.
+    pattern-either:
+      - patterns:
+          - pattern-regex: '(?s)import\s+dev\.langchain4j\..*'
+          - pattern-either:
+              - pattern: |
+                  class $K(...) : ChatMemoryStore {
+                    ...
+                  }
+              - pattern: |
+                  object : ChatMemoryStore {
+                    ...
+                  }
+      - patterns:
+          - pattern-regex: '(?s)import\s+org\.springframework\.ai\..*'
+          - pattern-either:
+              - pattern: |
+                  class $K(...) : ChatMemoryRepository {
+                    ...
+                  }
+              - pattern: |
+                  object : ChatMemoryRepository {
+                    ...
+                  }
+      # The class name is the anchor here: these are Spring AI's own repository names, and the
+      # metavariable regular expression below is what limits the call to them.
+      - patterns:
+          - pattern-either:
+              - pattern: $T.builder()
+              - pattern: $T.create(...)
+              - pattern: $T(...)
+          # Literal anchor inside the match, so the engine skips files without these names.
+          - pattern-regex: '(Jdbc|Cassandra|Mongo|Neo4j|CosmosDB|Redis)ChatMemoryRepository'
+          - metavariable-regex:
+              metavariable: $T
+              regex: ^(Jdbc|Cassandra|Mongo|Neo4j|CosmosDB|Redis)ChatMemoryRepository$
+    metadata:
+      activity: records_text_chat
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-text-chat
+      provenance: ungovr-original
+      license: MIT

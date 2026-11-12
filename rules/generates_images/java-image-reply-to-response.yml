@@ -1,0 +1,169 @@
+rules:
+  - id: lexcode.image.java-image-reply-to-response
+    languages: [java]
+    severity: INFO
+    message: Sends a picture drawn by an image model back in an HTTP response, a socket or a screen, which is generating images with AI that reach users (generates_images).
+    mode: taint
+    pattern-sources:
+      - pattern: $C.images().generate(...)
+      - pattern: $C.images().edit(...)
+      - pattern: $C.images().createVariation(...)
+      - pattern: $C.models.generateImages(...)
+      - pattern: $C.models.editImage(...)
+      - pattern: $C.models.upscaleImage(...)
+      - patterns:
+          - pattern-either:
+              - pattern: $C.invokeModel(InvokeModelRequest.builder(). ... .modelId($ID). ... .build())
+              - pattern: $C.invokeModelWithResponseStream(InvokeModelWithResponseStreamRequest.builder(). ... .modelId($ID). ... .build())
+          - metavariable-regex:
+              metavariable: $ID
+              regex: (?i)^"[^"]*(titan-image|nova-canvas|stability|stable-diffusion|stable-image|sd3)[^"]*"$
+      - patterns:
+          - pattern: ($T $M).$F(...)
+          - metavariable-regex:
+              metavariable: $T
+              regex: ^([\w.]+\.)?(\w*ImageModel|OpenAIClient|OpenAIAsyncClient)$
+          - metavariable-regex:
+              metavariable: $F
+              regex: ^(generate|edit|call|getImageGenerations|getImageGenerationsWithResponse)$
+      - pattern: $M.call(new ImagePrompt(...))
+      - pattern: $M.call((ImagePrompt $P))
+    pattern-propagators:
+      - pattern: $S.forEach($X -> ...)
+        from: $S
+        to: $X
+      - pattern: $S.forEachOrdered($X -> ...)
+        from: $S
+        to: $X
+      - pattern: $S.subscribe($X -> ...)
+        from: $S
+        to: $X
+      - pattern: $S.map($X -> ...)
+        from: $S
+        to: $X
+      - pattern: $S.flatMap($X -> ...)
+        from: $S
+        to: $X
+      - pattern: $S.doOnNext($X -> ...)
+        from: $S
+        to: $X
+      - pattern: $S.ifPresent($X -> ...)
+        from: $S
+        to: $X
+      - pattern: $S.thenApply($X -> ...)
+        from: $S
+        to: $X
+      - pattern: $S.thenAccept($X -> ...)
+        from: $S
+        to: $X
+      - pattern: $S.onPartialResponse($X -> ...)
+        from: $S
+        to: $X
+      - pattern: $S.onNext($X -> ...)
+        from: $S
+        to: $X
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  @$A(...)
+                  $R $F(...) {
+                    ...
+                  }
+              - pattern-inside: |
+                  @$A
+                  $R $F(...) {
+                    ...
+                  }
+          - metavariable-regex:
+              metavariable: $A
+              regex: ^(GetMapping|PostMapping|PutMapping|PatchMapping|DeleteMapping|RequestMapping|ResponseBody|SendTo|SendToUser|QueryMapping|MutationMapping|SubscriptionMapping|GET|POST|PUT|DELETE|HEAD|Get|Post|Put|Patch|Delete|Route)$
+          - pattern: return $X;
+          - metavariable-regex:
+              metavariable: $X
+              regex: '^(?!(ResponseEntity|Response|ServerResponse)\.)'
+          - focus-metavariable: $X
+      - pattern: ResponseEntity.ok($X)
+      - pattern: ResponseEntity.$S(...). ... .body($X)
+      - pattern: new ResponseEntity<>($X, ...)
+      - pattern: new ResponseEntity<$T>($X, ...)
+      - pattern: ServerResponse.$S(...). ... .bodyValue($X)
+      - pattern: ServerResponse.$S(...). ... .body($X, ...)
+      - pattern: Response.ok($X)
+      - pattern: Response.$S(...). ... .entity($X)
+      - patterns:
+          - pattern: $RESP.getWriter().$M(..., $X, ...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(write|print|println|append|printf|format)$
+      - patterns:
+          - pattern: $RESP.getOutputStream().$M(..., $X, ...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(write|print|println)$
+      - patterns:
+          - pattern: (PrintWriter $O).$M(..., $X, ...)
+          - pattern-inside: |
+              $R $F(..., HttpServletResponse $RESP, ...) {
+                ...
+              }
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(write|print|println|append|printf|format)$
+      - patterns:
+          - pattern: $SRC.transferTo($RESP.getOutputStream())
+          - focus-metavariable: $SRC
+      - patterns:
+          - pattern: $U.copy($SRC, $RESP.getOutputStream())
+          - focus-metavariable: $SRC
+      - patterns:
+          - pattern: ($TT $E).$M(..., $X, ...)
+          - metavariable-regex:
+              metavariable: $TT
+              regex: ^([\w.]+\.)?(SseEmitter|ResponseBodyEmitter|ServletOutputStream|HttpServerResponse|SimpMessagingTemplate|SimpMessageSendingOperations|SimpMessagingOperations|ChannelHandlerContext|Model|ModelMap|RedirectAttributes|ModelAndView|HttpServletRequest)$
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(send|write|print|println|end|writeAndFlush|convertAndSend|convertAndSendToUser|addAttribute|addFlashAttribute|addObject|setAttribute)$
+      - patterns:
+          - pattern: (WebSocketSession $S).sendMessage(new $K($X))
+          - metavariable-regex:
+              metavariable: $K
+              regex: ^(TextMessage|BinaryMessage)$
+      - patterns:
+          - pattern: $S.$R().$M($X)
+          - metavariable-regex:
+              metavariable: $R
+              regex: ^(getBasicRemote|getAsyncRemote)$
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(sendText|sendBinary)$
+      - patterns:
+          - pattern: $S.next($X)
+          - pattern-inside: Flux.create(...)
+      - patterns:
+          - pattern: $C.$M($X)
+          - metavariable-regex:
+              metavariable: $C
+              regex: ^(ctx|context)$
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(result|json|html)$
+      - pattern: (RoutingContext $C).json($X)
+      - pattern: $C.response().end($X)
+      - pattern: $C.response().write($X)
+      - pattern: $C.response().$H(...).end($X)
+      - pattern: new ModelAndView(..., $X)
+      - pattern: $V.setImageBitmap($X)
+      - pattern: $V.setImageDrawable($X)
+      - pattern: $V.setImageURI($X)
+      - pattern: Glide.with(...).load($X)
+      - pattern: Picasso.get().load($X)
+      - patterns:
+          - pattern: ImageIO.write($X, ..., $RESP.getOutputStream())
+          - focus-metavariable: $X
+    metadata:
+      activity: generates_images
+      mentioned: performs
+      definition: https://lexlint.io/activities/generates-images
+      provenance: ungovr-original
+      license: MIT

@@ -1,0 +1,29 @@
+rules:
+  - id: lexcode.mobile.kt-play-publisher-upload
+    languages: [kotlin]
+    severity: INFO
+    message: Uploads an Android bundle or APK, or moves a release track, through the Google Play Developer API, which is distributing a mobile app through Google's store (ships_mobile_app).
+    patterns:
+      - pattern-either:
+          - pattern: $E.bundles().upload(...)
+          - pattern: $E.apks().upload(...)
+          - pattern: $E.tracks().update(...)
+      - pattern-either:
+          - pattern-inside: |
+              import com.google.api.services.androidpublisher.AndroidPublisher
+              ...
+          - pattern-inside: |
+              import com.google.api.services.androidpublisher.AndroidPublisher.Edits
+              ...
+          - pattern-inside: |
+              import com.google.api.services.androidpublisher.*
+              ...
+    paths:
+      exclude:
+        - "**/src/test/**"
+    metadata:
+      activity: ships_mobile_app
+      mentioned: performs
+      definition: https://lexlint.io/activities/ships-mobile-app
+      provenance: ungovr-original
+      license: MIT

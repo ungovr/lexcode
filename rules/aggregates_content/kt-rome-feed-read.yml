@@ -1,0 +1,52 @@
+rules:
+  - id: lexcode.aggregate.kt-rome-feed-read
+    languages: [kotlin]
+    severity: INFO
+    message: Reads another publisher's RSS or Atom feed from its address with Rome, which is reusing other publishers' content (aggregates_content).
+    patterns:
+      # Scoped to a file that imports Rome (current and legacy packages, and its fetcher), so a
+      # project class with a `build` or `retrieveFeed` method of its own is not taken for it. The
+      # regular expression is also the pre-filter: files without the import are not parsed.
+      - pattern-regex: '(?s)import\s+(com\.rometools|com\.sun\.syndication)\..*'
+      - pattern-either:
+          - patterns:
+              - pattern-either:
+                  - pattern: $S.build(XmlReader(URL($URL)))
+                  - pattern: $S.build(XmlReader(URI.create($URL).toURL()))
+                  - pattern: $S.build(XmlReader(URL($URL).openStream()))
+                  - pattern: $S.build(XmlReader(URI.create($URL).toURL().openStream()))
+                  - pattern: $S.build(InputStreamReader(URL($URL).openStream()))
+                  - pattern: $S.build(InputStreamReader(URI.create($URL).toURL().openStream()))
+                  - patterns:
+                      - pattern-either:
+                          - pattern-inside: |
+                              URL($URL).openStream().use { ... }
+                          - pattern-inside: |
+                              URI.create($URL).toURL().openStream().use { ... }
+                      - pattern: $S.build(XmlReader(it))
+                  - pattern: $F.retrieveFeed(URL($URL), ...)
+                  - pattern: $F.retrieveFeed(URI.create($URL).toURL(), ...)
+                  - patterns:
+                      - pattern: $F.retrieveFeed($URL, ...)
+                      - metavariable-regex:
+                          metavariable: $URL
+                          regex: ^[\w.]+$
+              - metavariable-regex:
+                  metavariable: $URL
+                  regex: (?s)^(?!"(file:|jar:|classpath:|https?://(localhost|127\.|0\.0\.0\.0|\[::1\]))).*$
+          # An open HTTP connection read straight into the parser: the address was set where the
+          # connection was made, so there is no $URL here and the match is a signal.
+          - patterns:
+              - pattern-either:
+                  - pattern: $S.build(XmlReader($C.inputStream))
+                  - pattern: $S.build(XmlReader($C.getInputStream()))
+              - metavariable-regex:
+                  metavariable: $C
+                  regex: ^\w*([cC]onn(ection)?|[hH]ttp\w*|[cC]lient\w*|[uU]rl\w*)$
+    metadata:
+      activity: aggregates_content
+      mentioned: performs
+      definition: https://lexlint.io/activities/aggregates-content
+      provenance: ungovr-original
+      license: MIT
+      host_metavar: $URL

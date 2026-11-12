@@ -1,0 +1,43 @@
+rules:
+  - id: lexcode.personal.kt-account-model
+    languages: [kotlin]
+    severity: INFO
+    message: Declares user accounts and sign-in with Spring Security (a UserDetails or UserDetailsService class, a stored-user manager, form login or OAuth2 login), which is processing personal data (processes_personal_data).
+    patterns:
+      # Spring Security's own names; a file that never imports it cannot be using it.
+      - pattern-regex: '(?s)\A(?=.*org\.springframework\.security\.).*'
+      - pattern-either:
+          - pattern: |
+              class $C(...) : UserDetails {
+                ...
+              }
+          - pattern: |
+              class $C(...) : UserDetailsService {
+                ...
+              }
+          - pattern: |
+              class $C(...) : UserDetailsService by $D
+          - pattern: |
+              object $C : UserDetails {
+                ...
+              }
+          - pattern: |
+              object $C : UserDetailsService {
+                ...
+              }
+          - pattern: JdbcUserDetailsManager(...)
+          - pattern: $H.formLogin(...)
+          - pattern: $H.oauth2Login(...)
+          - patterns:
+              - pattern-either:
+                  - pattern: formLogin { ... }
+                  - pattern: oauth2Login { ... }
+              - pattern-inside: |
+                  import org.springframework.security.config.annotation.web.invoke
+                  ...
+    metadata:
+      activity: processes_personal_data
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-personal-data
+      provenance: ungovr-original
+      license: MIT
