@@ -1,0 +1,136 @@
+rules:
+  - id: lexcode.crypto.php-library-encryption
+    languages: [php]
+    severity: INFO
+    message: Encrypts data, agrees keys or opens a secure connection with a cryptography library the product bundles (Laravel's encrypter, defuse/php-encryption, Halite, phpseclib or a JWE builder), which is shipping encryption (ships_encryption).
+    # PHP's own cryptography (the openssl and sodium extensions, hash_hmac, random_bytes,
+    # password_hash) is the platform's and is not evidence; a library the app bundles is. The engine
+    # does not resolve `use` imports, so each library class is read three ways: fully qualified, by
+    # its short name under its own import, and by an alias under an aliased import. One branch per
+    # library, so one library's import cannot admit another's call.
+    pattern-either:
+      # Laravel's encrypter: the Crypt facade (also through Laravel's global alias) and the Encrypter class
+      - patterns:
+          - pattern-either:
+              - pattern: \Illuminate\Support\Facades\Crypt::$M(...)
+              - pattern: \Crypt::$M(...)
+              - patterns:
+                  - pattern: Crypt::$M(...)
+                  - pattern-inside: |
+                      use Illuminate\Support\Facades\Crypt;
+                      ...
+              - patterns:
+                  - pattern: $A::$M(...)
+                  - pattern-inside: |
+                      use Illuminate\Support\Facades\Crypt as $A;
+                      ...
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(?:encrypt|encryptString)$
+      - pattern: new \Illuminate\Encryption\Encrypter(...)
+      - patterns:
+          - pattern: new Encrypter(...)
+          - pattern-inside: |
+              use Illuminate\Encryption\Encrypter;
+              ...
+      - patterns:
+          - pattern: new $A(...)
+          - pattern-inside: |
+              use Illuminate\Encryption\Encrypter as $A;
+              ...
+      # defuse/php-encryption
+      - patterns:
+          - pattern-either:
+              - pattern: \Defuse\Crypto\$C::$M(...)
+              - patterns:
+                  - pattern: $C::$M(...)
+                  - pattern-inside: |
+                      use Defuse\Crypto\$C;
+                      ...
+              - patterns:
+                  - pattern: $A::$M(...)
+                  - pattern-inside: |
+                      use Defuse\Crypto\$C as $A;
+                      ...
+          - metavariable-regex:
+              metavariable: $C
+              regex: ^(?:Crypto|File|Key|KeyProtectedByPassword)$
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(?:encrypt|encryptWithPassword|encryptFile|encryptFileWithPassword|encryptResource|encryptResourceWithPassword|createNewRandomKey|createRandomPasswordProtectedKey)$
+      # Halite (paragonie/halite)
+      - patterns:
+          - pattern-either:
+              - pattern: \ParagonIE\Halite\$C::$M(...)
+              - pattern: \ParagonIE\Halite\$NS\$C::$M(...)
+              - patterns:
+                  - pattern: $C::$M(...)
+                  - pattern-either:
+                      - pattern-inside: |
+                          use ParagonIE\Halite\$C;
+                          ...
+                      - pattern-inside: |
+                          use ParagonIE\Halite\$NS\$C;
+                          ...
+              - patterns:
+                  - pattern: $A::$M(...)
+                  - pattern-either:
+                      - pattern-inside: |
+                          use ParagonIE\Halite\$C as $A;
+                          ...
+                      - pattern-inside: |
+                          use ParagonIE\Halite\$NS\$C as $A;
+                          ...
+          - metavariable-regex:
+              metavariable: $C
+              regex: ^(?:Crypto|File|KeyFactory)$
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(?:encrypt|encryptWithAD|seal|generateEncryptionKey|generateEncryptionKeyPair|deriveEncryptionKey)$
+      # phpseclib (version 3 and version 2): its ciphers, and its own SSH stack
+      - patterns:
+          - pattern-either:
+              - pattern: new \phpseclib3\$P\$C(...)
+              - pattern: new \phpseclib\$P\$C(...)
+              - patterns:
+                  - pattern: new $C(...)
+                  - pattern-either:
+                      - pattern-inside: |
+                          use phpseclib3\$P\$C;
+                          ...
+                      - pattern-inside: |
+                          use phpseclib\$P\$C;
+                          ...
+              - patterns:
+                  - pattern: new $A(...)
+                  - pattern-either:
+                      - pattern-inside: |
+                          use phpseclib3\$P\$C as $A;
+                          ...
+                      - pattern-inside: |
+                          use phpseclib\$P\$C as $A;
+                          ...
+          - metavariable-regex:
+              metavariable: $P
+              regex: ^(?:Crypt|Net)$
+          - metavariable-regex:
+              metavariable: $C
+              regex: ^(?:AES|Rijndael|ChaCha20|Salsa20|Twofish|Blowfish|TripleDES|DES|RC2|RC4|SSH2|SFTP|SCP)$
+      # A JWE (an encrypted token) with web-token's builder
+      - pattern: new \Jose\Component\Encryption\JWEBuilder(...)
+      - patterns:
+          - pattern: new JWEBuilder(...)
+          - pattern-inside: |
+              use Jose\Component\Encryption\JWEBuilder;
+              ...
+      - patterns:
+          - pattern: new $A(...)
+          - pattern-inside: |
+              use Jose\Component\Encryption\JWEBuilder as $A;
+              ...
+    metadata:
+      activity: ships_encryption
+      mentioned: performs
+      definition: https://lexlint.io/glossary#ships-encryption
+      provenance: ungovr-original
+      license: MIT

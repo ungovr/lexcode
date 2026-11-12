@@ -1,0 +1,28 @@
+rules:
+  - id: lexcode.identity.php-idv-vendor-api-call
+    languages: [php]
+    severity: INFO
+    message: Calls an identity-verification vendor's API (Persona, Veriff, Onfido, Jumio, Yoti, Sumsub and similar), which is relying on a digital identity (relies_on_digital_identity).
+    patterns:
+      - pattern-regex: (?i)(?<=["'])https?://(?:[a-z0-9-]*api[a-z0-9-]*\.(?:[a-z0-9-]+\.)*(?:withpersona\.com|veriff\.(?:com|me)|onfido\.com|jumio\.com|netverify\.com|yoti\.com|sumsub\.com|idenfy\.com|au10tix\.com|ondato\.com|incode\.com|trulioo\.com|idnow\.io)|(?:[a-z0-9-]+\.)*(?:withpersona\.com|veriff\.(?:com|me)|onfido\.com|jumio\.(?:com|ai)|netverify\.com|yoti\.com|sumsub\.com|idenfy\.com|au10tix\.com|ondato\.com|incode\.com|trulioo\.com|idnow\.io)/(?:[^\s"']*/)?(?:api|v[0-9]+)(?=/))[^\s"']*
+      # The URL is an argument of an HTTP call: a client method (Guzzle, Symfony's HttpClient,
+      # Laravel's Http facade and its chains), a Guzzle base URI, curl, or a PHP stream read
+      - pattern-either:
+          - patterns:
+              - pattern-either:
+                  - pattern-inside: $O->$M(...)
+                  - pattern-inside: $K::$M(...)
+              - metavariable-regex:
+                  metavariable: $M
+                  regex: ^(?:get|post|put|patch|delete|head|request|send|getAsync|postAsync|putAsync|patchAsync|deleteAsync|requestAsync)$
+          - pattern-inside: "[..., 'base_uri' => $U, ...]"
+          - pattern-inside: curl_init(...)
+          - pattern-inside: curl_setopt($CH, CURLOPT_URL, ...)
+          - pattern-inside: file_get_contents(...)
+          - pattern-inside: fopen(...)
+    metadata:
+      activity: relies_on_digital_identity
+      mentioned: performs
+      definition: https://lexlint.io/glossary#relies-on-a-digital-identity
+      provenance: ungovr-original
+      license: MIT

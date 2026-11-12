@@ -1,0 +1,78 @@
+rules:
+  - id: lexcode.esign.php-signature-record
+    languages: [php]
+    severity: INFO
+    message: Stores a signature a person drew or captured on the record of an agreement, waiver or consent, which is collecting electronic signatures (collects_e_signatures).
+    # Two whole-file regexes keep the engine's literal pre-filter: a file without the word, or without
+    # a class whose name holds an agreement word, is not read. The class-name test below is the exact
+    # one; this anchor is only the coarse version of it.
+    patterns:
+      - pattern-regex: '(?is)\A(?=.*signature).*'
+      - pattern-regex: '(?s)\A(?=.*\bclass\s+\w*(?:Waiver|Agreement|Contract|Consent|Lease|Authori[sz]ation|Acknowledge?ment|Attestation|Disclosure|Confidentiality|Release|Sign[Oo]ff|E[Ss]ign|Signature|Signing|WorkOrder|PermissionSlip|Enrol+ment|Approval)).*'
+      - pattern-either:
+          # A property of the class: declared (typed or not, with or without a default) or promoted
+          # in the constructor
+          - patterns:
+              - pattern-either:
+                  - pattern: |
+                      class $C {
+                        ...
+                        $SIG;
+                        ...
+                      }
+                  - pattern: |
+                      class $C {
+                        ...
+                        $SIG = $V;
+                        ...
+                      }
+                  - pattern: |
+                      class $C {
+                        ...
+                        public $SIG;
+                        ...
+                      }
+                  - pattern: |
+                      class $C {
+                        ...
+                        protected $SIG;
+                        ...
+                      }
+                  - pattern: |
+                      class $C {
+                        ...
+                        private $SIG;
+                        ...
+                      }
+              - focus-metavariable: $SIG
+              - metavariable-regex:
+                  metavariable: $SIG
+                  regex: '(?i)^\$(?:(?:customer|client|guest|patient|participant|signee|signer|tenant|guarantor|applicant|borrower|buyer|seller|witness|guardian|parent|drawn|handwritten|electronic|e)_?)?signature(?:_?(?:image|img|png|svg|data|file|photo|scan|drawing|base64))?$'
+          # An Eloquent model's fillable column
+          - patterns:
+              - pattern: '[..., $SIG, ...]'
+              - pattern-inside: $fillable = [...]
+              - pattern-inside: |
+                  class $C {
+                    ...
+                  }
+              - focus-metavariable: $SIG
+              - metavariable-regex:
+                  metavariable: $SIG
+                  regex: '(?i)^([''"])(?:(?:customer|client|guest|patient|participant|signee|signer|tenant|guarantor|applicant|borrower|buyer|seller|witness|guardian|parent|drawn|handwritten|electronic|e)_?)?signature(?:_?(?:image|img|png|svg|data|file|photo|scan|drawing|base64))?\1$'
+      # The record the signature hangs on must be an agreement of some kind: an agreement word as a
+      # CamelCase segment of the class name, anywhere in it (EventWaiver, LeaseAgreement,
+      # PhotoReleaseConsent), never as the start of a longer word (ContractorProfile, Leaseholder).
+      # A webhook, a release artifact and a user profile carry a "signature" too, and none of them
+      # is a person signing a document. Nor is a signed attestation (PgpSignedAttestation, a container
+      # image's key signature in the Google API models Moodle vendors), so Attestation never follows
+      # Signed. Both branches bind $C to the class that holds the field.
+      - metavariable-regex:
+          metavariable: $C
+          regex: '(?s).*(?-i:(?:Waiver|Agreement|Contract|Consent|Lease|Authori[sz]ation|Acknowledg(?:e)?ment|(?<!Signed)Attestation|Disclosure|Confidentiality|(?:Liability|Medical|Photo)Release|Sign[Oo]ff|E[Ss]ign|Signature(?:Request|Form|Pad)|WorkOrder|PermissionSlip|Enrol+ment|Approval)s?(?![a-z]))'
+    metadata:
+      activity: collects_e_signatures
+      mentioned: performs
+      definition: https://lexlint.io/glossary#collects-electronic-signatures
+      provenance: ungovr-original
+      license: MIT

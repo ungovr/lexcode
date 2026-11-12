@@ -1,0 +1,29 @@
+rules:
+  - id: lexcode.esign.php-esign-envelope
+    languages: [php]
+    severity: INFO
+    message: Sends a document to a person for electronic signature through DocuSign, Dropbox Sign or HelloSign, which is collecting electronic signatures (collects_e_signatures).
+    # One branch per vendor. The client is usually injected or kept in a property, so the call is
+    # read in a file that names the vendor's own client class: imported, aliased or fully qualified.
+    pattern-either:
+      - patterns:
+          - pattern: $C->createEnvelope(...)
+          - pattern-regex: '(?s)\A(?=.*DocuSign\\eSign\\Api\\EnvelopesApi\b).*'
+      - patterns:
+          - pattern: $C->$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(?:signatureRequestSend|signatureRequestSendWithTemplate|signatureRequestCreateEmbedded|signatureRequestCreateEmbeddedWithTemplate|signatureRequestBulkSendWithTemplate)$
+          - pattern-regex: '(?s)\A(?=.*Dropbox\\Sign\\Api\\SignatureRequestApi\b).*'
+      - patterns:
+          - pattern: $C->$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(?:sendSignatureRequest|sendTemplateSignatureRequest|createEmbeddedSignatureRequest)$
+          - pattern-regex: '(?s)\A(?=.*HelloSign\\Client\b).*'
+    metadata:
+      activity: collects_e_signatures
+      mentioned: performs
+      definition: https://lexlint.io/glossary#collects-electronic-signatures
+      provenance: ungovr-original
+      license: MIT
