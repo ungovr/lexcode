@@ -1,9 +1,10 @@
-// lexcode-expect: 18
+// lexcode-expect: 22
 // Sending recorded speech to speech-to-text services from C#: Azure AI Speech recognizers (imported,
 // aliased, and a target-typed field), Amazon Transcribe jobs on an injected client and on one the
 // method builds, Google Cloud Speech (V1 imported and injected, V2 aliased), OpenAI's AudioClient
-// built directly and taken from an OpenAIClient, Microsoft.Extensions.AI and Semantic Kernel speech to
-// text, AssemblyAI, Deepgram, and a transcription endpoint in a string.
+// built directly and taken from an OpenAIClient (typed, chained, from a resolved client, and adapted from
+// a var local), Microsoft.Extensions.AI and Semantic Kernel speech to text (registrations too),
+// AssemblyAI, Deepgram, and a transcription endpoint in a string.
 using AssemblyAI;
 using Amazon.TranscribeService;
 using Amazon.TranscribeService.Model;
@@ -79,7 +80,24 @@ public sealed class VoicemailTranscriber(
         AudioClient audioClient = openAi.GetAudioClient("whisper-1");
         var translation = await audioClient.TranslateAudioAsync(memo, "memo.m4a");
         var direct = await openAi.GetAudioClient("whisper-1").TranscribeAudioAsync(memo, "memo.m4a");
+        var fromVar = openAi.GetAudioClient("whisper-1");
+        var adapter = fromVar.AsISpeechToTextClient();
         return translation.Value.Text + direct.Value.Text;
+    }
+
+    public async Task<string> ResolvedAsync(IServiceProvider services, string path)
+    {
+        var client = services.GetRequiredService<OpenAIClient>();
+        var result = await client.GetAudioClient("whisper-1").TranscribeAudioAsync(path);
+        return result.Value.Text;
+    }
+
+    public Kernel Register()
+    {
+        var builder = Kernel.CreateBuilder();
+        builder.AddOpenAIAudioToText("whisper-1", Environment.GetEnvironmentVariable("OPENAI_API_KEY"));
+        builder.AddAzureOpenAIAudioToText("whisper", "https://contoso.openai.azure.com/", Environment.GetEnvironmentVariable("AZURE_OPENAI_KEY"));
+        return builder.Build();
     }
 
     public async Task<string> ExtensionsAiAsync(Stream memo)

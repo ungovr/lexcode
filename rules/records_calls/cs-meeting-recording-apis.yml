@@ -45,12 +45,17 @@ rules:
       # Vonage Voice: the record action of an NCCO
       - pattern: new Vonage.Voice.Nccos.RecordAction(...) { ... }
       - pattern: Vonage.Voice.Nccos.RecordAction $V = new(...) { ... };
-      # Microsoft Graph: a Teams meeting's recordings and transcripts, reached from the Graph client (so
+      # Microsoft Graph (v1.0 and beta): a Teams meeting's recordings and transcripts, reached from a
+      # user, the signed-in user or the communications root of the Graph client (so
       # an app's own object with OnlineMeetings, Recordings and Transcripts properties is not taken for it)
       - patterns:
           - pattern-either:
               - pattern: (Microsoft.Graph.GraphServiceClient $G).Users[$U].OnlineMeetings[$ID].$P
               - pattern: (Microsoft.Graph.GraphServiceClient $G).Me.OnlineMeetings[$ID].$P
+              - pattern: (Microsoft.Graph.GraphServiceClient $G).Communications.OnlineMeetings[$ID].$P
+              - pattern: (Microsoft.Graph.Beta.GraphServiceClient $G).Users[$U].OnlineMeetings[$ID].$P
+              - pattern: (Microsoft.Graph.Beta.GraphServiceClient $G).Me.OnlineMeetings[$ID].$P
+              - pattern: (Microsoft.Graph.Beta.GraphServiceClient $G).Communications.OnlineMeetings[$ID].$P
           - metavariable-regex:
               metavariable: $P
               regex: ^(Recordings|Transcripts)$

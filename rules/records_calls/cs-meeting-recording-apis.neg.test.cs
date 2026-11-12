@@ -31,6 +31,7 @@ public sealed class MeetingSetup(CallAutomationClient calls, IAmazonConnect conn
         var meeting = await graph.Users[userId].OnlineMeetings[meetingId].GetAsync();
         var ownRecordings = archive.Users[userId].OnlineMeetings[meetingId].Recordings;
         var ownTranscripts = archive.Me.OnlineMeetings[meetingId].Transcripts;
+        var ownByRoot = archive.Communications.OnlineMeetings[meetingId].Recordings;
     }
 
     public void Local()

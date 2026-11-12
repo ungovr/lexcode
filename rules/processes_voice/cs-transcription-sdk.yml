@@ -58,32 +58,58 @@ rules:
       # OpenAI's AudioClient (OpenAI, and Azure.AI.OpenAI's client hands out the same type):
       # transcription and translation of audio, and Microsoft.Extensions.AI's adapter that makes a
       # speech-to-text client of it. GenerateSpeech reads typed text aloud and is left out. A client the
-      # app builds, is given, or declares as AudioClient (from GetAudioClient too) is matched by its type;
-      # a call chained on an OpenAI or Azure OpenAI client's GetAudioClient(...) is matched as written. A
-      # `var` local taken from GetAudioClient carries no type the engine sees and is missed.
+      # app builds, is given, or declares as AudioClient (from GetAudioClient too) is matched by its type,
+      # and a call chained on a typed OpenAI or Azure OpenAI client's GetAudioClient(...) as written.
       - patterns:
           - pattern-either:
               - pattern: (OpenAI.Audio.AudioClient $C).$M(...)
               - pattern: (OpenAI.OpenAIClient $X).GetAudioClient(...).$M(...)
               - pattern: (Azure.AI.OpenAI.AzureOpenAIClient $X).GetAudioClient(...).$M(...)
+              # A client whose type the engine cannot see (`var c = sp.GetRequiredService<OpenAIClient>()`)
+              # is matched by the chain in a file that imports OpenAI or Azure.AI.OpenAI. The guard is
+              # a file signal: the engine's `using X;` also accepts `using X.Sub;`, not an alias.
+              - patterns:
+                  - pattern: $X.GetAudioClient(...).$M(...)
+                  - pattern-either:
+                      - pattern-inside: |
+                          using OpenAI;
+                          ...
+                      - pattern-inside: |
+                          using Azure.AI.OpenAI;
+                          ...
           - metavariable-regex:
               metavariable: $M
               regex: ^((Transcribe|Translate)Audio(Streaming)?(Async)?|AsISpeechToTextClient)$
+      # The adapter on an audio client held in a `var` local, in a file that imports
+      # Microsoft.Extensions.AI (where the extension method lives).
+      - patterns:
+          - pattern: $A.AsISpeechToTextClient(...)
+          - pattern-inside: |
+              using Microsoft.Extensions.AI;
+              ...
       # Microsoft.Extensions.AI speech to text.
       - patterns:
           - pattern: (Microsoft.Extensions.AI.ISpeechToTextClient $C).$M(...)
           - metavariable-regex:
               metavariable: $M
               regex: ^Get(Streaming)?TextAsync$
-      # Semantic Kernel audio to text: an injected service, and one resolved from the kernel. The
-      # registrations (AddOpenAIAudioToText and its Azure twin) are extension methods on builders whose
-      # type the engine rarely sees, so they would be matched by name alone; the use is matched instead.
+      # Semantic Kernel audio to text: an injected service, one resolved from the kernel, and the OpenAI
+      # and Azure OpenAI registrations. The registrations are extension methods on a builder whose type
+      # the engine rarely sees (`var builder = Kernel.CreateBuilder()`), so they are matched by name in a
+      # file that imports Semantic Kernel.
       - patterns:
           - pattern: (Microsoft.SemanticKernel.AudioToText.IAudioToTextService $C).$M(...)
           - metavariable-regex:
               metavariable: $M
               regex: ^GetTextContents?Async$
       - pattern: $K.GetRequiredService<Microsoft.SemanticKernel.AudioToText.IAudioToTextService>(...)
+      - patterns:
+          - pattern-either:
+              - pattern: $B.AddOpenAIAudioToText(...)
+              - pattern: $B.AddAzureOpenAIAudioToText(...)
+          - pattern-inside: |
+              using Microsoft.SemanticKernel;
+              ...
       # AssemblyAI (vendor-named, so its short form is matched too) and Deepgram's listen clients.
       - patterns:
           - pattern-either:
