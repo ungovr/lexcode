@@ -566,6 +566,64 @@ describe('unreadLanguages for PHP', () => {
   });
 });
 
+describe('C# and the other .NET languages (#13012)', () => {
+  /** The rules of the test alone: the helper's rule set carries the bundled ones as well. */
+  const only = (rs: ReturnType<typeof ruleSetWith>) => rs.rules.filter((r) => r.id.startsWith('lexcode.a.'));
+  const cs = (languages: string[] = ['csharp']) => only(ruleSetWith([{ id: 'lexcode.a.cs', activity: 'trains_models', languages }]));
+  const py = only(ruleSetWith([{ id: 'lexcode.a.py', activity: 'trains_models', languages: ['python'] }]));
+
+  it('a csharp rule reads .cs files only', () => {
+    // Opengrep 1.33.1 reads only .cs as C#: a .csx, .cake, .razor or .cshtml target reads nothing (measured 2026-11-12).
+    const p = enginePlan(cs(), ['a.cs', 'b.csx', 'c.js']);
+    expect(p.rules.map((r) => r.id)).toEqual(['lexcode.a.cs']);
+    expect(p.targets).toEqual(['a.cs']);
+    expect(enginePlan(cs(), ['build.cake', 'Pages/Index.cshtml', 'Shared/Nav.razor']).rules).toEqual([]);
+    // The C# copy of a Razor file is a .cs file, so a csharp rule reads it.
+    expect(enginePlan(cs(), ['Shared/Nav.razor', '/tmp/x/scripts/Shared/Nav.razor.lexcode.cs']).targets).toEqual([
+      '/tmp/x/scripts/Shared/Nav.razor.lexcode.cs',
+    ]);
+  });
+
+  it('the c# and cs aliases map to csharp', () => {
+    for (const alias of ['c#', 'C#', 'cs', 'CS', 'CSharp']) {
+      expect(enginePlan(cs([alias]), ['a.cs', 'b.csx', 'c.js']).targets).toEqual(['a.cs']);
+      expect(unreadLanguages(cs([alias]), ['a.cs'])).toEqual([]);
+    }
+  });
+
+  it('unreadLanguages names F# and Visual Basic', () => {
+    expect(unreadLanguages(py, ['x.fsx', 'y.vb'])).toEqual([
+      { language: 'F#', files: 1 },
+      { language: 'Visual Basic', files: 1 },
+    ]);
+    expect(unreadLanguages(py, ['Sig.fsi', 'Script.fsx', 'Module.vb', 'Form.VB'])).toEqual([
+      { language: 'F#', files: 2 },
+      { language: 'Visual Basic', files: 2 },
+    ]);
+  });
+
+  it('.fs is F# only beside an fsproj', () => {
+    // .fs is also a GLSL fragment shader's extension.
+    expect(unreadLanguages(py, ['shaders/shader.fs'])).toEqual([]);
+    // A name that only holds "fsproj" is not a project file.
+    expect(unreadLanguages(py, ['shaders/shader.fs', 'docs/App.fsproj.md'])).toEqual([]);
+    expect(unreadLanguages(py, ['src/App/App.fsproj', 'src/App/Program.fs', 'src/App/Lib.fs'])).toEqual([{ language: 'F#', files: 2 }]);
+    expect(unreadLanguages(py, ['App.FSPROJ', 'shader.fs'])).toEqual([{ language: 'F#', files: 1 }]);
+  });
+
+  it('C# leaves the notice when a csharp rule is loaded', () => {
+    const files = ['src/Api/Program.cs', 'src/Api/Endpoints.cs', 'tools/x.py'];
+    expect(unreadLanguages(py, files)).toEqual([{ language: 'C#', files: 2 }]);
+    expect(unreadLanguages(cs(), files)).toEqual([{ language: 'Python', files: 1 }]);
+    expect(unreadLanguages([...cs(), ...py], files)).toEqual([]);
+    // A csharp rule does not read F# or Visual Basic.
+    expect(unreadLanguages(cs(), ['a.cs', 'b.vb', 'c.fsx'])).toEqual([
+      { language: 'F#', files: 1 },
+      { language: 'Visual Basic', files: 1 },
+    ]);
+  });
+});
+
 describe('the notice for files past a whole-file pre-filter\'s reach', () => {
   /** The rules of the test alone: the helper's rule set carries others as well. */
   const only = (rs: ReturnType<typeof ruleSetWith>) => rs.rules.filter((r) => r.id.startsWith('lexcode.a.'));

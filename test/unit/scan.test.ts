@@ -133,6 +133,14 @@ describe('scan with a stand-in engine', () => {
     expect(rec.notices).toContain('skipped 2 files with a line over 100,000 characters (generated or minified code); the engine did not read them');
   });
 
+  it('counts the bundled, minified and generated files it skipped by name in one notice', async () => {
+    const root = tree({ 'src/a.py': 'x = 1\n', 'web/jquery.min.js': 'x\n', 'src/App/Routes.g.cs': 'x\n', 'src/App/Main.g.i.cs': 'x\n' });
+    const rec = await scan({ root, rulesDirs: [], rs: stubRuleSet(), enginePath: STUB, includeTests: false, snippets: false });
+    expect(rec.notices).toContain(
+      'skipped 3 bundled, minified or generated files (named *.min.js, *.bundle.js, vendor.*.js, *.vendor.js, *.g.cs or *.g.i.cs)',
+    );
+  });
+
   it('reports the engine version the engine reports', async () => {
     const root = tree({ 'src/a.py': 'x = 1\n' });
     process.env.FAKE_OPENGREP_VERSION = '1.40.0';
