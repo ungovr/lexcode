@@ -189,10 +189,12 @@ pairing:
 
 The nested form matches the same ranges and took those rules to about 3 s. A
 check on a metavariable that two terms bind stays at the joined level. Before a
-release, `node scripts/rule-cost.mjs` times every code rule on its positive
-fixture followed by filler, at 90 KB and 900 KB, and names a rule whose cost
-grows more than 30x for the 10x file, or weighs more than three times the
-engine's bare parse of the 900 KB file.
+release, `node scripts/rule-cost.mjs` times each rule with a positive fixture in
+Java, Kotlin, PHP, Ruby, Python, JavaScript, TypeScript or Go on that fixture
+followed by filler, at 90 KB and 900 KB, beside a bare rule that only parses the
+same filler. It names a rule whose time grows more than twice as fast as the bare
+rule's for the 10x file, or that takes more than five times the bare rule's time
+on 900 KB.
 
 ### Kotlin pattern notes
 
