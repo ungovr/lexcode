@@ -18,24 +18,24 @@ stronger. Recall is printed, never gated.
 | Activity | Expected | Found | Signal only | Missed in |
 |---|---:|---:|---:|---|
 | `aggregates_content` | 3 | 0 | 1 | monorepo, nowinandroid, moodle |
-| `automated_outreach` | 4 | 1 | 0 | symfony-demo, moodle, sakai |
-| `crawls_web` | 3 | 1 | 0 | moodle, sakai |
+| `automated_outreach` | 4 | 2 | 0 | symfony-demo, moodle |
+| `crawls_web` | 3 | 2 | 0 | moodle |
 | `deploys_chatbot` | 2 | 1 | 0 | canvas-android |
 | `distributes_software_product` | 6 | 3 | 0 | nowinandroid, canvas-android, moodle |
 | `generates_content` | 4 | 2 | 0 | canvas-android, moodle |
 | `generates_images` | 1 | 0 | 0 | moodle |
 | `generates_text` | 3 | 1 | 0 | canvas-android, moodle |
-| `operates_social_platform` | 4 | 0 | 0 | symfony-demo, canvas-android, moodle, sakai |
+| `operates_social_platform` | 4 | 0 | 1 | symfony-demo, canvas-android, moodle, sakai |
 | `processes_biometrics` | 1 | 1 | 0 |  |
-| `processes_personal_data` | 13 | 6 | 0 | spring-petclinic, nowinandroid, symfony-demo, wave, canvas-android, moodle, sakai |
-| `processes_voice` | 4 | 2 | 1 | canvas-android, moodle |
+| `processes_personal_data` | 13 | 10 | 0 | symfony-demo, wave, moodle |
+| `processes_voice` | 4 | 3 | 1 | moodle |
 | `records_calls` | 3 | 0 | 0 | monorepo, moodle, sakai |
-| `records_text_chat` | 3 | 1 | 0 | moodle, sakai |
-| `ships_consumer_interface` | 12 | 0 | 2 | vercel-chatbot, nextjs-subscription-payments, obytes-expo, full-stack-fastapi, bullet-train, spring-petclinic, nowinandroid, symfony-demo, wave, canvas-android, moodle, sakai |
-| `ships_encryption` | 10 | 1 | 0 | vercel-chatbot, obytes-expo, full-stack-fastapi, bullet-train, symfony-demo, wave, canvas-android, moodle, sakai |
+| `records_text_chat` | 3 | 2 | 0 | moodle |
+| `ships_consumer_interface` | 12 | 0 | 3 | vercel-chatbot, nextjs-subscription-payments, obytes-expo, full-stack-fastapi, bullet-train, spring-petclinic, nowinandroid, symfony-demo, wave, canvas-android, moodle, sakai |
+| `ships_encryption` | 10 | 3 | 0 | vercel-chatbot, obytes-expo, full-stack-fastapi, bullet-train, symfony-demo, wave, moodle |
 | `ships_mobile_app` | 4 | 4 | 0 |  |
 | `statutory_requests` | 1 | 0 | 1 | monorepo |
-| `tracks_devices` | 6 | 2 | 0 | nowinandroid, wave, canvas-android, sakai |
+| `tracks_devices` | 6 | 4 | 0 | wave, sakai |
 | `trains_models` | 1 | 0 | 0 | moodle |
 <!-- recall:end -->
 
