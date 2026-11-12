@@ -281,7 +281,7 @@ describe('buildRecord', () => {
 
   describe('a repository lexcode cannot read (S4)', () => {
     const rs = ruleSetWith([{ id: 'lexcode.voice.whisper', activity: 'processes_voice' }]);
-    const noRead = /no file in scope is in a language lexcode reads \(TypeScript, JavaScript, Python, Go, Ruby, Java and Kotlin, and script blocks in HTML, Vue, Svelte, Jinja, ERB and JSP\); nothing was looked at/;
+    const noRead = /no file in scope is in a language lexcode reads \(TypeScript, JavaScript, Python, Go, Ruby, Java, Kotlin and PHP, and script blocks in HTML, Vue, Svelte, Jinja, ERB, JSP, PHP, Blade and Twig views\); nothing was looked at/;
 
     it('adds a notice when no code rule had a file to read', () => {
       const rulesRun = countRulesRun(rs, rs.rules, ['app.rb', 'README.md'], new Set());
@@ -300,10 +300,10 @@ describe('buildRecord', () => {
       expect(buildRecord({ ...base, rs: withJson, rulesRun }).notices.join('\n')).toMatch(noRead);
     });
 
-    it('the notice names every language and view type lexcode reads, Ruby, Java, Kotlin, ERB and JSP included', () => {
+    it('the notice names every language and view type lexcode reads, Ruby, Java, Kotlin, PHP, ERB, JSP, Blade and Twig included', () => {
       const rulesRun = countRulesRun(rs, rs.rules, ['app.rb', 'README.md'], new Set());
       const text = buildRecord({ ...base, rs, rulesRun }).notices.find((n) => noRead.test(n)) ?? '';
-      for (const name of ['TypeScript', 'JavaScript', 'Python', 'Go', 'Ruby', 'Java', 'Kotlin', 'HTML', 'Vue', 'Svelte', 'Jinja', 'ERB', 'JSP']) {
+      for (const name of ['TypeScript', 'JavaScript', 'Python', 'Go', 'Ruby', 'Java', 'Kotlin', 'PHP', 'HTML', 'Vue', 'Svelte', 'Jinja', 'ERB', 'JSP', 'Blade', 'Twig']) {
         expect(text).toMatch(new RegExp(`\\b${name}\\b`));
       }
     });
@@ -317,6 +317,7 @@ describe('buildRecord', () => {
         ruby: 'Ruby',
         java: 'Java',
         kotlin: 'Kotlin',
+        php: 'PHP',
       };
       // settings formats and build-file readers are not source languages
       const notSource = new Set(['json', 'yaml', 'yml', 'xml', 'generic', 'regex']);
@@ -527,12 +528,14 @@ describe('the notice for files past a whole-file pre-filter\'s reach', () => {
     expect(asked).toEqual(['large.rb']);
   });
 
-  it('marks the bundled rules that carry a whole-file lookahead, in Java, Kotlin and Ruby', () => {
+  it('marks the bundled rules that carry a whole-file lookahead, in Java, Kotlin, Ruby and PHP', () => {
     const rs = loadRuleSet();
     const marked = rs.rules.filter((r) => r.wholeFilePrefilter);
     expect(marked.some((r) => r.id === 'lexcode.crawl.rb-mechanize-fetch')).toBe(true);
     expect(rs.rules.find((r) => r.id === 'lexcode.social.java-direct-message')?.wholeFilePrefilter).toBe(true);
     expect(rs.rules.find((r) => r.id.startsWith('lexcode.') && r.languages.includes('python'))?.wholeFilePrefilter).toBeUndefined();
-    expect(new Set(marked.flatMap((r) => r.languages))).toEqual(new Set(['java', 'kotlin', 'ruby']));
+    expect(new Set(marked.flatMap((r) => r.languages))).toEqual(new Set(['java', 'kotlin', 'ruby', 'php']));
+    // The notice names a large .php file's language as PHP, through the bundled rules.
+    expect(prefilterReachNotice(largePrefilteredFiles(rs.rules, ['big.php'], () => big))).toMatch(/ \(PHP\); /);
   });
 });

@@ -278,7 +278,7 @@ function plural(n: number, one: string, many: string): string {
 
 /** What the "nothing was looked at" notice names: every language and view type the rules read (README, "Languages"). */
 export const READ_LANGUAGES =
-  'TypeScript, JavaScript, Python, Go, Ruby, Java and Kotlin, and script blocks in HTML, Vue, Svelte, Jinja, ERB and JSP';
+  'TypeScript, JavaScript, Python, Go, Ruby, Java, Kotlin and PHP, and script blocks in HTML, Vue, Svelte, Jinja, ERB, JSP, PHP, Blade and Twig views';
 
 export function buildRecord(i: BuildInput): EvidenceRecord {
   const { rs } = i;
