@@ -54,6 +54,11 @@ rules:
           - pattern-inside: '[..., "=~/(?i)^(?:photo_?id_?(?:image|img|photo|card|doc|document|scan|front|back|upload|file)|id_?(?:document|doc|card|photo|image|img|scan|front|back)|identity_?(?:document|doc|card)|identification_?(?:image|photo|document|doc|card)|passport_?(?:image|photo|scan|page|front)|drivers?_?licen[cs]e_?(?:image|photo|scan|front|back)|document_?(?:image|photo|front|back|scan))\w*$/", ...]'
       - pattern-not-inside: '[..., "=~/(?i)^(?:selfie|liveness|face_?(?:image|photo|img|picture|pic|capture|snapshot|scan))\w*$/" => [..., "=~/^(?:type|shape)$/" => $_, ...], ...]'
       - pattern-not-inside: '[..., "shapes" => $_, ...]'
+      # An emoji table keyed by name, or a list of emoji names, holds 'selfie' and
+      # 'identification_card' and no image. Every such table names U+1F600 too, as 'grinning' or
+      # 'grinning_face'.
+      - pattern-not-inside: '[..., "=~/^grinning(?:_face)?$/" => $_, ...]'
+      - pattern-not-inside: '[..., "=~/^grinning(?:_face)?$/", ...]'
     metadata:
       activity: relies_on_digital_identity
       mentioned: performs
