@@ -10,7 +10,7 @@ is measured against the truth sets, per activity.
 
 <!-- recall:start -->
 Measured 2026-11-12 over the UnGovr monorepo, 8 pinned starter templates and 3 real apps,
-against answer keys read by an agent that had not seen the rules, unreviewed.
+against answer keys, each read by an agent that had not seen the rules.
 Found counts evidence of either kind for the activity or its family; signal
 only counts the misses where lexcode showed a worth-a-look row and nothing
 stronger. Recall is printed, never gated.
@@ -183,30 +183,34 @@ lexcode does not evaluate and so does not record, 1 file with a line over
 
 Measured 2026-11-12 over `moodle/moodle` at commit `afbcc55`, with lexcode
 `v1.3` (branch build at commit `5f2d303`), against a reading of the same commit
-by an agent that had not seen the PHP rules (the key's own header calls it
-unreviewed), kept unchanged. The reading includes 15 activities from code, marks
-9 as absent and leaves 2 unsure. lexcode read 60,335 files (52,544 of them PHP)
-and 2 script copies drawn from PHP views, in 6 minutes 8 seconds and 3.8 GB on
-a shared machine (load average about 8), and the check reports 0 FAIL. Before
-lexcode read PHP, the same scan took 4 minutes 4 seconds and 3.2 GB.
+by an agent that had not seen the PHP rules, checked row by row by a second
+reader who had not seen them either, kept unchanged. The reading includes 15
+activities from code, marks 9 as absent and leaves 2 unsure. Every figure below
+is from one run, `lexcode check --declaration` with that build, unless it names
+another: lexcode read 60,335 files (52,544 of them PHP) and 2 script copies
+drawn from PHP views, in 6 minutes 7 seconds and 3.7 GB on a shared machine
+(load average 6 to 8), and the check reports 0 FAIL. Before lexcode read PHP, a
+scan of the same commit took 4 minutes 4 seconds and 3.2 GB.
 
-**Score: 6 of 15 found at evidence strength, 2 signal only, 7 missed. No
-evidence contradicts a row the reading marks absent, and the 2 unsure rows
+**Score: 6 of 15 found at evidence strength, one of them on the Composer
+manifest only (`aggregates_content`), 2 signal only, 7 missed. No evidence
+contradicts a row the reading marks absent, and the 2 unsure rows
 (`tracks_devices`, `relies_on_digital_identity`) drew nothing, so they are
 neither found nor missed.** Before lexcode read PHP it found none of the 15,
 showed 1 as a signal (`processes_voice`) and gave 1 false positive (an emoji
 table read as document-and-selfie verification, fixed in `5f2d303`). Of the 6
 found, 3 are on a line the reading cites (`records_calls`,
 `distributes_software_product`, and `automated_outreach` through its PHPMailer
-dependency), 2 on other code in a file or feature the reading cites
-(`ships_encryption`, `aggregates_content`) and 1 on other code
+dependency), 1 on other code in a file the reading cites (`ships_encryption`),
+1 on the Composer manifest only (`aggregates_content`: SimplePie, the feed
+library behind the RSS block the reading cites) and 1 on other code
 (`processes_personal_data`). The 7 misses are Moodle's own idioms: the AI
 providers send a PSR-7 request through Moodle's HTTP client with the endpoint
-read from settings, messages and posts are written with `$DB->insert_record`
-to tables named in XML schema, training is handed to a separate Python package,
-and sign-up is a plain script behind an authentication plugin. Recall is
-printed, never gated. Paths below are under `public/` unless they start with
-`composer.json`.
+read from settings, messages and posts are written with `$DB->insert_record` to
+tables named in XML schema, training is handed to a separate Python package, and
+sign-up is a plain script behind an authentication plugin. Recall is printed,
+never gated. Paths below are under `public/` unless they start with
+`composer.json`, `README.md` or `.github/`.
 
 | Activity | The reading | lexcode | Verdict |
 |---|---|---|---|
@@ -216,7 +220,7 @@ printed, never gated. Paths below are under `public/` unless they start with
 | `records_text_chat` | include: `lib/db/install.xml:649`, `:672`, `lib/classes/message/manager.php:67`, `lib/db/install.xml:4998` | missed (searched, not found) | Missed. A message is stored with `$DB->insert_record($table, $tabledata)` (`lib/messagelib.php:209`), the table name in a variable; the PHP rule reads a literal table named for chat or conversation messages. The schema is XML, which no rule reads |
 | `processes_voice` | include: `lib/editor/tiny/plugins/recordrtc/amd/src/base_recorder.js:215`, `:584`, `:1001`, `audio_recorder.js:30` | signal only, 1 match; `lexcode.voice.getusermedia-audio` at `lib/editor/tiny/plugins/recordrtc/amd/src/screen_recorder.js:114` | Signal only, unchanged from before PHP: a sibling file in the same recorder plugin. JavaScript evidence; no PHP rule bears on it |
 | `records_calls` | include: `mod/bigbluebuttonbn/classes/meeting.php:392`, `:394`, `classes/instance.php:860`, `classes/local/proxy/recording_proxy.php:178` | found, performs, 1 match; `lexcode.calls.php-bigbluebutton-record` at `mod/bigbluebuttonbn/classes/meeting.php:392` | Found, on the line the reading cites first (`$data['record'] = ...`) |
-| `crawls_web` | include: `blocks/rss_client/classes/task/refreshfeeds.php:122` and `:132`, `blog/lib.php:148`, `calendar/lib.php:2468`, `repository/url/lib.php:153` and `:170`, `composer.json:87` | signal only, 1 match; `lexcode.crawl.php-html-of-fetched-page` at `repository/url/lib.php:172` | Signal only, on the URL repository, which the reading calls the weakest of its four. The RSS task loops over the feed records but fetches each in a method of its own (`fetch_feed()`, through SimplePie), which the loop rule does not follow into; the blog and calendar fetches go through Moodle's own `curl` class |
+| `crawls_web` | include: `blocks/rss_client/classes/task/refreshfeeds.php:122` and `:132`, `blog/lib.php:148`, `calendar/lib.php:2468`, `repository/url/lib.php:153` and `:170`, `composer.json:87` | signal only, 1 match; `lexcode.crawl.php-html-of-fetched-page` at `repository/url/lib.php:172` | Signal only, on the URL repository, which the reading calls the weakest of its four. The RSS task loops over the feed records but fetches each in a method of its own (`fetch_feed()`, through `moodle_simplepie`), which the loop rule does not follow into. The blog sync fetches through `moodle_simplepie` too (`blog/lib.php:152`, `set_feed_url()` at `:165`). The calendar cron loops over subscriptions (`lib/classes/task/calendar_cron_task.php:59`) and fetches two calls down, with Moodle's own `curl` class (`$curl->get($url)` at `calendar/lib.php:2476`), which no rule names |
 | `aggregates_content` | include: `blocks/rss_client/block_rss_client.php:183` and `:193`, `blog/lib.php:148`, `blog/external_blog_edit.php:76` | found, enables 1; `pkg:composer/simplepie/simplepie@1.9.0` at `composer.json:87`; 10 signals `lexcode.aggregate.php-feed-read` (6 in Moodle's own RSS block and blog code, 4 in vendored SimplePie) | Found by dependency: the feed library behind the RSS block the reading cites. The feed-read signals sit in that block (`blocks/rss_client/classes/task/refreshfeeds.php:131`) and in `blog/lib.php:165` |
 | `ships_encryption` | include: `lib/classes/authentication/password.php:153`, `lib/classes/encryption.php:184`, `mnet/lib.php:219`, `lib/classes/oauth2/setup.php:51`, `composer.json:57`, `:42`, `:82`, `:101` | found, performs 1 and enables 1; `lexcode.crypto.php-library-encryption` at `lib/classes/oauth2/setup.php:101` (`\Defuse\Crypto\Key::createNewRandomKey()`); `pkg:composer/phpseclib/phpseclib` at `lib/lti1p3/composer.json:27` (vendored, no version) | Found, in a file the reading cites, on the key for stored OAuth secrets rather than the RSA key pair at `:51`. `ext-openssl` and `ext-sodium` (`composer.json:42`, `:57`) are platform names, which the Composer reader does not record, and the component map gives `firebase/php-jwt` and `league/oauth2-server` no activity |
 | `distributes_software_product` | include: `composer.json:2`, `:5`, `:7`, `README.md:29` | found, performs, 44 matches; `lexcode.distribute.composer-package` at `composer.json:5`, and 43 in vendored libraries (38 `composer-package`, 3 `composer-bin`, 2 `php-phar-build`) | Found, on a line the reading cites (the package type). 43 of the 44 matches are vendored |
@@ -229,36 +233,35 @@ printed, never gated. Paths below are under `public/` unless they start with
 Unsure in the reading, and not scored: `tracks_devices` and
 `relies_on_digital_identity`. lexcode reported nothing for either.
 
-**Vendored code outside `vendor/` (known gap).** lexcode reads it as Moodle's own
-code in this phase. Moodle's 18 `thirdpartylibs.xml` files list 127 library
-locations; 49 of the record's 74 evidence rows lie under one of them: 43 of the
-44 `distributes_software_product` matches, 1 of the 3 `processes_personal_data`
-matches (`enrol/lti/ims-blti/blti.php:190`), the `ships_encryption` dependency
-row (`lib/lti1p3/composer.json:27`) and 4 of the 10 `aggregates_content` signals
-(SimplePie). No found row rests on vendored evidence alone. Of the 109 Composer
-dependency rows, 60 come from vendored libraries' `composer.json` files; 64
-carry no version, 60 of those vendored and 4 from the CI-only
+**Vendored code outside `vendor/` (known gap).** lexcode reads it as Moodle's
+own code in this phase. Moodle's 18 `thirdpartylibs.xml` files list 127 library
+locations; 49 of the check record's 73 evidence rows lie under one of them: 43
+of the 44 `distributes_software_product` matches, 1 of the 3
+`processes_personal_data` matches (`enrol/lti/ims-blti/blti.php:190`), the
+`ships_encryption` dependency row (`lib/lti1p3/composer.json:27`) and 4 of the
+10 `aggregates_content` signals (SimplePie). No found row rests on vendored
+evidence alone. Of the 109 Composer dependency rows (`lexcode deps` on the same
+commit), 60 come from vendored libraries' `composer.json` files; 64 carry no
+version, 60 of those vendored and 4 from the CI-only
 `.github/workflows/composed/composer.json`.
 
-**PHP the engine could not parse.** With a rule that holds no fixed text, so
-that every file is parsed, the engine read 52,442 PHP files and both script
-copies (102 PHP files have a line over 100,000 characters and are not handed
-over) and partially parsed 17 PHP files (0.03 percent), with no error in a copy.
-The rest of each file is still matched. The causes: 13 a trailing comma in
-`unset(...)`, 1 a capitalized cast (`(String)`), 2 a list assignment that skips
-its first element (`[, $x] = ...`) and 1 a trailing comma in a grouped `use`
-(`use A\{B, C,};`). In the last 3, the fallback parser then also drops the
-file's `readonly` property declarations. Attributes (in 2,511 files), enums,
-`match`, first-class callables and `readonly` elsewhere (the word is in 580
-files) parse in every file handed over. The
-scan's own count (31 files the engine could not read) covers the files its
-rules opened, in every language.
+**PHP the engine could not parse.** In a separate run with a rule that holds no
+fixed text, so that every file is parsed, the engine read 52,442 PHP files and
+both script copies (102 PHP files have a line over 100,000 characters and are
+not handed over) and partially parsed 17 PHP files (0.03 percent), with no error
+in a copy. The rest of each file is still matched. The causes: 13 a trailing
+comma in `unset(...)`, 1 a capitalized cast (`(String)`), 2 a list assignment
+that skips its first element (`[, $x] = ...`) and 1 a trailing comma in a
+grouped `use` (`use A\{B, C,};`). In the last 3, the fallback parser then also
+drops the file's `readonly` property declarations. Attributes (in 2,511 files),
+enums, `match`, first-class callables and `readonly` elsewhere (the word is in
+580 files) parse in every file handed over. The check run's own count (31 files
+the engine could not read) covers the files its rules opened, in every language.
 
-Scan notices, as printed: 40 minified files skipped, 1 file over 5 MB skipped,
-64 Composer dependencies recorded without a version, 124 files with a line over
-100,000 characters skipped, and the engine could not read 31 files. The notice
-naming unread PHP files is gone.
-<!-- moodle:end -->
+The check run's notices, as printed: 40 minified files skipped, 1 file over 5 MB
+skipped, 64 Composer dependencies recorded without a version, 124 files with a
+line over 100,000 characters skipped, and the engine could not read 31 files.
+The notice naming unread PHP files is gone.<!-- moodle:end -->
 
 ## Ruby, ERB views and gems
 
