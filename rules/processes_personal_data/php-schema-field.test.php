@@ -1,5 +1,5 @@
 <?php
-// lexcode-expect: 7
+// lexcode-expect: 8
 // Stored columns for an email, a phone number, a date of birth, a government identifier and
 // an IP or device address, declared in Laravel migrations and a Doctrine DBAL schema.
 
@@ -22,6 +22,13 @@ class CreateCustomersTable extends Migration
             $table->string('passport_number')->nullable();
             $table->ipAddress()->nullable();
             $table->macAddress('device_mac')->nullable();
+            // A chain split over lines, which the rule's text anchor must admit.
+            $table
+                ->string(
+                    'mobile',
+                    20,
+                )
+                ->nullable();
             $table->timestamps();
         });
     }

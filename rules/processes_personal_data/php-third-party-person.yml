@@ -3,60 +3,71 @@ rules:
     languages: [php]
     severity: INFO
     message: Sends a person's email address, or a hash of it, to a third-party service (Stripe, Laravel Cashier, Mailchimp or Gravatar), which is processing personal data (processes_personal_data).
-    pattern-either:
-      # Stripe: a customer or a Checkout session given the person's address (not a literal).
-      - patterns:
-          - pattern-either:
-              - pattern: "$S->customers->create([..., 'email' => $E, ...], ...)"
-              - pattern: "$S->customers->update($ID, [..., 'email' => $E, ...], ...)"
-              - pattern: "$S->checkout->sessions->create([..., 'customer_email' => $E, ...], ...)"
-              - pattern: "\\Stripe\\Customer::create([..., 'email' => $E, ...], ...)"
-              - pattern: "\\Stripe\\Customer::update($ID, [..., 'email' => $E, ...], ...)"
-              - pattern: "\\Stripe\\Checkout\\Session::create([..., 'customer_email' => $E, ...], ...)"
-              - patterns:
-                  - pattern-either:
-                      - pattern: "Customer::create([..., 'email' => $E, ...], ...)"
-                      - pattern: "Customer::update($ID, [..., 'email' => $E, ...], ...)"
-                  - pattern-inside: |
-                      use Stripe\Customer;
-                      ...
-              - patterns:
-                  - pattern-either:
-                      - pattern: "$A::create([..., 'email' => $E, ...], ...)"
-                      - pattern: "$A::update($ID, [..., 'email' => $E, ...], ...)"
-                  - pattern-inside: |
-                      use Stripe\Customer as $A;
-                      ...
-              - patterns:
-                  - pattern: "Session::create([..., 'customer_email' => $E, ...], ...)"
-                  - pattern-inside: |
-                      use Stripe\Checkout\Session;
-                      ...
-              - patterns:
-                  - pattern: "$A::create([..., 'customer_email' => $E, ...], ...)"
-                  - pattern-inside: |
-                      use Stripe\Checkout\Session as $A;
-                      ...
-          - metavariable-regex:
-              metavariable: $E
-              regex: ^[^'"]
-          - focus-metavariable: $E
-      # Laravel Cashier: creating the Stripe customer sends the billable model's address.
-      - pattern: $U->createAsStripeCustomer(...)
-      - pattern: $U->createOrGetStripeCustomer(...)
-      # Mailchimp Marketing: a list member is keyed by the address.
-      - patterns:
-          - pattern: "$M->lists->$F(..., [..., 'email_address' => $E, ...], ...)"
-          - metavariable-regex:
-              metavariable: $F
-              regex: ^(addListMember|setListMember|updateListMember)$
-          - metavariable-regex:
-              metavariable: $E
-              regex: ^[^'"]
-          - focus-metavariable: $E
-      # Gravatar: an avatar URL is built from the hash of the address. Matched on the string's
-      # text, which is cheaper than testing every string in every file.
-      - pattern-regex: '["''](?:https?:)?(?://)?(?:secure\.|www\.|[0-9]\.)?gravatar\.com/avatar'
+    patterns:
+      # A whole-file pre-filter, one literal per shape: without it the engine parsed every PHP
+      # file in Moodle for this rule (its either of AST and text branches gave it no file test).
+      # Stripe covers the static API, its imports and Cashier's method names; customers and
+      # customer_email cover the client; email_address covers Mailchimp.
+      - pattern-either:
+          - pattern-regex: '(?s)\A(?=.*Stripe).*'
+          - pattern-regex: '(?s)\A(?=.*customers).*'
+          - pattern-regex: '(?s)\A(?=.*customer_email).*'
+          - pattern-regex: '(?s)\A(?=.*email_address).*'
+          - pattern-regex: '(?s)\A(?=.*gravatar\.com/avatar).*'
+      - pattern-either:
+          # Stripe: a customer or a Checkout session given the person's address (not a literal).
+          - patterns:
+              - pattern-either:
+                  - pattern: "$S->customers->create([..., 'email' => $E, ...], ...)"
+                  - pattern: "$S->customers->update($ID, [..., 'email' => $E, ...], ...)"
+                  - pattern: "$S->checkout->sessions->create([..., 'customer_email' => $E, ...], ...)"
+                  - pattern: "\\Stripe\\Customer::create([..., 'email' => $E, ...], ...)"
+                  - pattern: "\\Stripe\\Customer::update($ID, [..., 'email' => $E, ...], ...)"
+                  - pattern: "\\Stripe\\Checkout\\Session::create([..., 'customer_email' => $E, ...], ...)"
+                  - patterns:
+                      - pattern-either:
+                          - pattern: "Customer::create([..., 'email' => $E, ...], ...)"
+                          - pattern: "Customer::update($ID, [..., 'email' => $E, ...], ...)"
+                      - pattern-inside: |
+                          use Stripe\Customer;
+                          ...
+                  - patterns:
+                      - pattern-either:
+                          - pattern: "$A::create([..., 'email' => $E, ...], ...)"
+                          - pattern: "$A::update($ID, [..., 'email' => $E, ...], ...)"
+                      - pattern-inside: |
+                          use Stripe\Customer as $A;
+                          ...
+                  - patterns:
+                      - pattern: "Session::create([..., 'customer_email' => $E, ...], ...)"
+                      - pattern-inside: |
+                          use Stripe\Checkout\Session;
+                          ...
+                  - patterns:
+                      - pattern: "$A::create([..., 'customer_email' => $E, ...], ...)"
+                      - pattern-inside: |
+                          use Stripe\Checkout\Session as $A;
+                          ...
+              - metavariable-regex:
+                  metavariable: $E
+                  regex: ^[^'"]
+              - focus-metavariable: $E
+          # Laravel Cashier: creating the Stripe customer sends the billable model's address.
+          - pattern: $U->createAsStripeCustomer(...)
+          - pattern: $U->createOrGetStripeCustomer(...)
+          # Mailchimp Marketing: a list member is keyed by the address.
+          - patterns:
+              - pattern: "$M->lists->$F(..., [..., 'email_address' => $E, ...], ...)"
+              - metavariable-regex:
+                  metavariable: $F
+                  regex: ^(addListMember|setListMember|updateListMember)$
+              - metavariable-regex:
+                  metavariable: $E
+                  regex: ^[^'"]
+              - focus-metavariable: $E
+          # Gravatar: an avatar URL is built from the hash of the address. Matched on the string's
+          # text, which is cheaper than testing every string in every file.
+          - pattern-regex: '["''](?:https?:)?(?://)?(?:secure\.|www\.|[0-9]\.)?gravatar\.com/avatar'
     metadata:
       activity: processes_personal_data
       mentioned: performs

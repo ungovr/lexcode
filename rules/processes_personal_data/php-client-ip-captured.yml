@@ -5,37 +5,53 @@ rules:
     message: Writes the visitor's IP address into a log or a database, which is processing personal data (processes_personal_data).
     mode: taint
     pattern-sources:
-      # Plain PHP: the server array.
       - patterns:
-          - pattern: $_SERVER[$K]
-          - metavariable-regex:
-              metavariable: $K
-              regex: ^['"](REMOTE_ADDR|HTTP_X_FORWARDED_FOR|HTTP_X_REAL_IP|HTTP_CLIENT_IP|HTTP_CF_CONNECTING_IP|HTTP_TRUE_CLIENT_IP|HTTP_FORWARDED)['"]$
-      # Laravel and Symfony: the request object (a receiver named for the request, so a
-      # server's or a device's own ip() is not read as a visitor's address).
-      - patterns:
+          # A whole-file pre-filter lets the engine skip a file that cannot match (without one the
+          # engine parsed every PHP file in Moodle for this rule). Every source below holds one of
+          # these: an address key or header name (REMOTE_ADDR, X-Forwarded-For, X-Real-IP, a client
+          # IP, CF-Connecting-IP), getClientIp, or a call to ip() or ips() through -> or ::. It is
+          # whole-file because a narrower text match would cut a source down to the matched text,
+          # which is not an expression the engine can taint (measured: no match at all).
           - pattern-either:
-              - pattern: $R->ip()
-              - pattern: $R->ips()
-              - pattern: $R->getClientIp()
-              - pattern: $R->getClientIps()
-          - metavariable-regex:
-              metavariable: $R
-              regex: (?i).*req
-      - pattern: Request::ip()
-      - pattern: Request::getClientIp()
-      - patterns:
+              - pattern-regex: '(?is)\A(?=.*remote.addr).*'
+              - pattern-regex: '(?is)\A(?=.*forwarded).*'
+              - pattern-regex: '(?is)\A(?=.*real.ip).*'
+              - pattern-regex: '(?is)\A(?=.*client.?ip).*'
+              - pattern-regex: '(?is)\A(?=.*connecting.ip).*'
+              - pattern-regex: '(?s)\A(?=.*->(?:\s|#[^\n]*+|//[^\n]*+)*+ips?\b).*'
+              - pattern-regex: '(?s)\A(?=.*::(?:\s|#[^\n]*+|//[^\n]*+)*+ip\b).*'
           - pattern-either:
-              - pattern: $R->header($H, ...)
-              - pattern: $R->server($H, ...)
-              - pattern: $R->headers->get($H, ...)
-              - pattern: $R->server->get($H, ...)
-          - metavariable-regex:
-              metavariable: $R
-              regex: (?i).*req
-          - metavariable-regex:
-              metavariable: $H
-              regex: (?i)^['"](x-forwarded-for|x-real-ip|forwarded|cf-connecting-ip|true-client-ip|x-client-ip|remote_addr|http_x_forwarded_for)['"]$
+              # Plain PHP: the server array.
+              - patterns:
+                  - pattern: $_SERVER[$K]
+                  - metavariable-regex:
+                      metavariable: $K
+                      regex: ^['"](REMOTE_ADDR|HTTP_X_FORWARDED_FOR|HTTP_X_REAL_IP|HTTP_CLIENT_IP|HTTP_CF_CONNECTING_IP|HTTP_TRUE_CLIENT_IP|HTTP_FORWARDED)['"]$
+              # Laravel and Symfony: the request object (a receiver named for the request, so a
+              # server's or a device's own ip() is not read as a visitor's address).
+              - patterns:
+                  - pattern-either:
+                      - pattern: $R->ip()
+                      - pattern: $R->ips()
+                      - pattern: $R->getClientIp()
+                      - pattern: $R->getClientIps()
+                  - metavariable-regex:
+                      metavariable: $R
+                      regex: (?i).*req
+              - pattern: Request::ip()
+              - pattern: Request::getClientIp()
+              - patterns:
+                  - pattern-either:
+                      - pattern: $R->header($H, ...)
+                      - pattern: $R->server($H, ...)
+                      - pattern: $R->headers->get($H, ...)
+                      - pattern: $R->server->get($H, ...)
+                  - metavariable-regex:
+                      metavariable: $R
+                      regex: (?i).*req
+                  - metavariable-regex:
+                      metavariable: $H
+                      regex: (?i)^['"](x-forwarded-for|x-real-ip|forwarded|cf-connecting-ip|true-client-ip|x-client-ip|remote_addr|http_x_forwarded_for)['"]$
     # The address is not what is kept when it only feeds a membership test or a check whose
     # answer is logged (an allow list, a range check, a verification call).
     pattern-sanitizers:

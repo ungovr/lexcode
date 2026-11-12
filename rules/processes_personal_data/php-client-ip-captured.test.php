@@ -1,5 +1,5 @@
 <?php
-// lexcode-expect: 7
+// lexcode-expect: 8
 // The visitor's IP address written into a log or a database.
 
 namespace App\Http\Controllers;
@@ -44,6 +44,12 @@ class AuditController
 
         // Laravel: a log line.
         Log::info('Signed in from ' . $request->ip());
+
+        // A chain split over lines, which the rule's text test must admit.
+        Log::notice('Profile updated', [
+            'ip' => $request
+                ->ip(),
+        ]);
     }
 
     public function symfony(HttpRequest $request): void
