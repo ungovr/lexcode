@@ -18,8 +18,8 @@ rules:
     # ChatHistory is a typed metavariable (a local, a target-typed new(), a field or a parameter), so an
     # app's own ChatHistory class does not match. The OpenAI SDK's AssistantChatMessage has a
     # constructor that takes the ChatCompletion for exactly this, and Azure.AI.OpenAI 1.x has
-    # ChatRequestAssistantMessage. Each branch carries a literal anchor inside the match, or a whole-file
-    # one naming the type, so the engine skips files that cannot match.
+    # ChatRequestAssistantMessage. Each branch carries a literal anchor inside the match, so the engine
+    # skips files that cannot match; none is a whole-file lookahead, so no C# rule has its reach limit.
     pattern-either:
       - patterns:
           - pattern-either:
@@ -54,7 +54,6 @@ rules:
                       metavariable: $R
                       regex: (?i)^\w*(response|reply|result|completion|answer)$
           - pattern-regex: '\.(AddMessage|Add)\('
-          - pattern-regex: '(?s)\A(?=.*ChatHistory).*'
       - patterns:
           - pattern-either:
               - pattern: new OpenAI.Chat.AssistantChatMessage($X)
