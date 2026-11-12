@@ -1,7 +1,7 @@
-// lexcode-expect: 5
+// lexcode-expect: 7
 // Microsoft.Extensions.AI: the model's reply is added back to the running history that the next user turn is sent
-// with, by AddMessages on a response (the eShop shape) and on streamed updates, by a ChatMessage in the assistant role
-// built from the reply (under the import and under an alias), and by AddRange of the response's messages.
+// with, by AddMessages on a response (the eShop shape) and on streamed updates, and by a ChatMessage in the assistant
+// role built from the reply: under the import, under an alias, target-typed, and with an initializer.
 using Microsoft.Extensions.AI;
 using Ai = Microsoft.Extensions.AI;
 
@@ -43,10 +43,18 @@ public class ChatState(IChatClient chatClient)
         history.Add(new Ai.ChatMessage(Ai.ChatRole.Assistant, reply.Text));
     }
 
-    public async Task RangeAsync(List<ChatMessage> history, string userText)
+    public async Task TargetTypedAsync(List<ChatMessage> history, string userText)
+    {
+        history.Add(new(ChatRole.User, userText));
+        var reply = await chatClient.GetResponseAsync(history);
+        history.Add(new(ChatRole.Assistant, reply.Text));
+    }
+
+    public async Task InitializerAsync(List<ChatMessage> history, string userText)
     {
         history.Add(new ChatMessage(ChatRole.User, userText));
-        var result = await chatClient.GetResponseAsync(history);
-        history.AddRange(result.Messages);
+        var reply = await chatClient.GetResponseAsync(history);
+        history.Add(new ChatMessage(ChatRole.Assistant, reply.Text) { AuthorName = "concierge" });
+        history.Add(new(ChatRole.Assistant, reply.Text) { AuthorName = "concierge" });
     }
 }

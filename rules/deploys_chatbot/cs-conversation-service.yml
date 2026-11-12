@@ -47,14 +47,14 @@ rules:
           - pattern-either:
               - pattern: Google.Cloud.Dialogflow.V2.SessionsClient.Create(...)
               - pattern: Google.Cloud.Dialogflow.V2.SessionsClient.CreateAsync(...)
-              - pattern: new Google.Cloud.Dialogflow.V2.SessionsClientBuilder(...)
-              - pattern: new Google.Cloud.Dialogflow.V2.SessionsClientBuilder { ... }
+              # `new X(...) { ... }` matches a plain constructor, a bare initializer and a constructor with
+              # an initializer; `X $V = new(...) { ... };` matches target-typed with and without one.
+              - pattern: new Google.Cloud.Dialogflow.V2.SessionsClientBuilder(...) { ... }
               - pattern: Google.Cloud.Dialogflow.V2.SessionsClientBuilder $V = new(...) { ... };
-              - pattern: Google.Cloud.Dialogflow.V2.SessionsClientBuilder $V = new(...);
               - pattern: Google.Cloud.Dialogflow.Cx.V3.SessionsClient.Create(...)
               - pattern: Google.Cloud.Dialogflow.Cx.V3.SessionsClient.CreateAsync(...)
-              - pattern: new Google.Cloud.Dialogflow.Cx.V3.SessionsClientBuilder(...)
-              - pattern: new Google.Cloud.Dialogflow.Cx.V3.SessionsClientBuilder { ... }
+              - pattern: new Google.Cloud.Dialogflow.Cx.V3.SessionsClientBuilder(...) { ... }
+              - pattern: Google.Cloud.Dialogflow.Cx.V3.SessionsClientBuilder $V = new(...) { ... };
           - pattern-regex: 'SessionsClient'
       - patterns:
           - pattern-either:

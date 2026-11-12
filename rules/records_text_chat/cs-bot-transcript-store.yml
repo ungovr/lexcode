@@ -5,8 +5,8 @@ rules:
     message: Logs a bot's conversations to a transcript store, which is keeping a text chat (records_text_chat).
     # The Bot Framework's TranscriptLoggerMiddleware writes every activity of every conversation, what
     # the user typed and what the bot answered, to the store it is given. Over MemoryTranscriptStore the
-    # turns last only until the process ends, so that form is left out, as the Java rule leaves out the
-    # in-memory chat stores. A blob transcript store (or the older AzureBlobTranscriptStore) constructed
+    # turns last only until the process ends, so that form is left out (built inline, or held first in
+    # a local or field the engine can type), as the Java rule leaves out the in-memory chat stores. A blob transcript store (or the older AzureBlobTranscriptStore) constructed
     # on its own is reported too; built inline inside the middleware, it is reported once, on the
     # middleware. Every type is fully qualified, so an app's own TranscriptLoggerMiddleware does not match.
     pattern-either:
@@ -15,13 +15,16 @@ rules:
           - metavariable-regex:
               metavariable: $S
               regex: ^(?!.*\bMemoryTranscriptStore\b)
+          # The in-memory store held in a local or a field first (a typed metavariable).
+          - pattern-not-inside: new Microsoft.Bot.Builder.TranscriptLoggerMiddleware((Microsoft.Bot.Builder.MemoryTranscriptStore $M))
           - pattern-regex: 'TranscriptLoggerMiddleware\('
       - patterns:
           - pattern-either:
-              - pattern: new Microsoft.Bot.Builder.Azure.Blobs.BlobsTranscriptStore(...)
-              - pattern: Microsoft.Bot.Builder.Azure.Blobs.BlobsTranscriptStore $V = new(...);
-              - pattern: new Microsoft.Bot.Builder.Azure.AzureBlobTranscriptStore(...)
-              - pattern: Microsoft.Bot.Builder.Azure.AzureBlobTranscriptStore $V = new(...);
+              # `new X(...) { ... }` and `X $V = new(...) { ... };` take every construction form.
+              - pattern: new Microsoft.Bot.Builder.Azure.Blobs.BlobsTranscriptStore(...) { ... }
+              - pattern: Microsoft.Bot.Builder.Azure.Blobs.BlobsTranscriptStore $V = new(...) { ... };
+              - pattern: new Microsoft.Bot.Builder.Azure.AzureBlobTranscriptStore(...) { ... }
+              - pattern: Microsoft.Bot.Builder.Azure.AzureBlobTranscriptStore $V = new(...) { ... };
           - pattern-not-inside: new Microsoft.Bot.Builder.TranscriptLoggerMiddleware(...)
           - pattern-regex: 'TranscriptStore\b'
     metadata:

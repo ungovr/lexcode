@@ -21,6 +21,7 @@ rules:
           - pattern-inside: new System.Threading.Timer(...)
           - pattern-inside: new Timer(...)
           - pattern-inside: System.Threading.Timer $TV = new(...);
+          - pattern-inside: Timer $TV = new(...);
           - pattern-inside: $TE.Elapsed += $H;
           - pattern-inside: |
               $RET $FN(..., [Microsoft.Azure.Functions.Worker.TimerTrigger(...)] $PT $PV, ...) { ... }
@@ -43,10 +44,18 @@ rules:
               - metavariable-regex:
                   metavariable: $SM
                   regex: ^(Send|SendAsync|SendMailAsync)$
+          # A SignalR client proxy (`hub.Clients.User(id).SendNotification(...)`) pushes to an open page,
+          # not a person's inbox or phone, so a receiver reached through Clients is not a send.
           - patterns:
-              - pattern-either:
-                  - pattern: $X.$N(...)
-                  - pattern: $N(...)
+              - pattern: $X.$N(...)
+              - metavariable-regex:
+                  metavariable: $X
+                  regex: ^(?!(.*\.)?Clients\b)
+              - metavariable-regex:
+                  metavariable: $N
+                  regex: ^Send\w*(Email|Mail|EmailMessage|MailMessage|Sms|SMS|SmsMessage|Text|TextMessage|Push|PushNotification|Notification|Reminder|Digest|Newsletter|Alert)s?(Async)?$
+          - patterns:
+              - pattern: $N(...)
               - metavariable-regex:
                   metavariable: $N
                   regex: ^Send\w*(Email|Mail|EmailMessage|MailMessage|Sms|SMS|SmsMessage|Text|TextMessage|Push|PushNotification|Notification|Reminder|Digest|Newsletter|Alert)s?(Async)?$

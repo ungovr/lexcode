@@ -12,6 +12,8 @@ public class AdapterWithLogging : CloudAdapter
     public AdapterWithLogging(BotFrameworkAuthentication auth) : base(auth)
     {
         Use(new Microsoft.Bot.Builder.TranscriptLoggerMiddleware(new Microsoft.Bot.Builder.MemoryTranscriptStore()));
+        var memory = new Microsoft.Bot.Builder.MemoryTranscriptStore();
+        Use(new Microsoft.Bot.Builder.TranscriptLoggerMiddleware(memory));
     }
 }
 

@@ -10,10 +10,18 @@ rules:
     # one (Dapper, Entity Framework Core's raw SQL). A contact, feedback or ticket record, a chat ROOM
     # that holds no text, and a bare Conversation do not match.
     #
-    # Turns kept in memory for a session are not kept: Microsoft.Extensions.AI's own ChatMessage added to
-    # a message list is how a chatbot holds its context (eShop's concierge). So the entity branch needs a
-    # receiver named for a store, and a list named for the chat history (`_chatHistory.Add`) counts only
-    # with a store's method (an insert, a save, an asynchronous add), never List's Add or AddRange.
+    # Turns kept in memory for a session are not kept (the definition: an assistant that keeps no
+    # transcript is deploys_chatbot alone): Microsoft.Extensions.AI's own ChatMessage added to a message
+    # list, a view model's ChatMessages collection, a state object's ChatHistory, a session object. So a
+    # chat-named set counts on a receiver named for a store (`db.ChatMessages.Add`) or with EF Core's
+    # asynchronous add, never on `this` or a state object with List's Add or AddRange; the entity branch
+    # needs a receiver named for a store and leaves Microsoft.Extensions.AI's ChatMessage out; and a list
+    # named for the chat history counts only with a store's method (an insert, a save, an asynchronous add).
+    #
+    # The C# counterpart of php/rb-assistant-turns-stored: a record of any message, turn or entry type,
+    # handed to a store with a literal user or assistant role in its initializer (`Role = "assistant"`,
+    # `Role = MessageRole.User`). The role is read by a regular expression inside the match rather than
+    # an initializer key pattern, the shape measured as expensive under #12745.
     pattern-either:
       - patterns:
           - pattern: $CTX.$SET.$W(...)
@@ -21,16 +29,46 @@ rules:
               metavariable: $SET
               regex: ^(Chat(Message|Msg|Turn|Entry|History|Histories|Log|Transcript)|Conversation(Message|Turn|Entry|Transcript)|Dialog(Message|Turn))s?$
           - metavariable-regex:
+              metavariable: $CTX
+              regex: (?i)^(this\.)?_?\w*(db|context|ctx|uow|unitofwork|repo|repository|store|database)$
+          - metavariable-regex:
               metavariable: $W
               regex: ^(Add|AddAsync|AddRange|AddRangeAsync)$
           - pattern-regex: '\.(Add|AddAsync|AddRange|AddRangeAsync)\('
       - patterns:
-          - pattern-either:
-              - pattern: $R.$W(<... new $T(...) ...>)
-              - pattern: $R.$W(<... new $T { ... } ...>)
+          - pattern: $CTX.$SET.$W(...)
+          - metavariable-regex:
+              metavariable: $SET
+              regex: ^(Chat(Message|Msg|Turn|Entry|History|Histories|Log|Transcript)|Conversation(Message|Turn|Entry|Transcript)|Dialog(Message|Turn))s?$
+          - metavariable-regex:
+              metavariable: $CTX
+              regex: (?i)^(?!(this\.)?_?\w*(db|context|ctx|uow|unitofwork|repo|repository|store|database)$)
+          - metavariable-regex:
+              metavariable: $W
+              regex: ^(AddAsync|AddRangeAsync)$
+          - pattern-regex: '\.(AddAsync|AddRangeAsync)\('
+      # On Opengrep 1.33.1 `new $T(...) { ... }` matches a plain constructor, a bare initializer
+      # (`new T { ... }`) and a constructor with an initializer; `new $T { ... }` matches only the bare one.
+      - patterns:
+          - pattern: $R.$W(<... new $T(...) { ... } ...>)
           - metavariable-regex:
               metavariable: $R
-              regex: (?i)^(this\.)?_?\w*(context|db|repository|repo|store|dao|collection|container|table|session|unitofwork)$
+              regex: (?i)^(this\.)?_?\w*(context|db|ctx|uow|unitofwork|repository|repo|store|dao|collection|container|table)(\.\w+)?$
+          - metavariable-regex:
+              metavariable: $T
+              regex: ^(\w+\.)*\w*(Message|Turn|Entry)$
+          - metavariable-regex:
+              metavariable: $W
+              regex: ^(Add|AddAsync|Insert|InsertAsync|InsertOne|InsertOneAsync|Save|SaveAsync|Create|CreateAsync|CreateItemAsync|Upsert|UpsertAsync|UpsertItemAsync|Store|StoreAsync)$
+          - pattern-regex: '\bRole\s*=\s*("(user|assistant|model|bot|ai)"|\w*Role\s*\.\s*(User|Assistant|Model|Bot)\b)'
+      # A pattern-not beside a pattern-regex anchor is not applied on Opengrep 1.33.1;
+      # pattern-not-inside is.
+      - patterns:
+          - pattern: $R.$W(<... new $T(...) { ... } ...>)
+          - pattern-not-inside: $R.$W(new Microsoft.Extensions.AI.ChatMessage(...))
+          - metavariable-regex:
+              metavariable: $R
+              regex: (?i)^(this\.)?_?\w*(context|db|repository|repo|store|dao|collection|container|table|unitofwork)$
           - metavariable-regex:
               metavariable: $T
               regex: ^(\w+\.)*(Chat(Message|Msg|Turn|Entry|History|Log|Transcript)|Conversation(Message|Turn|Entry|Transcript)|Dialog(Message|Turn))$

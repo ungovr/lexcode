@@ -1,7 +1,8 @@
 // lexcode-expect: 0
-// Turns kept only in memory for the length of a session (a Microsoft.Extensions.AI message list and a list named for
-// the chat history), a contact form and a support ticket saved, a chat room created with no text in it, a chat room
-// repository, and a Dapper insert into a contact table.
+// Turns kept only in memory for the length of a session (a Microsoft.Extensions.AI message list, a list named for the
+// chat history, a view model's ChatMessages, a state object's ChatHistory, a session object, a context object for the
+// prompt, a prompt list with a user role), a contact form and a support ticket saved, a chat room created with no text
+// in it, a chat room repository, an account role saved, and a Dapper insert into a contact table.
 using Dapper;
 using Microsoft.Extensions.AI;
 
@@ -18,6 +19,22 @@ public class SupportService(AppDb db, ChatRoomRepository chatRoomRepository, Sys
         _chatHistory.Add(new ChatMessage(ChatRole.User, userText));
         _chatHistory.AddRange(Messages);
     }
+
+    public async Task HoldersAsync(IChatClient client, ChatState state, ChatSession session, string text)
+    {
+        this.ChatMessages.Add(new ChatMessage(ChatRole.User, text));
+        state.ChatHistory.Add(new ChatMessage(ChatRole.User, text));
+        var r = await client.GetResponseAsync(state.ChatHistory);
+        state.ChatHistory.AddRange(r.Messages);
+        session.Add(new ChatMessage(ChatRole.User, text));
+        var conversationContext = new ChatSession();
+        conversationContext.Add(new ChatMessage(ChatRole.System, "You are terse."));
+        var prompt = new List<PromptMessage>();
+        prompt.Add(new PromptMessage { Role = "user", Content = text });
+        db.Add(new UserRoleEntry { Role = "admin", UserId = text });
+    }
+
+    public System.Collections.ObjectModel.ObservableCollection<ChatMessage> ChatMessages { get; } = [];
 
     public async Task ContactAsync(ContactForm form)
     {

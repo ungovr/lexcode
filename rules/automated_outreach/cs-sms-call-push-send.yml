@@ -33,9 +33,10 @@ rules:
           - pattern-regex: '(Resource\s*\.\s*Create(Async)?\(|\.SendAnSms\w*\(|\.Send(Async)?\()'
       - patterns:
           - pattern-either:
-              - pattern: new Amazon.SimpleNotificationService.Model.PublishRequest { ... }
-              - pattern: Amazon.SimpleNotificationService.Model.PublishRequest $R = new() { ... };
-          - pattern-not-regex: (?is)(new\s+[\w.]*PublishRequest|PublishRequest\s+\w+\s*=\s*new\s*\(\s*\))\s*\{[^}]*(code|otp|verif|passcode|password|\bpin\b)[^}]*\}
+              # Every construction form: plain, bare initializer, constructor with initializer, target-typed.
+              - pattern: new Amazon.SimpleNotificationService.Model.PublishRequest(...) { ... }
+              - pattern: Amazon.SimpleNotificationService.Model.PublishRequest $R = new(...) { ... };
+          - pattern-not-regex: (?is)(new\s+[\w.]*PublishRequest\s*(\(\s*\))?|PublishRequest\s+\w+\s*=\s*new\s*\(\s*\))\s*\{[^}]*(code|otp|verif|passcode|password|\bpin\b)[^}]*\}
           - pattern-regex: '\bPhoneNumber\s*='
       - patterns:
           - pattern-either:

@@ -12,9 +12,12 @@ rules:
     # example read from a file) still matches.
     #
     # Microsoft.Extensions.AI: AddMessages is its extension on a message list, taking a response or
-    # streamed updates; the argument is named for a reply so that an app's own AddMessages (a list of
-    # form errors) does not match. A ChatMessage in the assistant role is matched by its fully
-    # qualified name, which the engine resolves through a using or an alias. Semantic Kernel:
+    # streamed updates. On Opengrep 1.33.1 a generic type (`IList<ChatMessage>`) cannot be a typed
+    # metavariable, so the list is named for a conversation and the argument for a reply, which keeps
+    # out an app's own AddMessages (form errors, a validation result added to a list of messages). A
+    # list's AddRange is not read: a queue poller adds a ReceiveMessageResponse's Messages the same way.
+    # A ChatMessage in the assistant role (constructed, target-typed, or with an initializer) is matched
+    # by its fully qualified name, which the engine resolves through a using or an alias. Semantic Kernel:
     # ChatHistory is a typed metavariable (a local, a target-typed new(), a field or a parameter), so an
     # app's own ChatHistory class does not match. The OpenAI SDK's AssistantChatMessage has a
     # constructor that takes the ChatCompletion for exactly this, and Azure.AI.OpenAI 1.x has
@@ -22,17 +25,21 @@ rules:
     # skips files that cannot match; none is a whole-file lookahead, so no C# rule has its reach limit.
     pattern-either:
       - patterns:
-          - pattern-either:
-              - pattern: $H.AddMessages($R)
-              - pattern: $H.AddRange($R.Messages)
+          - pattern: $H.AddMessages($R)
+          - metavariable-regex:
+              metavariable: $H
+              regex: (?i)^(this\.)?_?\w*(messages|history|conversation|chat|turns|thread|transcript)$
           - metavariable-regex:
               metavariable: $R
-              regex: (?i)^\w*(response|reply|result|completion|answer|update)s?$
-          - pattern-regex: '\.(AddMessages|AddRange)\('
+              regex: ^((?i:response|reply|result|completion|answer|updates?)|\w*(Response|Reply|Completion|Updates))$
+          - pattern-regex: '\.AddMessages\('
       - patterns:
           - pattern-either:
               - pattern: $H.Add(new Microsoft.Extensions.AI.ChatMessage(Microsoft.Extensions.AI.ChatRole.Assistant, $X))
               - pattern: $H.Add(new Microsoft.Extensions.AI.ChatMessage(Microsoft.Extensions.AI.ChatRole.Assistant, $X, ...))
+              - pattern: $H.Add(new Microsoft.Extensions.AI.ChatMessage(Microsoft.Extensions.AI.ChatRole.Assistant, $X) { ... })
+              - pattern: $H.Add(new(Microsoft.Extensions.AI.ChatRole.Assistant, $X))
+              - pattern: $H.Add(new(Microsoft.Extensions.AI.ChatRole.Assistant, $X) { ... })
           - metavariable-regex:
               metavariable: $X
               regex: ^(?![$@]*")
