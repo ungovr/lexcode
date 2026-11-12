@@ -209,6 +209,9 @@ function plural(n: number, one: string, many: string): string {
   return n === 1 ? one : many;
 }
 
+/** What the "nothing was looked at" notice names: every language and view type the rules read (README, "Languages"). */
+export const READ_LANGUAGES = 'TypeScript, JavaScript, Python, Go and Ruby, and script blocks in HTML, Vue, Svelte, Jinja and ERB';
+
 export function buildRecord(i: BuildInput): EvidenceRecord {
   const { rs } = i;
   const ruleById = new Map<string, RuleMeta>(rs.rules.map((r) => [r.id, r]));
@@ -323,7 +326,7 @@ export function buildRecord(i: BuildInput): EvidenceRecord {
     notices.push('the rule set holds no source rules, so only dependency manifests and file names were read');
   } else if (i.rulesRun instanceof RulesRun && i.rulesRun.codeRulesRan === 0) {
     notices.push(
-      'no file in scope is in a language lexcode reads (TypeScript, JavaScript, Python, Go, and script blocks in HTML, Vue, Svelte and Jinja); nothing was looked at. ' +
+      `no file in scope is in a language lexcode reads (${READ_LANGUAGES}); nothing was looked at. ` +
         'If your source is in one of those languages, check that the include and exclude lists in .lexcode.yml and lexlint.yml have not left it out; otherwise read this result as "not checked", not as "clean".',
     );
   }
