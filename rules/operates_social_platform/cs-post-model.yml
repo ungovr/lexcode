@@ -1,0 +1,80 @@
+# The class, reaction, author and comment regular expressions repeat across the arms, and the
+# member shapes repeat across the three member lists. Edit every copy together, or an arm drifts
+# from the others. A C# member is a field, an auto-property with any of the accessor shapes below
+# (with or without an initializer) or an expression-bodied property; the engine reads a record's
+# positional parameters as members, so the class patterns cover records too. Each member pattern
+# carries the class and member names itself, so the engine drops other classes and members before
+# two member patterns are joined (pairing every member with every other in a large class is the
+# cost on a large app).
+rules:
+  - id: lexcode.social.cs-post-model
+    languages: [csharp]
+    severity: INFO
+    message: Declares a post that a user writes and other users react to (a post, tweet or reply class with likes, votes or reactions, or with an author and comments or replies), which is how content is shared on a social platform (operates_social_platform).
+    pattern-either:
+      # Likes, votes or reactions: a member of the class or record.
+      - patterns:
+          - pattern-either:
+              - pattern: class $C { ... $T $L; ... }
+              - pattern: class $C { ... $T $L = $V; ... }
+              - pattern: class $C { ... $T $L { get; set; } ... }
+              - pattern: class $C { ... $T $L { get; init; } ... }
+              - pattern: class $C { ... $T $L { get; } ... }
+              - pattern: class $C { ... $T $L { get; set; } = $V; ... }
+              - pattern: class $C { ... $T $L { get; init; } = $V; ... }
+              - pattern: class $C { ... $T $L { get; } = $V; ... }
+              - pattern: class $C { ... $T $L => $V; ... }
+          - metavariable-regex:
+              metavariable: $C
+              regex: '^(\w*[a-z0-9])?(Post|Tweet|Toot|Reply|ForumPost|WallPost|StatusUpdate)$'
+          - metavariable-regex:
+              metavariable: $L
+              regex: '(?i)^_?(likes?|numberOfLikes|numLikes|likeCount|likesCount|likedBy|reactions?|reactionCount|reactionsCount|upvotes?|upvoteCount|upvotesCount|downvotes?|votes|voteCount|votesCount|shareCount|retweetCount|retweets|boosts|favorites|favourites)$'
+          - focus-metavariable: $L
+      # An author and comments or replies: two members of the same class or record. The comments
+      # member is a collection or a count, so a single text field named Comments (notes on a
+      # ticket or an order) is not read as replies from other users.
+      - patterns:
+          - patterns:
+              - pattern-either:
+                  - pattern: class $C { ... $T $M; ... }
+                  - pattern: class $C { ... $T $M = $V; ... }
+                  - pattern: class $C { ... $T $M { get; set; } ... }
+                  - pattern: class $C { ... $T $M { get; init; } ... }
+                  - pattern: class $C { ... $T $M { get; } ... }
+                  - pattern: class $C { ... $T $M { get; set; } = $V; ... }
+                  - pattern: class $C { ... $T $M { get; init; } = $V; ... }
+                  - pattern: class $C { ... $T $M { get; } = $V; ... }
+              - metavariable-regex:
+                  metavariable: $C
+                  regex: '^(\w*[a-z0-9])?(Post|Tweet|Toot|Reply|ForumPost|WallPost|StatusUpdate)$'
+              - metavariable-regex:
+                  metavariable: $M
+                  regex: '(?i)^_?(comments|replies|numberOfComments|commentCount|commentsCount)$'
+              - metavariable-regex:
+                  metavariable: $T
+                  regex: '(?s)^((int|long|uint|ulong|short|ushort)\??|(System\.)?(Int32|Int64)\??|.*(\[\]|List|Collection|Enumerable|Set|Array|Queue|Bag).*)$'
+          - patterns:
+              - pattern-either:
+                  - pattern: class $C { ... $T2 $A; ... }
+                  - pattern: class $C { ... $T2 $A = $W; ... }
+                  - pattern: class $C { ... $T2 $A { get; set; } ... }
+                  - pattern: class $C { ... $T2 $A { get; init; } ... }
+                  - pattern: class $C { ... $T2 $A { get; } ... }
+                  - pattern: class $C { ... $T2 $A { get; set; } = $W; ... }
+                  - pattern: class $C { ... $T2 $A { get; init; } = $W; ... }
+                  - pattern: class $C { ... $T2 $A { get; } = $W; ... }
+              - metavariable-regex:
+                  metavariable: $C
+                  regex: '^(\w*[a-z0-9])?(Post|Tweet|Toot|Reply|ForumPost|WallPost|StatusUpdate)$'
+              - metavariable-regex:
+                  metavariable: $A
+                  regex: '(?i)^_?(author|authorId|creator|creatorId|poster|posterId|owner|ownerId|user|userId|createdBy)$'
+          - focus-metavariable: $M
+    metadata:
+      activity: operates_social_platform
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/operates-social-platform
+      provenance: ungovr-original
+      license: MIT
