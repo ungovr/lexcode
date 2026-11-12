@@ -1,0 +1,65 @@
+rules:
+  - id: lexcode.voice.php-transcription-api
+    languages: [php]
+    severity: INFO
+    message: Sends recorded speech to a speech-to-text service from PHP, which is transcribing human voices (processes_voice).
+    pattern-either:
+      # openai-php/client, and the facade of openai-php/laravel. audio()->speech() is text to
+      # speech, which reads out typed text, and is left out.
+      - pattern: $C->audio()->transcribe(...)
+      - pattern: $C->audio()->translate(...)
+      - pattern: $C::audio()->transcribe(...)
+      - pattern: $C::audio()->translate(...)
+      # aws/aws-sdk-php, Amazon Transcribe batch jobs, and their Async forms.
+      - pattern: $C->startTranscriptionJob(...)
+      - pattern: $C->startTranscriptionJobAsync(...)
+      - pattern: $C->startMedicalTranscriptionJob(...)
+      - pattern: $C->startMedicalTranscriptionJobAsync(...)
+      - pattern: $C->startCallAnalyticsJob(...)
+      - pattern: $C->startCallAnalyticsJobAsync(...)
+      # google/cloud-speech (V1, V1p1beta1, V2): the audio to recognize and the recognize requests.
+      # The engine does not resolve imports, so each class is matched imported, aliased or in full,
+      # and an app's own class of the same short name in another namespace is not. The engine's
+      # `use X;` also matches `use X as Y;`, so the short-name branch steps aside where the class
+      # is aliased and the short name may be the app's own.
+      - patterns:
+          - pattern-either:
+              - patterns:
+                  - pattern: new $CLS(...)
+                  - pattern-inside: |
+                      use Google\Cloud\Speech\$V\$CLS;
+                      ...
+                  - pattern-not-inside: |
+                      use Google\Cloud\Speech\$V\$CLS as $AL;
+                      ...
+              - patterns:
+                  - pattern: new $A(...)
+                  - pattern-inside: |
+                      use Google\Cloud\Speech\$V\$CLS as $A;
+                      ...
+              - pattern: new \Google\Cloud\Speech\$V\$CLS(...)
+          - metavariable-regex:
+              metavariable: $CLS
+              regex: ^(RecognitionAudio|(LongRunning|Streaming|Batch)?RecognizeRequest)$
+      # google/apiclient-services: the Speech-to-Text REST service.
+      - pattern: new \Google\Service\Speech(...)
+      - pattern: new \Google_Service_Speech(...)
+      - patterns:
+          - pattern: new Speech(...)
+          - pattern-inside: |
+              use Google\Service\Speech;
+              ...
+          - pattern-not-inside: |
+              use Google\Service\Speech as $AL;
+              ...
+      - patterns:
+          - pattern: new $A(...)
+          - pattern-inside: |
+              use Google\Service\Speech as $A;
+              ...
+    metadata:
+      activity: processes_voice
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-voice
+      provenance: ungovr-original
+      license: MIT
