@@ -1,4 +1,4 @@
-# lexcode-expect: 30
+# lexcode-expect: 33
 # Texts, calls and push notifications, where the code does not show whether a person just asked.
 class NotificationsController < ApplicationController
   def reminder
@@ -101,5 +101,14 @@ end
 class TemplateBlastJob < ApplicationJob
   def perform(user)
     client.messages.create(from: "+15550100", to: user.phone, content_sid: "HXb5b62575e6e4ff6129ad7c8efe1f983e", content_variables: { "1" => user.first_name }.to_json)
+  end
+end
+
+# Promo wording in other spellings, and "verified" that is not a verification.
+class SpringSaleJob < ApplicationJob
+  def perform(user, coupon)
+    client.messages.create(from: "+15550100", to: user.phone, body: "Promo-code SAVE20 ends tonight")
+    client.messages.create(from: "+15550100", to: user.phone, body: "Use #{coupon.code} for 20% off")
+    client.messages.create(from: "+15550100", to: user.phone, body: "Verified buyers save 20% today")
   end
 end

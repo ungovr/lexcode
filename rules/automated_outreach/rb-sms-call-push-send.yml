@@ -6,9 +6,10 @@ rules:
     patterns:
       - pattern-either:
           # A text with no body: (a content template) counts; one with a body counts unless the body
-          # is a one-time code, a verification, or a password or PIN message, which a person just
-          # asked for. Only the body is read: a promo code, or a recipient named verified_phone,
-          # says nothing about that.
+          # is a one-time code, a verification, a password, PIN or 2FA message, or a sign-in or reset
+          # link, which a person just asked for. Only the body is read: a promo code, or a recipient
+          # named verified_phone, says nothing about that. Word edges are letters, not \b, so
+          # otp_message and login_code_text still read as codes.
           - patterns:
               - pattern: '$C.messages.create(..., to: $TO, ...)'
               - pattern-not: '$C.messages.create(..., body: $B, ...)'
@@ -17,7 +18,7 @@ rules:
               - pattern: '$C.messages.create(..., body: $B, ...)'
               - metavariable-regex:
                   metavariable: $B
-                  regex: '(?is)^(?!.*(?:verif|one[- ]?time|\botp\b|passcode|password|\bpin\b|(?<!promo )(?<!discount )(?<!coupon )(?<!referral )(?<!gift )(?<!zip )\bcode\b))'
+                  regex: '(?is)^(?!.*(?:(?<![a-z])verif(?:y|ication)|one[- ]?time|(?<![a-z])otp(?![a-z])|passcode|password|(?<![a-z])pin(?![a-z])|(?<![a-z0-9])2fa(?![a-z])|two[- ]factor|(?:magic|reset|(?:sign|log)[- ]?in)[- ]link|(?<!promo[ _.-])(?<!discount[ _.-])(?<!coupon[ _.-])(?<!referral[ _.-])(?<!gift[ _.-])(?<!zip[ _.-])(?<![a-z])code(?![a-z])))'
           - pattern: '$C.calls.create(..., to: $TO, ...)'
           - pattern: Webpush.payload_send(...)
           - pattern: Rpush::$K::Notification.create!(...)
