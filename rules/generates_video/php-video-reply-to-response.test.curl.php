@@ -1,7 +1,7 @@
 <?php
-// lexcode-expect: 3
-// Plain PHP with curl: the endpoint passed to curl_init, and set as an option, and Veo on Vertex
-// AI. Each prints what the video endpoint returns.
+// lexcode-expect: 4
+// Plain PHP with curl: the endpoint passed to curl_init, set as an option and set in an options
+// array, and Veo on Vertex AI. Each prints what the video endpoint returns.
 
 namespace App\Endpoints;
 
@@ -24,6 +24,18 @@ class VideoEndpoint
         curl_setopt($ch, CURLOPT_URL, 'https://api.dev.runwayml.com/v1/image_to_video');
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(['promptImage' => $imageUrl, 'model' => 'gen4_turbo']));
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        $task = curl_exec($ch);
+        echo $task;
+    }
+
+    public function textToVideo(string $prompt): void
+    {
+        $ch = curl_init();
+        curl_setopt_array($ch, [
+            CURLOPT_URL => 'https://api.dev.runwayml.com/v1/text_to_video',
+            CURLOPT_POSTFIELDS => json_encode(['promptText' => $prompt, 'model' => 'gen4_turbo']),
+            CURLOPT_RETURNTRANSFER => true,
+        ]);
         $task = curl_exec($ch);
         echo $task;
     }

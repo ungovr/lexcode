@@ -6,7 +6,8 @@ rules:
     patterns:
       - pattern-regex: (?i)(?<=["'])https?://(?:[a-z0-9-]*api[a-z0-9-]*\.(?:[a-z0-9-]+\.)*(?:withpersona\.com|veriff\.(?:com|me)|onfido\.com|jumio\.com|netverify\.com|yoti\.com|sumsub\.com|idenfy\.com|au10tix\.com|ondato\.com|incode\.com|trulioo\.com|idnow\.io)|(?:[a-z0-9-]+\.)*(?:withpersona\.com|veriff\.(?:com|me)|onfido\.com|jumio\.(?:com|ai)|netverify\.com|yoti\.com|sumsub\.com|idenfy\.com|au10tix\.com|ondato\.com|incode\.com|trulioo\.com|idnow\.io)/(?:[^\s"']*/)?(?:api|v[0-9]+)(?=/))[^\s"']*
       # The URL is an argument of an HTTP call: a client method (Guzzle, Symfony's HttpClient,
-      # Laravel's Http facade and its chains), a Guzzle base URI, curl, or a PHP stream read
+      # Laravel's Http facade and its chains), a Guzzle base URI, curl (the address given to
+      # curl_init, or set as an option alone or in an options array), or a PHP stream read
       - pattern-either:
           - patterns:
               - pattern-either:
@@ -18,6 +19,7 @@ rules:
           - pattern-inside: "[..., 'base_uri' => $U, ...]"
           - pattern-inside: curl_init(...)
           - pattern-inside: curl_setopt($CH, CURLOPT_URL, ...)
+          - pattern-inside: "curl_setopt_array($CH, [..., CURLOPT_URL => $U, ...])"
           - pattern-inside: file_get_contents(...)
           - pattern-inside: fopen(...)
     metadata:

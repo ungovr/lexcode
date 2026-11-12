@@ -1,16 +1,14 @@
 <?php
-// lexcode-expect: 7
-// Chat messages mapped to a table: Doctrine entities under the ORM namespace alias, fully qualified,
-// under the Entity import and under an alias of it, and Eloquent models extending Model fully
-// qualified, under its import and under an alias. The file imports Entity and Model twice, plainly and
-// under an alias, so both import shapes are in one fixture.
+// lexcode-expect: 5
+// Chat messages mapped to a table: Doctrine entities under the ORM namespace alias, fully qualified
+// and under the Entity import, and Eloquent models extending Model fully qualified and under its
+// import. The aliased imports are in php-chat-message-entity.test.alias.php, because the short-name
+// branch steps aside in a file that also imports the class under an alias.
 namespace App\Entity;
 
 use Doctrine\ORM\Mapping as ORM;
 use Doctrine\ORM\Mapping\Entity;
-use Doctrine\ORM\Mapping\Entity as DoctrineEntity;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Model as Eloquent;
 
 #[ORM\Entity(repositoryClass: ChatMessageRepository::class)]
 #[ORM\Table(name: 'chat_message')]
@@ -30,11 +28,6 @@ class ChatTranscript
 {
 }
 
-#[DoctrineEntity(readOnly: true)]
-class ChatLog
-{
-}
-
 class ChatHistory extends \Illuminate\Database\Eloquent\Model
 {
     protected $fillable = ['user_id', 'body'];
@@ -43,9 +36,4 @@ class ChatHistory extends \Illuminate\Database\Eloquent\Model
 class ConversationMessage extends Model
 {
     protected $fillable = ['conversation_id', 'role', 'content'];
-}
-
-final class ChatEntry extends Eloquent
-{
-    protected $guarded = [];
 }

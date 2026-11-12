@@ -9,7 +9,9 @@ rules:
     # shared with php-send-in-loop. A console command is not a shape here: an operator runs it by hand
     # as often as cron does (symfony/demo's app:list-users mails its table to the address typed on the
     # command line), and the scheduler entry that names a command is in another file. A command that
-    # sends in a loop is still php-send-in-loop's.
+    # sends in a loop is still php-send-in-loop's. The engine's `use X;` also matches `use X as Y;`, so
+    # each short-name branch steps aside where the class is aliased and the short name may be the
+    # app's own.
     patterns:
       - pattern-either:
           # A Laravel job, queued listener or queued notification.
@@ -18,6 +20,9 @@ rules:
           - patterns:
               - pattern-inside: |
                   use Illuminate\Contracts\Queue\ShouldQueue;
+                  ...
+              - pattern-not-inside: |
+                  use Illuminate\Contracts\Queue\ShouldQueue as $AL;
                   ...
               - pattern-inside: |
                   class $K implements ShouldQueue { ... }
@@ -33,6 +38,9 @@ rules:
           - patterns:
               - pattern-inside: |
                   use Symfony\Component\EventDispatcher\EventSubscriberInterface;
+                  ...
+              - pattern-not-inside: |
+                  use Symfony\Component\EventDispatcher\EventSubscriberInterface as $AL;
                   ...
               - pattern-inside: |
                   class $K implements EventSubscriberInterface { ... }
@@ -61,6 +69,9 @@ rules:
               - pattern-inside: |
                   use Symfony\Component\Messenger\Attribute\AsMessageHandler;
                   ...
+              - pattern-not-inside: |
+                  use Symfony\Component\Messenger\Attribute\AsMessageHandler as $AL;
+                  ...
               - pattern-either:
                   - pattern-inside: |
                       #[AsMessageHandler($...ARGS)]
@@ -71,6 +82,9 @@ rules:
           - patterns:
               - pattern-inside: |
                   use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
+                  ...
+              - pattern-not-inside: |
+                  use Symfony\Component\EventDispatcher\Attribute\AsEventListener as $AL;
                   ...
               - pattern-either:
                   - pattern-inside: |
@@ -114,6 +128,9 @@ rules:
                       - pattern-inside: |
                           use Illuminate\Support\Facades\Mail;
                           ...
+                      - pattern-not-inside: |
+                          use Illuminate\Support\Facades\Mail as $AL;
+                          ...
                       - pattern: Mail::$MM(...)
                   - patterns:
                       - pattern-inside: |
@@ -131,6 +148,9 @@ rules:
                   - patterns:
                       - pattern-inside: |
                           use Illuminate\Support\Facades\Notification;
+                          ...
+                      - pattern-not-inside: |
+                          use Illuminate\Support\Facades\Notification as $AL;
                           ...
                       - pattern: Notification::$NM(...)
                   - patterns:

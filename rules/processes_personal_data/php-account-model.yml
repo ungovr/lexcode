@@ -5,11 +5,16 @@ rules:
     message: Declares a user account model with a stored password (a Laravel authenticatable user, or a Symfony password-authenticated user), which is processing personal data (processes_personal_data).
     pattern-either:
       # Laravel: the framework's authenticatable user base class, fully qualified, imported or aliased.
+      # The engine's `use X;` also matches `use X as Y;`, so each short-name branch steps aside
+      # where the class is aliased and the short name may be the app's own.
       - pattern: class $C extends \Illuminate\Foundation\Auth\User { ... }
       - patterns:
           - pattern: class $C extends User { ... }
           - pattern-inside: |
               use Illuminate\Foundation\Auth\User;
+              ...
+          - pattern-not-inside: |
+              use Illuminate\Foundation\Auth\User as $AL;
               ...
       - patterns:
           - pattern: class $C extends $A { ... }
@@ -22,6 +27,9 @@ rules:
           - pattern: class $C implements PasswordAuthenticatedUserInterface { ... }
           - pattern-inside: |
               use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
+              ...
+          - pattern-not-inside: |
+              use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface as $AL;
               ...
       - patterns:
           - pattern: class $C implements $A { ... }

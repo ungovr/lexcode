@@ -1,14 +1,13 @@
 <?php
-// lexcode-expect: 10
-// Hashing passwords with a framework's hasher: Laravel's Hash facade (imported, aliased, fully
-// qualified and through the global alias), its bcrypt() helper and hasher classes, and Symfony's
+// lexcode-expect: 9
+// Hashing passwords with a framework's hasher: Laravel's Hash facade (imported, fully qualified
+// and through the global alias; aliased in php-password-hashing.test.alias.php), its bcrypt() helper and hasher classes, and Symfony's
 // password hasher, through an injected service and the hasher classes.
 
 namespace App\Accounts;
 
 use Illuminate\Hashing\BcryptHasher;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Hash as Hasher;
 use Symfony\Component\PasswordHasher\Hasher\NativePasswordHasher as Native;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
@@ -22,7 +21,6 @@ class Registration
     {
         return [
             Hash::make($plain),
-            Hasher::make($plain),
             \Illuminate\Support\Facades\Hash::make($plain),
             \Hash::make($plain),
             bcrypt($plain),

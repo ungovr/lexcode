@@ -1,11 +1,12 @@
 <?php
-// lexcode-expect: 5
-// Account models: the person signs up and signs in with a stored password.
+// lexcode-expect: 4
+// Account models: the person signs up and signs in with a stored password. Laravel's plain
+// import is in php-account-model.test.plain.php, because the short-name branch steps aside in a
+// file that also imports the class under an alias.
 
 namespace App\Models;
 
 use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Foundation\Auth\User;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 
@@ -15,11 +16,6 @@ class Customer extends Authenticatable
     protected $fillable = ['name', 'email', 'password'];
 
     protected $hidden = ['password', 'remember_token'];
-}
-
-// Laravel, through the plain import.
-class Member extends User
-{
 }
 
 // Laravel, fully qualified.

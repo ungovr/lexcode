@@ -7,7 +7,8 @@ rules:
     # such as users, subscribers or members, or a query's all(), get(), cursor() or lazy()), and not the
     # administrators; Laravel documents it for a collection of users, and a single
     # notifiable is php-send-in-loop's or nothing. Filament's Notification toast and an app's own
-    # Notification class are other classes and do not match.
+    # Notification class are other classes and do not match. The engine's `use X;` also matches
+    # `use X as Y;`, so the short-name branch steps aside where the facade is aliased.
     pattern-either:
       - patterns:
           - pattern-either:
@@ -16,6 +17,9 @@ rules:
               - patterns:
                   - pattern-inside: |
                       use Illuminate\Support\Facades\Notification;
+                      ...
+                  - pattern-not-inside: |
+                      use Illuminate\Support\Facades\Notification as $AL;
                       ...
                   - pattern: Notification::$NM($TO, ...)
               - patterns:

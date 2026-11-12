@@ -1,15 +1,14 @@
 <?php
-// lexcode-expect: 9
+// lexcode-expect: 8
 // Sends from a scheduler that no user action triggers: Laravel scheduler closures ($schedule->call,
-// and the Schedule facade under its import, an alias and fully qualified) and Symfony Scheduler tasks
+// and the Schedule facade under its import and fully qualified) and Symfony Scheduler tasks
 // (#[AsCronTask] and #[AsPeriodicTask], on a class and on a method, under an import, an alias and
-// fully qualified). The file imports the Schedule facade twice, plainly and under an alias, so both
-// import shapes are in one fixture.
+// fully qualified). The Schedule facade under an alias is in php-send-in-scheduled-job.test.alias.php,
+// because the short-name branch steps aside in a file that also imports the class under an alias.
 namespace App\Console;
 
 use Illuminate\Console\Scheduling\Schedule as ConsoleSchedule;
 use Illuminate\Support\Facades\Schedule;
-use Illuminate\Support\Facades\Schedule as Cron;
 use Illuminate\Support\Facades\Mail;
 use Symfony\Component\Scheduler\Attribute\AsCronTask;
 use Symfony\Component\Scheduler\Attribute\AsPeriodicTask as Every;
@@ -26,11 +25,6 @@ class Kernel
         Schedule::call(function () {
             $this->mailer->send($this->buildDigest());
         })->weekly();
-
-        Cron::call(fn () => $this->twilio->messages->create(
-            $this->onCall->phone,
-            ['from' => '+15005550006', 'body' => 'Shift starts in one hour.']
-        ))->hourly();
 
         \Illuminate\Support\Facades\Schedule::call(function () {
             send_overdue_notifications();

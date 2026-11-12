@@ -14,6 +14,8 @@ rules:
           # call takes, or what a form request's rules() returns; the facade is matched fully
           # qualified, imported, aliased, and as the root alias (written \Validator, or bare in a
           # file with no namespace).
+          # The engine's `use X;` also matches `use X as Y;`, so each short-name branch steps aside
+          # where the class is aliased and the short name may be the app's own.
           - patterns:
               - pattern-either:
                   - pattern: \Illuminate\Support\Facades\Validator::make($D, $RULES, ...)
@@ -22,6 +24,9 @@ rules:
                       - pattern: Validator::make($D, $RULES, ...)
                       - pattern-inside: |
                           use Illuminate\Support\Facades\Validator;
+                          ...
+                      - pattern-not-inside: |
+                          use Illuminate\Support\Facades\Validator as $AL;
                           ...
                   - patterns:
                       - pattern: Validator::make($D, $RULES, ...)
@@ -60,6 +65,9 @@ rules:
               - pattern-inside: |
                   use Symfony\Component\Validator\Constraints\Email;
                   ...
+              - pattern-not-inside: |
+                  use Symfony\Component\Validator\Constraints\Email as $AL;
+                  ...
           - patterns:
               - pattern: new $A\Email(...)
               - pattern-inside: |
@@ -72,6 +80,9 @@ rules:
               - pattern-regex: '#\[Email\b'
               - pattern-inside: |
                   use Symfony\Component\Validator\Constraints\Email;
+                  ...
+              - pattern-not-inside: |
+                  use Symfony\Component\Validator\Constraints\Email as $AL;
                   ...
           - patterns:
               - pattern-regex: '(?:#\[|@)Assert\\Email\b'

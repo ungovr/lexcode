@@ -1,8 +1,10 @@
 <?php
-// lexcode-expect: 20
+// lexcode-expect: 18
 // Encrypting data, agreeing keys or opening a secure connection with a cryptography library the
 // product bundles. Each library class is used once through an aliased import and once fully
-// qualified, besides its plain import.
+// qualified, besides its plain import. The Crypt facade and JWEBuilder, imported plainly here, are
+// aliased in php-library-encryption.test.alias.php, because the short-name branch steps aside in a
+// file that also imports the class under an alias.
 
 namespace App\Security;
 
@@ -10,9 +12,7 @@ use Defuse\Crypto\Crypto;
 use Defuse\Crypto\Key as DefuseKey;
 use Illuminate\Encryption\Encrypter as LaravelEncrypter;
 use Illuminate\Support\Facades\Crypt;
-use Illuminate\Support\Facades\Crypt as Vault;
 use Jose\Component\Encryption\JWEBuilder;
-use Jose\Component\Encryption\JWEBuilder as Builder;
 use ParagonIE\Halite\KeyFactory;
 use ParagonIE\Halite\Symmetric\Crypto as Symmetric;
 use phpseclib3\Crypt\AES;
@@ -21,13 +21,12 @@ use phpseclib3\Net\SFTP;
 
 class Sealing
 {
-    // Laravel's encrypter: the facade imported, aliased, fully qualified and through the global
-    // alias, then the Encrypter class aliased and fully qualified.
+    // Laravel's encrypter: the facade imported, fully qualified and through the global alias, then
+    // the Encrypter class aliased and fully qualified.
     public function laravel(string $value): array
     {
         return [
             Crypt::encryptString($value),
-            Vault::encrypt($value),
             \Illuminate\Support\Facades\Crypt::encryptString($value),
             \Crypt::encrypt($value),
             new LaravelEncrypter(random_bytes(32), 'aes-256-gcm'),
@@ -71,7 +70,6 @@ class Sealing
     {
         return [
             new JWEBuilder($algorithms),
-            new Builder($algorithms),
             new \Jose\Component\Encryption\JWEBuilder($algorithms),
         ];
     }

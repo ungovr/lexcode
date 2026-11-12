@@ -6,13 +6,18 @@ rules:
     # The engine does not resolve `use` imports, so each class is matched three ways: written out in
     # full, by its short name under its own `use` line, and by an alias under `use ... as`. A project
     # class with the same short name in another namespace (an app's own `Crawler` or `BasicSpider`,
-    # or Symfony's DomCrawler `Crawler`) matches none of them.
+    # or Symfony's DomCrawler `Crawler`) matches none of them. The engine's `use X;` also matches
+    # `use X as Y;`, so each short-name branch steps aside where the class is aliased and the short
+    # name may be the app's own.
     pattern-either:
       # Spatie Crawler: Crawler::create(), the start of every crawl.
       - pattern: \Spatie\Crawler\Crawler::create(...)
       - patterns:
           - pattern-inside: |
               use Spatie\Crawler\Crawler;
+              ...
+          - pattern-not-inside: |
+              use Spatie\Crawler\Crawler as $AL;
               ...
           - pattern: Crawler::create(...)
       - patterns:
@@ -26,6 +31,9 @@ rules:
       - patterns:
           - pattern-inside: |
               use RoachPHP\Spider\BasicSpider;
+              ...
+          - pattern-not-inside: |
+              use RoachPHP\Spider\BasicSpider as $AL;
               ...
           - pattern: |
               class $K extends BasicSpider { ... }
@@ -42,6 +50,9 @@ rules:
                   - pattern-inside: |
                       use RoachPHP\Roach;
                       ...
+                  - pattern-not-inside: |
+                      use RoachPHP\Roach as $AL;
+                      ...
                   - pattern: Roach::$M(...)
               - patterns:
                   - pattern-inside: |
@@ -57,6 +68,9 @@ rules:
       - patterns:
           - pattern-inside: |
               use Crwlr\Crawler\HttpCrawler;
+              ...
+          - pattern-not-inside: |
+              use Crwlr\Crawler\HttpCrawler as $AL;
               ...
           - pattern: |
               class $K extends HttpCrawler { ... }

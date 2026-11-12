@@ -16,9 +16,14 @@ rules:
     # php-selfie-and-id-document.test.large.php holds 2,500 entries; the fixture suite fails if the
     # engine cannot finish it.
     #
-    # A name's first letter is lowercase, as a PHP array key or column is written (selfie, faceImage,
-    # idCard), so an SDK's API model, whose shapes are PascalCase ('SelfieImage', 'IdentityDocument'),
-    # is not read as an app holding the images.
+    # A value is the anonymous `$_`, which binds nothing. With a named metavariable, each matching
+    # name in one array added its own binding, and an array of 3,000 matching names took 4.9 GB
+    # (149 MB with `$_`, on Opengrep 1.33.1).
+    #
+    # Names are read in any case, so an app's PascalCase payload ('SelfieImage', 'IDCard') counts.
+    # An SDK's API model names the same shapes without holding any image; it is held out by its own
+    # form: a face name whose value is an array with a `type` or `shape` key (a shape definition),
+    # or an array with a 'shapes' key (the model's shape list).
     patterns:
       - pattern-either:
           - pattern-regex: '(?is)\A(?=.*[''"]selfie).*'
@@ -40,13 +45,15 @@ rules:
           - pattern-regex: '(?is)\A(?=.*[''"]document_?(?:image|photo|front|back|scan)).*'
       # The face name, as a string, in an array literal (validation rules, fillable columns, a request
       # payload) that holds a face name and an ID-document name, each as a key or as a string element
-      - pattern: '"=~/^(?:selfie|liveness|face_?(?i:image|photo|img|picture|pic|capture|snapshot|scan))\w*$/"'
+      - pattern: '"=~/(?i)^(?:selfie|liveness|face_?(?:image|photo|img|picture|pic|capture|snapshot|scan))\w*$/"'
       - pattern-either:
-          - pattern-inside: '[..., "=~/^(?:selfie|liveness|face_?(?i:image|photo|img|picture|pic|capture|snapshot|scan))\w*$/" => $V, ...]'
-          - pattern-inside: '[..., "=~/^(?:selfie|liveness|face_?(?i:image|photo|img|picture|pic|capture|snapshot|scan))\w*$/", ...]'
+          - pattern-inside: '[..., "=~/(?i)^(?:selfie|liveness|face_?(?:image|photo|img|picture|pic|capture|snapshot|scan))\w*$/" => $_, ...]'
+          - pattern-inside: '[..., "=~/(?i)^(?:selfie|liveness|face_?(?:image|photo|img|picture|pic|capture|snapshot|scan))\w*$/", ...]'
       - pattern-either:
-          - pattern-inside: '[..., "=~/^(?:photo_?(?i:id)_?(?i:image|img|photo|card|doc|document|scan|front|back|upload|file)|id_?(?i:document|doc|card|photo|image|img|scan|front|back)|identity_?(?i:document|doc|card)|identification_?(?i:image|photo|document|doc|card)|passport_?(?i:image|photo|scan|page|front)|drivers?_?(?i:licen[cs]e)_?(?i:image|photo|scan|front|back)|document_?(?i:image|photo|front|back|scan))\w*$/" => $W, ...]'
-          - pattern-inside: '[..., "=~/^(?:photo_?(?i:id)_?(?i:image|img|photo|card|doc|document|scan|front|back|upload|file)|id_?(?i:document|doc|card|photo|image|img|scan|front|back)|identity_?(?i:document|doc|card)|identification_?(?i:image|photo|document|doc|card)|passport_?(?i:image|photo|scan|page|front)|drivers?_?(?i:licen[cs]e)_?(?i:image|photo|scan|front|back)|document_?(?i:image|photo|front|back|scan))\w*$/", ...]'
+          - pattern-inside: '[..., "=~/(?i)^(?:photo_?id_?(?:image|img|photo|card|doc|document|scan|front|back|upload|file)|id_?(?:document|doc|card|photo|image|img|scan|front|back)|identity_?(?:document|doc|card)|identification_?(?:image|photo|document|doc|card)|passport_?(?:image|photo|scan|page|front)|drivers?_?licen[cs]e_?(?:image|photo|scan|front|back)|document_?(?:image|photo|front|back|scan))\w*$/" => $_, ...]'
+          - pattern-inside: '[..., "=~/(?i)^(?:photo_?id_?(?:image|img|photo|card|doc|document|scan|front|back|upload|file)|id_?(?:document|doc|card|photo|image|img|scan|front|back)|identity_?(?:document|doc|card)|identification_?(?:image|photo|document|doc|card)|passport_?(?:image|photo|scan|page|front)|drivers?_?licen[cs]e_?(?:image|photo|scan|front|back)|document_?(?:image|photo|front|back|scan))\w*$/", ...]'
+      - pattern-not-inside: '[..., "=~/(?i)^(?:selfie|liveness|face_?(?:image|photo|img|picture|pic|capture|snapshot|scan))\w*$/" => [..., "=~/^(?:type|shape)$/" => $_, ...], ...]'
+      - pattern-not-inside: '[..., "shapes" => $_, ...]'
     metadata:
       activity: relies_on_digital_identity
       mentioned: performs

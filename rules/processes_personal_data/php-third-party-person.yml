@@ -16,6 +16,8 @@ rules:
           - pattern-regex: '(?s)\A(?=.*gravatar\.com/avatar).*'
       - pattern-either:
           # Stripe: a customer or a Checkout session given the person's address (not a literal).
+          # The engine's `use X;` also matches `use X as Y;`, so each short-name branch steps aside
+          # where the class is aliased and the short name may be the app's own.
           - patterns:
               - pattern-either:
                   - pattern: "$S->customers->create([..., 'email' => $E, ...], ...)"
@@ -31,6 +33,9 @@ rules:
                       - pattern-inside: |
                           use Stripe\Customer;
                           ...
+                      - pattern-not-inside: |
+                          use Stripe\Customer as $AL;
+                          ...
                   - patterns:
                       - pattern-either:
                           - pattern: "$A::create([..., 'email' => $E, ...], ...)"
@@ -42,6 +47,9 @@ rules:
                       - pattern: "Session::create([..., 'customer_email' => $E, ...], ...)"
                       - pattern-inside: |
                           use Stripe\Checkout\Session;
+                          ...
+                      - pattern-not-inside: |
+                          use Stripe\Checkout\Session as $AL;
                           ...
                   - patterns:
                       - pattern: "$A::create([..., 'customer_email' => $E, ...], ...)"

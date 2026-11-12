@@ -1,13 +1,14 @@
 <?php
-// lexcode-expect: 10
+// lexcode-expect: 9
 // Cookies written with a name that marks them as analytics, advertising or visitor-identifier
-// cookies: plain PHP, Laravel and Symfony.
+// cookies: plain PHP, Laravel and Symfony. Symfony's cookie under an aliased import is in
+// php-tracking-cookie.test.alias.php, because the short-name branch steps aside in a file that also
+// imports the class under an alias.
 
 namespace App\Http\Middleware;
 
 use Illuminate\Support\Facades\Cookie as CookieJar;
 use Symfony\Component\HttpFoundation\Cookie;
-use Symfony\Component\HttpFoundation\Cookie as HttpCookie;
 use Symfony\Component\HttpFoundation\Response;
 
 class AssignVisitor
@@ -32,9 +33,8 @@ class AssignVisitor
             525600,
         );
 
-        // Symfony: the cookie class, imported, aliased and fully qualified.
+        // Symfony: the cookie class, imported and fully qualified.
         $response->headers->setCookie(Cookie::create('_gcl_au', $id));
-        $response->headers->setCookie(new HttpCookie('browser_id', $id));
         $response->headers->setCookie(new \Symfony\Component\HttpFoundation\Cookie('fingerprint', $id));
 
         return $response;
