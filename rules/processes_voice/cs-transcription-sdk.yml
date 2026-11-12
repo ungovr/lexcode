@@ -1,0 +1,132 @@
+rules:
+  - id: lexcode.voice.cs-transcription-sdk
+    languages: [csharp]
+    severity: INFO
+    message: Sends recorded speech to a speech-to-text service from C#, which is transcribing human voices (processes_voice).
+    # Library types are written in full: the engine resolves a file's `using` lines and aliases, so the
+    # short form under an import matches and an app's own class of the same short name does not.
+    pattern-either:
+      # Azure AI Speech (Microsoft.CognitiveServices.Speech): the recognizers that turn speech into
+      # text, intents or a translation. SpeechSynthesizer reads typed text aloud and is left out.
+      # `new T(...) { ... }` also matches a construction with no initializer, and `T $V = new(...)
+      # { ... };` a target-typed one, with or without.
+      - pattern: new Microsoft.CognitiveServices.Speech.SpeechRecognizer(...) { ... }
+      - pattern: Microsoft.CognitiveServices.Speech.SpeechRecognizer $V = new(...) { ... };
+      - pattern: new Microsoft.CognitiveServices.Speech.Intent.IntentRecognizer(...) { ... }
+      - pattern: Microsoft.CognitiveServices.Speech.Intent.IntentRecognizer $V = new(...) { ... };
+      - pattern: new Microsoft.CognitiveServices.Speech.Translation.TranslationRecognizer(...) { ... }
+      - pattern: Microsoft.CognitiveServices.Speech.Translation.TranslationRecognizer $V = new(...) { ... };
+      - pattern: new Microsoft.CognitiveServices.Speech.Transcription.ConversationTranscriber(...) { ... }
+      - pattern: Microsoft.CognitiveServices.Speech.Transcription.ConversationTranscriber $V = new(...) { ... };
+      - pattern: new Microsoft.CognitiveServices.Speech.Transcription.MeetingTranscriber(...) { ... }
+      - pattern: Microsoft.CognitiveServices.Speech.Transcription.MeetingTranscriber $V = new(...) { ... };
+      # Amazon Transcribe (AWSSDK.TranscribeService): batch jobs on the client, injected through its
+      # interface or built by the app. The vendor-named short forms also find a client whose namespace
+      # comes from a `global using` in another file.
+      - patterns:
+          - pattern-either:
+              - pattern: (Amazon.TranscribeService.IAmazonTranscribeService $C).$M(...)
+              - pattern: (Amazon.TranscribeService.AmazonTranscribeServiceClient $C).$M(...)
+              - pattern: (IAmazonTranscribeService $C).$M(...)
+              - pattern: (AmazonTranscribeServiceClient $C).$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^Start(Transcription|MedicalTranscription|CallAnalytics|MedicalScribe)Job(Async)?$
+      # Google Cloud Speech-to-Text (V1, V1P1Beta1, V2): the client is built, or injected and asked
+      # to recognize. A client from SpeechClient.Create() is found at Create, since the engine does not
+      # follow a factory's return type to the later call.
+      - pattern: Google.Cloud.Speech.V1.SpeechClient.Create(...)
+      - pattern: Google.Cloud.Speech.V1.SpeechClient.CreateAsync(...)
+      - pattern: new Google.Cloud.Speech.V1.SpeechClientBuilder(...) { ... }
+      - pattern: Google.Cloud.Speech.V1.SpeechClientBuilder $V = new(...) { ... };
+      - pattern: Google.Cloud.Speech.V1P1Beta1.SpeechClient.Create(...)
+      - pattern: Google.Cloud.Speech.V1P1Beta1.SpeechClient.CreateAsync(...)
+      - pattern: new Google.Cloud.Speech.V1P1Beta1.SpeechClientBuilder(...) { ... }
+      - pattern: Google.Cloud.Speech.V1P1Beta1.SpeechClientBuilder $V = new(...) { ... };
+      - pattern: Google.Cloud.Speech.V2.SpeechClient.Create(...)
+      - pattern: Google.Cloud.Speech.V2.SpeechClient.CreateAsync(...)
+      - pattern: new Google.Cloud.Speech.V2.SpeechClientBuilder(...) { ... }
+      - pattern: Google.Cloud.Speech.V2.SpeechClientBuilder $V = new(...) { ... };
+      - patterns:
+          - pattern-either:
+              - pattern: (Google.Cloud.Speech.V1.SpeechClient $C).$M(...)
+              - pattern: (Google.Cloud.Speech.V1P1Beta1.SpeechClient $C).$M(...)
+              - pattern: (Google.Cloud.Speech.V2.SpeechClient $C).$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(Recognize|LongRunningRecognize|BatchRecognize|StreamingRecognize)(Async)?$
+      # OpenAI's AudioClient (OpenAI, and Azure.AI.OpenAI's client hands out the same type):
+      # transcription and translation of audio, and Microsoft.Extensions.AI's adapter that makes a
+      # speech-to-text client of it. GenerateSpeech reads typed text aloud and is left out. A client the
+      # app builds, is given, or declares as AudioClient (from GetAudioClient too) is matched by its type,
+      # and a call chained on a typed OpenAI or Azure OpenAI client's GetAudioClient(...) as written.
+      - patterns:
+          - pattern-either:
+              - pattern: (OpenAI.Audio.AudioClient $C).$M(...)
+              - pattern: (OpenAI.OpenAIClient $X).GetAudioClient(...).$M(...)
+              - pattern: (Azure.AI.OpenAI.AzureOpenAIClient $X).GetAudioClient(...).$M(...)
+              # A client whose type the engine cannot see (`var c = sp.GetRequiredService<OpenAIClient>()`)
+              # is matched by the chain in a file that imports OpenAI or Azure.AI.OpenAI. The guard is
+              # a file signal: the engine's `using X;` also accepts `using X.Sub;`, not an alias.
+              - patterns:
+                  - pattern: $X.GetAudioClient(...).$M(...)
+                  - pattern-either:
+                      - pattern-inside: |
+                          using OpenAI;
+                          ...
+                      - pattern-inside: |
+                          using Azure.AI.OpenAI;
+                          ...
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^((Transcribe|Translate)Audio(Streaming)?(Async)?|AsISpeechToTextClient)$
+      # The adapter on an audio client held in a `var` local, in a file that imports
+      # Microsoft.Extensions.AI (where the extension method lives).
+      - patterns:
+          - pattern: $A.AsISpeechToTextClient(...)
+          - pattern-inside: |
+              using Microsoft.Extensions.AI;
+              ...
+      # Microsoft.Extensions.AI speech to text.
+      - patterns:
+          - pattern: (Microsoft.Extensions.AI.ISpeechToTextClient $C).$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^Get(Streaming)?TextAsync$
+      # Semantic Kernel audio to text: an injected service, one resolved from the kernel, and the OpenAI
+      # and Azure OpenAI registrations. The registrations are extension methods on a builder whose type
+      # the engine rarely sees (`var builder = Kernel.CreateBuilder()`), so they are matched by name in a
+      # file that imports Semantic Kernel.
+      - patterns:
+          - pattern: (Microsoft.SemanticKernel.AudioToText.IAudioToTextService $C).$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^GetTextContents?Async$
+      - pattern: $K.GetRequiredService<Microsoft.SemanticKernel.AudioToText.IAudioToTextService>(...)
+      - patterns:
+          - pattern-either:
+              - pattern: $B.AddOpenAIAudioToText(...)
+              - pattern: $B.AddAzureOpenAIAudioToText(...)
+          - pattern-inside: |
+              using Microsoft.SemanticKernel;
+              ...
+      # AssemblyAI (vendor-named, so its short form is matched too) and Deepgram's listen clients.
+      - patterns:
+          - pattern-either:
+              - pattern: (AssemblyAI.AssemblyAIClient $C).Transcripts.$M(...)
+              - pattern: (AssemblyAIClient $C).Transcripts.$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(Transcribe|Submit)Async$
+      - pattern: Deepgram.ClientFactory.CreateListenRESTClient(...)
+      - pattern: Deepgram.ClientFactory.CreateListenWebSocketClient(...)
+      # A speech-to-text endpoint in a string literal, whichever HTTP client sends it. Text-to-speech
+      # endpoints are not in the list.
+      - pattern-regex: |-
+          "[^"\n]*\b(api\.deepgram\.com/v1/listen|api\.assemblyai\.com/v2/(transcript|upload)|api\.openai\.com/v1/audio/(transcriptions|translations)|api\.elevenlabs\.io/v1/speech-to-text|speech\.googleapis\.com/v1[a-z0-9]*/speech:(recognize|longrunningrecognize)|stt\.speech\.microsoft\.com/speech/recognition|/speechtotext/(v3\.\d+/)?transcriptions)
+    metadata:
+      activity: processes_voice
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-voice
+      provenance: ungovr-original
+      license: MIT

@@ -1,0 +1,38 @@
+rules:
+  - id: lexcode.voice.cs-local-speech-engines
+    languages: [csharp]
+    severity: INFO
+    message: Runs a speech recognizer inside the app (Whisper.net, Vosk, System.Speech, the Windows speech recognizer or the .NET MAUI Community Toolkit's speech to text), which is transcribing human voices (processes_voice).
+    # Library types are written in full: the engine resolves a file's `using` lines and aliases, so an
+    # app's own class of the same short name in another namespace is not taken for them.
+    # `new T(...) { ... }` also matches a construction with no initializer, and `T $V = new(...)
+    # { ... };` a target-typed one. The synthesizers that read typed text aloud are left out.
+    pattern-either:
+      # Whisper.net (whisper.cpp): the factory loads a speech model
+      - pattern: Whisper.net.WhisperFactory.FromPath(...)
+      - pattern: Whisper.net.WhisperFactory.FromBuffer(...)
+      # Vosk
+      - pattern: new Vosk.VoskRecognizer(...) { ... }
+      - pattern: Vosk.VoskRecognizer $V = new(...) { ... };
+      # System.Speech on Windows: the in-process engine and the shared desktop recognizer
+      - pattern: new System.Speech.Recognition.SpeechRecognitionEngine(...) { ... }
+      - pattern: System.Speech.Recognition.SpeechRecognitionEngine $V = new(...) { ... };
+      - pattern: new System.Speech.Recognition.SpeechRecognizer(...) { ... }
+      - pattern: System.Speech.Recognition.SpeechRecognizer $V = new(...) { ... };
+      # Windows.Media.SpeechRecognition (WinRT, WinUI and UWP)
+      - pattern: new Windows.Media.SpeechRecognition.SpeechRecognizer(...) { ... }
+      - pattern: Windows.Media.SpeechRecognition.SpeechRecognizer $V = new(...) { ... };
+      # CommunityToolkit.Maui speech to text: listening, injected or through the default instance
+      - patterns:
+          - pattern-either:
+              - pattern: (CommunityToolkit.Maui.Media.ISpeechToText $S).$M(...)
+              - pattern: CommunityToolkit.Maui.Media.SpeechToText.Default.$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(Start)?ListenAsync$
+    metadata:
+      activity: processes_voice
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-voice
+      provenance: ungovr-original
+      license: MIT

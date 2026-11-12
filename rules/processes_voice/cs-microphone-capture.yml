@@ -1,0 +1,46 @@
+rules:
+  - id: lexcode.voice.cs-microphone-capture
+    languages: [csharp]
+    severity: INFO
+    message: Opens the microphone to capture sound, which is recording a human voice (processes_voice).
+    # Library types are written in full: the engine resolves a file's `using` lines and aliases, so an
+    # app's own class or enum of the same short name in another namespace is not taken for them.
+    # `new T(...) { ... }` also matches a construction with no initializer, and `T $V = new(...)
+    # { ... };` a target-typed one.
+    pattern-either:
+      # NAudio on Windows: the wave-in devices and WASAPI capture. Loopback capture records what the
+      # speakers play, not a microphone, and is left out.
+      - pattern: new NAudio.Wave.WaveInEvent(...) { ... }
+      - pattern: NAudio.Wave.WaveInEvent $V = new(...) { ... };
+      - pattern: new NAudio.Wave.WaveIn(...) { ... }
+      - pattern: NAudio.Wave.WaveIn $V = new(...) { ... };
+      - pattern: new NAudio.CoreAudioApi.WasapiCapture(...) { ... }
+      - pattern: NAudio.CoreAudioApi.WasapiCapture $V = new(...) { ... };
+      # .NET for Android: a microphone-type source of the platform's own enum, given to MediaRecorder or
+      # AudioRecord.Builder (SetAudioSource) or to AudioRecord built directly or target-typed. The match is
+      # the source itself, written in full so the file's imports resolve it (they do not reach inside a
+      # metavariable-pattern); an app's own AudioSource enum is not taken for it.
+      - patterns:
+          - pattern-either:
+              - pattern: Android.Media.AudioSource.Mic
+              - pattern: Android.Media.AudioSource.Default
+              - pattern: Android.Media.AudioSource.Camcorder
+              - pattern: Android.Media.AudioSource.Unprocessed
+              - pattern: Android.Media.AudioSource.VoiceRecognition
+              - pattern: Android.Media.AudioSource.VoiceCommunication
+              - pattern: Android.Media.AudioSource.VoicePerformance
+          - pattern-either:
+              - pattern-inside: $R.SetAudioSource(...)
+              - pattern-inside: new Android.Media.AudioRecord(...) { ... }
+              - pattern-inside: Android.Media.AudioRecord $V = new(...) { ... };
+      # .NET for iOS and Mac Catalyst
+      - pattern: AVFoundation.AVAudioRecorder.Create(...)
+      # Plugin.Maui.Audio: a recorder, injected or through the default instance
+      - pattern: (Plugin.Maui.Audio.IAudioManager $A).CreateRecorder(...)
+      - pattern: Plugin.Maui.Audio.AudioManager.Current.CreateRecorder(...)
+    metadata:
+      activity: processes_voice
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-voice
+      provenance: ungovr-original
+      license: MIT

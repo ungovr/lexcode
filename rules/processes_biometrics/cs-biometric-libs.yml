@@ -1,0 +1,45 @@
+rules:
+  - id: lexcode.biometric.cs-biometric-libs
+    languages: [csharp]
+    severity: INFO
+    message: Matches faces or fingerprints with a biometric library (FaceRecognitionDotNet, OpenCvSharp or Emgu CV face recognizers, SourceAFIS, DigitalPersona, Neurotechnology), which is recognizing people from face geometry or a fingerprint (processes_biometrics).
+    # Library types are written in full: the engine resolves a file's `using` lines and aliases, so an
+    # app's own class of the same short name in another namespace is not taken for them. Face detection
+    # (a cascade classifier, face locations) names no one and is left out.
+    # `new T(...) { ... }` also matches a construction with no initializer, and `T $V = new(...)
+    # { ... };` a target-typed one.
+    pattern-either:
+      # FaceRecognitionDotNet: face encodings are face templates, and the comparisons match them
+      - pattern: FaceRecognitionDotNet.FaceRecognition.CompareFaces(...)
+      - pattern: FaceRecognitionDotNet.FaceRecognition.CompareFace(...)
+      - pattern: FaceRecognitionDotNet.FaceRecognition.FaceDistance(...)
+      - pattern: (FaceRecognitionDotNet.FaceRecognition $F).FaceEncodings(...)
+      # OpenCvSharp and Emgu CV: recognizers that learn and match identities
+      - pattern: OpenCvSharp.Face.LBPHFaceRecognizer.Create(...)
+      - pattern: OpenCvSharp.Face.EigenFaceRecognizer.Create(...)
+      - pattern: OpenCvSharp.Face.FisherFaceRecognizer.Create(...)
+      - pattern: new Emgu.CV.Face.LBPHFaceRecognizer(...) { ... }
+      - pattern: Emgu.CV.Face.LBPHFaceRecognizer $V = new(...) { ... };
+      - pattern: new Emgu.CV.Face.EigenFaceRecognizer(...) { ... }
+      - pattern: Emgu.CV.Face.EigenFaceRecognizer $V = new(...) { ... };
+      - pattern: new Emgu.CV.Face.FisherFaceRecognizer(...) { ... }
+      - pattern: Emgu.CV.Face.FisherFaceRecognizer $V = new(...) { ... };
+      # SourceAFIS: a template extracted from a fingerprint image, and the matcher
+      - pattern: new SourceAFIS.FingerprintTemplate(...) { ... }
+      - pattern: SourceAFIS.FingerprintTemplate $V = new(...) { ... };
+      - pattern: new SourceAFIS.FingerprintMatcher(...) { ... }
+      - pattern: SourceAFIS.FingerprintMatcher $V = new(...) { ... };
+      # DigitalPersona U.are.U SDK: a fingerprint template extracted, and templates compared
+      - pattern: DPUruNet.FeatureExtraction.CreateFmdFromFid(...)
+      - pattern: DPUruNet.FeatureExtraction.CreateFmdFromRaw(...)
+      - pattern: DPUruNet.Comparison.Compare(...)
+      - pattern: DPUruNet.Comparison.Identify(...)
+      # Neurotechnology biometric client
+      - pattern: new Neurotec.Biometrics.Client.NBiometricClient(...) { ... }
+      - pattern: Neurotec.Biometrics.Client.NBiometricClient $V = new(...) { ... };
+    metadata:
+      activity: processes_biometrics
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-biometrics
+      provenance: ungovr-original
+      license: MIT
