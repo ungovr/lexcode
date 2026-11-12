@@ -1,0 +1,98 @@
+# Not a taint rule on purpose: the cost is that a value passed through a helper method before the
+# call is not followed; the request's own messages list, or a getter read off the request object
+# anywhere inside the argument (`request.getMessages()`, `request.messages().stream().toList()`), is.
+# The bar is the JS, Python and Ruby rules': a messages or history LIST from the request reaches the
+# model call. A single typed message inside a fixed prompt is a one-shot tool, not a chatbot, so it
+# does not match. The model call is named by the request type or the client in it (a Spring AI
+# ChatClient prompt, a Prompt, an OpenAI or Anthropic params builder, the Bedrock and LangChain4j
+# request builders by their type names, a LangChain4j model), so a "messages" builder of some other
+# kind (a NotificationRequest, a mail template) does not match.
+#
+# The argument is written into each call pattern instead of being checked afterwards with
+# metavariable-pattern: a metavariable-pattern does not see the handler's $P, so a getter on any
+# object (`archive.getMessages()`) or a local named `history` loaded from a store also passed. Written
+# in the call, $P is the handler's own parameter. A receiver is a model when its name has a model
+# word, or `ai` as a word or camel-case part (`openAI`, `aiClient`, not `mailRenderer`).
+rules:
+  - id: lexcode.chatbot.java-request-messages-to-model
+    languages: [java]
+    severity: INFO
+    message: Passes the conversation a client sent in a request to a language model, which is deploying a chatbot (deploys_chatbot).
+    patterns:
+      - pattern-either:
+          - patterns:
+              - pattern-either:
+                  - pattern-inside: |
+                      $RET $F(..., @$AN(...) $T $P, ...) {
+                        ...
+                      }
+              - metavariable-regex:
+                  metavariable: $AN
+                  regex: ^(RequestBody|Payload)$
+          - pattern-inside: |
+              @POST
+              $RET $F(..., $T $P, ...) {
+                ...
+              }
+      # The call is named by what is in it, then its argument is the request's own messages.
+      - pattern-either:
+          - patterns:
+              - pattern: $B.messages(<... $P.$A() ...>)
+              # Literal anchor inside the match (the model call), so the engine skips files with no such call.
+              - pattern-regex: '\.messages\('
+              - metavariable-regex:
+                  metavariable: $B
+                  regex: '(?s)^.*(CreateParams|(Converse|ConverseStream|Chat|ChatCompletion|InvokeModel)Request\.builder|\.prompt\(\)|ChatCompletion|Converse).*$'
+              - metavariable-regex:
+                  metavariable: $A
+                  regex: ^(get)?([Mm]essages|[Hh]istory|[Cc]onversation|[Cc]hatHistory|[Cc]hatMessages)$
+          - patterns:
+              - pattern: $B.messages($P)
+              # Literal anchor inside the match (the model call), so the engine skips files with no such call.
+              - pattern-regex: '\.messages\('
+              - metavariable-regex:
+                  metavariable: $B
+                  regex: '(?s)^.*(CreateParams|(Converse|ConverseStream|Chat|ChatCompletion|InvokeModel)Request\.builder|\.prompt\(\)|ChatCompletion|Converse).*$'
+              - metavariable-regex:
+                  metavariable: $P
+                  regex: ^(messages|history|conversation|chatHistory|chatMessages)$
+          - patterns:
+              - pattern: new Prompt(<... $P.$A() ...>, ...)
+              # Literal anchor inside the match (the model call), so the engine skips files with no such call.
+              - pattern-regex: 'new\s+Prompt\('
+              - metavariable-regex:
+                  metavariable: $A
+                  regex: ^(get)?([Mm]essages|[Hh]istory|[Cc]onversation|[Cc]hatHistory|[Cc]hatMessages)$
+          - patterns:
+              - pattern: new Prompt($P, ...)
+              # Literal anchor inside the match (the model call), so the engine skips files with no such call.
+              - pattern-regex: 'new\s+Prompt\('
+              - metavariable-regex:
+                  metavariable: $P
+                  regex: ^(messages|history|conversation|chatHistory|chatMessages)$
+          - patterns:
+              - pattern: $M.$W(<... $P.$A() ...>)
+              # Literal anchor inside the match (the model call), so the engine skips files with no such call.
+              - pattern-regex: '\.(chat|generate)\('
+              - metavariable-regex:
+                  metavariable: $M
+                  regex: ^(this\.)?(\w*(?i:model|llm|chat|assistant)\w*|(\w*[a-z0-9_])?(Ai|AI)([A-Z_]\w*)?|ai([A-Z_]\w*)?)$
+              - metavariable-regex:
+                  metavariable: $A
+                  regex: ^(get)?([Mm]essages|[Hh]istory|[Cc]onversation|[Cc]hatHistory|[Cc]hatMessages)$
+          - patterns:
+              - pattern: $M.$W($P)
+              # Literal anchor inside the match (the model call), so the engine skips files with no such call.
+              - pattern-regex: '\.(chat|generate)\('
+              - metavariable-regex:
+                  metavariable: $M
+                  regex: ^(this\.)?(\w*(?i:model|llm|chat|assistant)\w*|(\w*[a-z0-9_])?(Ai|AI)([A-Z_]\w*)?|ai([A-Z_]\w*)?)$
+              - metavariable-regex:
+                  metavariable: $P
+                  regex: ^(messages|history|conversation|chatHistory|chatMessages)$
+    metadata:
+      activity: deploys_chatbot
+      mentioned: performs
+      definition: https://lexlint.io/activities/deploys-chatbot
+      provenance: ungovr-original
+      license: MIT

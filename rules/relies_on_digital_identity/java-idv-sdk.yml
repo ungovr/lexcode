@@ -1,0 +1,80 @@
+rules:
+  - id: lexcode.identity.java-idv-sdk
+    languages: [java]
+    severity: INFO
+    message: Checks who a person is with an identity-verification service (Stripe Identity, Onfido, Yoti, Persona, Veriff, Jumio or Sumsub), which is relying on a digital identity (relies_on_digital_identity).
+    # One branch per vendor: each call is read only in a file that imports that vendor's own class.
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: VerificationSession.create(...)
+              - pattern: VerificationReport.retrieve(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import com.stripe.model.identity.VerificationSession;
+                  ...
+              - pattern-inside: |
+                  import com.stripe.model.identity.VerificationReport;
+                  ...
+              - pattern-inside: |
+                  import com.stripe.model.identity.*;
+                  ...
+      - patterns:
+          - pattern: IdentityVerificationSheet.create(...)
+          - pattern-inside: |
+              import com.stripe.android.identity.IdentityVerificationSheet;
+              ...
+      - patterns:
+          - pattern: OnfidoFactory.create(...)
+          - pattern-inside: |
+              import com.onfido.android.sdk.capture.OnfidoFactory;
+              ...
+      - patterns:
+          - pattern: new DefaultApi(...)
+          - pattern-inside: |
+              import com.onfido.api.DefaultApi;
+              ...
+      - patterns:
+          - pattern: YotiClientBuilder.newInstance()
+          - pattern-inside: |
+              import com.yoti.api.client.YotiClientBuilder;
+              ...
+      - patterns:
+          - pattern: DocScanClient.builder()
+          - pattern-inside: |
+              import com.yoti.api.client.docs.DocScanClient;
+              ...
+      - patterns:
+          - pattern: DigitalIdentityClient.builder()
+          - pattern-inside: |
+              import com.yoti.api.client.DigitalIdentityClient;
+              ...
+      - patterns:
+          - pattern-either:
+              - pattern: Inquiry.fromTemplate(...)
+              - pattern: Inquiry.fromTemplateVersion(...)
+              - pattern: Inquiry.fromInquiry(...)
+          - pattern-inside: |
+              import com.withpersona.sdk2.inquiry.Inquiry;
+              ...
+      - patterns:
+          - pattern: Sdk.createLaunchIntent(...)
+          - pattern-inside: |
+              import com.veriff.Sdk;
+              ...
+      - patterns:
+          - pattern: new JumioSDK(...)
+          - pattern-inside: |
+              import com.jumio.sdk.JumioSDK;
+              ...
+      - patterns:
+          - pattern: new SNSMobileSDK.Builder(...)
+          - pattern-inside: |
+              import com.sumsub.sns.core.SNSMobileSDK;
+              ...
+    metadata:
+      activity: relies_on_digital_identity
+      mentioned: performs
+      definition: https://lexlint.io/glossary#relies-on-a-digital-identity
+      provenance: ungovr-original
+      license: MIT

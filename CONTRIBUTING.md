@@ -55,7 +55,7 @@ would end that for the whole set. Every rule says so in its metadata:
 ## Adding a package to the component map
 
 The component map (`rules/components/npm.yml`, `pypi.yml`, `go.yml`,
-`gem.yml`) says which activities a well-known package enables. It is
+`gem.yml`, `maven.yml`) says which activities a well-known package enables. It is
 written by hand, one entry per package, and nothing adds to it on its own:
 
 1. Find candidates with `lexcode deps <repo>... --unmapped`, run over several
@@ -97,6 +97,94 @@ name. Ruby rules always carry a prefix:
 A Ruby rule is `lexcode.<activity-short>.rb-<what>`, file
 `rules/<activity>/rb-<what>.yml`, fixtures `rb-<what>.test.rb` and
 `rb-<what>.neg.test.rb`, and `languages: [ruby]`.
+
+Java, Kotlin and the JVM build files carry a prefix too:
+
+| Kind | Rule `<what>` part | File and fixtures |
+|---|---|---|
+| Java | `java-<what>` | `java-<what>.yml`, `.test.java`, `.neg.test.java`; `languages: [java]` |
+| Kotlin | `kt-<what>` | `kt-<what>.yml`, `.test.kt`, `.neg.test.kt`; `languages: [kotlin]` |
+| Maven | `maven-<what>` | `maven-<what>.yml`, fixtures `maven-<what>.test.xml` and `.neg.test.xml`; `languages: [xml]`, and `paths.include` lists `pom.xml` and `maven-<what>.*` so the fixture is scanned |
+| Gradle (Groovy) | `gradle-<what>` | `gradle-<what>.yml`, `.test.gradle`, `.neg.test.gradle`; `languages: [generic]` over `*.gradle` |
+| Gradle (Kotlin DSL) | `gradle-kts-<what>` | `gradle-kts-<what>.yml`, `.test.gradle.kts`, `.neg.test.gradle.kts`; `languages: [kotlin]` over `*.gradle.kts` |
+
+A Java or Kotlin fixture is a whole compilation unit: a `package` line,
+imports and a class, so it parses as a real file does.
+
+A negative fixture covers the anchors on generic names: strip the guard that
+keeps a rule off a common name (a class called `Post`, a `get` on any
+receiver, an app's own `ActivityHandler`) and the negative has to start
+matching. Other guards, among them sink and propagator restrictions and some
+vendor import guards, are not each pinned by a negative yet, and a contribution
+that adds one is welcome. Where a rule guards on a vendor import,
+write the lookalike the guard exists for: a generic method name called on a
+receiver of another type, in a file without the vendor's import. A rule that
+names several vendors keeps one `patterns:` branch per vendor, each with its own
+import guard, so one vendor's import cannot admit another's call. A wildcard
+import binds no class in the engine, so an import guard has one
+`pattern-inside` for the class's import and another for the vendor's wildcard
+(`import android.speech.*;`), and the positive fixture holds a call under each.
+The negative has neither import.
+
+### Cost
+
+An engine rule can lose the literal pre-filter that lets it skip files that
+cannot match: a very large `pattern-either`, or a key pattern that has no
+literal in it, is read against every file. On a large Java or Kotlin codebase
+that is the difference between seconds and minutes. Check a new rule with the
+engine's `--time` on a real app before it merges: `"$(lexcode engine path)"
+scan --time --config <rule.yml> <dir>` runs the engine binary from lexcode's
+cache (`lexcode engine path` prints where it is) with only that rule over the
+app's source directory. When it is slow, split the
+rule, or add a `pattern-regex` conjunct that names the vendor's package or
+class so the engine can skip the file (see the anchor rules above).
+
+A conjunct that checks the whole file for a name has a reach. Write it as one
+greedy literal, `'(?s)\A(?=.*FirebaseAnalytics).*'`, one per `pattern-regex`,
+and join several with a `pattern-either` for "any of these". On Opengrep 1.33.1
+the lookahead stops matching after about a million backtracking steps and
+records no error. A greedy `.*` counts them from the end of the file, so a name
+used only near the top of the file is lost from about 1,050 KB, and one near the
+end still matches at 4.5 MB. A lazy `.*?` counts them from the start, and loses
+a name used only at the end from about 1,000 KB. An alternation tried at every
+step shortens the reach further: the JVM rules' first form,
+`[\s\S]*?(?:A|B|...)`, lost matches from 120 KB. The release test refuses a
+whole-file lookahead that holds a second lookahead, an alternation at its own
+level (`(?=.*A|.*B)`), an alternation in a group before its first literal
+(`(?=.*(A|B))`), or a lazy `.*?` or `[\s\S]*?` at its own level. A group after
+the first literal (`(?=.*Mechanize\s*\.(?:new|start))`) passes, since it is tried
+only where the literal matched. What the test passes still has the reach, so a
+scan says in a notice how many files it handed the engine are over 1,000,000
+bytes in a language with such a rule.
+
+### Kotlin pattern notes
+
+Measured on Opengrep 1.33.1:
+
+- Method chains, constructors, imports, trailing lambdas (`$X.f($A) { ... }`),
+  and `fun` and `suspend fun` inside `pattern-inside` all work, and so does
+  `metavariable-regex`.
+- `class $K { ... }` does not match a class that has a primary constructor.
+  Write `class $K(...) {` on one line, `...` on the next and `}` on the third.
+- A lambda with a parameter needs `{ $P -> ... }`, or match the call that takes
+  it (`$L.forEach(...)`). A trailing lambda of one parameter and one of two are
+  different shapes: `$M { $P -> ... }` and `$M { $P, $Q -> ... }`, and a rule
+  that must not match a lambda with parameters excludes both.
+- A class literal in a pattern (`Foo::class`, `Foo::class.java`) matches every
+  class literal, so a rule cannot key on one; key on the import or the call.
+- `metavariable-regex` is anchored at the start, and a string metavariable
+  keeps its quotes, so write `.*gpt-` to find a model name inside a string.
+- The parser drops a few constructs (`value class`, `fun interface`, `..<`,
+  some `in` and `->` forms in `when`, soft keywords as identifiers,
+  `object : T by it`). A rule cannot match inside one, though the rest of the
+  file still matches; the scan counts the file in its notice `the engine could
+  not read N files; their evidence is missing from this record`.
+- A path glob in `paths.exclude` also matches package directories
+  (`com/google/samples/apps/...`), so Java and Kotlin source rules exclude
+  `**/src/test/**` and the other test source sets and never a `samples`,
+  `example` or `demo` path. Build-file rules (`maven-`, `gradle-`,
+  `gradle-kts-`) are not source rules and keep their sample and example
+  excludes.
 
 ## Performance tests
 

@@ -1,0 +1,23 @@
+rules:
+  - id: lexcode.esign.java-signature-capture
+    languages: [java]
+    severity: INFO
+    message: Reads back a signature a person drew on an Android signature pad, which is collecting electronic signatures (collects_e_signatures).
+    patterns:
+      - pattern-either:
+          - pattern: $PAD.getSignatureBitmap()
+          - pattern: $PAD.getTransparentSignatureBitmap(...)
+          - pattern: $PAD.getSignatureSvg()
+      - pattern-either:
+          - pattern-inside: |
+              import com.github.gcacace.signaturepad.views.SignaturePad;
+              ...
+          - pattern-inside: |
+              import com.kyanogen.signatureview.SignatureView;
+              ...
+    metadata:
+      activity: collects_e_signatures
+      mentioned: performs
+      definition: https://lexlint.io/glossary#collects-electronic-signatures
+      provenance: ungovr-original
+      license: MIT

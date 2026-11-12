@@ -1,0 +1,22 @@
+rules:
+  - id: lexcode.biometric.kt-rekognition-faces
+    languages: [kotlin]
+    severity: INFO
+    message: Matches or indexes faces with Amazon Rekognition from Kotlin, which is recognizing people from face geometry (processes_biometrics).
+    patterns:
+      # The Rekognition import (AWS SDK for Kotlin, SDK v2 and v1 for Java) keeps a local method of the same name out
+      - pattern-regex: '(?sm)^import\s+(aws\.sdk\.kotlin\.services|software\.amazon\.awssdk\.services|com\.amazonaws\.services)\.rekognition\..*'
+      - pattern-either:
+          - pattern: $C.compareFaces(...)
+          - pattern: $C.indexFaces(...)
+          - pattern: $C.searchFaces(...)
+          - pattern: $C.searchFacesByImage(...)
+          - pattern: $C.searchUsers(...)
+          - pattern: $C.searchUsersByImage(...)
+          - pattern: $C.startFaceSearch(...)
+    metadata:
+      activity: processes_biometrics
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-biometrics
+      provenance: ungovr-original
+      license: MIT

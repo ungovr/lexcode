@@ -1,0 +1,20 @@
+// lexcode-expect: 4
+// A desktop application's build: jlink, jpackage and a Windows executable wrapper (Launch4j) as plugins,
+// and a Compose Multiplatform native distribution.
+plugins {
+    id 'application'
+    id 'org.beryx.jlink' version '3.0.1'
+    id 'org.panteleyev.jpackageplugin' version '1.6.0'
+    id 'edu.sc.seis.launch4j' version '3.0.5'
+}
+
+compose.desktop {
+    application {
+        mainClass = 'org.example.fieldnotes.MainKt'
+        nativeDistributions {
+            targetFormats(org.jetbrains.compose.desktop.application.dsl.TargetFormat.Dmg, org.jetbrains.compose.desktop.application.dsl.TargetFormat.Msi)
+            packageName = 'FieldNotes'
+            packageVersion = '1.4.0'
+        }
+    }
+}

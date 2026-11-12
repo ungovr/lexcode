@@ -1,0 +1,17 @@
+rules:
+  - id: lexcode.audio.java-android-tts-speak
+    languages: [java]
+    severity: INFO
+    message: Reads text aloud with the platform text-to-speech engine, which may be generating audio that reaches users (generates_audio).
+    patterns:
+      - pattern: ($TT $T).speak(...)
+      - metavariable-regex:
+          metavariable: $TT
+          regex: ^([\w.]+\.)?TextToSpeech$
+    metadata:
+      activity: generates_audio
+      mentioned: performs
+      definition: https://lexlint.io/activities/generates-audio
+      provenance: ungovr-original
+      license: MIT
+      strength: signal

@@ -1,0 +1,48 @@
+rules:
+  - id: lexcode.voice.java-local-speech-engines
+    languages: [java]
+    severity: INFO
+    message: Runs a speech recognizer inside the app (Vosk, CMU Sphinx, whisper.cpp or sherpa-onnx), which is transcribing human voices (processes_voice).
+    patterns:
+      - pattern-either:
+          # Vosk: the recognizer is built over a model
+          - patterns:
+              - pattern: new Recognizer(...)
+              - pattern-either:
+                  - pattern-inside: |
+                      import org.vosk.Recognizer;
+                      ...
+                  - pattern-inside: |
+                      import org.vosk.*;
+                      ...
+          # CMU Sphinx
+          - pattern: new StreamSpeechRecognizer(...)
+          - pattern: new LiveSpeechRecognizer(...)
+          # whisper.cpp through WhisperJNI
+          - patterns:
+              - pattern: $W.full(...)
+              - pattern-either:
+                  - pattern-inside: |
+                      import io.github.givimad.whisperjni.WhisperJNI;
+                      ...
+                  - pattern-inside: |
+                      import io.github.givimad.whisperjni.*;
+                      ...
+          # sherpa-onnx
+          - patterns:
+              - pattern-either:
+                  - pattern: new OfflineRecognizer(...)
+                  - pattern: new OnlineRecognizer(...)
+              - pattern-either:
+                  - pattern-inside: |
+                      import com.k2fsa.sherpa.onnx.$C;
+                      ...
+                  - pattern-inside: |
+                      import com.k2fsa.sherpa.onnx.*;
+                      ...
+    metadata:
+      activity: processes_voice
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-voice
+      provenance: ungovr-original
+      license: MIT

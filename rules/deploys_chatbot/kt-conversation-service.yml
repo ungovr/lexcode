@@ -1,0 +1,49 @@
+rules:
+  - id: lexcode.chatbot.kt-conversation-service
+    languages: [kotlin]
+    severity: INFO
+    message: Sends what a person typed to a hosted dialogue service (Amazon Lex, Dialogflow) or answers it in a bot framework handler, which is deploying a chatbot (deploys_chatbot).
+    # The receiver is named for the service (a Lex runtime client, a Dialogflow sessions client), so
+    # recognizeText on an OCR engine and detectIntent on an app's own registry do not match. The AWS SDK
+    # for Kotlin takes a DSL lambda (`lex.recognizeText { text = ... }`), so each Lex call also has a
+    # trailing-lambda form. A class that extends the Microsoft Bot Framework's ActivityHandler is a bot
+    # by construction; a class with a primary constructor needs its own pattern.
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: $L.recognizeText(...)
+              - pattern: $L.recognizeUtterance(...)
+              - pattern: $L.postText(...)
+              - pattern: $L.postContent(...)
+              - pattern: |
+                  $L.recognizeText { ... }
+          # Literal anchor inside the match, so the engine skips files with no such call.
+          - pattern-regex: '\.(recognizeText|recognizeUtterance|postText|postContent)\b'
+          - metavariable-regex:
+              metavariable: $L
+              regex: ^(this\.)?(lex|[a-z]*Lex)\w*$
+      - patterns:
+          - pattern: $S.detectIntent(...)
+          - pattern-regex: '\.detectIntent\b'
+          - metavariable-regex:
+              metavariable: $S
+              regex: (?i)^(this\.)?(\w*sessionsClient|\w*dialogflow\w*)$
+      # ActivityHandler is a name an app could define for itself, so the file must import the Bot
+      # Framework (the regular expression is also the pre-filter for this arm).
+      - patterns:
+          - pattern-regex: '(?s)import\s+com\.microsoft\.bot\..*'
+          - pattern-either:
+              - pattern: |
+                  class $K : ActivityHandler() {
+                    ...
+                  }
+              - pattern: |
+                  class $K(...) : ActivityHandler() {
+                    ...
+                  }
+    metadata:
+      activity: deploys_chatbot
+      mentioned: performs
+      definition: https://lexlint.io/activities/deploys-chatbot
+      provenance: ungovr-original
+      license: MIT

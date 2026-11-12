@@ -1,0 +1,167 @@
+rules:
+  - id: lexcode.train.kt-finetune-job
+    languages: [kotlin]
+    severity: INFO
+    message: Starts a hosted training or fine-tuning job (OpenAI, Amazon SageMaker, Amazon Bedrock or Vertex AI) that adapts a model to the caller's data, which is training models (trains_models).
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: $C.fineTuning().jobs().create(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import com.openai.*
+                  ...
+              - pattern-inside: |
+                  import com.openai.$A.*
+                  ...
+              - pattern-inside: |
+                  import com.openai.$A.$K
+                  ...
+              - pattern-inside: |
+                  import com.openai.$A.$B.*
+                  ...
+              - pattern-inside: |
+                  import com.openai.$A.$B.$K
+                  ...
+              - pattern-inside: |
+                  import com.openai.$A.$B.$C.*
+                  ...
+              - pattern-inside: |
+                  import com.openai.$A.$B.$C.$K
+                  ...
+              - pattern-inside: |
+                  import com.openai.$A.$B.$C.$D.$K
+                  ...
+      - patterns:
+          - pattern-either:
+              - pattern: $C.fineTuning($R)
+              - pattern: $C.fineTuning($R, $O)
+              - pattern: $C.fineTuning(request = $R)
+              - pattern: $C.fineTune($R)
+              - pattern: $C.fineTune(request = $R)
+          - pattern-either:
+              - pattern-inside: |
+                  import com.aallam.openai.client.OpenAI
+                  ...
+              - pattern-inside: |
+                  import com.aallam.openai.client.*
+                  ...
+              - pattern-inside: |
+                  import com.aallam.openai.api.finetuning.*
+                  ...
+              - pattern-inside: |
+                  import com.aallam.openai.api.finetuning.$K
+                  ...
+              - pattern-inside: |
+                  import com.aallam.openai.api.finetune.*
+                  ...
+              - pattern-inside: |
+                  import com.aallam.openai.api.finetune.$K
+                  ...
+      - patterns:
+          - pattern-either:
+              - pattern: $C.createTrainingJob(...)
+              - pattern: $C.createTrainingJob { ... }
+          - pattern-either:
+              - pattern-inside: |
+                  import aws.sdk.kotlin.services.sagemaker.*
+                  ...
+              - pattern-inside: |
+                  import aws.sdk.kotlin.services.sagemaker.$K
+                  ...
+              - pattern-inside: |
+                  import aws.sdk.kotlin.services.sagemaker.$A.*
+                  ...
+              - pattern-inside: |
+                  import aws.sdk.kotlin.services.sagemaker.$A.$K
+                  ...
+              - pattern-inside: |
+                  import software.amazon.awssdk.services.sagemaker.*
+                  ...
+              - pattern-inside: |
+                  import software.amazon.awssdk.services.sagemaker.$K
+                  ...
+              - pattern-inside: |
+                  import software.amazon.awssdk.services.sagemaker.$A.*
+                  ...
+              - pattern-inside: |
+                  import software.amazon.awssdk.services.sagemaker.$A.$K
+                  ...
+              - pattern-inside: |
+                  import com.amazonaws.services.sagemaker.*
+                  ...
+              - pattern-inside: |
+                  import com.amazonaws.services.sagemaker.$K
+                  ...
+              - pattern-inside: |
+                  import com.amazonaws.services.sagemaker.$A.*
+                  ...
+              - pattern-inside: |
+                  import com.amazonaws.services.sagemaker.$A.$K
+                  ...
+      - patterns:
+          - pattern-either:
+              - pattern: $C.createModelCustomizationJob(...)
+              - pattern: $C.createModelCustomizationJob { ... }
+          - pattern-either:
+              - pattern-inside: |
+                  import aws.sdk.kotlin.services.bedrock.*
+                  ...
+              - pattern-inside: |
+                  import aws.sdk.kotlin.services.bedrock.$K
+                  ...
+              - pattern-inside: |
+                  import aws.sdk.kotlin.services.bedrock.$A.*
+                  ...
+              - pattern-inside: |
+                  import aws.sdk.kotlin.services.bedrock.$A.$K
+                  ...
+              - pattern-inside: |
+                  import software.amazon.awssdk.services.bedrock.*
+                  ...
+              - pattern-inside: |
+                  import software.amazon.awssdk.services.bedrock.$K
+                  ...
+              - pattern-inside: |
+                  import software.amazon.awssdk.services.bedrock.$A.*
+                  ...
+              - pattern-inside: |
+                  import software.amazon.awssdk.services.bedrock.$A.$K
+                  ...
+              - pattern-inside: |
+                  import com.amazonaws.services.bedrock.*
+                  ...
+              - pattern-inside: |
+                  import com.amazonaws.services.bedrock.$K
+                  ...
+              - pattern-inside: |
+                  import com.amazonaws.services.bedrock.$A.*
+                  ...
+              - pattern-inside: |
+                  import com.amazonaws.services.bedrock.$A.$K
+                  ...
+      - patterns:
+          - pattern-either:
+              - pattern: $C.createTrainingPipeline(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import com.google.cloud.aiplatform.v1.*
+                  ...
+              - pattern-inside: |
+                  import com.google.cloud.aiplatform.v1.$K
+                  ...
+              - pattern-inside: |
+                  import com.google.cloud.aiplatform.v1beta1.*
+                  ...
+              - pattern-inside: |
+                  import com.google.cloud.aiplatform.v1beta1.$K
+                  ...
+    paths:
+      exclude:
+        - "**/src/test/**"
+    metadata:
+      activity: trains_models
+      mentioned: performs
+      definition: https://lexlint.io/activities/trains-models
+      provenance: ungovr-original
+      license: MIT

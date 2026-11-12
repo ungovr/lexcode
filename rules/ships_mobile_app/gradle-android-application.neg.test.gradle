@@ -1,0 +1,37 @@
+// lexcode-expect: 0
+// Gradle files of an Android project that do not build an installable app: a library module, a
+// root build file that only declares the application plugin for its modules (apply false), a
+// dynamic feature module, and the Android Gradle plugin on the build classpath. The plugin id
+// is also named in a comment and in a string.
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.5.0'
+    }
+}
+
+plugins {
+    id 'com.android.library'
+    id 'com.android.application' version '8.5.0' apply false
+    id("com.android.application") version "8.5.0" apply false
+    id 'com.android.dynamic-feature'
+}
+
+// The app module applies com.android.application; this module is the shared sync library.
+def appPluginId = "com.android.application-not-applied"
+
+android {
+    namespace 'org.example.fieldnotes.sync'
+    compileSdk 34
+
+    defaultConfig {
+        minSdk 24
+    }
+}
+
+dependencies {
+    implementation 'androidx.core:core-ktx:1.13.1'
+}

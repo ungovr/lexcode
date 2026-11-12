@@ -33,6 +33,12 @@ describe('purlOf', () => {
     expect(purlOf({ ecosystem: 'gem', name: 'aws-sdk-s3', version: '1.140.0', manifest: 'Gemfile:5' })).toBe('pkg:gem/aws-sdk-s3@1.140.0');
     expect(purlOf({ ecosystem: 'gem', name: 'Rails_Admin', manifest: 'Gemfile:5' })).toBe('pkg:gem/Rails_Admin');
   });
+  it('writes a Maven coordinate as group, artifact and version', () => {
+    expect(purlOf({ ecosystem: 'maven', name: 'software.amazon.awssdk:rekognition', version: '2.25.0', manifest: 'pom.xml:9' })).toBe(
+      'pkg:maven/software.amazon.awssdk/rekognition@2.25.0',
+    );
+    expect(purlOf({ ecosystem: 'maven', name: 'com.twilio.sdk:twilio', manifest: 'pom.xml:9' })).toBe('pkg:maven/com.twilio.sdk/twilio');
+  });
   it('percent-encodes a plus sign in a version', () => {
     expect(
       purlOf({ ecosystem: 'golang', name: 'github.com/a/b', version: 'v2.0.0+incompatible', manifest: 'go.mod:5' }),

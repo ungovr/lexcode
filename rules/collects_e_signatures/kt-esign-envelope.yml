@@ -1,0 +1,57 @@
+rules:
+  - id: lexcode.esign.kt-esign-envelope
+    languages: [kotlin]
+    severity: INFO
+    message: Sends a document to a person for electronic signature through DocuSign, Dropbox Sign, HelloSign or Adobe Acrobat Sign, which is collecting electronic signatures (collects_e_signatures).
+    # One branch per vendor: each call is read only in a file that imports that vendor's own API class
+    # (or its whole package).
+    pattern-either:
+      - patterns:
+          - pattern: $C.createEnvelope(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import com.docusign.esign.api.EnvelopesApi
+                  ...
+              - pattern-inside: |
+                  import com.docusign.esign.api.*
+                  ...
+      - patterns:
+          - pattern-either:
+              - pattern: $C.signatureRequestSend(...)
+              - pattern: $C.signatureRequestSendWithTemplate(...)
+              - pattern: $C.signatureRequestCreateEmbedded(...)
+              - pattern: $C.signatureRequestCreateEmbeddedWithTemplate(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import com.dropbox.sign.api.SignatureRequestApi
+                  ...
+              - pattern-inside: |
+                  import com.dropbox.sign.api.*
+                  ...
+      - patterns:
+          - pattern-either:
+              - pattern: $C.sendSignatureRequest(...)
+              - pattern: $C.sendTemplateSignatureRequest(...)
+              - pattern: $C.createEmbeddedSignatureRequest(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import com.hellosign.sdk.HelloSignClient
+                  ...
+              - pattern-inside: |
+                  import com.hellosign.sdk.*
+                  ...
+      - patterns:
+          - pattern: $C.createAgreement(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import io.swagger.client.api.AgreementsApi
+                  ...
+              - pattern-inside: |
+                  import io.swagger.client.api.*
+                  ...
+    metadata:
+      activity: collects_e_signatures
+      mentioned: performs
+      definition: https://lexlint.io/glossary#collects-electronic-signatures
+      provenance: ungovr-original
+      license: MIT

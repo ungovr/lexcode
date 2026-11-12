@@ -1,0 +1,19 @@
+rules:
+  - id: lexcode.calls.java-android-call-recording
+    languages: [java]
+    severity: INFO
+    message: Records a phone call through Android's call audio sources, which is recording a call (records_calls).
+    patterns:
+      # The call audio sources: both sides, the other side, this side
+      - pattern-either:
+          - pattern: $R.setAudioSource($S)
+          - pattern: new AudioRecord($S, ...)
+      - metavariable-regex:
+          metavariable: $S
+          regex: ^(MediaRecorder\.)?AudioSource\.(VOICE_CALL|VOICE_DOWNLINK|VOICE_UPLINK)$
+    metadata:
+      activity: records_calls
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-calls
+      provenance: ungovr-original
+      license: MIT

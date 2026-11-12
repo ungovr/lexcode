@@ -1,0 +1,77 @@
+rules:
+  - id: lexcode.outreach.java-send-in-loop
+    languages: [java]
+    severity: INFO
+    message: Sends an email, text, call or push notification once per recipient in a loop, which is sending automated outreach (automated_outreach).
+    # A loop over relays, hosts or retry attempts sends ONE message to ONE person; the iterable's name
+    # rules those out, as in the JS, Python, Go and Ruby rules. A queue publish is not a send: the mail
+    # receivers are matched by name (mail, smtp), so a JMS or Kafka template inside a loop stays quiet.
+    patterns:
+      - pattern-either:
+          - patterns:
+              - pattern-inside: |
+                  for ($T $V : $L) {
+                    ...
+                  }
+              - metavariable-regex:
+                  metavariable: $L
+                  regex: '(?is)^(?!.*(relay|host|server|retr|attempt|backoff|endpoint|smtp|fallback|provider|transport|mirror|failover|\bports?\b)).*$'
+          - patterns:
+              - pattern-inside: |
+                  for (...; $I < $L.size(); ...) {
+                    ...
+                  }
+              - metavariable-regex:
+                  metavariable: $L
+                  regex: '(?is)^(?!.*(relay|host|server|retr|attempt|backoff|endpoint|smtp|fallback|provider|transport|mirror|failover|\bports?\b)).*$'
+          - patterns:
+              - pattern-inside: |
+                  for (...; $I < $L.length; ...) {
+                    ...
+                  }
+              - metavariable-regex:
+                  metavariable: $L
+                  regex: '(?is)^(?!.*(relay|host|server|retr|attempt|backoff|endpoint|smtp|fallback|provider|transport|mirror|failover|\bports?\b)).*$'
+          - patterns:
+              - pattern-inside: |
+                  $L.forEach(...)
+              - metavariable-regex:
+                  metavariable: $L
+                  regex: '(?is)^(?!.*(relay|host|server|retr|attempt|backoff|endpoint|smtp|fallback|provider|transport|mirror|failover|\bports?\b)).*$'
+      - pattern-either:
+          - pattern: Transport.send(...)
+          - patterns:
+              - pattern: $M.send(...)
+              - metavariable-regex:
+                  metavariable: $M
+                  regex: '(?i)^(this\.)?\w*(mail|smtp)\w*$'
+          - patterns:
+              - pattern-either:
+                  - pattern: $X.$N(...)
+                  - pattern: $N(...)
+              - metavariable-regex:
+                  metavariable: $N
+                  regex: ^send\w*(Email|Mail|RawEmail|TemplatedEmail|Sms|SMS|Text|TextMessage|Push|PushNotification|Notification|Reminder|Digest|Newsletter|Alert)s?$
+          - patterns:
+              - pattern: $SG.api(...)
+              - metavariable-regex:
+                  metavariable: $SG
+                  regex: (?i)^(this\.)?(sg|sendgrid\w*)$
+          - pattern: Message.creator(...).create(...)
+          - pattern: Call.creator(...).create(...)
+          - pattern: FirebaseMessaging.getInstance().send(...)
+          - patterns:
+              - pattern: $FM.send(...)
+              - metavariable-regex:
+                  metavariable: $FM
+                  regex: (?i)^(this\.)?(\w*firebase\w*|fcm\w*)$
+          - pattern: $R.emails().send(...)
+          - pattern: $P.deliverMessage(...)
+      # Literal anchor inside the match: it lets the engine skip files with no send call.
+      - pattern-regex: '(Transport\.send|\.send\(|\bsend\w*(Email|Mail|RawEmail|TemplatedEmail|Sms|SMS|Text|TextMessage|Push|PushNotification|Notification|Reminder|Digest|Newsletter|Alert)s?\(|\.api\(|\.creator\(|\.deliverMessage\()'
+    metadata:
+      activity: automated_outreach
+      mentioned: performs
+      definition: https://lexlint.io/activities/automated-outreach
+      provenance: ungovr-original
+      license: MIT

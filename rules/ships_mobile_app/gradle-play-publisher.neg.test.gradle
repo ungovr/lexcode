@@ -1,0 +1,26 @@
+// lexcode-expect: 0
+// Gradle files that do not publish a build to Google Play: the root file that only declares the
+// plugin for its modules (apply false), a module that signs and builds but does not upload, a
+// similarly named plugin, and a comment about the plugin.
+plugins {
+    id 'com.android.library'
+    id 'com.github.triplet.play' version '3.10.1' apply false
+    id 'com.github.triplet.playground'
+}
+
+// Releases go out through the store console by hand; com.github.triplet.play is not used here.
+android {
+    namespace 'org.example.fieldnotes'
+    compileSdk 34
+
+    signingConfigs {
+        release {
+            storeFile file(System.getenv('KEYSTORE_PATH') ?: 'release.keystore')
+            storePassword System.getenv('KEYSTORE_PASSWORD')
+        }
+    }
+}
+
+dependencies {
+    implementation 'androidx.core:core-ktx:1.13.1'
+}

@@ -1,0 +1,36 @@
+rules:
+  - id: lexcode.aggregate.kt-rss-reader-read
+    languages: [kotlin]
+    severity: INFO
+    message: Reads other publishers' RSS or Atom feeds from their addresses with the rssreader or RSS-Parser library, which is reusing other publishers' content (aggregates_content).
+    pattern-either:
+      # Each library is read only in a file that imports it, so a project class with a `read` or
+      # `getRssChannel` method of its own is not taken for it. The regular expression is also the
+      # pre-filter: files without the import are not parsed.
+      - patterns:
+          - pattern-regex: '(?s)import\s+com\.apptasticsoftware\.rssreader\..*'
+          - pattern-either:
+              - pattern: RssReader().read($ARG)
+              - patterns:
+                  - pattern: $R.read($ARG)
+                  - metavariable-regex:
+                      metavariable: $R
+                      regex: ^(this\.)?\w*([rR]ss|[fF]eed)\w*$
+          - metavariable-regex:
+              metavariable: $ARG
+              regex: (?s)^(?!"https?://(localhost|127\.|0\.0\.0\.0|\[::1\])|(in|\w*[iI]nput|\w*[sS]tream)$).*$
+      - patterns:
+          - pattern-regex: '(?s)import\s+com\.prof18\.rssparser\..*'
+          - pattern-either:
+              - pattern: $P.getRssChannel($ARG)
+              - pattern: RssParser().getRssChannel($ARG)
+          - metavariable-regex:
+              metavariable: $ARG
+              regex: (?s)^(?!"https?://(localhost|127\.|0\.0\.0\.0|\[::1\])).*$
+    metadata:
+      activity: aggregates_content
+      mentioned: performs
+      definition: https://lexlint.io/activities/aggregates-content
+      provenance: ungovr-original
+      license: MIT
+      host_metavar: $ARG

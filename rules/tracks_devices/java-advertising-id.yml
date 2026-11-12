@@ -1,0 +1,29 @@
+rules:
+  - id: lexcode.tracking.java-advertising-id
+    languages: [java]
+    severity: INFO
+    message: Reads an identifier that follows one Android device (the advertising id, the IMEI, MEID or subscriber id, the hardware serial or the Firebase installation id), which is tracking devices (tracks_devices).
+    pattern-either:
+      - patterns:
+          - pattern: AdvertisingIdClient.getAdvertisingIdInfo(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import com.google.android.gms.ads.identifier.AdvertisingIdClient;
+                  ...
+              - pattern-inside: |
+                  import androidx.ads.identifier.AdvertisingIdClient;
+                  ...
+      - pattern: (TelephonyManager $T).getImei(...)
+      - pattern: (TelephonyManager $T).getMeid(...)
+      - pattern: (TelephonyManager $T).getDeviceId(...)
+      - pattern: (TelephonyManager $T).getSubscriberId(...)
+      - pattern: (TelephonyManager $T).getSimSerialNumber(...)
+      - pattern: Build.getSerial()
+      - pattern: FirebaseInstallations.getInstance().getId()
+      - pattern: FirebaseInstanceId.getInstance().getId()
+    metadata:
+      activity: tracks_devices
+      mentioned: performs
+      definition: https://lexlint.io/activities/tracks-devices
+      provenance: ungovr-original
+      license: MIT

@@ -1,0 +1,37 @@
+rules:
+  - id: lexcode.biometric.kt-face-matching-apis
+    languages: [kotlin]
+    severity: INFO
+    message: Calls a face or voice matching service (Azure Face identify, verify or find-similar, Face++ compare or search, VoiceIt), which is recognizing people from face geometry or a voiceprint (processes_biometrics).
+    patterns:
+      - pattern-either:
+          # Azure AI Face SDK: matching a face to a group, to another face, or to candidates (detection is not here).
+          # The import line keeps a class with a method of the same name out.
+          - patterns:
+              - pattern-regex: '(?sm)^import\s+com\.azure\.ai\.vision\.face\..*'
+              - pattern-either:
+                  - pattern: $C.identifyFromPersonGroup(...)
+                  - pattern: $C.identifyFromLargePersonGroup(...)
+                  - pattern: $C.identifyFromDynamicPersonGroup(...)
+                  - pattern: $C.verifyFaceToFace(...)
+                  - pattern: $C.verifyFromPersonGroup(...)
+                  - pattern: $C.verifyFromLargePersonGroup(...)
+                  - pattern: $C.findSimilar(...)
+                  - pattern: $C.findSimilarFromFaceList(...)
+                  - pattern: $C.findSimilarFromLargeFaceList(...)
+          # The older Face client library (identity, verify, find-similar on FaceServiceClient), used on Android
+          - patterns:
+              - pattern-regex: '(?sm)^import\s+com\.microsoft\.projectoxford\.face\.(FaceServiceClient|FaceServiceRestClient|\*)(\s|;|$).*'
+              - pattern-either:
+                  - pattern: $C.identity(...)
+                  - pattern: $C.verify(...)
+                  - pattern: $C.findSimilar(...)
+          # The REST endpoints, named in a string or a Retrofit annotation: Azure Face, Face++ and VoiceIt
+          - pattern-regex: |-
+              "(?:[^"\n]*/)?face/v1\.\d+(-preview(\.\d+)?)?/(identify|verify|findsimilars|facelists|largefacelists|persongroups|largepersongroups|dynamicpersongroups)\b|"[^"\n]*\bfaceplusplus\.com/facepp/v3/(compare|search|faceset)\b|"(?:[^"\n]*/)?facepp/v3/(compare|search|faceset)\b|"[^"\n]*\bapi\.voiceit\.io/(enrollments|verification|identification)/
+    metadata:
+      activity: processes_biometrics
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-biometrics
+      provenance: ungovr-original
+      license: MIT

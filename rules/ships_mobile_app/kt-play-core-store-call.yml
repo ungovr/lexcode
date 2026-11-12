@@ -1,0 +1,36 @@
+rules:
+  - id: lexcode.mobile.kt-play-core-store-call
+    languages: [kotlin]
+    severity: INFO
+    message: Creates the Google Play in-app update or in-app review manager, which exists only for an app installed from Google Play, which is distributing a mobile app through Google's store (ships_mobile_app).
+    pattern-either:
+      - patterns:
+          - pattern: AppUpdateManagerFactory.create(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import com.google.android.play.core.appupdate.AppUpdateManagerFactory
+                  ...
+              - pattern-inside: |
+                  import com.google.android.play.core.appupdate.*
+                  ...
+      - patterns:
+          - pattern: ReviewManagerFactory.create(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import com.google.android.play.core.review.ReviewManagerFactory
+                  ...
+              - pattern-inside: |
+                  import com.google.android.play.core.review.*
+                  ...
+      - pattern: com.google.android.play.core.appupdate.AppUpdateManagerFactory.create(...)
+      - pattern: com.google.android.play.core.review.ReviewManagerFactory.create(...)
+    paths:
+      exclude:
+        - "**/src/test/**"
+        - "**/src/androidTest/**"
+    metadata:
+      activity: ships_mobile_app
+      mentioned: performs
+      definition: https://lexlint.io/activities/ships-mobile-app
+      provenance: ungovr-original
+      license: MIT

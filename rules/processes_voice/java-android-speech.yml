@@ -1,0 +1,25 @@
+rules:
+  - id: lexcode.voice.java-android-speech
+    languages: [java]
+    severity: INFO
+    message: Starts Android speech recognition, which listens to a person speaking and turns it into text (processes_voice).
+    patterns:
+      - pattern-either:
+          - pattern: SpeechRecognizer.createSpeechRecognizer(...)
+          - pattern: SpeechRecognizer.createOnDeviceSpeechRecognizer(...)
+          - patterns:
+              - pattern: $R.startListening(...)
+              - pattern-either:
+                  - pattern-inside: |
+                      import android.speech.SpeechRecognizer;
+                      ...
+                  - pattern-inside: |
+                      import android.speech.*;
+                      ...
+          - pattern: RecognizerIntent.ACTION_RECOGNIZE_SPEECH
+    metadata:
+      activity: processes_voice
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-voice
+      provenance: ungovr-original
+      license: MIT

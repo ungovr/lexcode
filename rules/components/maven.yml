@@ -1,0 +1,187 @@
+ecosystem: maven
+entries:
+
+  # Analytics SDKs
+  # A Google Maven artifact has no pom <description>: its says is the first sentence of the module README
+  # in the firebase-android-sdk repository, or of the class reference where the SDK is closed source.
+  - match: "com.google.firebase:firebase-analytics"
+    enables: [tracks_devices, processes_personal_data]
+    says: "The top level Firebase Analytics singleton that provides methods for logging events and setting user properties."
+    source: https://firebase.google.com/docs/reference/android/com/google/firebase/analytics/FirebaseAnalytics
+  - match: "com.google.firebase:firebase-perf"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Firebase Performance Monitoring is a free mobile app performance analytics service that helps you to gain insight into the performance characteristics of your app."
+    source: https://github.com/firebase/firebase-android-sdk/blob/main/firebase-perf/README.md
+  # Pendo hosts its SDK on its own Maven repository, not on Maven Central, and its pom has no description.
+  - match: "sdk.pendo.io:pendoIO"
+    enables: [tracks_devices, processes_personal_data]
+    says: "The Pendo Mobile SDK is a codeless library that collects analytics retroactively across all versions of your app."
+    source: https://github.com/pendo-io/pendo-mobile-sdk/blob/master/README.md
+  - match: "com.mixpanel.android:mixpanel-android"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Official Mixpanel tracking library for Android"
+    source: https://central.sonatype.com/artifact/com.mixpanel.android/mixpanel-android
+  - match: "com.mixpanel:mixpanel-java"
+    enables: [tracks_devices, processes_personal_data]
+    says: "A library for tracking Mixpanel events and updating Mixpanel people analytics profiles within Java applications."
+    source: https://central.sonatype.com/artifact/com.mixpanel/mixpanel-java
+  - match: "com.segment.analytics.android:analytics"
+    enables: [tracks_devices, processes_personal_data]
+    says: "The hassle-free way to add analytics to your Android app."
+    source: https://central.sonatype.com/artifact/com.segment.analytics.android/analytics
+  - match: "com.segment.analytics.java:analytics"
+    enables: [tracks_devices, processes_personal_data]
+    says: "The hassle-free way to add analytics to your Java app."
+    source: https://central.sonatype.com/artifact/com.segment.analytics.java/analytics
+
+  # Crash and error reporting SDKs
+  - match: "com.google.firebase:firebase-crashlytics"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Firebase Crashlytics is a lightweight, realtime crash reporter that helps you track, prioritize, and fix stability issues that erode your app quality."
+    source: https://github.com/firebase/firebase-android-sdk/blob/main/firebase-crashlytics/README.md
+  - match: "com.google.firebase:firebase-crashlytics-ndk"
+    enables: [tracks_devices, processes_personal_data]
+    says: "This component enables NDK crash reporting with Crashlytics."
+    source: https://github.com/firebase/firebase-android-sdk/blob/main/firebase-crashlytics-ndk/README.md
+  - match: "io.sentry:sentry"
+    enables: [tracks_devices, processes_personal_data]
+    says: "SDK for sentry.io"
+    source: https://central.sonatype.com/artifact/io.sentry/sentry
+  - match: "io.sentry:sentry-android"
+    enables: [tracks_devices, processes_personal_data]
+    says: "SDK for sentry.io"
+    source: https://central.sonatype.com/artifact/io.sentry/sentry-android
+  - match: "io.sentry:sentry-android-core"
+    enables: [tracks_devices, processes_personal_data]
+    says: "SDK for sentry.io"
+    source: https://central.sonatype.com/artifact/io.sentry/sentry-android-core
+  - match: "io.sentry:sentry-spring-boot-starter"
+    enables: [tracks_devices, processes_personal_data]
+    says: "SDK for sentry.io"
+    source: https://central.sonatype.com/artifact/io.sentry/sentry-spring-boot-starter
+  - match: "com.bugsnag:bugsnag-android"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Official Bugsnag notifier for Android applications"
+    source: https://central.sonatype.com/artifact/com.bugsnag/bugsnag-android
+  - match: "com.bugsnag:bugsnag"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Official Bugsnag notifier for Java applications"
+    source: https://central.sonatype.com/artifact/com.bugsnag/bugsnag
+  - match: "com.rollbar:rollbar-java"
+    enables: [tracks_devices, processes_personal_data]
+    says: "For connecting your applications built on the JVM to Rollbar for Error Reporting"
+    source: https://central.sonatype.com/artifact/com.rollbar/rollbar-java
+  - match: "com.rollbar:rollbar-android"
+    enables: [tracks_devices, processes_personal_data]
+    says: "For connecting your applications built on the JVM to Rollbar for Error Reporting"
+    source: https://central.sonatype.com/artifact/com.rollbar/rollbar-android
+
+  # Model SDKs
+  - match: "com.openai:openai-java"
+    enables: [generates_content]
+    says: "The OpenAI REST API."
+    source: https://central.sonatype.com/artifact/com.openai/openai-java
+  - match: "com.anthropic:anthropic-java"
+    enables: [generates_content]
+    says: "An SDK library for anthropic"
+    source: https://central.sonatype.com/artifact/com.anthropic/anthropic-java
+  - match: "com.google.genai:google-genai"
+    enables: [generates_content]
+    says: "Java idiomatic SDK for the Gemini Developer APIs and Vertex AI APIs."
+    source: https://central.sonatype.com/artifact/com.google.genai/google-genai
+  - match: "com.azure:azure-ai-openai"
+    enables: [generates_content]
+    says: "This package contains Microsoft Azure OpenAI client library."
+    source: https://central.sonatype.com/artifact/com.azure/azure-ai-openai
+  - match: "dev.langchain4j:langchain4j"
+    enables: [generates_content]
+    says: "Build LLM-powered applications in Java: chatbots, agents, RAG, and much more"
+    source: https://central.sonatype.com/artifact/dev.langchain4j/langchain4j
+  - match: "software.amazon.awssdk:bedrockruntime"
+    enables: [generates_content]
+    says: "The AWS Java SDK for Bedrock Runtime module holds the client classes that are used for communicating with Bedrock Runtime."
+    source: https://central.sonatype.com/artifact/software.amazon.awssdk/bedrockruntime
+
+  # Speech synthesis
+  - match: "com.google.cloud:google-cloud-texttospeech"
+    enables: [generates_audio]
+    says: "Java idiomatic client for Google Cloud Text-to-Speech"
+    source: https://central.sonatype.com/artifact/com.google.cloud/google-cloud-texttospeech
+  - match: "software.amazon.awssdk:polly"
+    enables: [generates_audio]
+    says: "The AWS Java SDK for Amazon Polly module holds the client classes that are used for communicating with Amazon Polly."
+    source: https://central.sonatype.com/artifact/software.amazon.awssdk/polly
+
+  # Speech-to-text
+  - match: "com.google.cloud:google-cloud-speech"
+    enables: [processes_voice]
+    says: "Java idiomatic client for Google Cloud Speech."
+    source: https://central.sonatype.com/artifact/com.google.cloud/google-cloud-speech
+  - match: "software.amazon.awssdk:transcribe"
+    enables: [processes_voice]
+    says: "The AWS Java SDK for Transcribe module holds the client classes that are used for communicating with Transcribe."
+    source: https://central.sonatype.com/artifact/software.amazon.awssdk/transcribe
+
+  # Crawling and browser automation libraries
+  - match: "edu.uci.ics:crawler4j"
+    enables: [crawls_web]
+    says: "Open Source Web Crawler for Java"
+    source: https://central.sonatype.com/artifact/edu.uci.ics/crawler4j
+  - match: "com.microsoft.playwright:playwright"
+    enables: [crawls_web]
+    says: "Java library to automate Chromium, Firefox and WebKit with a single API."
+    source: https://central.sonatype.com/artifact/com.microsoft.playwright/playwright
+
+  # Email, SMS and push senders
+  - match: "nl.martijndwars:web-push"
+    enables: [automated_outreach]
+    says: "A Web Push library for Java."
+    source: https://central.sonatype.com/artifact/nl.martijndwars/web-push
+  - match: "com.sendgrid:sendgrid-java"
+    enables: [automated_outreach]
+    says: "This Java module allows you to quickly and easily send emails through Twilio SendGrid using Java."
+    source: https://central.sonatype.com/artifact/com.sendgrid/sendgrid-java
+  - match: "com.twilio.sdk:twilio"
+    enables: [automated_outreach]
+    says: "Twilio Java Helper Library"
+    source: https://central.sonatype.com/artifact/com.twilio.sdk/twilio
+  - match: "com.onesignal:OneSignal"
+    enables: [automated_outreach]
+    says: "OneSignal is a free email, sms, push notification, and in-app message service for mobile apps."
+    source: https://central.sonatype.com/artifact/com.onesignal/OneSignal
+  - match: "org.springframework.boot:spring-boot-starter-mail"
+    enables: [automated_outreach]
+    says: "Starter for using Java Mail and Spring Framework's email sending support"
+    source: https://central.sonatype.com/artifact/org.springframework.boot/spring-boot-starter-mail
+
+  # E-signature
+  - match: "com.docusign:docusign-esign-java"
+    enables: [collects_e_signatures]
+    says: "The official Docusign eSignature JAVA client is based on version 2.1 of the Docusign REST API and provides libraries for JAVA application integration."
+    source: https://central.sonatype.com/artifact/com.docusign/docusign-esign-java
+
+  # Bundled cryptography
+  - match: "org.bouncycastle:bcprov-jdk18on"
+    enables: [ships_encryption]
+    says: "The Bouncy Castle Crypto package is a Java implementation of cryptographic algorithms."
+    source: https://central.sonatype.com/artifact/org.bouncycastle/bcprov-jdk18on
+  - match: "org.bouncycastle:bcprov-jdk15on"
+    enables: [ships_encryption]
+    says: "The Bouncy Castle Crypto package is a Java implementation of cryptographic algorithms."
+    source: https://central.sonatype.com/artifact/org.bouncycastle/bcprov-jdk15on
+  - match: "org.bouncycastle:bcprov-jdk15to18"
+    enables: [ships_encryption]
+    says: "The Bouncy Castle Crypto package is a Java implementation of cryptographic algorithms."
+    source: https://central.sonatype.com/artifact/org.bouncycastle/bcprov-jdk15to18
+  - match: "org.jasypt:jasypt"
+    enables: [ships_encryption]
+    says: "Java library which enables encryption in java apps with minimum effort."
+    source: https://central.sonatype.com/artifact/org.jasypt/jasypt
+  - match: "com.google.crypto.tink:tink"
+    enables: [ships_encryption]
+    says: "Tink is a small cryptographic library that provides a safe, simple, agile and fast way to accomplish some common cryptographic tasks."
+    source: https://central.sonatype.com/artifact/com.google.crypto.tink/tink
+  - match: "com.google.crypto.tink:tink-android"
+    enables: [ships_encryption]
+    says: "Tink is a small cryptographic library that provides a safe, simple, agile and fast way to accomplish some common cryptographic tasks."
+    source: https://central.sonatype.com/artifact/com.google.crypto.tink/tink-android

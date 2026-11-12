@@ -1,0 +1,57 @@
+rules:
+  - id: lexcode.chat.kt-chat-messages-persisted
+    languages: [kotlin]
+    severity: INFO
+    message: Writes the text of a chat to a conversation, transcript or chat message table, which is keeping a text chat (records_text_chat).
+    # A form the app only saves is not a chat, so the record is named for a chat: either the
+    # repository, DAO or Exposed table is (chat message, chat history, conversation message, chat
+    # transcript), or the entity handed to any store is (ChatMessage(...), ConversationTurn.builder()...).
+    # A contact, feedback or ticket record, a chat ROOM record that holds no text, and a bare
+    # Transcript (an academic or caption transcript) or bare Conversation (a record of who talked, with
+    # no text) do not match: only a name that says chat, or conversation plus message, turn, entry or
+    # transcript. The Room DAO is often reached through the database object
+    # (`database.chatMessageDao().insert(...)`), so the receiver may end in `()`. Exposed writes with a
+    # trailing lambda (`ChatMessages.insert { ... }`), which is its own arm.
+    patterns:
+      - pattern-either:
+          - patterns:
+              - pattern-either:
+                  - pattern: $R.save(...)
+                  - pattern: $R.saveAll(...)
+                  - pattern: $R.saveAndFlush(...)
+                  - pattern: $R.insert(...)
+                  - pattern: $R.insertAll(...)
+                  - pattern: $R.upsert(...)
+                  - pattern: $R.persist(...)
+              - metavariable-regex:
+                  metavariable: $R
+                  regex: '(?i)^([\w.]*\.)?\w*(chat(message|msg|history|log|turn|entry|transcript|s)?|conversation(message|msg|turn|entry|transcript)|dialog(message|turn))(repository|repo|dao|mapper|store)(\(\))?$'
+          - patterns:
+              - pattern-either:
+                  - pattern: $R.save(<... $T(...) ...>)
+                  - pattern: $R.saveAndFlush(<... $T(...) ...>)
+                  - pattern: $R.persist(<... $T(...) ...>)
+                  - pattern: $R.insert(<... $T(...) ...>)
+                  - pattern: $R.save(<... $T.builder() ...>)
+                  - pattern: $R.saveAndFlush(<... $T.builder() ...>)
+                  - pattern: $R.persist(<... $T.builder() ...>)
+              - metavariable-regex:
+                  metavariable: $T
+                  regex: ^(Chat(Message|Msg|History|Log|Turn|Entry|Transcript)|Conversation(Message|Turn|Entry|Transcript)|Dialog(Message|Turn))(Entity)?$
+          - patterns:
+              - pattern-either:
+                  - pattern: |
+                      $T.insert { ... }
+                  - pattern: |
+                      $T.batchInsert(...) { ... }
+              - metavariable-regex:
+                  metavariable: $T
+                  regex: ^(Chat(Messages|Msgs|Turns|Entries|Logs|Transcripts)|Conversation(Messages|Turns|Entries|Transcripts)|Dialog(Messages|Turns))(Table)?$
+      # Literal anchor inside the match (the write), so the engine skips files with no such call.
+      - pattern-regex: '\.(save|saveAll|saveAndFlush|insert|insertAll|upsert|persist|batchInsert)\b'
+    metadata:
+      activity: records_text_chat
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-text-chat
+      provenance: ungovr-original
+      license: MIT

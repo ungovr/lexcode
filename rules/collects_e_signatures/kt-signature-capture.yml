@@ -1,0 +1,40 @@
+rules:
+  - id: lexcode.esign.kt-signature-capture
+    languages: [kotlin]
+    severity: INFO
+    message: Reads back a signature a person drew on an Android signature pad, which is collecting electronic signatures (collects_e_signatures).
+    pattern-either:
+      # gcacace SignaturePad: Kotlin reads the getters as properties
+      - patterns:
+          - pattern-either:
+              - pattern: $PAD.signatureBitmap
+              - pattern: $PAD.transparentSignatureBitmap
+              - pattern: $PAD.signatureSvg
+              - pattern: $PAD.getSignatureBitmap()
+              - pattern: $PAD.getTransparentSignatureBitmap(...)
+              - pattern: $PAD.getSignatureSvg()
+          - pattern-either:
+              - pattern-inside: |
+                  import com.github.gcacace.signaturepad.views.SignaturePad
+                  ...
+              - pattern-inside: |
+                  import com.github.gcacace.signaturepad.views.*
+                  ...
+      # kyanogen SignatureView
+      - patterns:
+          - pattern-either:
+              - pattern: $PAD.signatureBitmap
+              - pattern: $PAD.getSignatureBitmap()
+          - pattern-either:
+              - pattern-inside: |
+                  import com.kyanogen.signatureview.SignatureView
+                  ...
+              - pattern-inside: |
+                  import com.kyanogen.signatureview.*
+                  ...
+    metadata:
+      activity: collects_e_signatures
+      mentioned: performs
+      definition: https://lexlint.io/glossary#collects-electronic-signatures
+      provenance: ungovr-original
+      license: MIT

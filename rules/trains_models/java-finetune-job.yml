@@ -1,0 +1,26 @@
+rules:
+  - id: lexcode.train.java-finetune-job
+    languages: [java]
+    severity: INFO
+    message: Starts a hosted training or fine-tuning job (OpenAI, Amazon SageMaker, Amazon Bedrock or Vertex AI) that adapts a model to the caller's data, which is training models (trains_models).
+    pattern-either:
+      - pattern: (OpenAIClient $C).fineTuning().jobs().create(...)
+      - pattern: (OpenAIClientAsync $C).fineTuning().jobs().create(...)
+      - pattern: (OpenAiService $C).createFineTuningJob(...)
+      - pattern: (OpenAiService $C).createFineTune(...)
+      - pattern: (SageMakerClient $C).createTrainingJob(...)
+      - pattern: (SageMakerAsyncClient $C).createTrainingJob(...)
+      - pattern: (AmazonSageMaker $C).createTrainingJob(...)
+      - pattern: (AmazonSageMakerAsync $C).createTrainingJob(...)
+      - pattern: (BedrockClient $C).createModelCustomizationJob(...)
+      - pattern: (BedrockAsyncClient $C).createModelCustomizationJob(...)
+      - pattern: (PipelineServiceClient $C).createTrainingPipeline(...)
+    paths:
+      exclude:
+        - "**/src/test/**"
+    metadata:
+      activity: trains_models
+      mentioned: performs
+      definition: https://lexlint.io/activities/trains-models
+      provenance: ungovr-original
+      license: MIT

@@ -1,0 +1,253 @@
+rules:
+  - id: lexcode.generate.java-model-result-returned
+    languages: [java]
+    severity: INFO
+    message: Returns the output of a Gemini call from a method, which may be generating content with AI that reaches users (generates_content).
+    mode: taint
+    pattern-sources:
+      - pattern: $C.models.generateContent(...)
+      - pattern: $C.models.generateContentStream(...)
+      - pattern: $C.chats.create(...)
+      - patterns:
+          - pattern: ($T $M).$F(...)
+          - metavariable-regex:
+              metavariable: $T
+              regex: ^([\w.]+\.)?(GenerativeModel|ChatSession)$
+          - metavariable-regex:
+              metavariable: $F
+              regex: ^(generateContent|generateContentStream|generateContentAsync|sendMessage|sendMessageStream)$
+    pattern-propagators:
+      - pattern: $S.forEach($X -> ...)
+        from: $S
+        to: $X
+      - pattern: $S.forEachOrdered($X -> ...)
+        from: $S
+        to: $X
+      - pattern: $S.subscribe($X -> ...)
+        from: $S
+        to: $X
+      - pattern: $S.map($X -> ...)
+        from: $S
+        to: $X
+      - pattern: $S.flatMap($X -> ...)
+        from: $S
+        to: $X
+      - pattern: $S.doOnNext($X -> ...)
+        from: $S
+        to: $X
+      - pattern: $S.ifPresent($X -> ...)
+        from: $S
+        to: $X
+      - pattern: $S.thenApply($X -> ...)
+        from: $S
+        to: $X
+      - pattern: $S.thenAccept($X -> ...)
+        from: $S
+        to: $X
+      - pattern: $S.onPartialResponse($X -> ...)
+        from: $S
+        to: $X
+      - pattern: $S.onNext($X -> ...)
+        from: $S
+        to: $X
+    pattern-sinks:
+      - patterns:
+          - pattern: return $X;
+          - pattern-not-inside: |
+              @GetMapping(...)
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @GetMapping
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @PostMapping(...)
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @PostMapping
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @PutMapping(...)
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @PutMapping
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @PatchMapping(...)
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @PatchMapping
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @DeleteMapping(...)
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @DeleteMapping
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @RequestMapping(...)
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @RequestMapping
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @ResponseBody(...)
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @ResponseBody
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @SendTo(...)
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @SendTo
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @QueryMapping(...)
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @QueryMapping
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @MutationMapping(...)
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @MutationMapping
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @GET(...)
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @GET
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @POST(...)
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @POST
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @PUT(...)
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @PUT
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @DELETE(...)
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @DELETE
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @Get(...)
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @Get
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @Post(...)
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @Post
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @Put(...)
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @Put
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @Patch(...)
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @Patch
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @Delete(...)
+              $R $F(...) {
+                ...
+              }
+          - pattern-not-inside: |
+              @Delete
+              $R $F(...) {
+                ...
+              }
+          - focus-metavariable: $X
+    metadata:
+      activity: generates_content
+      mentioned: performs
+      definition: https://lexlint.io/activities/generates-content
+      provenance: ungovr-original
+      license: MIT
+      strength: signal

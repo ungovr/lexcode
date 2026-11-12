@@ -1,0 +1,40 @@
+rules:
+  - id: lexcode.biometric.java-biometric-libs
+    languages: [java]
+    severity: INFO
+    message: Matches faces or fingerprints with a biometric library (OpenCV face recognizers, SourceAFIS, Neurotechnology), which is recognizing people from face geometry or a fingerprint (processes_biometrics).
+    patterns:
+      - pattern-either:
+          # OpenCV and JavaCV: recognizers that learn and match identities, and the SFace embedder
+          - pattern: LBPHFaceRecognizer.create(...)
+          - pattern: EigenFaceRecognizer.create(...)
+          - pattern: FisherFaceRecognizer.create(...)
+          - pattern: FaceRecognizerSF.create(...)
+          # SourceAFIS: a template extracted from a fingerprint image, and the matcher
+          - patterns:
+              - pattern-either:
+                  - pattern: new FingerprintTemplate(...)
+                  - pattern: new FingerprintMatcher(...)
+              - pattern-either:
+                  - pattern-inside: |
+                      import com.machinezoo.sourceafis.$X;
+                      ...
+                  - pattern-inside: |
+                      import com.machinezoo.sourceafis.*;
+                      ...
+          # Neurotechnology biometric client
+          - patterns:
+              - pattern: new NBiometricClient(...)
+              - pattern-either:
+                  - pattern-inside: |
+                      import com.neurotec.biometrics.client.NBiometricClient;
+                      ...
+                  - pattern-inside: |
+                      import com.neurotec.biometrics.client.*;
+                      ...
+    metadata:
+      activity: processes_biometrics
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-biometrics
+      provenance: ungovr-original
+      license: MIT

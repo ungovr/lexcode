@@ -1,5 +1,5 @@
 import { execFile, spawn, type ChildProcess } from 'node:child_process';
-import { mkdirSync, symlinkSync } from 'node:fs';
+import { mkdirSync, readFileSync, symlinkSync } from 'node:fs';
 import { mkdtemp, readFile } from 'node:fs/promises';
 import { availableParallelism, tmpdir } from 'node:os';
 import { isAbsolute, join } from 'node:path';
@@ -205,12 +205,63 @@ function errorText(e: RawError): string {
   return errorType(e) || 'unknown engine error';
 }
 
+/**
+ * A partial parse of an XML file that dropped nothing but processing
+ * instructions (`<?m2e ignore?>` in a Maven pom is the common case). The
+ * engine's XML grammar rejects the instruction and still reads every element
+ * around it, so the file's matches are complete and no evidence is missing.
+ * Anything else the parser dropped, or a file lexcode cannot reread, stays a
+ * file error.
+ */
+function onlyProcessingInstructionsDropped(raw: RawError, root: string): boolean {
+  const path = typeof raw.path === 'string' ? fromEngine(raw.path) : '';
+  if (!/\.(?:xml|pom)$/i.test(path)) return false;
+  const spans = (raw as { spans?: unknown }).spans;
+  if (!Array.isArray(spans) || spans.length === 0) return false;
+  let bytes: Buffer;
+  try {
+    bytes = readFileSync(isAbsolute(path) ? path : join(root, path));
+  } catch {
+    return false;
+  }
+  // The engine counts columns in bytes, so the lines stay bytes until a span is cut out of them.
+  const lines: Buffer[] = [];
+  for (let from = 0; ; ) {
+    const nl = bytes.indexOf(0x0a, from);
+    if (nl < 0) {
+      lines.push(bytes.subarray(from));
+      break;
+    }
+    lines.push(bytes.subarray(from, nl));
+    from = nl + 1;
+  }
+  type Pos = { line?: unknown; col?: unknown };
+  for (const span of spans as { start?: Pos; end?: Pos }[]) {
+    const l1 = span.start?.line;
+    const c1 = span.start?.col;
+    const l2 = span.end?.line;
+    const c2 = span.end?.col;
+    if (typeof l1 !== 'number' || typeof c1 !== 'number' || typeof l2 !== 'number' || typeof c2 !== 'number') return false;
+    if (l1 < 1 || l2 < l1 || l2 > lines.length) return false;
+    const parts: Buffer[] = [];
+    for (let l = l1; l <= l2; l++) {
+      const line = lines[l - 1] as Buffer;
+      parts.push(line.subarray(l === l1 ? c1 - 1 : 0, l === l2 ? c2 - 1 : line.length));
+    }
+    const text = Buffer.concat(parts.flatMap((p, i) => (i === 0 ? [p] : [Buffer.from('\n'), p]))).toString('utf8');
+    // Exactly one processing instruction: it opens with `<?`, closes with the first `?>`, and the span ends there.
+    if (text.length < 4 || !text.startsWith('<?') || !text.endsWith('?>') || text.indexOf('?>') !== text.length - 2) return false;
+  }
+  return true;
+}
+
 /** Per-file trouble counts in fileErrors; an error that names a rule or the config is fatal. */
-function classifyErrors(errors: unknown): { fileErrors: number; fatal?: string } {
+function classifyErrors(errors: unknown, root: string): { fileErrors: number; fatal?: string } {
   let fileErrors = 0;
   if (!Array.isArray(errors)) return { fileErrors };
   for (const raw of errors as RawError[]) {
     const type = errorType(raw);
+    if (type === 'PartialParsing' && onlyProcessingInstructionsDropped(raw, root)) continue;
     const t = type.toLowerCase();
     const level = String(raw.level ?? '').toLowerCase();
     const ruleish = /rule|pattern|config|yaml|schema|metavar/.test(t);
@@ -385,7 +436,7 @@ export async function runEngine(o: RunEngineOptions): Promise<RunEngineResult> {
         throw new ToolError('the engine wrote JSON in an unexpected shape. Update the engine with `lexcode engine fetch`.');
       }
       const doc = raw as { version?: unknown; results?: unknown; errors?: unknown };
-      const classified = classifyErrors(doc.errors);
+      const classified = classifyErrors(doc.errors, o.root);
       if (classified.fatal) {
         throw new ToolError(`the engine rejected the rule set: ${classified.fatal}\nRun \`lexcode rules\` to list the rules, or pass a corrected --rules <dir>.`);
       }

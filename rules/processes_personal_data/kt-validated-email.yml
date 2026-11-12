@@ -1,0 +1,32 @@
+rules:
+  - id: lexcode.personal.kt-validated-email
+    languages: [kotlin]
+    severity: INFO
+    message: Validates an email address a person supplies in a form, request or stored object (Bean Validation or Hibernate Validator @Email), which is processing personal data (processes_personal_data).
+    patterns:
+      - pattern-either:
+          # A property in a class body.
+          - pattern: |
+              @Email(...)
+              val $F: $T
+          - pattern: |
+              @Email(...)
+              var $F: $T
+          - pattern: |
+              @Email(...)
+              val $F: $T = $V
+          - pattern: |
+              @Email(...)
+              var $F: $T = $V
+          # A property in the primary constructor.
+          - pattern: |
+              class $C(..., @Email(...) val $F: $T, ...)
+          - pattern: |
+              class $C(..., @Email(...) var $F: $T, ...)
+      - focus-metavariable: $F
+    metadata:
+      activity: processes_personal_data
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-personal-data
+      provenance: ungovr-original
+      license: MIT

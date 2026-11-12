@@ -1,0 +1,258 @@
+rules:
+  - id: lexcode.text.kt-chat-reply-to-response
+    languages:
+      - kotlin
+    severity: INFO
+    message: Sends text written by a chat or completion model back in an HTTP response, a socket or a screen, which is generating text with AI that reaches users (generates_text).
+    mode: taint
+    pattern-sources:
+      - patterns:
+          - pattern-regex: (?s)\A(?=.*com\.openai\.).*
+          - pattern-either:
+              - pattern: $C.chat().completions().create(...)
+              - pattern: $C.chat().completions().createStreaming(...)
+      - patterns:
+          - pattern-regex: (?s)\A(?=.*com\.openai\.).*
+          - pattern-either:
+              - pattern: client.responses().create(...)
+              - pattern: client.responses().createStreaming(...)
+              - pattern: client.completions().create(...)
+              - pattern: client.completions().createStreaming(...)
+              - pattern: openai.responses().create(...)
+              - pattern: openai.responses().createStreaming(...)
+              - pattern: openai.completions().create(...)
+              - pattern: openai.completions().createStreaming(...)
+              - pattern: openAI.responses().create(...)
+              - pattern: openAI.responses().createStreaming(...)
+              - pattern: openAI.completions().create(...)
+              - pattern: openAI.completions().createStreaming(...)
+              - pattern: openAIClient.responses().create(...)
+              - pattern: openAIClient.responses().createStreaming(...)
+              - pattern: openAIClient.completions().create(...)
+              - pattern: openAIClient.completions().createStreaming(...)
+      - patterns:
+          - pattern-regex: (?s)\A(?=.*com\.anthropic\.).*
+          - pattern-either:
+              - pattern: client.messages().create(...)
+              - pattern: client.messages().createStreaming(...)
+              - pattern: client.beta().messages().create(...)
+              - pattern: client.beta().messages().createStreaming(...)
+              - pattern: anthropic.messages().create(...)
+              - pattern: anthropic.messages().createStreaming(...)
+              - pattern: anthropic.beta().messages().create(...)
+              - pattern: anthropic.beta().messages().createStreaming(...)
+              - pattern: anthropicClient.messages().create(...)
+              - pattern: anthropicClient.messages().createStreaming(...)
+              - pattern: anthropicClient.beta().messages().create(...)
+              - pattern: anthropicClient.beta().messages().createStreaming(...)
+      - patterns:
+          - pattern-regex: (?s)\A(?=.*com\.aallam\.openai\.).*
+          - pattern-either:
+              - pattern: $O.chatCompletion(...)
+              - pattern: $O.chatCompletions(...)
+              - pattern: $O.completion(...)
+              - pattern: $O.completions(...)
+      - patterns:
+          - pattern-regex: (?s)\A(?=.*com\.azure\.ai\.openai\.).*
+          - pattern-either:
+              - pattern: $C.getChatCompletions(...)
+              - pattern: $C.getChatCompletionsStream(...)
+              - pattern: $C.getChatCompletionsWithResponse(...)
+              - pattern: $C.getCompletions(...)
+              - pattern: $C.getCompletionsStream(...)
+              - pattern: $C.getCompletionsWithResponse(...)
+      - patterns:
+          - pattern-regex: (?s)\A(?=.*com\.azure\.ai\.inference\.).*
+          - pattern-either:
+              - pattern: $C.complete(...)
+              - pattern: $C.completeStream(...)
+          - metavariable-regex:
+              metavariable: $C
+              regex: (?i)^(this\.)?_?\w*(client|model|inference|chat|llm)\w*$
+      - patterns:
+          - pattern-regex: (?s)\A(?=.*\.services\.bedrockruntime\.).*
+          - pattern-either:
+              - pattern: $C.converse(...)
+              - pattern: $C.converse { ... }
+              - pattern: $C.converseStream(...)
+              - pattern: $C.converseStream { ... }
+      - patterns:
+          - pattern-regex: (?s)\A(?=.*\.services\.bedrockruntime\.).*
+          - pattern-either:
+              - pattern: $C.invokeModel { ...; modelId = $ID; ... }
+              - pattern: InvokeModelRequest { ...; modelId = $ID; ... }
+              - pattern: InvokeModelRequest.builder(). ... .modelId($ID). ... .build()
+              - pattern: $C.invokeModelWithResponseStream { ...; modelId = $ID; ... }
+              - pattern: InvokeModelWithResponseStreamRequest { ...; modelId = $ID; ... }
+              - pattern: InvokeModelWithResponseStreamRequest.builder(). ... .modelId($ID). ... .build()
+          - metavariable-regex:
+              metavariable: $ID
+              regex: (?i)^"[^"]*(claude|llama|titan-text|nova-(lite|micro|pro|premier)|mistral|command|jamba|deepseek|qwen)[^"]*"$
+    pattern-propagators:
+      - pattern: $S.$M { $X -> ... }
+        from: $S
+        to: $X
+      - pattern: $S?.$M { $X -> ... }
+        from: $S
+        to: $X
+      - patterns:
+          - pattern: $S.$M { <... $IT ...> }
+          - metavariable-regex:
+              metavariable: $IT
+              regex: ^it$
+        from: $S
+        to: $IT
+      - patterns:
+          - pattern: $S?.$M { <... $IT ...> }
+          - metavariable-regex:
+              metavariable: $IT
+              regex: ^it$
+        from: $S
+        to: $IT
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  @$A(...)
+                  fun $F(...): $R {
+                    ...
+                  }
+              - pattern-inside: |
+                  @$A
+                  fun $F(...): $R {
+                    ...
+                  }
+          - metavariable-regex:
+              metavariable: $A
+              regex: ^(GetMapping|PostMapping|PutMapping|PatchMapping|DeleteMapping|RequestMapping|ResponseBody|SendTo|SendToUser|QueryMapping|MutationMapping|SubscriptionMapping|GET|POST|PUT|DELETE|HEAD|Get|Post|Put|Patch|Delete|Route)$
+          - pattern: return $X
+          - pattern-not-inside: |
+              { $P -> ... }
+          - pattern-not-inside: |
+              { $P, $Q -> ... }
+          - pattern-not-inside: |
+              { $P, $Q, $W -> ... }
+          - focus-metavariable: $X
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  @$A(...)
+                  fun $F(...) = $X
+              - pattern-inside: |
+                  @$A(...)
+                  fun $F(...): $R = $X
+              - pattern-inside: |
+                  @$A
+                  fun $F(...) = $X
+              - pattern-inside: |
+                  @$A
+                  fun $F(...): $R = $X
+          - metavariable-regex:
+              metavariable: $A
+              regex: ^(GetMapping|PostMapping|PutMapping|PatchMapping|DeleteMapping|RequestMapping|ResponseBody|SendTo|SendToUser|QueryMapping|MutationMapping|SubscriptionMapping|GET|POST|PUT|DELETE|HEAD|Get|Post|Put|Patch|Delete|Route)$
+          - focus-metavariable: $X
+      - pattern: ResponseEntity.ok($X)
+      - pattern: ResponseEntity.$S(...). ... .body($X)
+      - pattern: ResponseEntity($X, ...)
+      - pattern: ResponseEntity<$T>($X, ...)
+      - pattern: ServerResponse.$S(...). ... .bodyValue($X)
+      - pattern: ServerResponse.$S(...). ... .bodyValueAndAwait($X)
+      - pattern: ServerResponse.$S(...). ... .body($X, ...)
+      - pattern: ServerResponse.$S(...). ... .bodyAndAwait($X, ...)
+      - pattern: Response.ok($X)
+      - pattern: Response.$S(...). ... .entity($X)
+      - pattern: Response(...).body($X)
+      - pattern: call.respond(..., $X, ...)
+      - pattern: call.respondText(..., $X, ...)
+      - pattern: call.respondBytes(..., $X, ...)
+      - pattern: Frame.Text($X)
+      - pattern: Frame.Binary(..., $X)
+      - pattern: $C.response().end($X)
+      - pattern: $C.response().write($X)
+      - pattern: $C.response().$H(...).end($X)
+      - pattern: ctx.result($X)
+      - pattern: ctx.json($X)
+      - pattern: ctx.html($X)
+      - pattern: $S.basicRemote.sendText($X)
+      - pattern: $S.asyncRemote.sendText($X)
+      - pattern: $S.basicRemote.sendBinary($X)
+      - pattern: $S.asyncRemote.sendBinary($X)
+      - patterns:
+          - pattern: $RESP.writer.$M(..., $X, ...)
+          - metavariable-regex:
+              metavariable: $RESP
+              regex: (?i)^(this\.)?\w*(resp|response|res)$
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(write|print|println|append|printf|format)$
+      - patterns:
+          - pattern: $RESP.outputStream.$M(..., $X, ...)
+          - metavariable-regex:
+              metavariable: $RESP
+              regex: (?i)^(this\.)?\w*(resp|response|res)$
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(write|print|println)$
+      - patterns:
+          - pattern-either:
+              - pattern: out.$M(..., $X, ...)
+              - pattern: writer.$M(..., $X, ...)
+              - pattern: pw.$M(..., $X, ...)
+              - pattern: printWriter.$M(..., $X, ...)
+          - pattern-inside: |
+              fun $F(..., $RESP: HttpServletResponse, ...) {
+                ...
+              }
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(write|print|println|append|printf|format)$
+      - patterns:
+          - pattern: $SRC.transferTo($RESP.outputStream)
+          - focus-metavariable: $SRC
+      - patterns:
+          - pattern: $SRC.copyTo($RESP.outputStream)
+          - focus-metavariable: $SRC
+      - patterns:
+          - pattern: $U.copy($SRC, $RESP.outputStream)
+          - focus-metavariable: $SRC
+      - pattern: emitter.send(..., $X, ...)
+      - pattern: sseEmitter.send(..., $X, ...)
+      - patterns:
+          - pattern-regex: (?s)\A(?=.*org\.springframework\.messaging\.simp\.).*
+          - pattern-either:
+              - pattern: $T.convertAndSend(..., $X, ...)
+              - pattern: $T.convertAndSendToUser(..., $X, ...)
+      - pattern: $S.sendMessage(TextMessage($X))
+      - pattern: $S.sendMessage(BinaryMessage($X))
+      - patterns:
+          - pattern-regex: (?s)\A(?=.*org\.springframework\.).*
+          - pattern-either:
+              - pattern: $R.addAttribute(..., $X, ...)
+              - pattern: $R.addFlashAttribute(..., $X, ...)
+              - pattern: $R.addObject(..., $X, ...)
+              - pattern: $R.setAttribute(..., $X, ...)
+          - metavariable-regex:
+              metavariable: $R
+              regex: (?i)^(this\.)?_?(\w*(model|mav|attributes|req|request)|ra)$
+      - pattern: ModelAndView(..., $X)
+      - pattern: $V.setText($X)
+      - pattern: $V.text = $X
+      - pattern: Toast.makeText($CTX, $X, ...)
+      - pattern: Snackbar.make($V, $X, ...)
+      - pattern: Text(text = $X, ...)
+      - pattern: Text($X, ...)
+      - patterns:
+          - pattern-either:
+              - pattern: $S.value = $X
+              - pattern: $S.postValue($X)
+              - pattern: $S.emit($X)
+              - pattern: $S.tryEmit($X)
+          - metavariable-regex:
+              metavariable: $S
+              regex: (?i)^(this\.)?_?\w*(state|message|reply|response|answer|result|output|text|summary|story|caption)\w*$
+    metadata:
+      activity: generates_text
+      mentioned: performs
+      definition: https://lexlint.io/activities/generates-text
+      provenance: ungovr-original
+      license: MIT

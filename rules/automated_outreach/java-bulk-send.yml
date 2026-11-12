@@ -1,0 +1,35 @@
+rules:
+  - id: lexcode.outreach.java-bulk-send
+    languages: [java]
+    severity: INFO
+    message: Sends one message to many recipients in a single batch call, push multicast or campaign send, which is sending automated outreach (automated_outreach).
+    patterns:
+      - pattern-either:
+          - pattern: $S.sendBulkTemplatedEmail(...)
+          - pattern: $S.sendBulkEmail(...)
+          - pattern: $F.sendEachForMulticast(...)
+          - pattern: $F.sendEachForMulticastAsync(...)
+          - pattern: $F.sendMulticast(...)
+          - pattern: $F.sendMulticastAsync(...)
+          - pattern: $F.sendToTopic(...)
+          - pattern: $F.sendToDevice(...)
+          - patterns:
+              - pattern: $F.$METHOD(...)
+              - metavariable-regex:
+                  metavariable: $F
+                  regex: (?i)^(this\.)?(\w*firebase\w*|fcm\w*)$
+              - metavariable-regex:
+                  metavariable: $METHOD
+                  regex: ^(sendAll|sendAllAsync|sendEach|sendEachAsync)$
+          - pattern: $P.sendMessages(...)
+          - pattern: $P.sendUsersMessages(...)
+          - pattern: $R.batch().send(...)
+          - pattern: Notification.creator(...)
+      # Literal anchor inside the match: it lets the engine skip files with no batch call.
+      - pattern-regex: '(\.sendBulk(Templated)?Email\(|\.send(Each|All|Multicast|ToTopic|ToDevice)\w*\(|\.sendMessages\(|\.sendUsersMessages\(|\.batch\(\)\s*\.send\(|Notification\.creator\()'
+    metadata:
+      activity: automated_outreach
+      mentioned: performs
+      definition: https://lexlint.io/activities/automated-outreach
+      provenance: ungovr-original
+      license: MIT

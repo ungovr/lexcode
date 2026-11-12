@@ -1,4 +1,4 @@
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -46,6 +46,19 @@ afterEach(() => {
 });
 
 describe.skipIf(!engineAvailable)('lexcode scan over test/repos/basic with the real engine', () => {
+  // A dangling link makes the engine exit 2 with no message if it is ever handed one
+  // (Canvas Android has buildSrc/build.gradle.kts as one).
+  it.skipIf(process.platform === 'win32')('a dangling symbolic link in the repository does not reach the engine', async () => {
+    mkdirSync(join(repo, 'buildSrc'), { recursive: true });
+    symlinkSync('../nowhere/build.gradle.kts', join(repo, 'buildSrc', 'build.gradle.kts'));
+    symlinkSync('../nowhere/Gone.py', join(repo, 'gone.py'));
+    const code = await main(['scan', repo, '--rules', join(repo, '.rules')], io());
+    expect(code).toBe(0);
+    const rec = JSON.parse(readFileSync(join(repo, 'lexcode.json'), 'utf8')) as EvidenceRecord;
+    expect(JSON.stringify(rec)).not.toContain('gone.py');
+    expect(rec.notices.join('\n')).not.toMatch(/could not read/);
+  });
+
   it('writes lexcode.json and reports the original .vue path and line', async () => {
     const code = await main(['scan', repo, '--rules', join(repo, '.rules')], io());
     expect(code).toBe(0);

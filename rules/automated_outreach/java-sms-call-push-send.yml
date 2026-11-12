@@ -1,0 +1,46 @@
+rules:
+  - id: lexcode.outreach.java-sms-call-push-send
+    languages: [java]
+    severity: INFO
+    message: Sends a text, places a call or pushes a notification, where the code does not show whether a person just asked for it, which may be sending automated outreach (automated_outreach).
+    # Signal strength, as in the JS, Python and Ruby rules: a text or a push is often the
+    # transactional kind. A one-time code, a verification or a password is left out by the words in
+    # the call, and Twilio Verify is not matched at all. Email is not in this rule: a single
+    # email is mostly the transactional kind, and the loop, timer and bulk rules take the mass shapes.
+    patterns:
+      - pattern-either:
+          - pattern: Call.creator(...).create(...)
+          - pattern: FirebaseMessaging.getInstance().send(...)
+          - pattern: FirebaseMessaging.getInstance().sendAsync(...)
+          - pattern: $P.send(new Notification($SUB, $PAYLOAD, ...))
+          - pattern: $P.sendAsync(new Notification($SUB, $PAYLOAD, ...))
+          - patterns:
+              - pattern-either:
+                  - pattern: $FM.send(...)
+                  - pattern: $FM.sendAsync(...)
+              - metavariable-regex:
+                  metavariable: $FM
+                  regex: (?i)^(this\.)?(\w*firebase\w*|fcm\w*)$
+          - patterns:
+              - pattern-either:
+                  - pattern: Message.creator($TO, $FROM, $BODY).create(...)
+                  - pattern: $S.sendTextMessage($TO, $SC, $BODY, ...)
+                  - pattern: PublishRequest.builder().phoneNumber($P).message($BODY)
+                  - pattern: new PublishRequest().withPhoneNumber($P).withMessage($BODY)
+                  - pattern: new $Q.PublishRequest().withPhoneNumber($P).withMessage($BODY)
+                  - pattern: $X.sendSms(..., $BODY)
+                  - pattern: $X.sendSMS(..., $BODY)
+                  - pattern: sendSms(..., $BODY)
+                  - pattern: sendSMS(..., $BODY)
+              - metavariable-regex:
+                  metavariable: $BODY
+                  regex: '(?is)^(?!.*(code|otp|verif|passcode|password|\bpin\b)).*$'
+      # Literal anchor inside the match: it lets the engine skip files with no send call.
+      - pattern-regex: '(\.creator\(|\.send(Async)?\(|\.sendTextMessage\(|\.phoneNumber\(|\.withPhoneNumber\(|\bsend(Sms|SMS)\()'
+    metadata:
+      activity: automated_outreach
+      mentioned: performs
+      definition: https://lexlint.io/activities/automated-outreach
+      provenance: ungovr-original
+      license: MIT
+      strength: signal

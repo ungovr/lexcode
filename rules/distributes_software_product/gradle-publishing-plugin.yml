@@ -1,0 +1,23 @@
+rules:
+  - id: lexcode.distribute.gradle-publishing-plugin
+    languages: [generic]
+    severity: INFO
+    message: Applies a Gradle plugin that publishes to Maven Central, a Nexus staging repository, the Gradle plugin portal or a release host (vanniktech, the Gradle Nexus publish plugin, plugin-publish, JReleaser), which makes the artifact available for others to depend on (distributes_software_product).
+    pattern-regex: '(?m)^[ \t]*(?:(?:apply[ \t]+plugin[ \t]*:[ \t]*|id[ \t]*\(?[ \t]*)["'']\s*(?:com\.vanniktech\.maven\.publish(?:\.base)?|io\.github\.gradle-nexus\.publish-plugin|com\.gradle\.plugin-publish|org\.jreleaser|com\.jfrog\.bintray)["'']|classpath[ \t]*\(?[ \t]*["''](?:com\.vanniktech:gradle-maven-publish-plugin|io\.github\.gradle-nexus:publish-plugin|org\.jreleaser:jreleaser-gradle-plugin|com\.gradle\.publish:plugin-publish-plugin|com\.jfrog\.bintray\.gradle:gradle-bintray-plugin)[:"'']\S*)(?![^\n]*\bapply[ \t]+false\b)'
+    paths:
+      include:
+        - "*.gradle"
+        - "gradle-publishing-plugin.*"
+      exclude:
+        - "**/example/**"
+        - "**/examples/**"
+        - "**/sample/**"
+        - "**/samples/**"
+        - "**/demo/**"
+        - "**/demos/**"
+    metadata:
+      activity: distributes_software_product
+      mentioned: performs
+      definition: https://lexlint.io/activities/distributes-software-product
+      provenance: ungovr-original
+      license: MIT

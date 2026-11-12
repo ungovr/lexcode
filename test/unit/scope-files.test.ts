@@ -207,6 +207,40 @@ describe('the skip list', () => {
     expect(r.info.include_tests).toBe(true);
   });
 
+  it.each(['androidTest', 'testFixtures', 'integrationTest'])(
+    'drops the JVM test source set %s, and --include-tests still reads it',
+    (name) => {
+      const files = [`app/src/${name}/kotlin/com/acme/A.kt`, 'app/src/main/kotlin/com/acme/Main.kt'];
+      const root = repo(files);
+      expect(listFiles(root, plain).files).toEqual(['app/src/main/kotlin/com/acme/Main.kt']);
+      expect(listFiles(root, { ...plain, includeTests: true }).files).toEqual([...files].sort());
+    },
+  );
+
+  it.each(['commonTest', 'jvmTest', 'androidUnitTest', 'androidInstrumentedTest', 'iosTest', 'jsTest', 'nativeTest'])(
+    'drops the Kotlin Multiplatform test source set %s, keeps its main source sets, and --include-tests still reads it',
+    (name) => {
+      const files = [`shared/src/${name}/kotlin/com/acme/A.kt`, 'shared/src/commonMain/kotlin/com/acme/Main.kt', 'shared/src/jvmMain/kotlin/com/acme/Jvm.kt'];
+      const root = repo(files);
+      expect(listFiles(root, plain).files).toEqual(['shared/src/commonMain/kotlin/com/acme/Main.kt', 'shared/src/jvmMain/kotlin/com/acme/Jvm.kt']);
+      expect(listFiles(root, { ...plain, includeTests: true }).files).toEqual([...files].sort());
+    },
+  );
+
+  it.skipIf(process.platform === 'win32')(
+    'never lists a symbolic link: a dangling file link (Canvas buildSrc/build.gradle.kts), a file link, or a file under a linked directory, tracked or not',
+    () => {
+      const root = repo(['app/Main.kt', 'real/build.gradle.kts', 'shared/Lib.kt']);
+      mkdirSync(path.join(root, 'buildSrc'));
+      symlinkSync('../nowhere/build.gradle.kts', path.join(root, 'buildSrc', 'build.gradle.kts'));
+      symlinkSync('real/build.gradle.kts', path.join(root, 'build.gradle.kts'));
+      symlinkSync('shared', path.join(root, 'linked-dir'));
+      symlinkSync('../nowhere/Other.kt', path.join(root, 'untracked-dangling.kt'));
+      git(root, 'add', 'buildSrc/build.gradle.kts', 'build.gradle.kts', 'linked-dir');
+      expect(listFiles(root, plain).files).toEqual(['app/Main.kt', 'real/build.gradle.kts', 'shared/Lib.kt']);
+    },
+  );
+
   it('applies to a tracked file as well', () => {
     const root = repo(['src/a.ts', 'node_modules/x.js']);
     git(root, 'add', '-f', 'node_modules/x.js');
