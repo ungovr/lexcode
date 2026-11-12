@@ -157,6 +157,43 @@ only where the literal matched. What the test passes still has the reach, so a
 scan says in a notice how many files it handed the engine are over 1,000,000
 bytes in a language with such a rule.
 
+A rule's cost inside one file matters as well: a scan gives each rule 30 s per
+file (`--timeout 30`), and a file the rule does not finish is a file error with
+its matches lost. In a `patterns` block the engine pairs the matches of the
+positive terms (`pattern`, `pattern-inside`, `pattern-either`) before it applies
+a name check (`metavariable-regex` and the other `metavariable-` conditions) at
+the same level. A field pattern (`$T $F;`) beside a class `pattern-inside`, with
+the checks after both, paired every field of a file with every class, so the JVM
+social rules took 10 to 33 s on a 900 KB file and one passed 30 s on a CI runner
+(#13009). Put each check in a nested `patterns` block with the term that binds
+its metavariable, so each term keeps only the matches that pass before the
+pairing:
+
+```yaml
+- patterns:
+    - pattern-either:
+        - pattern: $T $F;
+        - pattern: $T $F = $V;
+    - metavariable-regex:
+        metavariable: $F
+        regex: '^(recipient|receiver)$'
+- patterns:
+    - pattern-inside: |
+        class $C { ... $T2 $G; ... }
+    - metavariable-regex:
+        metavariable: $G
+        regex: '^(sender|author)$'
+- pattern-not-inside: |
+    $RET $M(...) { ... }
+```
+
+The nested form matches the same ranges and took those rules to about 3 s. A
+check on a metavariable that two terms bind stays at the joined level. Before a
+release, `node scripts/rule-cost.mjs` times every code rule on its positive
+fixture followed by filler, at 90 KB and 900 KB, and names a rule whose cost
+grows more than 30x for the 10x file, or weighs more than three times the
+engine's bare parse of the 900 KB file.
+
 ### Kotlin pattern notes
 
 Measured on Opengrep 1.33.1:
