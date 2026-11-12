@@ -25,6 +25,8 @@ rules:
               - pattern-regex: '(?i)(add_message|post_message|&?\.(?:\s|\\|#[^\n]*+)*+messages(?:\(\s*\))?(?:\s|\\|#[^\n]*+)*+&?\.(?:\s|\\|#[^\n]*+)*+create)'
           - patterns:
               - pattern-either:
+                  # Named for chat. A bare Transcript or TranscriptEntry is not: an academic or a caption
+                  # transcript has the same name (the Java and Kotlin rules drop it too).
                   - pattern: ChatMessage.create($...ARGS)
                   - pattern: ChatMessage.create!($...ARGS)
                   - pattern: ChatMessages.create($...ARGS)
@@ -43,16 +45,12 @@ rules:
                   - pattern: Chat.create!($...ARGS)
                   - pattern: ChatTurn.create($...ARGS)
                   - pattern: ChatTurn.create!($...ARGS)
-                  - pattern: Transcript.create($...ARGS)
-                  - pattern: Transcript.create!($...ARGS)
-                  - pattern: TranscriptEntry.create($...ARGS)
-                  - pattern: TranscriptEntry.create!($...ARGS)
                   - pattern: LiveChatMessage.create($...ARGS)
                   - pattern: LiveChatMessage.create!($...ARGS)
               - metavariable-regex:
                   metavariable: $...ARGS
                   regex: (?s)^.*\b(params|message_params|messages_params|chat_params|chat_message_params|conversation_params)\b.*$
-              - pattern-regex: '(?i)(ChatMessages?|Chats?::Message|ConversationMessage|Conversations?(::Message)?|\bChat|ChatTurn|Transcript(Entry)?|LiveChatMessage)(?:\(\s*\))?(?:\s|\\|#[^\n]*+)*+&?\.(?:\s|\\|#[^\n]*+)*+create'
+              - pattern-regex: '(?i)(ChatMessages?|Chats?::Message|ConversationMessage|Conversations?(::Message)?|\bChat|ChatTurn|LiveChatMessage)(?:\(\s*\))?(?:\s|\\|#[^\n]*+)*+&?\.(?:\s|\\|#[^\n]*+)*+create'
           - patterns:
               - pattern-inside: |
                   class $CLS < ApplicationCable::Channel

@@ -74,3 +74,14 @@ class RelayChannel < ApplicationCable::Channel
     transmit(html: render_message(draft))
   end
 end
+
+# An academic transcript and a caption transcript are not chat: the name says transcript, not chat.
+class TranscriptEntriesController < ApplicationController
+  def create
+    TranscriptEntry.create!(student_id: params[:student_id], course_code: params[:course_code], grade: params[:grade])
+  end
+
+  def import
+    Transcript.create(params.require(:transcript).permit(:student_id, :term, :gpa))
+  end
+end
