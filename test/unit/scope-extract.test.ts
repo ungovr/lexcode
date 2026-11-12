@@ -969,6 +969,55 @@ describe('PHP, Blade and Twig views', () => {
       }
     });
 
+    describe('a character whose lowercase is longer (Turkish "İ", U+0130, lowercases to two UTF-16 units)', () => {
+      it('an "İ" in markup before a block does not move or drop the block, in every view kind', () => {
+        const src = '<p>İİ</p><script>gtag("c");</script>\n';
+        expect('İ'.toLowerCase().length).toBe(2);
+        for (const opts of [{}, { php: true }, { blade: true }, { twig: true }] as Parameters<typeof blankOutsideScripts>[1][]) {
+          const r = blankOutsideScripts(src, opts);
+          expect(r, JSON.stringify(opts)).not.toBeNull();
+          sameShape(src, r!.text);
+          expect(r!.text.indexOf('gtag('), JSON.stringify(opts)).toBe(src.indexOf('gtag('));
+          expect(r!.text, JSON.stringify(opts)).toBe(sp('<p>İİ</p><script>') + 'gtag("c");' + sp('</script>') + '\n');
+        }
+      });
+
+      it('after a PHP region, an "İ" in the markup does not drop the block', () => {
+        const src = '<?php $a = 1; ?><p>İİ</p><script>gtag("c");</script>\n';
+        const r = blankOutsideScripts(src, { php: true });
+        expect(r).not.toBeNull();
+        sameShape(src, r!.text);
+        expect(r!.text.indexOf('gtag(')).toBe(src.indexOf('gtag('));
+      });
+
+      it('an "İ" inside the script body, or in a start-tag attribute value, keeps length and the body', () => {
+        const cases: [string, string][] = [
+          ['<script>var s = "İİ"; gtag("c");</script><p>x</p>', sp('<script>') + 'var s = "İİ"; gtag("c");' + sp('</script><p>x</p>')],
+          ['<script data-x="İİ">gtag("c");</script><p>x</p>', sp('<script data-x="İİ">') + 'gtag("c");' + sp('</script><p>x</p>')],
+          [
+            '<script data-x="İ">a();</script><p>İ</p><script>gtag("c");</script>',
+            sp('<script data-x="İ">') + 'a();' + sp('</script><p>İ</p><script>') + 'gtag("c");' + sp('</script>'),
+          ],
+        ];
+        for (const opts of [{}, { php: true }, { blade: true }, { twig: true }] as Parameters<typeof blankOutsideScripts>[1][]) {
+          for (const [src, expected] of cases) {
+            const r = blankOutsideScripts(src, opts);
+            expect(r, `${JSON.stringify(opts)} ${src}`).not.toBeNull();
+            sameShape(src, r!.text);
+            expect(r!.text, `${JSON.stringify(opts)} ${src}`).toBe(expected);
+          }
+        }
+      });
+
+      it('an "İ" between "</script" letters is not a close tag, as HTML matches tag names in ASCII only', () => {
+        // "</scrİpt>" lowercases to "</scri̇pt>", which is not "</script": the block runs on to the real close.
+        const src = '<script>a("</scrİpt>"); gtag("c");</script>';
+        const r = blankOutsideScripts(src, {})!;
+        sameShape(src, r.text);
+        expect(r.text).toBe(sp('<script>') + 'a("</scrİpt>"); gtag("c");' + sp('</script>'));
+      });
+    });
+
     it('every blanker keeps length and line breaks on generated input, astral characters included', () => {
       // A fixed-seed generator, so a failure names an input that can be run again.
       let seed = 12_987;

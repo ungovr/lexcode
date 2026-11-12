@@ -131,8 +131,18 @@ function parseStartTag(text: string, from: number): { attrs: Attrs; next: number
   return { attrs, next: text.length, selfClosing };
 }
 
+/**
+ * `text` with only A-Z lowercased, one UTF-16 unit for one, so its offsets are `text`'s. `toLowerCase()` will
+ * not do: a character whose lowercase is longer (Turkish "İ", U+0130, becomes two units) moves every later
+ * offset, and a block after it was dropped. HTML matches tag names in ASCII only, so this is also the match
+ * HTML makes.
+ */
+function asciiLower(text: string): string {
+  return text.replace(/[A-Z]+/g, (m) => m.toLowerCase());
+}
+
 function findScriptBlocks(text: string): ScriptBlock[] {
-  const lower = text.toLowerCase();
+  const lower = asciiLower(text);
   const blocks: ScriptBlock[] = [];
   let i = 0;
   // Once a search for "-->" fails, no later one can succeed: without this, a file of nothing but "<!--" searched
