@@ -1,6 +1,7 @@
-// lexcode-expect: 7
+// lexcode-expect: 9
 // Microsoft.Extensions.AI: the model's reply is added back to the running history that the next user turn is sent
-// with, by AddMessages on a response (the eShop shape) and on streamed updates, and by a ChatMessage in the assistant
+// with, by AddMessages on a response (the eShop shape, also on a list held by a session or state object) and on
+// streamed updates, and by a ChatMessage in the assistant
 // role built from the reply: under the import, under an alias, target-typed, and with an initializer.
 using Microsoft.Extensions.AI;
 using Ai = Microsoft.Extensions.AI;
@@ -16,6 +17,14 @@ public class ChatState(IChatClient chatClient)
         Messages.Add(new ChatMessage(ChatRole.User, userText));
         var response = await chatClient.GetResponseAsync(Messages);
         Messages.AddMessages(response);
+    }
+
+    public async Task NestedAsync(ChatSession chat, ChatState state, string userText)
+    {
+        chat.Messages.Add(new ChatMessage(ChatRole.User, userText));
+        var response = await chatClient.GetResponseAsync(chat.Messages);
+        chat.Messages.AddMessages(response);
+        state.History.AddMessages(response);
     }
 
     public async Task StreamAsync(List<ChatMessage> history, string userText)

@@ -1,8 +1,9 @@
 // lexcode-expect: 0
 // Turns kept only in memory for the length of a session (a Microsoft.Extensions.AI message list, a list named for the
 // chat history, a view model's ChatMessages, a state object's ChatHistory, a session object, a context object for the
-// prompt, a prompt list with a user role), a contact form and a support ticket saved, a chat room created with no text
-// in it, a chat room repository, an account role saved, and a Dapper insert into a contact table.
+// prompt, a prompt list with a user role, a chat context object's Messages and ChatMessages with a user role), a
+// contact form and a support ticket saved, a chat room created with no text in it, a chat room repository, account
+// records with a user or admin role, and a Dapper insert into a contact table.
 using Dapper;
 using Microsoft.Extensions.AI;
 
@@ -32,6 +33,15 @@ public class SupportService(AppDb db, ChatRoomRepository chatRoomRepository, Sys
         var prompt = new List<PromptMessage>();
         prompt.Add(new PromptMessage { Role = "user", Content = text });
         db.Add(new UserRoleEntry { Role = "admin", UserId = text });
+    }
+
+    public void RoleHolders(ChatContext chatContext, string text)
+    {
+        chatContext.Messages.Add(new ChatMessage { Role = ChatRole.User, Text = text });
+        chatContext.Messages.Add(new PromptTurn { Role = "user", Content = text });
+        chatContext.ChatMessages.Add(new ChatMessage(ChatRole.User, text));
+        db.Add(new UserRoleEntry { Role = "user", UserId = text });
+        db.Members.Add(new MemberEntry { Role = UserRole.User, Name = text });
     }
 
     public System.Collections.ObjectModel.ObservableCollection<ChatMessage> ChatMessages { get; } = [];

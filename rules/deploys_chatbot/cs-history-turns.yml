@@ -28,7 +28,9 @@ rules:
           - pattern: $H.AddMessages($R)
           - metavariable-regex:
               metavariable: $H
-              regex: (?i)^(this\.)?_?\w*(messages|history|conversation|chat|turns|thread|transcript)$
+              # A list held by a session or state object (`chat.Messages`, `state.History`) counts: the
+              # conversation name is checked on the last segment.
+              regex: (?i)^(\w+\.)*_?\w*(messages|history|conversation|chat|turns|thread|transcript)$
           - metavariable-regex:
               metavariable: $R
               regex: ^((?i:response|reply|result|completion|answer|updates?)|\w*(Response|Reply|Completion|Updates))$
