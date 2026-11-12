@@ -1,0 +1,103 @@
+# The follower and followed regular expressions repeat between the property arm and the finder arm.
+# Edit every copy together, or an arm drifts from the others. The engine reads `use X;` as also
+# matching `use X as Y;`, so each imported-by-name arm refuses an aliased import of the same trait.
+rules:
+  - id: lexcode.social.php-follow-relation
+    languages: [php]
+    severity: INFO
+    message: Defines a follow or friendship relation between user accounts (a follower and followed pair, a followers or friends relation, a friendship model, a follow or friendship package's trait, or a query keyed on the follower), which is how people connect on a social platform (operates_social_platform).
+    patterns:
+      - pattern-either:
+          - pattern-regex: '(?is)\A(?=.*follow).*'
+          - pattern-regex: '(?is)\A(?=.*friend).*'
+      - pattern-either:
+          # A Doctrine entity or plain class holding a follower and the account it follows (or
+          # an account's followers and following collections).
+          - patterns:
+              - pattern-either:
+                  - pattern: class $C { ... $F; ... }
+                  - pattern: class $C { ... $F = $V; ... }
+              - pattern-either:
+                  - pattern: class $C { ... $G; ... }
+                  - pattern: class $C { ... $G = $W; ... }
+              - metavariable-regex:
+                  metavariable: $G
+                  regex: '^\$followers?(User|Account|Member|Profile|_user|_account|_member|_profile)?(Id|_id)?$'
+              - metavariable-regex:
+                  metavariable: $F
+                  regex: '^\$(followed|followee|followees|following|followings)(User|Users|Account|Member|Profile|_user|_users|_account|_member|_profile)?(Id|Ids|_id|_ids)?$'
+              - focus-metavariable: $F
+          # An Eloquent many-to-many relation named for followers, followings or friends.
+          - patterns:
+              - pattern: $this->belongsToMany(...)
+              - pattern-inside: |
+                  function $R(...) { ... }
+              - metavariable-regex:
+                  metavariable: $R
+                  regex: '^(followers|following|followings|followees|followedUsers|followingUsers|friends|friendsOfMine|friendOf)$'
+          # A model or entity that is the friendship or the follow itself.
+          - patterns:
+              - pattern: class $C { ... }
+              - metavariable-regex:
+                  metavariable: $C
+                  regex: '^(Friendship|FriendRequest|FriendConnection|UserFriend|Follow|UserFollow|Follower|Followership)$'
+          # The follow and friendship traits of overtrue/laravel-follow and
+          # multicaret/laravel-acquaintances, used in a model.
+          - pattern: class $C { ... use \Overtrue\LaravelFollow\Traits\Follower; ... }
+          - pattern: class $C { ... use \Multicaret\Acquaintances\Traits\Friendable; ... }
+          - patterns:
+              - pattern: class $C { ... use $T; ... }
+              - pattern-either:
+                  - patterns:
+                      - pattern-inside: |
+                          use Overtrue\LaravelFollow\Traits\Follower;
+                          ...
+                      - pattern-not-inside: |
+                          use Overtrue\LaravelFollow\Traits\Follower as $B;
+                          ...
+                      - metavariable-regex:
+                          metavariable: $T
+                          regex: '^Follower$'
+                  - patterns:
+                      - pattern-inside: |
+                          use Multicaret\Acquaintances\Traits\Friendable;
+                          ...
+                      - pattern-not-inside: |
+                          use Multicaret\Acquaintances\Traits\Friendable as $B;
+                          ...
+                      - metavariable-regex:
+                          metavariable: $T
+                          regex: '^Friendable$'
+                  - pattern-inside: |
+                      use Overtrue\LaravelFollow\Traits\Follower as $T;
+                      ...
+                  - pattern-inside: |
+                      use Multicaret\Acquaintances\Traits\Friendable as $T;
+                      ...
+          # A query or finder keyed on the follower (Eloquent where, Doctrine findBy and count).
+          - patterns:
+              - pattern-either:
+                  - pattern: $Q->$W($K, ...)
+                  - pattern: $CL::$W($K, ...)
+              - metavariable-regex:
+                  metavariable: $W
+                  regex: '^(where|orWhere|whereIn|firstWhere)$'
+              - metavariable-regex:
+                  metavariable: $K
+                  regex: '^[''"](\w+\.)?follower(_user|_account|_member|_profile)?(_id)?[''"]$'
+          - patterns:
+              - pattern-either:
+                  - pattern: '$R->$W([..., $K => $V, ...], ...)'
+              - metavariable-regex:
+                  metavariable: $W
+                  regex: '^(findBy|findOneBy|count)$'
+              - metavariable-regex:
+                  metavariable: $K
+                  regex: '^[''"]follower(User|Account|Member|Profile)?(Id)?[''"]$'
+    metadata:
+      activity: operates_social_platform
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/operates-social-platform
+      provenance: ungovr-original
+      license: MIT

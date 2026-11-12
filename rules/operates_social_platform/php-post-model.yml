@@ -1,0 +1,66 @@
+# The class, reaction, author and comment regular expressions repeat across the arms (properties
+# for Doctrine and plain classes, relation methods for Eloquent). Edit every copy together, or an
+# arm drifts from the others.
+rules:
+  - id: lexcode.social.php-post-model
+    languages: [php]
+    severity: INFO
+    message: Declares a post that a user writes and other users react to (a post, tweet or reply class with likes, upvotes or reactions, or with an author and comments or replies), which is how content is shared on a social platform (operates_social_platform).
+    patterns:
+      - pattern-either:
+          - pattern-regex: '(?s)\A(?=.*Post\b).*'
+          - pattern-regex: '(?s)\A(?=.*Tweet\b).*'
+          - pattern-regex: '(?s)\A(?=.*Toot\b).*'
+          - pattern-regex: '(?s)\A(?=.*Reply\b).*'
+          - pattern-regex: '(?s)\A(?=.*StatusUpdate\b).*'
+      - pattern-either:
+          # Likes, upvotes or reactions: a property, or an Eloquent relation method.
+          - patterns:
+              - pattern-either:
+                  - pattern: class $C { ... $L; ... }
+                  - pattern: class $C { ... $L = $V; ... }
+              - metavariable-regex:
+                  metavariable: $L
+                  regex: '^\$(likes?|numberOfLikes|numLikes|likeCount|likesCount|likes_count|like_count|likedBy|reactions?|reactionCount|reactionsCount|reactions_count|upvotes?|upvoteCount|upvotes_count|downvotes?|shareCount|retweetCount|retweets|boosts|favorites|favourites)$'
+              - focus-metavariable: $L
+          - patterns:
+              - pattern: class $C { ... function $L(...) { ... } ... }
+              - metavariable-regex:
+                  metavariable: $L
+                  regex: '^(likes|likedBy|reactions|upvotes|downvotes|retweets|boosts|favorites|favourites)$'
+              - focus-metavariable: $L
+          # An author and comments or replies: two properties, or two Eloquent relation methods.
+          - patterns:
+              - pattern-either:
+                  - pattern: class $C { ... $M; ... }
+                  - pattern: class $C { ... $M = $V; ... }
+              - pattern-either:
+                  - pattern: class $C { ... $A; ... }
+                  - pattern: class $C { ... $A = $W; ... }
+              - metavariable-regex:
+                  metavariable: $A
+                  regex: '^\$(author|authorId|author_id|creator|creatorId|creator_id|poster|posterId|poster_id|owner|ownerId|owner_id|user|userId|user_id|createdBy|created_by)$'
+              - metavariable-regex:
+                  metavariable: $M
+                  regex: '^\$(comments|replies|numberOfComments|commentCount|comments_count|comment_count)$'
+              - focus-metavariable: $M
+          - patterns:
+              - pattern: class $C { ... function $M(...) { ... } ... }
+              - pattern: class $C { ... function $A(...) { ... } ... }
+              - metavariable-regex:
+                  metavariable: $A
+                  regex: '^(author|creator|poster|owner|user)$'
+              - metavariable-regex:
+                  metavariable: $M
+                  regex: '^(comments|replies)$'
+              - focus-metavariable: $M
+      - metavariable-regex:
+          metavariable: $C
+          regex: '^(\w*[a-z0-9])?(Post|Tweet|Toot|Reply|ForumPost|WallPost|StatusUpdate)$'
+    metadata:
+      activity: operates_social_platform
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/operates-social-platform
+      provenance: ungovr-original
+      license: MIT

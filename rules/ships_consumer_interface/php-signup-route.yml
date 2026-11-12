@@ -1,0 +1,144 @@
+# The path regular expression repeats in the metavariable-regex at the end; the admin words repeat
+# across the exclusions. Edit every copy together, or an arm drifts from the others.
+rules:
+  - id: lexcode.consumer.php-signup-route
+    languages: [php]
+    severity: INFO
+    message: Routes a public sign-up page or endpoint (a Laravel route, a Livewire Volt page or a Symfony route attribute), a screen that members of the public use to reach a service (ships_consumer_interface).
+    patterns:
+      - pattern-either:
+          # Laravel's Route facade, imported, aliased, fully qualified, or the global alias. The
+          # global alias resolves only in a file with no namespace (a routes/*.php file) and no
+          # import of another class named Route. Route::match takes its methods first, as an array.
+          - patterns:
+              - pattern-either:
+                  # The engine reads `use X;` as also matching `use X as Y;`, where a bare Route is
+                  # some other class, so the imported-by-name arm refuses an aliased import.
+                  - patterns:
+                      - pattern-inside: |
+                          use Illuminate\Support\Facades\Route;
+                          ...
+                      - pattern-not-inside: |
+                          use Illuminate\Support\Facades\Route as $B;
+                          ...
+                      - pattern-either:
+                          - pattern: Route::$M($P, ...)
+                          - pattern: Route::$M([...], $P, ...)
+                  - patterns:
+                      - pattern-inside: |
+                          use Illuminate\Support\Facades\Route as $A;
+                          ...
+                      - pattern-either:
+                          - pattern: $A::$M($P, ...)
+                          - pattern: $A::$M([...], $P, ...)
+                  - pattern: \Illuminate\Support\Facades\Route::$M($P, ...)
+                  - pattern: \Illuminate\Support\Facades\Route::$M([...], $P, ...)
+                  - pattern: \Route::$M($P, ...)
+                  - pattern: \Route::$M([...], $P, ...)
+                  - patterns:
+                      - pattern-either:
+                          - pattern: Route::$M($P, ...)
+                          - pattern: Route::$M([...], $P, ...)
+                      - pattern-not-inside: |
+                          namespace $NS;
+                          ...
+                      - pattern-not-inside: |
+                          use $NS\Route;
+                          ...
+              - metavariable-regex:
+                  metavariable: $M
+                  regex: '^(get|post|put|any|view|match)$'
+          # Livewire Volt, the Laravel Breeze Livewire stack's page routes.
+          - patterns:
+              - pattern-inside: |
+                  use Livewire\Volt\Volt;
+                  ...
+              - pattern-not-inside: |
+                  use Livewire\Volt\Volt as $B;
+                  ...
+              - pattern: Volt::route($P, ...)
+          - patterns:
+              - pattern-inside: |
+                  use Livewire\Volt\Volt as $A;
+                  ...
+              - pattern: $A::route($P, ...)
+          - pattern: \Livewire\Volt\Volt::route($P, ...)
+          # Symfony's Route attribute (the engine reads an attribute as a call), imported from
+          # Attribute or the older Annotation namespace, aliased, or fully qualified.
+          - patterns:
+              - pattern-either:
+                  - patterns:
+                      - pattern-inside: |
+                          use Symfony\Component\Routing\Attribute\Route;
+                          ...
+                      - pattern-not-inside: |
+                          use Symfony\Component\Routing\Attribute\Route as $B;
+                          ...
+                  - patterns:
+                      - pattern-inside: |
+                          use Symfony\Component\Routing\Annotation\Route;
+                          ...
+                      - pattern-not-inside: |
+                          use Symfony\Component\Routing\Annotation\Route as $B;
+                          ...
+              - pattern-either:
+                  - pattern: Route($P, ...)
+                  - pattern: 'Route(..., path: $P, ...)'
+          - patterns:
+              - pattern-either:
+                  - pattern-inside: |
+                      use Symfony\Component\Routing\Attribute\Route as $A;
+                      ...
+                  - pattern-inside: |
+                      use Symfony\Component\Routing\Annotation\Route as $A;
+                      ...
+              - pattern-either:
+                  - pattern: $A($P, ...)
+                  - pattern: '$A(..., path: $P, ...)'
+          - pattern: \Symfony\Component\Routing\Attribute\Route($P, ...)
+          - pattern: '\Symfony\Component\Routing\Attribute\Route(..., path: $P, ...)'
+          - pattern: \Symfony\Component\Routing\Annotation\Route($P, ...)
+          - pattern: '\Symfony\Component\Routing\Annotation\Route(..., path: $P, ...)'
+      - metavariable-regex:
+          metavariable: $P
+          regex: '^[''"]/?(api/)?(v[0-9]+/)?(accounts/|auth/|users/)?(sign-?up|sign_up|register|registration|create-account)/?[''"]$'
+      # A route group for staff: an admin, staff or internal prefix, name or middleware.
+      - pattern-not-inside:
+          patterns:
+            - pattern: $R->group(...)
+            - metavariable-regex:
+                metavariable: $R
+                regex: '(?is).*\b(prefix|middleware|name|as)\(\s*\[?[^)]*[''"][^''"]*\b(admin|staff|internal|backoffice|manage)'
+      - pattern-not-inside:
+          patterns:
+            - pattern: $R::group($OPTS, ...)
+            - metavariable-regex:
+                metavariable: $OPTS
+                regex: '(?is).*[''"](prefix|middleware|as)[''"]\s*=>\s*[^,\]]*\b(admin|staff|internal|backoffice|manage)'
+      # A Symfony route that IsGranted restricts, on either side of the Route attribute.
+      - pattern-not-regex: '#\[IsGranted\([^\n]*\)\]\s*(#\[[^\n]*\]\s*)*#\[[\\\w]*Route\([^\n]*'
+      - pattern-not-regex: '#\[[\\\w]*Route\([^\n]*\)\]\s*(#\[[^\n]*\]\s*)*#\[IsGranted\('
+      # A staff controller: an Admin, Staff, Internal or Backoffice namespace or class.
+      - pattern-not-inside:
+          patterns:
+            - pattern: |
+                namespace $NS;
+                ...
+            - metavariable-regex:
+                metavariable: $NS
+                regex: '(?i)^.*\\(admin|staff|internal|backoffice)(\\.*)?$'
+      - pattern-not-inside:
+          patterns:
+            - pattern-either:
+                - pattern: class $C { ... }
+                - pattern: class $C extends $PARENT { ... }
+            - metavariable-regex:
+                metavariable: $C
+                regex: '(?i)^.*(admin|staff|internal|backoffice)'
+    metadata:
+      activity: ships_consumer_interface
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/ships-consumer-interface
+      provenance: ungovr-original
+      license: MIT

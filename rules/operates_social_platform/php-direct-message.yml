@@ -1,0 +1,89 @@
+# The class, sender and recipient regular expressions repeat across the two model arms, and the
+# channel-name expression across the Broadcast arms. Edit every copy together, or an arm drifts.
+# The engine reads `use X;` as also matching `use X as Y;`, so the imported-by-name arm refuses an
+# aliased import of the same class, where the short name is some other class.
+rules:
+  - id: lexcode.social.php-direct-message
+    languages: [php]
+    severity: INFO
+    message: Stores or sends a message addressed from one user account to another (a direct or private message model with a sender and a recipient, or a Laravel broadcast channel for a user's chat or messages), which is how people talk on a social platform (operates_social_platform).
+    pattern-either:
+      # A Doctrine entity or plain class with a sender and a recipient property (or promoted
+      # constructor parameter), and an Eloquent model with a sender and a recipient relation.
+      - patterns:
+          - pattern-either:
+              - pattern-regex: '(?is)\A(?=.*recipient).*'
+              - pattern-regex: '(?is)\A(?=.*receiver).*'
+              - pattern-regex: '(?is)\A(?=.*to_?user).*'
+          - pattern-either:
+              - patterns:
+                  - pattern-either:
+                      - pattern: class $C { ... $F; ... }
+                      - pattern: class $C { ... $F = $V; ... }
+                  - pattern-either:
+                      - pattern: class $C { ... $G; ... }
+                      - pattern: class $C { ... $G = $W; ... }
+                  - metavariable-regex:
+                      metavariable: $F
+                      regex: '^\$(recipient|receiver|toUser|recipientId|receiverId|toUserId|recipient_id|receiver_id|to_user_id)$'
+                  - metavariable-regex:
+                      metavariable: $G
+                      regex: '^\$(sender|fromUser|senderId|fromUserId|sender_id|from_user_id|author|authorId|author_id)$'
+                  - metavariable-regex:
+                      metavariable: $C
+                      regex: '^(?!.*(Email|Mail|Sms|Notification|Log|Event|Contact|Audit|Queue|Jms|Kafka)).*(DirectMessage|PrivateMessage|ChatMessage|UserMessage|InboxMessage|Dm|DM)$'
+                  - focus-metavariable: $F
+              # An Eloquent relation to the recipient's account, in a model that also relates the
+              # sender. A relation is a stored link between two accounts, so a model named only
+              # Message counts here, as a plain class with those properties does not.
+              - patterns:
+                  - pattern: $this->belongsTo(...)
+                  - pattern-inside: |
+                      function $F(...) { ... }
+                  - pattern-inside: class $C { ... function $G(...) { ... } ... }
+                  - metavariable-regex:
+                      metavariable: $F
+                      regex: '^(recipient|receiver|toUser)$'
+                  - metavariable-regex:
+                      metavariable: $G
+                      regex: '^(sender|fromUser|author)$'
+                  - metavariable-regex:
+                      metavariable: $C
+                      regex: '^(?!.*(Email|Mail|Sms|Notification|Log|Event|Contact|Audit|Queue|Jms|Kafka)).*(Message|Dm|DM)$'
+      # A Laravel broadcast channel for a user's chat, messages or conversation: the Broadcast
+      # facade imported, aliased, fully qualified, or the global alias in a file with no namespace.
+      - patterns:
+          - pattern-either:
+              - patterns:
+                  - pattern-inside: |
+                      use Illuminate\Support\Facades\Broadcast;
+                      ...
+                  - pattern-not-inside: |
+                      use Illuminate\Support\Facades\Broadcast as $B;
+                      ...
+                  - pattern: Broadcast::channel($N, ...)
+              - patterns:
+                  - pattern-inside: |
+                      use Illuminate\Support\Facades\Broadcast as $A;
+                      ...
+                  - pattern: $A::channel($N, ...)
+              - pattern: \Illuminate\Support\Facades\Broadcast::channel($N, ...)
+              - pattern: \Broadcast::channel($N, ...)
+              - patterns:
+                  - pattern: Broadcast::channel($N, ...)
+                  - pattern-not-inside: |
+                      namespace $NS;
+                      ...
+                  - pattern-not-inside: |
+                      use $NS\Broadcast;
+                      ...
+          - metavariable-regex:
+              metavariable: $N
+              regex: '(?i)^[''"]([^''"]*(message|chat|conversation|direct)[^''"]*|([^''"]*[./_-])?dms?([./_-][^''"]*)?)[''"]$'
+    metadata:
+      activity: operates_social_platform
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/operates-social-platform
+      provenance: ungovr-original
+      license: MIT
