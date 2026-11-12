@@ -1,0 +1,62 @@
+rules:
+  - id: lexcode.tracking.php-tracking-cookie
+    languages: [php]
+    severity: INFO
+    message: Writes a cookie whose name marks it as an analytics, advertising or visitor-identifier cookie, which is tracking devices (tracks_devices).
+    patterns:
+      - pattern-either:
+          # Plain PHP.
+          - pattern: setcookie($N, ...)
+          - pattern: setrawcookie($N, ...)
+          # Laravel: the cookie() helper, and a response's cookie(name, value, ...).
+          - pattern: cookie($N, ...)
+          - patterns:
+              - pattern: $R->cookie($N, $V, ...)
+              - metavariable-regex:
+                  metavariable: $R
+                  regex: (?i).*response
+          # Laravel: the Cookie facade, fully qualified, as the root alias, imported or aliased.
+          - patterns:
+              - pattern-either:
+                  - pattern: \Illuminate\Support\Facades\Cookie::$M($N, ...)
+                  - pattern: \Cookie::$M($N, ...)
+                  - patterns:
+                      - pattern: Cookie::$M($N, ...)
+                      - pattern-inside: |
+                          use Illuminate\Support\Facades\Cookie;
+                          ...
+                  - patterns:
+                      - pattern: $A::$M($N, ...)
+                      - pattern-inside: |
+                          use Illuminate\Support\Facades\Cookie as $A;
+                          ...
+              - metavariable-regex:
+                  metavariable: $M
+                  regex: ^(queue|make|forever)$
+          # Symfony: the HttpFoundation cookie, fully qualified, imported or aliased.
+          - pattern: \Symfony\Component\HttpFoundation\Cookie::create($N, ...)
+          - pattern: new \Symfony\Component\HttpFoundation\Cookie($N, ...)
+          - patterns:
+              - pattern-either:
+                  - pattern: Cookie::create($N, ...)
+                  - pattern: new Cookie($N, ...)
+              - pattern-inside: |
+                  use Symfony\Component\HttpFoundation\Cookie;
+                  ...
+          - patterns:
+              - pattern-either:
+                  - pattern: $A::create($N, ...)
+                  - pattern: new $A($N, ...)
+              - pattern-inside: |
+                  use Symfony\Component\HttpFoundation\Cookie as $A;
+                  ...
+      - metavariable-regex:
+          metavariable: $N
+          regex: (?i)^['"](_ga(_.*)?|_gid|_gat(_.*)?|_gcl_.*|_fbp|_fbc|_hjid|_hjSessionUser.*|ajs_(anonymous|user)_id|mp_.*_mixpanel|ph_.*_posthog|amplitude_id.*|_uetvid|_uetsid|_clck|_clsk|__utm.|(visitor|tracking|anonymous|device|browser)_?(id|token|uuid)|fingerprint)['"]$
+      - focus-metavariable: $N
+    metadata:
+      activity: tracks_devices
+      mentioned: performs
+      definition: https://lexlint.io/activities/tracks-devices
+      provenance: ungovr-original
+      license: MIT

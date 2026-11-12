@@ -1,0 +1,94 @@
+rules:
+  - id: lexcode.personal.php-client-ip-captured
+    languages: [php]
+    severity: INFO
+    message: Writes the visitor's IP address into a log or a database, which is processing personal data (processes_personal_data).
+    mode: taint
+    pattern-sources:
+      # Plain PHP: the server array.
+      - patterns:
+          - pattern: $_SERVER[$K]
+          - metavariable-regex:
+              metavariable: $K
+              regex: ^['"](REMOTE_ADDR|HTTP_X_FORWARDED_FOR|HTTP_X_REAL_IP|HTTP_CLIENT_IP|HTTP_CF_CONNECTING_IP|HTTP_TRUE_CLIENT_IP|HTTP_FORWARDED)['"]$
+      # Laravel and Symfony: the request object (a receiver named for the request, so a
+      # server's or a device's own ip() is not read as a visitor's address).
+      - patterns:
+          - pattern-either:
+              - pattern: $R->ip()
+              - pattern: $R->ips()
+              - pattern: $R->getClientIp()
+              - pattern: $R->getClientIps()
+          - metavariable-regex:
+              metavariable: $R
+              regex: (?i).*req
+      - pattern: Request::ip()
+      - pattern: Request::getClientIp()
+      - patterns:
+          - pattern-either:
+              - pattern: $R->header($H, ...)
+              - pattern: $R->server($H, ...)
+              - pattern: $R->headers->get($H, ...)
+              - pattern: $R->server->get($H, ...)
+          - metavariable-regex:
+              metavariable: $R
+              regex: (?i).*req
+          - metavariable-regex:
+              metavariable: $H
+              regex: (?i)^['"](x-forwarded-for|x-real-ip|forwarded|cf-connecting-ip|true-client-ip|x-client-ip|remote_addr|http_x_forwarded_for)['"]$
+    # The address is not what is kept when it only feeds a membership test or a check whose
+    # answer is logged (an allow list, a range check, a verification call).
+    pattern-sanitizers:
+      - pattern: in_array(...)
+      - pattern: array_key_exists(...)
+      - pattern: preg_match(...)
+      - patterns:
+          - pattern-either:
+              - pattern: $F(...)
+              - pattern: $C->$F(...)
+              - pattern: $C::$F(...)
+          - metavariable-regex:
+              metavariable: $F
+              regex: ^(check|verify|validate|is|has|can|allow|matches)([A-Z_]\w*)?$
+    options:
+      taint_assume_safe_comparisons: true
+      taint_assume_safe_booleans: true
+    pattern-sinks:
+      # A log line: the Laravel Log facade, a PSR-3 logger, or the PHP error log.
+      - patterns:
+          - pattern-either:
+              - pattern: Log::$M(...)
+              - pattern: \Illuminate\Support\Facades\Log::$M(...)
+              - pattern: logger()->$M(...)
+              - patterns:
+                  - pattern: $L->$M(...)
+                  - metavariable-regex:
+                      metavariable: $L
+                      regex: ^\$(this->)?_?(log|logger|LOG|LOGGER|auditLogger|securityLogger|accessLog)$
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(emergency|alert|critical|error|warning|notice|info|debug|log)$
+      - pattern: logger(...)
+      - pattern: error_log(...)
+      - pattern: syslog(...)
+      # A write to the database: Eloquent and the query builder.
+      - patterns:
+          - pattern-either:
+              - pattern: $C::$M(...)
+              - pattern: $C->$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(create|forceCreate|insert|insertGetId|insertOrIgnore|upsert|updateOrCreate|firstOrCreate|updateOrInsert|update|fill|forceFill)$
+      # An address-named attribute set on an object (an Eloquent model or an entity).
+      - patterns:
+          - pattern: $O->$F = $V
+          - metavariable-regex:
+              metavariable: $F
+              regex: ^(ip_address|ip_addr|ipaddress|ipAddress|client_ip|clientIp|remote_ip|remoteIp|remote_addr|remoteAddr|last_ip|lastip|lastIp|last_ip_address|last_login_ip|lastLoginIp|last_sign_in_ip|current_sign_in_ip|forwarded_for)$
+          - focus-metavariable: $V
+    metadata:
+      activity: processes_personal_data
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-personal-data
+      provenance: ungovr-original
+      license: MIT

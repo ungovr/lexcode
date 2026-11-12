@@ -1,0 +1,80 @@
+rules:
+  - id: lexcode.personal.php-validated-email
+    languages: [php]
+    severity: INFO
+    message: Validates an email address a person supplies in a form or request (a Laravel email validation rule, or the Symfony Validator Email constraint), which is processing personal data (processes_personal_data).
+    pattern-either:
+      # Laravel: the email rule in a rules array. The rules array is the argument a validation
+      # call takes, or what a form request's rules() returns; the facade is matched fully
+      # qualified, imported, aliased, and as the root alias (written \Validator, or bare in a
+      # file with no namespace).
+      - patterns:
+          - pattern-either:
+              - pattern: \Illuminate\Support\Facades\Validator::make($D, $RULES, ...)
+              - pattern: \Validator::make($D, $RULES, ...)
+              - patterns:
+                  - pattern: Validator::make($D, $RULES, ...)
+                  - pattern-inside: |
+                      use Illuminate\Support\Facades\Validator;
+                      ...
+              - patterns:
+                  - pattern: Validator::make($D, $RULES, ...)
+                  - pattern-not-inside: |
+                      namespace $NS;
+                      ...
+              - patterns:
+                  - pattern: $A::make($D, $RULES, ...)
+                  - pattern-inside: |
+                      use Illuminate\Support\Facades\Validator as $A;
+                      ...
+              - pattern: $X->validate($RULES, ...)
+              - pattern: $X->validateWithBag($BAG, $RULES, ...)
+              - patterns:
+                  - pattern: return $RULES;
+                  - pattern-inside: |
+                      function rules(...) { ... }
+          - metavariable-pattern:
+              metavariable: $RULES
+              pattern-either:
+                - patterns:
+                    - pattern: "[..., $K => $V, ...]"
+                    - metavariable-regex:
+                        metavariable: $V
+                        regex: ^['"]([^'"|]*\|)*email(:[^'"|]*)?(\|[^'"]*)?['"]$
+                - patterns:
+                    - pattern: "[..., $K => [..., $V, ...], ...]"
+                    - metavariable-regex:
+                        metavariable: $V
+                        regex: ^['"]email(:[^'"]*)?['"]$
+          - focus-metavariable: $V
+      # Symfony: the Email constraint built in code, fully qualified, imported or aliased.
+      - pattern: new \Symfony\Component\Validator\Constraints\Email(...)
+      - patterns:
+          - pattern: new Email(...)
+          - pattern-inside: |
+              use Symfony\Component\Validator\Constraints\Email;
+              ...
+      - patterns:
+          - pattern: new $A\Email(...)
+          - pattern-inside: |
+              use Symfony\Component\Validator\Constraints as $A;
+              ...
+      # Symfony: the Email constraint as an attribute or annotation. The engine does not parse an
+      # attribute in a pattern, so these are matched on text, under the import.
+      - pattern-regex: '#\[\\Symfony\\Component\\Validator\\Constraints\\Email\b'
+      - patterns:
+          - pattern-regex: '#\[Email\b'
+          - pattern-inside: |
+              use Symfony\Component\Validator\Constraints\Email;
+              ...
+      - patterns:
+          - pattern-regex: '(?:#\[|@)Assert\\Email\b'
+          - pattern-inside: |
+              use Symfony\Component\Validator\Constraints as Assert;
+              ...
+    metadata:
+      activity: processes_personal_data
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-personal-data
+      provenance: ungovr-original
+      license: MIT
