@@ -4,18 +4,35 @@ rules:
     severity: INFO
     message: Sends visits or events to a third-party analytics service that follows the visitor or device with its own id (Application Insights given a user or device id, Segment, Mixpanel, PostHog, Firebase Analytics or the Google Analytics Measurement Protocol), which is tracking devices (tracks_devices).
     pattern-either:
-      # Application Insights: a user or device id set on the telemetry context (a telemetry
-      # initializer, or a client's own context). Telemetry with no such id is not following one
-      # visitor. The context is reached from a typed telemetry item (an initializer's parameter)
-      # or a typed TelemetryClient.
-      - pattern: (Microsoft.ApplicationInsights.Channel.ITelemetry $X).Context.User.Id = $V
-      - pattern: (Microsoft.ApplicationInsights.Channel.ITelemetry $X).Context.User.AuthenticatedUserId = $V
-      - pattern: (Microsoft.ApplicationInsights.Channel.ITelemetry $X).Context.User.AccountId = $V
-      - pattern: (Microsoft.ApplicationInsights.Channel.ITelemetry $X).Context.Device.Id = $V
-      - pattern: (Microsoft.ApplicationInsights.TelemetryClient $X).Context.User.Id = $V
-      - pattern: (Microsoft.ApplicationInsights.TelemetryClient $X).Context.User.AuthenticatedUserId = $V
-      - pattern: (Microsoft.ApplicationInsights.TelemetryClient $X).Context.User.AccountId = $V
-      - pattern: (Microsoft.ApplicationInsights.TelemetryClient $X).Context.Device.Id = $V
+      # Application Insights: a user or device id set on a telemetry context. Telemetry with no
+      # such id is not following one visitor. The context's owner carries no type in a member
+      # chain, so it is reached one of two ways: anywhere in a telemetry initializer or processor
+      # (whatever the item is cast to there: `telemetry as RequestTelemetry`, `item is
+      # PageViewTelemetry pv`), or on a typed telemetry item or client elsewhere.
+      - patterns:
+          - pattern-either:
+              - patterns:
+                  - pattern-either:
+                      - pattern-inside: |
+                          class $C : Microsoft.ApplicationInsights.Extensibility.ITelemetryInitializer { ... }
+                      - pattern-inside: |
+                          class $C : Microsoft.ApplicationInsights.Extensibility.ITelemetryProcessor { ... }
+                  - pattern: $X.Context.$K.$P = $V
+              - pattern: (Microsoft.ApplicationInsights.Channel.ITelemetry $X).Context.$K.$P = $V
+              - pattern: (Microsoft.ApplicationInsights.TelemetryClient $X).Context.$K.$P = $V
+              - pattern: (Microsoft.ApplicationInsights.DataContracts.RequestTelemetry $X).Context.$K.$P = $V
+              - pattern: (Microsoft.ApplicationInsights.DataContracts.PageViewTelemetry $X).Context.$K.$P = $V
+              - pattern: (Microsoft.ApplicationInsights.DataContracts.EventTelemetry $X).Context.$K.$P = $V
+              - pattern: (Microsoft.ApplicationInsights.DataContracts.TraceTelemetry $X).Context.$K.$P = $V
+              - pattern: (Microsoft.ApplicationInsights.DataContracts.DependencyTelemetry $X).Context.$K.$P = $V
+              - pattern: (Microsoft.ApplicationInsights.DataContracts.ExceptionTelemetry $X).Context.$K.$P = $V
+          # Every branch binds $K and $P, so these filters apply to each one.
+          - metavariable-regex:
+              metavariable: $K
+              regex: ^(User|Device)$
+          - metavariable-regex:
+              metavariable: $P
+              regex: ^(Id|AuthenticatedUserId|AccountId)$
       # Segment: Analytics.NET (the static Analytics in namespace Segment) and Analytics-CSharp
       # (Segment.Analytics.Analytics). The short name Analytics carries no vendor name, so these
       # are written fully qualified: the engine resolves `using` and aliases, and the app's own

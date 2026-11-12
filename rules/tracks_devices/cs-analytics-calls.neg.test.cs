@@ -1,8 +1,8 @@
 // lexcode-expect: 0
 // Telemetry that follows no visitor or device: Application Insights given only the service's own
-// name, an event with no user id, server metrics and traces kept as anonymous totals, the same
-// Context.User.Id chain on the app's own queue message, and the app's own Analytics class (a
-// report builder), which shares Segment's short name.
+// name, a per-visit session id and a correlation id, an event with no user id, server metrics and
+// traces kept as anonymous totals, the same Context.User.Id chain on the app's own queue message,
+// and the app's own Analytics class (a report builder), which shares Segment's short name.
 using System.Diagnostics.Metrics;
 using Microsoft.ApplicationInsights;
 using Microsoft.ApplicationInsights.Channel;
@@ -15,6 +15,10 @@ public class RoleNameInitializer : ITelemetryInitializer
     public void Initialize(ITelemetry telemetry)
     {
         telemetry.Context.Cloud.RoleName = "orders-api";
+        // A per-visit session id (the definition's exclusion) and the request's correlation id
+        // identify no returning visitor or device.
+        telemetry.Context.Session.Id = Guid.NewGuid().ToString();
+        telemetry.Context.Operation.Id = System.Diagnostics.Activity.Current?.TraceId.ToString();
     }
 }
 

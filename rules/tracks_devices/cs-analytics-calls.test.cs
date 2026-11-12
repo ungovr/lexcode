@@ -1,11 +1,13 @@
-// lexcode-expect: 19
+// lexcode-expect: 22
 // Visits and events sent to third-party analytics services that follow the visitor or device
-// with their own id: Application Insights given a user or device id (in an initializer and on a
-// client), Segment (Analytics.NET, and
-// Analytics-CSharp through an alias), Mixpanel and PostHog (injected, constructed and
-// target-typed), Firebase Analytics on .NET MAUI, and the Google Analytics Measurement Protocol.
+// with their own id: Application Insights given a user or device id (on the telemetry an
+// initializer or processor sees, a request telemetry reached with `as`, an event telemetry, and a
+// client's own context), Segment (Analytics.NET, and Analytics-CSharp through an alias), Mixpanel
+// and PostHog (injected, constructed and target-typed), Firebase Analytics on .NET MAUI, and the
+// Google Analytics Measurement Protocol.
 using Microsoft.ApplicationInsights;
 using Microsoft.ApplicationInsights.Channel;
+using Microsoft.ApplicationInsights.DataContracts;
 using Microsoft.ApplicationInsights.Extensibility;
 using Mixpanel;
 using PostHog;
@@ -22,6 +24,34 @@ public class UserTelemetryInitializer(IHttpContextAccessor accessor) : ITelemetr
         telemetry.Context.User.AuthenticatedUserId = accessor.HttpContext?.User.Identity?.Name;
         telemetry.Context.Device.Id = accessor.HttpContext?.Request.Headers["X-Device-Id"];
     }
+}
+
+public class RequestUserInitializer(IHttpContextAccessor accessor) : ITelemetryInitializer
+{
+    public void Initialize(ITelemetry telemetry)
+    {
+        var requestTelemetry = telemetry as RequestTelemetry;
+        if (requestTelemetry == null) return;
+        requestTelemetry.Context.User.AuthenticatedUserId = accessor.HttpContext?.User.Identity?.Name;
+    }
+}
+
+public class PageViewUserProcessor(ITelemetryProcessor next, IHttpContextAccessor accessor) : ITelemetryProcessor
+{
+    public void Process(ITelemetry item)
+    {
+        if (item is PageViewTelemetry pageView)
+        {
+            pageView.Context.User.Id = accessor.HttpContext?.Request.Cookies["visitor"];
+        }
+
+        next.Process(item);
+    }
+}
+
+public class DeviceEvents
+{
+    public void Tag(EventTelemetry evt, string deviceId) => evt.Context.Device.Id = deviceId;
 }
 
 public class SignedInTelemetry(TelemetryClient client)
