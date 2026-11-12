@@ -1,3 +1,7 @@
+# Each name check sits in the block that binds its name (CONTRIBUTING.md, Cost): the engine joins the
+# terms of one level before it checks names there, and every property joined with every class costs
+# time quadratic in the file: 11 to 20 s on a 900 KB file, where a scan gives one rule 30 s per file,
+# so a slower machine lost the file's matches (#13009).
 rules:
   - id: lexcode.social.java-post-model
     languages: [java]
@@ -25,22 +29,24 @@ rules:
                   metavariable: $L
                   regex: '^(likes?|numberOfLikes|numLikes|likeCount|likesCount|reactions?|reactionCount|upvotes?|downvotes?|numberOfThreadReactions|numberOfThreadUpvotes|shareCount|retweetCount|favorites)$'
           - patterns:
-              - pattern-either:
-                  - pattern: |
-                      class $C { ... $T2 $A; ... }
-                  - pattern: |
-                      class $C { ... $T2 $A = $V2; ... }
-              - pattern-either:
-                  - pattern: |
-                      class $C { ... $T3 $M; ... }
-                  - pattern: |
-                      class $C { ... $T3 $M = $V3; ... }
-              - metavariable-regex:
-                  metavariable: $A
-                  regex: '^(author|authorId|creator|creatorId|creatorUserName|poster|posterId|owner|ownerId|user|userId|createdBy)$'
-              - metavariable-regex:
-                  metavariable: $M
-                  regex: '^(comments|replies|numberOfComments|commentCount)$'
+              - patterns:
+                  - pattern-either:
+                      - pattern: |
+                          class $C { ... $T2 $A; ... }
+                      - pattern: |
+                          class $C { ... $T2 $A = $V2; ... }
+                  - metavariable-regex:
+                      metavariable: $A
+                      regex: '^(author|authorId|creator|creatorId|creatorUserName|poster|posterId|owner|ownerId|user|userId|createdBy)$'
+              - patterns:
+                  - pattern-either:
+                      - pattern: |
+                          class $C { ... $T3 $M; ... }
+                      - pattern: |
+                          class $C { ... $T3 $M = $V3; ... }
+                  - metavariable-regex:
+                      metavariable: $M
+                      regex: '^(comments|replies|numberOfComments|commentCount)$'
     metadata:
       activity: operates_social_platform
       mentioned: performs

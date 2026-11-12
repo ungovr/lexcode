@@ -29,6 +29,11 @@ const engine = process.env.LEXCODE_ENGINE ?? cachedEngine();
  * of the rule's literals plus the only construct that matches: at the end of a 300 KB file, the case the
  * alternations failed, and near the top of a 900 KB file, the worst case just inside the reach. A regression,
  * or an engine that shortens the reach, shows as a lost match.
+ *
+ * The scan gives each rule 30 s per file (`--timeout 30`), so a rule whose cost grows faster than the file
+ * loses the match here too, as a file error. The JVM social rules joined every field with every class before
+ * they checked names, and java-direct-message passed 30 s on the 900 KB file on a CI runner (#13009); each
+ * name check now sits in the block that binds its name (CONTRIBUTING.md, Cost).
  */
 const END_KB = 300;
 const TOP_KB = 900;
@@ -56,6 +61,34 @@ const CASES: Case[] = [
     head: 'package demo;\n',
     construct: 'class DirectMessage { private String recipient; private String sender; }\n',
     at: 'class DirectMessage { private String recipient; private String sender; }',
+  },
+  {
+    rule: 'lexcode.social.java-follow-relation',
+    file: 'Big.java',
+    head: 'package demo;\n',
+    construct: 'class Follow { private User follower; private User followed; }\n',
+    at: 'class Follow { private User follower; private User followed; }',
+  },
+  {
+    rule: 'lexcode.social.kt-direct-message',
+    file: 'Big.kt',
+    head: 'package demo\n',
+    construct: 'class DirectMessage(val sender: String, val recipient: String)\n',
+    at: 'class DirectMessage(val sender: String, val recipient: String)',
+  },
+  {
+    rule: 'lexcode.social.kt-follow-relation',
+    file: 'Big.kt',
+    head: 'package demo\n',
+    construct: 'class Follow(val follower: String, val followed: String)\n',
+    at: 'class Follow(val follower: String, val followed: String)',
+  },
+  {
+    rule: 'lexcode.social.kt-post-model',
+    file: 'Big.kt',
+    head: 'package demo\n',
+    construct: 'class Post(val id: Long, val likes: Int)\n',
+    at: 'class Post(val id: Long, val likes: Int)',
   },
   {
     rule: 'lexcode.tracking.java-analytics-calls',

@@ -1,5 +1,9 @@
 # The regular expressions in this file repeat across its arms (each arm names the same properties,
 # classes or paths again). Edit every copy together, or an arm drifts from the others.
+# Each name check sits in the block that binds its name (CONTRIBUTING.md, Cost): the engine joins the
+# terms of one level before it checks names there, and every property joined with every class costs
+# time quadratic in the file: 11 to 20 s on a 900 KB file, where a scan gives one rule 30 s per file,
+# so a slower machine lost the file's matches (#13009).
 rules:
   - id: lexcode.social.kt-post-model
     languages: [kotlin]
@@ -35,28 +39,30 @@ rules:
                     metavariable: $L
                     regex: '^(likes?|numberOfLikes|numLikes|likeCount|likesCount|likedBy|reactions?|reactionCount|reactionsCount|upvotes?|upvoteCount|downvotes?|shareCount|retweetCount|retweets|boosts|favorites)$'
             - patterns:
-                - pattern-either:
-                    - pattern: 'val $L: $T'
-                    - pattern: 'var $L: $T'
-                    - pattern: 'val $L: $T = $V'
-                    - pattern: 'var $L: $T = $V'
-                - pattern-either:
-                    - pattern-inside: |
-                        class $C(...) {
-                          ...
-                        }
+                - patterns:
+                    - pattern-either:
+                        - pattern: 'val $L: $T'
+                        - pattern: 'var $L: $T'
+                        - pattern: 'val $L: $T = $V'
+                        - pattern: 'var $L: $T = $V'
+                    - metavariable-regex:
+                        metavariable: $L
+                        regex: '^(likes?|numberOfLikes|numLikes|likeCount|likesCount|likedBy|reactions?|reactionCount|reactionsCount|upvotes?|upvoteCount|downvotes?|shareCount|retweetCount|retweets|boosts|favorites)$'
+                - patterns:
+                    - pattern-either:
+                        - pattern-inside: |
+                            class $C(...) {
+                              ...
+                            }
+                    - metavariable-regex:
+                        metavariable: $C
+                        regex: '^(\w*[a-z0-9])?(Post|Tweet|Toot|Reply|ForumPost|WallPost|StatusUpdate)$'
                 - pattern-not-inside: |
                     fun $FN(...) {
                       ...
                     }
                 - pattern-not-inside: |
                     fun $FN(...) = $FE
-                - metavariable-regex:
-                    metavariable: $C
-                    regex: '^(\w*[a-z0-9])?(Post|Tweet|Toot|Reply|ForumPost|WallPost|StatusUpdate)$'
-                - metavariable-regex:
-                    metavariable: $L
-                    regex: '^(likes?|numberOfLikes|numLikes|likeCount|likesCount|likedBy|reactions?|reactionCount|reactionsCount|upvotes?|upvoteCount|downvotes?|shareCount|retweetCount|retweets|boosts|favorites)$'
             - patterns:
                 - pattern-either:
                     - pattern: 'class $C(..., val $A: $T2, ..., val $M: $T, ...)'
@@ -77,81 +83,85 @@ rules:
                     metavariable: $M
                     regex: '^(comments|replies|numberOfComments|commentCount)$'
             - patterns:
-                - pattern-either:
-                    - pattern: 'val $M: $T'
-                    - pattern: 'var $M: $T'
-                    - pattern: 'val $M: $T = $V'
-                    - pattern: 'var $M: $T = $V'
-                - pattern-either:
-                    - pattern-inside: |
-                        class $C(...) {
-                          ...
-                          val $A: $T2
-                          ...
-                        }
-                    - pattern-inside: |
-                        class $C(...) {
-                          ...
-                          var $A: $T2
-                          ...
-                        }
-                    - pattern-inside: |
-                        class $C(...) {
-                          ...
-                          val $A: $T2 = $W
-                          ...
-                        }
-                    - pattern-inside: |
-                        class $C(...) {
-                          ...
-                          var $A: $T2 = $W
-                          ...
-                        }
+                - patterns:
+                    - pattern-either:
+                        - pattern: 'val $M: $T'
+                        - pattern: 'var $M: $T'
+                        - pattern: 'val $M: $T = $V'
+                        - pattern: 'var $M: $T = $V'
+                    - metavariable-regex:
+                        metavariable: $M
+                        regex: '^(comments|replies|numberOfComments|commentCount)$'
+                - patterns:
+                    - pattern-either:
+                        - pattern-inside: |
+                            class $C(...) {
+                              ...
+                              val $A: $T2
+                              ...
+                            }
+                        - pattern-inside: |
+                            class $C(...) {
+                              ...
+                              var $A: $T2
+                              ...
+                            }
+                        - pattern-inside: |
+                            class $C(...) {
+                              ...
+                              val $A: $T2 = $W
+                              ...
+                            }
+                        - pattern-inside: |
+                            class $C(...) {
+                              ...
+                              var $A: $T2 = $W
+                              ...
+                            }
+                    - metavariable-regex:
+                        metavariable: $C
+                        regex: '^(\w*[a-z0-9])?(Post|Tweet|Toot|Reply|ForumPost|WallPost|StatusUpdate)$'
+                    - metavariable-regex:
+                        metavariable: $A
+                        regex: '^(author|authorId|creator|creatorId|creatorUserName|poster|posterId|owner|ownerId|user|userId|createdBy)$'
                 - pattern-not-inside: |
                     fun $FN(...) {
                       ...
                     }
                 - pattern-not-inside: |
                     fun $FN(...) = $FE
-                - metavariable-regex:
-                    metavariable: $C
-                    regex: '^(\w*[a-z0-9])?(Post|Tweet|Toot|Reply|ForumPost|WallPost|StatusUpdate)$'
-                - metavariable-regex:
-                    metavariable: $A
-                    regex: '^(author|authorId|creator|creatorId|creatorUserName|poster|posterId|owner|ownerId|user|userId|createdBy)$'
-                - metavariable-regex:
-                    metavariable: $M
-                    regex: '^(comments|replies|numberOfComments|commentCount)$'
             - patterns:
-                - pattern-either:
-                    - pattern: 'val $M: $T'
-                    - pattern: 'var $M: $T'
-                    - pattern: 'val $M: $T = $V'
-                    - pattern: 'var $M: $T = $V'
-                - pattern-either:
-                    - pattern-inside: |
-                        class $C(..., val $A: $T2, ...) {
-                          ...
-                        }
-                    - pattern-inside: |
-                        class $C(..., var $A: $T2, ...) {
-                          ...
-                        }
+                - patterns:
+                    - pattern-either:
+                        - pattern: 'val $M: $T'
+                        - pattern: 'var $M: $T'
+                        - pattern: 'val $M: $T = $V'
+                        - pattern: 'var $M: $T = $V'
+                    - metavariable-regex:
+                        metavariable: $M
+                        regex: '^(comments|replies|numberOfComments|commentCount)$'
+                - patterns:
+                    - pattern-either:
+                        - pattern-inside: |
+                            class $C(..., val $A: $T2, ...) {
+                              ...
+                            }
+                        - pattern-inside: |
+                            class $C(..., var $A: $T2, ...) {
+                              ...
+                            }
+                    - metavariable-regex:
+                        metavariable: $C
+                        regex: '^(\w*[a-z0-9])?(Post|Tweet|Toot|Reply|ForumPost|WallPost|StatusUpdate)$'
+                    - metavariable-regex:
+                        metavariable: $A
+                        regex: '^(author|authorId|creator|creatorId|creatorUserName|poster|posterId|owner|ownerId|user|userId|createdBy)$'
                 - pattern-not-inside: |
                     fun $FN(...) {
                       ...
                     }
                 - pattern-not-inside: |
                     fun $FN(...) = $FE
-                - metavariable-regex:
-                    metavariable: $C
-                    regex: '^(\w*[a-z0-9])?(Post|Tweet|Toot|Reply|ForumPost|WallPost|StatusUpdate)$'
-                - metavariable-regex:
-                    metavariable: $A
-                    regex: '^(author|authorId|creator|creatorId|creatorUserName|poster|posterId|owner|ownerId|user|userId|createdBy)$'
-                - metavariable-regex:
-                    metavariable: $M
-                    regex: '^(comments|replies|numberOfComments|commentCount)$'
     metadata:
       activity: operates_social_platform
       mentioned: performs
