@@ -17,6 +17,7 @@ rules:
       - pattern: new AndroidX.Biometric.BiometricPrompt(...) { ... }
       - pattern: AndroidX.Biometric.BiometricPrompt $V = new(...) { ... };
       - pattern: new Android.Hardware.Biometrics.BiometricPrompt.Builder(...) { ... }
+      - pattern: Android.Hardware.Biometrics.BiometricPrompt.Builder $V = new(...) { ... };
       # .NET for iOS and Mac Catalyst: LocalAuthentication with the biometrics-only policy
       - pattern: (LocalAuthentication.LAContext $C).EvaluatePolicy(LocalAuthentication.LAPolicy.DeviceOwnerAuthenticationWithBiometrics, ...)
       - pattern: (LocalAuthentication.LAContext $C).EvaluatePolicyAsync(LocalAuthentication.LAPolicy.DeviceOwnerAuthenticationWithBiometrics, ...)

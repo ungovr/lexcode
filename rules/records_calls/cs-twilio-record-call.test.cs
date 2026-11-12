@@ -1,10 +1,12 @@
-// lexcode-expect: 7
-// Recording calls through Twilio's REST API: a call placed with recording on (named arguments, call
-// options in an initializer and target-typed, and options set after construction), recording a call that
-// is in progress (aliased), and a video room that records its participants.
+// lexcode-expect: 12
+// Recording calls through Twilio's REST API: a call placed with recording on (named arguments, sync and
+// async; call options in an initializer, target-typed, and set after construction), recording a call that
+// is in progress (aliased, sync and async), and a video room that records its participants (imported and
+// aliased, sync and async; room options in an initializer, target-typed, and set afterwards).
 using Twilio.Rest.Api.V2010.Account;
 using Twilio.Rest.Video.V1;
 using CallRec = Twilio.Rest.Api.V2010.Account.Call;
+using Rooms = Twilio.Rest.Video.V1;
 
 namespace Contoso.SupportLine;
 
@@ -22,7 +24,17 @@ public sealed class OutboundCalls
         await CallResource.CreateAsync(later);
 
         await CallRec.RecordingResource.CreateAsync(pathCallSid: call.Sid, recordingChannels: "dual");
+        CallRec.RecordingResource.Create(pathCallSid: call.Sid);
+    }
 
+    public async Task RoomsAsync()
+    {
         await RoomResource.CreateAsync(uniqueName: "consult", recordParticipantsOnConnect: true);
+        Rooms.RoomResource.Create(uniqueName: "intake", recordParticipantsOnConnect: true);
+        var options = new CreateRoomOptions { UniqueName = "review", RecordParticipantsOnConnect = true };
+        CreateRoomOptions typed = new() { RecordParticipantsOnConnect = true };
+        var later = new Rooms.CreateRoomOptions();
+        later.RecordParticipantsOnConnect = true;
+        await RoomResource.CreateAsync(later);
     }
 }

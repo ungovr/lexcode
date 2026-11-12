@@ -6,8 +6,8 @@ rules:
     # Twilio's types are written in full: the engine resolves a file's `using` lines and aliases, so an
     # app's own CallResource or CreateCallOptions in another namespace is not taken for them.
     pattern-either:
-      # Placing a call, or opening a video room, with a record option that is not false: named
-      # arguments, call options in an initializer (target-typed too), or the option set afterwards.
+      # Placing a call, or opening a video room, with a record option that is not false or null:
+      # named arguments, options in an initializer (target-typed too), or the option set afterwards.
       - patterns:
           - pattern-either:
               - pattern: "Twilio.Rest.Api.V2010.Account.CallResource.Create(..., record: $V, ...)"
@@ -18,10 +18,11 @@ rules:
               - pattern: "Twilio.Rest.Video.V1.RoomResource.Create(..., recordParticipantsOnConnect: $V, ...)"
               - pattern: "Twilio.Rest.Video.V1.RoomResource.CreateAsync(..., recordParticipantsOnConnect: $V, ...)"
               - pattern: "new Twilio.Rest.Video.V1.CreateRoomOptions(...) { ..., RecordParticipantsOnConnect = $V, ... }"
+              - pattern: "Twilio.Rest.Video.V1.CreateRoomOptions $O = new(...) { ..., RecordParticipantsOnConnect = $V, ... };"
               - pattern: (Twilio.Rest.Video.V1.CreateRoomOptions $O).RecordParticipantsOnConnect = $V
           - metavariable-regex:
               metavariable: $V
-              regex: ^(?!\s*false\s*$)
+              regex: ^(?![\s(]*(false|null)[\s)]*$)
       # Starting to record a call that is in progress.
       - pattern: Twilio.Rest.Api.V2010.Account.Call.RecordingResource.Create(...)
       - pattern: Twilio.Rest.Api.V2010.Account.Call.RecordingResource.CreateAsync(...)

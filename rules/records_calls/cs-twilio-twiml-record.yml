@@ -2,25 +2,24 @@ rules:
   - id: lexcode.calls.cs-twilio-twiml-record
     languages: [csharp]
     severity: INFO
-    message: Answers a Twilio call with TwiML that records it, which is recording a call (records_calls).
-    # Twilio's types are written in full: the engine resolves a file's `using` lines and aliases, so
-    # Record counts only on Twilio's VoiceResponse and Record verb, not on an app's own VoiceResponse, an
-    # app's own record type named Record, or an audit log with a Record method.
-    pattern-either:
-      # The Record verb, on the response or built on its own (target-typed too)
-      - pattern: (Twilio.TwiML.VoiceResponse $R).Record(...)
-      - pattern: new Twilio.TwiML.Voice.Record(...) { ... }
-      - pattern: Twilio.TwiML.Voice.Record $V = new(...) { ... };
-      # A Dial or a Conference with a record setting other than DoNotRecord
-      - patterns:
-          - pattern-either:
-              - pattern: "(Twilio.TwiML.VoiceResponse $R).Dial(..., record: $V, ...)"
-              - pattern: "new Twilio.TwiML.Voice.Dial(..., record: $V, ...) { ... }"
-              - pattern: "(Twilio.TwiML.Voice.Dial $D).Conference(..., record: $V, ...)"
-              - pattern: "new Twilio.TwiML.Voice.Conference(..., record: $V, ...) { ... }"
-          - metavariable-regex:
-              metavariable: $V
-              regex: ^(?![\s\S]*\bDoNotRecord\s*$)
+    message: Answers a Twilio call with TwiML that records the bridged call or the conference, which is recording a call (records_calls).
+    # Twilio's types are written in full: the engine resolves a file's `using` lines and aliases, so an
+    # app's own VoiceResponse, Dial or Conference in another namespace is not taken for them. The Record
+    # verb records one caller's own message (voicemail), which is processes_voice, not this activity.
+    patterns:
+      # A Dial or a Conference, on the response, built on its own, or target-typed, with a record setting.
+      # `new T(...) { ... }` also matches a construction with no initializer.
+      - pattern-either:
+          - pattern: "(Twilio.TwiML.VoiceResponse $R).Dial(..., record: $V, ...)"
+          - pattern: "new Twilio.TwiML.Voice.Dial(..., record: $V, ...) { ... }"
+          - pattern: "Twilio.TwiML.Voice.Dial $D = new(..., record: $V, ...) { ... };"
+          - pattern: "(Twilio.TwiML.Voice.Dial $D).Conference(..., record: $V, ...)"
+          - pattern: "new Twilio.TwiML.Voice.Conference(..., record: $V, ...) { ... }"
+          - pattern: "Twilio.TwiML.Voice.Conference $D = new(..., record: $V, ...) { ... };"
+      # ...that is not DoNotRecord or null.
+      - metavariable-regex:
+          metavariable: $V
+          regex: ^(?![\s\S]*\bDoNotRecord[\s)]*$)(?![\s(]*null[\s)]*$)
     metadata:
       activity: records_calls
       mentioned: performs

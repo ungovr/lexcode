@@ -1,7 +1,8 @@
-// lexcode-expect: 6
+// lexcode-expect: 8
 // Asking the phone to confirm the user with a fingerprint or face: Plugin.Fingerprint through its default
 // instance and injected, AndroidX's BiometricPrompt (imported and target-typed), the Android platform
-// prompt (aliased), and iOS LocalAuthentication with a biometrics-only policy.
+// prompt's builder (aliased, and target-typed), and iOS LocalAuthentication with a biometrics-only policy,
+// with a callback and awaited.
 using AndroidX.Biometric;
 using LocalAuthentication;
 using Plugin.Fingerprint;
@@ -25,11 +26,19 @@ public sealed class UnlockService(IFingerprint fingerprint)
         var prompt = new BiometricPrompt(activity, executor, callback);
         BiometricPrompt typed = new(activity, callback);
         var platform = new Platform.BiometricPrompt.Builder(context).SetTitle("Unlock").Build();
+        Platform.BiometricPrompt.Builder builder = new(context);
     }
 
     public void Ios()
     {
         var context = new LAContext();
         context.EvaluatePolicy(LAPolicy.DeviceOwnerAuthenticationWithBiometrics, "Unlock your wallet", (ok, error) => { });
+    }
+
+    public async Task<bool> IosAsync()
+    {
+        using var context = new LAContext();
+        var (ok, error) = await context.EvaluatePolicyAsync(LAPolicy.DeviceOwnerAuthenticationWithBiometrics, "Unlock your wallet");
+        return ok;
     }
 }

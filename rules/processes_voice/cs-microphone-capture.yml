@@ -16,23 +16,23 @@ rules:
       - pattern: NAudio.Wave.WaveIn $V = new(...) { ... };
       - pattern: new NAudio.CoreAudioApi.WasapiCapture(...) { ... }
       - pattern: NAudio.CoreAudioApi.WasapiCapture $V = new(...) { ... };
-      # .NET for Android: MediaRecorder, AudioRecord.Builder and AudioRecord with a microphone-type
-      # source, named through the platform's own enum. Each source is written out: the engine does not
-      # resolve a file's imports inside a metavariable-pattern.
-      - pattern: $R.SetAudioSource(Android.Media.AudioSource.Mic)
-      - pattern: $R.SetAudioSource(Android.Media.AudioSource.Default)
-      - pattern: $R.SetAudioSource(Android.Media.AudioSource.Camcorder)
-      - pattern: $R.SetAudioSource(Android.Media.AudioSource.Unprocessed)
-      - pattern: $R.SetAudioSource(Android.Media.AudioSource.VoiceRecognition)
-      - pattern: $R.SetAudioSource(Android.Media.AudioSource.VoiceCommunication)
-      - pattern: $R.SetAudioSource(Android.Media.AudioSource.VoicePerformance)
-      - pattern: new Android.Media.AudioRecord(Android.Media.AudioSource.Mic, ...)
-      - pattern: new Android.Media.AudioRecord(Android.Media.AudioSource.Default, ...)
-      - pattern: new Android.Media.AudioRecord(Android.Media.AudioSource.Camcorder, ...)
-      - pattern: new Android.Media.AudioRecord(Android.Media.AudioSource.Unprocessed, ...)
-      - pattern: new Android.Media.AudioRecord(Android.Media.AudioSource.VoiceRecognition, ...)
-      - pattern: new Android.Media.AudioRecord(Android.Media.AudioSource.VoiceCommunication, ...)
-      - pattern: new Android.Media.AudioRecord(Android.Media.AudioSource.VoicePerformance, ...)
+      # .NET for Android: a microphone-type source of the platform's own enum, given to MediaRecorder or
+      # AudioRecord.Builder (SetAudioSource) or to AudioRecord built directly or target-typed. The match is
+      # the source itself, written in full so the file's imports resolve it (they do not reach inside a
+      # metavariable-pattern); an app's own AudioSource enum is not taken for it.
+      - patterns:
+          - pattern-either:
+              - pattern: Android.Media.AudioSource.Mic
+              - pattern: Android.Media.AudioSource.Default
+              - pattern: Android.Media.AudioSource.Camcorder
+              - pattern: Android.Media.AudioSource.Unprocessed
+              - pattern: Android.Media.AudioSource.VoiceRecognition
+              - pattern: Android.Media.AudioSource.VoiceCommunication
+              - pattern: Android.Media.AudioSource.VoicePerformance
+          - pattern-either:
+              - pattern-inside: $R.SetAudioSource(...)
+              - pattern-inside: new Android.Media.AudioRecord(...) { ... }
+              - pattern-inside: Android.Media.AudioRecord $V = new(...) { ... };
       # .NET for iOS and Mac Catalyst
       - pattern: AVFoundation.AVAudioRecorder.Create(...)
       # Plugin.Maui.Audio: a recorder, injected or through the default instance

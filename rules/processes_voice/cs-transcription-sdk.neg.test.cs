@@ -2,7 +2,9 @@
 // Speech made from typed text, which is not processing a person's voice (Azure Speech's synthesizer,
 // OpenAI text to speech, Amazon Polly, Google Text-to-Speech), speech-service housekeeping that sends
 // no audio, a text-to-speech endpoint, and look-alikes: the app's own SpeechRecognizer, SpeechClient
-// and AudioClient in another namespace, with methods named like the vendors'.
+// and AudioClient in another namespace, with methods named like the vendors' (an adapter method too), an
+// app media hub whose GetAudioClient returns its own client, and an app plugin builder with registration
+// methods named like Semantic Kernel's.
 using Amazon.Polly;
 using Amazon.Polly.Model;
 using Amazon.TranscribeService;
@@ -39,6 +41,14 @@ public sealed class ReadAloudService(IAmazonPolly polly, IAmazonTranscribeServic
         var client = SpeechClient.Create();
         var audio = new AudioClient();
         await audio.TranscribeAudioAsync(upload);
+        var adapted = audio.AsISpeechToTextClient();
         return recognizer.Language + client.Name;
+    }
+
+    public async Task HubAsync(MediaHub hub, Stream upload, PluginBuilder plugins)
+    {
+        await hub.GetAudioClient("archive").TranscribeAudioAsync(upload);
+        plugins.AddOpenAIAudioToText("whisper-1");
+        plugins.AddAzureOpenAIAudioToText("whisper");
     }
 }

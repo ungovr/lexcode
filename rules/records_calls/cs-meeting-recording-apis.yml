@@ -45,9 +45,15 @@ rules:
       # Vonage Voice: the record action of an NCCO
       - pattern: new Vonage.Voice.Nccos.RecordAction(...) { ... }
       - pattern: Vonage.Voice.Nccos.RecordAction $V = new(...) { ... };
-      # Microsoft Graph: a Teams meeting's recordings and transcripts
-      - pattern: $G.OnlineMeetings[$ID].Recordings
-      - pattern: $G.OnlineMeetings[$ID].Transcripts
+      # Microsoft Graph: a Teams meeting's recordings and transcripts, reached from the Graph client (so
+      # an app's own object with OnlineMeetings, Recordings and Transcripts properties is not taken for it)
+      - patterns:
+          - pattern-either:
+              - pattern: (Microsoft.Graph.GraphServiceClient $G).Users[$U].OnlineMeetings[$ID].$P
+              - pattern: (Microsoft.Graph.GraphServiceClient $G).Me.OnlineMeetings[$ID].$P
+          - metavariable-regex:
+              metavariable: $P
+              regex: ^(Recordings|Transcripts)$
       # Zoom cloud recordings, notetaker bots (Recall.ai, MeetingBaaS, Attendee) and Daily cloud
       # recording, named in a string
       - pattern-regex: |-

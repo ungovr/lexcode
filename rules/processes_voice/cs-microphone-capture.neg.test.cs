@@ -1,8 +1,9 @@
 // lexcode-expect: 0
 // Playing sound and recording video without sound, which open no microphone: NAudio playback, a
 // MediaRecorder with only a video source, an audio player on iOS and the .NET MAUI audio plugin's
-// player. Look-alikes: the app's own AudioSource list passed to its own SetAudioSource, and the
-// app's own WaveInEvent class in another namespace.
+// player, a microphone source held but given to no recorder, and the call's own audio (VoiceCall, which
+// is records_calls territory). Look-alikes: the app's own AudioSource list passed to its own
+// SetAudioSource, and the app's own WaveInEvent class in another namespace.
 using Android.Media;
 using AVFoundation;
 using Contoso.Mixer;
@@ -26,6 +27,9 @@ public sealed class PlaybackService(IAudioManager audioManager)
         var recorder = new MediaRecorder();
         recorder.SetVideoSource(VideoSource.Camera);
         recorder.SetOutputFile(file);
+        var source = AudioSource.Mic;
+        var callAudio = new MediaRecorder();
+        callAudio.SetAudioSource(AudioSource.VoiceCall);
     }
 
     public void Ios(Foundation.NSUrl url)

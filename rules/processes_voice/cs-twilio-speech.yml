@@ -2,25 +2,19 @@ rules:
   - id: lexcode.voice.cs-twilio-speech
     languages: [csharp]
     severity: INFO
-    message: Takes a caller's speech through Twilio TwiML, with speech recognition or a transcribed voicemail, which is processing human voices (processes_voice).
+    message: Takes a caller's speech through Twilio TwiML, with speech recognition or a recorded voice message, which is processing human voices (processes_voice).
     # Twilio's types are written in full: the engine resolves a file's `using` lines and aliases, so an
     # app's own VoiceResponse, Gather or Record in another namespace is not taken for them.
     pattern-either:
       # A Gather whose input includes speech. A keypad-only Gather is not it.
       - pattern: Twilio.TwiML.Voice.Gather.InputEnum.Speech
-      # A Record verb that has Twilio transcribe the recording. A transcription callback asks for one
-      # too, so it counts on its own.
-      - patterns:
-          - pattern-either:
-              - pattern: "(Twilio.TwiML.VoiceResponse $R).Record(..., transcribe: $T, ...)"
-              - pattern: "new Twilio.TwiML.Voice.Record(..., transcribe: $T, ...) { ... }"
-              - pattern: "Twilio.TwiML.Voice.Record $V = new(..., transcribe: $T, ...) { ... };"
-          - metavariable-regex:
-              metavariable: $T
-              regex: ^(?!\s*false\s*$)
-      - pattern: "(Twilio.TwiML.VoiceResponse $R).Record(..., transcribeCallback: $U, ...)"
-      - pattern: "new Twilio.TwiML.Voice.Record(..., transcribeCallback: $U, ...) { ... }"
-      - pattern: "Twilio.TwiML.Voice.Record $V = new(..., transcribeCallback: $U, ...) { ... };"
+      # The Record verb records the caller's own message (voicemail), transcribed or not: one voice,
+      # not people talking to each other, so it is this activity and not records_calls. On the
+      # response, built on its own, or target-typed; `new T(...) { ... }` also matches a construction
+      # with no initializer.
+      - pattern: (Twilio.TwiML.VoiceResponse $R).Record(...)
+      - pattern: new Twilio.TwiML.Voice.Record(...) { ... }
+      - pattern: Twilio.TwiML.Voice.Record $V = new(...) { ... };
     metadata:
       activity: processes_voice
       mentioned: performs

@@ -1,7 +1,7 @@
-// lexcode-expect: 6
+// lexcode-expect: 8
 // Enrolling and matching speakers by voiceprint: Amazon Connect Voice ID (injected through its interface,
-// and a client the method builds), and Azure AI Speech speaker recognition (imported, aliased, and a
-// target-typed field).
+// and a client the method builds), and Azure AI Speech speaker recognition: the profile client built and
+// as a target-typed field, the recognizer built and target-typed, and the two models (one aliased).
 using Amazon.VoiceID;
 using Amazon.VoiceID.Model;
 using Microsoft.CognitiveServices.Speech;
@@ -25,6 +25,8 @@ public sealed class CallerVerification(IAmazonVoiceID voiceId)
     public async Task<bool> VerifyAsync(SpeechConfig config, VoiceProfile profile, AudioConfig audio)
     {
         using var recognizer = new SpeakerRecognizer(config, audio);
+        using SpeakerRecognizer second = new(config, audio);
+        using var profiles = new VoiceProfileClient(config);
         var model = SpeakerVerificationModel.FromProfile(profile);
         var result = await recognizer.RecognizeOnceAsync(model);
         var who = Spk.SpeakerIdentificationModel.FromProfiles(new[] { profile });
