@@ -1,0 +1,18 @@
+ecosystem: composer
+entries:
+
+  # Feed readers
+  - match: "simplepie/simplepie"
+    enables: [aggregates_content]
+    says: "A simple Atom/RSS parsing library for PHP"
+    source: https://packagist.org/packages/simplepie/simplepie
+
+  # Email, SMS and push senders
+  - match: "phpmailer/phpmailer"
+    enables: [automated_outreach]
+    says: "PHPMailer is a full-featured email creation and transfer class for PHP"
+    source: https://packagist.org/packages/phpmailer/phpmailer
+  - match: "symfony/mailer"
+    enables: [automated_outreach]
+    says: "Helps sending emails"
+    source: https://packagist.org/packages/symfony/mailer
