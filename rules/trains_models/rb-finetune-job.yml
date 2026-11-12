@@ -1,0 +1,20 @@
+rules:
+  - id: lexcode.train.rb-finetune-job
+    languages: [ruby]
+    severity: INFO
+    message: Starts a hosted fine-tuning or training job that adapts a model to the caller's data, which is training models (trains_models).
+    pattern-either:
+      - pattern: $C.finetunes.create(...)
+      - pattern: $C.fine_tunes.create(...)
+      - pattern: $C.fine_tuning.jobs.create(...)
+      - pattern: $C.fine_tuning.create(...)
+      - pattern: $C.create_model_customization_job(...)
+      # SageMaker requires training_job_name; other apps use the method name for a booking.
+      - pattern: "$C.create_training_job(..., training_job_name: $N, ...)"
+      - pattern: "$C.create_training_job({ ..., training_job_name: $N, ... })"
+    metadata:
+      activity: trains_models
+      mentioned: performs
+      definition: https://lexlint.io/activities/trains-models
+      provenance: ungovr-original
+      license: MIT

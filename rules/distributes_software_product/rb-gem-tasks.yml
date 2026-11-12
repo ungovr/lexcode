@@ -1,0 +1,15 @@
+rules:
+  - id: lexcode.distribute.rb-gem-tasks
+    languages: [ruby]
+    severity: INFO
+    message: Loads Bundler's gem tasks, which add build and release tasks that push a gem to a registry, so the project may be a Ruby library made available for others or one only built inside the same repository (distributes_software_product).
+    pattern-either:
+      - pattern: require "bundler/gem_tasks"
+      - pattern: Bundler::GemHelper.install_tasks
+    metadata:
+      activity: distributes_software_product
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/distributes-software-product
+      provenance: ungovr-original
+      license: MIT

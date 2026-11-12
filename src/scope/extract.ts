@@ -3,12 +3,21 @@ import path from 'node:path';
 import { ToolError } from '../errors.js';
 
 // Opengrep has no Vue or Svelte parser (design section 6.10), so a JS or TS
-// rule never reads those files, nor the scripts inside an HTML or Jinja page.
+// rule never reads those files, nor the scripts inside an HTML or Jinja page
+// or an ERB view (`.erb`, whose ERB tags are blanked first).
 // lexcode copies each qualifying <script> body into a temporary file in which
 // every other character is a space (line breaks kept), so a finding's line
 // number is the line in the original file, and scans that.
+// Ruby files the engine will not take by name are copied whole instead: see
+// RUBY_BASENAMES and RUBY_COPY_EXTENSIONS below.
 
-const EXTRACT_EXTENSIONS = new Set(['.vue', '.svelte', '.html', '.htm', '.jinja', '.jinja2', '.j2', '.njk']);
+const EXTRACT_EXTENSIONS = new Set(['.vue', '.svelte', '.html', '.htm', '.jinja', '.jinja2', '.j2', '.njk', '.erb']);
+
+// The engine takes only `.rb` as Ruby: given as explicit targets, an extension-less `Fastfile` and a `.rake`,
+// `.ru` or `.gemspec` file each read 0 files (opengrep 1.33.1, measured 2026-11-10). So these Ruby files are
+// copied whole to `<path>.lexcode.rb`, and a finding in the copy is reported against the original.
+const RUBY_BASENAMES = new Set(['Rakefile', 'Fastfile', 'Appfile', 'Capfile']);
+const RUBY_COPY_EXTENSIONS = new Set(['.rake', '.ru', '.gemspec']);
 
 /** `type` values of a script that holds code; an absent or empty `type` qualifies as well. */
 const CODE_TYPES = new Set([
@@ -158,18 +167,50 @@ function blank(s: string): string {
 }
 
 /**
+ * Blanks the ERB tags of a script body so the JavaScript parser can read it: an output tag (`<%=`, `<%==`)
+ * becomes `_` padded with spaces to its length, every other tag (`<%`, `<%-`, `<%#`) becomes spaces, and line
+ * breaks stay, so line and column numbers hold. `<%%` is a literal and is left. A tag ends at the first `%>`,
+ * as ERB itself ends it, quotes or not; one that never ends is blanked to the end of the body.
+ */
+export function blankErbTags(body: string): string {
+  let out = '';
+  let cursor = 0;
+  let i = 0;
+  while (i < body.length) {
+    const open = body.indexOf('<%', i);
+    if (open === -1) break;
+    if (body[open + 2] === '%') {
+      i = open + 3;
+      continue;
+    }
+    const close = body.indexOf('%>', open + 2);
+    const end = close === -1 ? body.length : close + 2;
+    const tag = blank(body.slice(open, end));
+    const output = body[open + 2] === '=';
+    out += body.slice(cursor, open) + (output && tag.length > 0 ? '_' + tag.slice(1) : tag);
+    cursor = end;
+    i = end;
+  }
+  return out + body.slice(cursor);
+}
+
+/**
  * Keeps the body of each qualifying `<script>` element and replaces every
  * other character except line breaks with a space, so line and column numbers
  * hold. Returns null when no block qualifies.
  */
-export function blankOutsideScripts(text: string): { text: string; lang: 'ts' | 'js' } | null {
+export function blankOutsideScripts(
+  text: string,
+  opts: { erb?: boolean } = {},
+): { text: string; lang: 'ts' | 'js' } | null {
   const blocks = findScriptBlocks(text).filter((b) => qualifies(b, text));
   if (blocks.length === 0) return null;
   let out = '';
   let cursor = 0;
   for (const b of blocks) {
     out += blank(text.slice(cursor, b.start));
-    out += text.slice(b.start, b.end);
+    const body = text.slice(b.start, b.end);
+    out += opts.erb === true ? blankErbTags(body) : body;
     cursor = b.end;
   }
   out += blank(text.slice(cursor));
@@ -178,8 +219,9 @@ export function blankOutsideScripts(text: string): { text: string; lang: 'ts' | 
 
 /**
  * Writes `<tmpDir>/<originalPath>.lexcode.<ts|js>` for each file with an
- * extractable extension that holds at least one script block. `files` are
- * POSIX paths relative to `root`.
+ * extractable extension that holds at least one script block, and
+ * `<tmpDir>/<originalPath>.lexcode.rb` (the whole file) for a Rakefile,
+ * Fastfile, Appfile or Capfile, and for a `.rake`, `.ru` or `.gemspec` file. `files` are POSIX paths relative to `root`.
  */
 export function extractScripts(
   root: string,
@@ -189,7 +231,9 @@ export function extractScripts(
   const pairs: { tempPath: string; originalPath: string }[] = [];
   const tmpRoot = path.resolve(tmpDir);
   for (const originalPath of files) {
-    if (!EXTRACT_EXTENSIONS.has(path.posix.extname(originalPath).toLowerCase())) continue;
+    const ext = path.posix.extname(originalPath).toLowerCase();
+    const wholeRuby = RUBY_BASENAMES.has(path.posix.basename(originalPath)) || RUBY_COPY_EXTENSIONS.has(ext);
+    if (!wholeRuby && !EXTRACT_EXTENSIONS.has(ext)) continue;
     const segments = originalPath.split('/');
     if (segments.includes('..') || path.isAbsolute(originalPath)) {
       throw new ToolError(`refusing to extract "${originalPath}": it is outside the repository.`);
@@ -200,14 +244,23 @@ export function extractScripts(
     } catch {
       continue; // gone since it was listed
     }
-    const blanked = blankOutsideScripts(text);
-    if (blanked === null) continue;
-    const tempPath = path.join(tmpRoot, ...segments) + `.lexcode.${blanked.lang}`;
+    let kept: string;
+    let suffix: string;
+    if (wholeRuby) {
+      kept = text;
+      suffix = 'rb';
+    } else {
+      const blanked = blankOutsideScripts(text, { erb: ext === '.erb' });
+      if (blanked === null) continue;
+      kept = blanked.text;
+      suffix = blanked.lang;
+    }
+    const tempPath = path.join(tmpRoot, ...segments) + `.lexcode.${suffix}`;
     if (!tempPath.startsWith(tmpRoot + path.sep)) {
       throw new ToolError(`refusing to extract "${originalPath}": it is outside the repository.`);
     }
     mkdirSync(path.dirname(tempPath), { recursive: true });
-    writeFileSync(tempPath, blanked.text);
+    writeFileSync(tempPath, kept);
     pairs.push({ tempPath, originalPath });
   }
   return pairs;

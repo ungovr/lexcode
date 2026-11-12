@@ -1,0 +1,44 @@
+rules:
+  - id: lexcode.train.rb-torch-training-step
+    languages: [ruby]
+    severity: INFO
+    message: Runs a torch-rb training loop, back-propagating a loss and stepping an optimizer, which is training models (trains_models).
+    patterns:
+      - pattern: $LOSS.backward
+      - pattern-either:
+          - pattern-inside: |
+              $ITER do |...|
+                ...
+                $OPT.step
+                ...
+              end
+          - pattern-inside: |
+              $ITER do
+                ...
+                $OPT.step
+                ...
+              end
+          - pattern-inside: |
+              for $V in $R
+                ...
+                $OPT.step
+                ...
+              end
+          - pattern-inside: |
+              while $C
+                ...
+                $OPT.step
+                ...
+              end
+          - pattern-inside: |
+              until $C
+                ...
+                $OPT.step
+                ...
+              end
+    metadata:
+      activity: trains_models
+      mentioned: performs
+      definition: https://lexlint.io/activities/trains-models
+      provenance: ungovr-original
+      license: MIT

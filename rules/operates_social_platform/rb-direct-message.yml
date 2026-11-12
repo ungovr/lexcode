@@ -1,0 +1,55 @@
+rules:
+  - id: lexcode.social.rb-direct-message
+    languages: [ruby]
+    severity: INFO
+    message: Stores or receives a message addressed from one user account to another, or posted into a conversation between accounts, which is how people talk on a social platform (operates_social_platform).
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: |
+                  belongs_to :recipient, ...
+              - pattern: |
+                  belongs_to :receiver, ...
+              - pattern: |
+                  belongs_to :to_user, ...
+              - pattern: |
+                  belongs_to :conversation, ...
+              - pattern: |
+                  belongs_to :chat_room, ...
+          - pattern-either:
+              - pattern-inside: |
+                  class $C < $P
+                    ...
+                    belongs_to :sender, ...
+                    ...
+                  end
+              - pattern-inside: |
+                  class $C < $P
+                    ...
+                    belongs_to :from_user, ...
+                    ...
+                  end
+              - pattern-inside: |
+                  class $C < $P
+                    ...
+                    belongs_to :author, ...
+                    ...
+                  end
+          - metavariable-regex:
+              metavariable: $C
+              regex: '(?i).*(message|(^|::)dm|dm$|directchat)'
+      - patterns:
+          - pattern: |
+              class $C < ApplicationCable::Channel
+                ...
+              end
+          - metavariable-regex:
+              metavariable: $C
+              regex: '(DirectMessage|PrivateMessage|Dm|Conversation)Channel$'
+    metadata:
+      activity: operates_social_platform
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/operates-social-platform
+      provenance: ungovr-original
+      license: MIT

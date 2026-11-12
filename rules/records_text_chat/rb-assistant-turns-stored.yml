@@ -1,0 +1,28 @@
+rules:
+  - id: lexcode.chat.rb-assistant-turns-stored
+    languages: [ruby]
+    severity: INFO
+    message: Writes the turns of a conversation with an assistant, each with a user or assistant role, to a message record, which is keeping a text chat (records_text_chat).
+    patterns:
+      - pattern-either:
+          - pattern: '$X.messages.create(..., role: $ROLE, ...)'
+          - pattern: '$X.messages.create!(..., role: $ROLE, ...)'
+          - pattern: '$X.messages.build(..., role: $ROLE, ...)'
+          - patterns:
+              - pattern-either:
+                  - pattern: '$K.create(..., role: $ROLE, ...)'
+                  - pattern: '$K.create!(..., role: $ROLE, ...)'
+              - metavariable-regex:
+                  metavariable: $K
+                  regex: ^(::)?(\w+::)*\w*(Message|Turn|Chat|Conversation|Transcript)\w*$
+      - metavariable-regex:
+          metavariable: $ROLE
+          regex: ^(:|["'])(user|assistant|model|ai|bot)["']?$
+      # Literal anchor inside the match, so the engine skips files that never set a role.
+      - pattern-regex: '(\brole:|:role\s*=>)\s*[:"\x27](user|assistant|model|ai|bot)\b'
+    metadata:
+      activity: records_text_chat
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-text-chat
+      provenance: ungovr-original
+      license: MIT

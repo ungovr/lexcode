@@ -1,0 +1,312 @@
+rules:
+  - id: lexcode.video.rb-video-reply-to-response
+    languages: [ruby]
+    severity: INFO
+    message: Hands a clip rendered by a video model back in an HTTP response, which is generating video with AI that reaches users (generates_video).
+    mode: taint
+    pattern-sources:
+      # The receiver has to look like a model client: a videos association with a prompt column is not.
+      - patterns:
+          - pattern-either:
+              - pattern: '$C.videos.create(..., prompt: ..., ...)'
+              - pattern: '$C.videos.create({ ..., prompt: ..., ... })'
+          - metavariable-regex:
+              metavariable: $C
+              regex: (?is)^.*(client|openai|llm|sora).*$
+      - pattern: RubyLLM.animate(...)
+    pattern-propagators:
+      # A record updated with the model's output carries it to whatever shows the record.
+      - pattern: '$REC.update(..., $K: $V, ...)'
+        from: $V
+        to: $REC
+        by-side-effect: true
+      - pattern: '$REC.update!(..., $K: $V, ...)'
+        from: $V
+        to: $REC
+        by-side-effect: true
+      - pattern: $OUT = <... $R.dig(...) ...>
+        from: $R
+        to: $OUT
+      - pattern: |
+          $S.each do |$X|
+            ...
+          end
+        from: $S
+        to: $X
+      - pattern: '$S.each { |$X| ... }'
+        from: $S
+        to: $X
+      - pattern: $SRC.save($DST)
+        from: $SRC
+        to: $DST
+        by-side-effect: true
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern-inside: 'render(..., json: ..., ...)'
+              - pattern-inside: 'render(..., plain: ..., ...)'
+              - pattern-inside: 'render(..., text: ..., ...)'
+              - pattern-inside: 'render(..., html: ..., ...)'
+              - pattern-inside: 'render(..., body: ..., ...)'
+              - pattern-inside: 'render(..., xml: ..., ...)'
+              - pattern-inside: 'render(..., inline: ..., ...)'
+              - pattern-inside: 'render(..., turbo_stream: ..., ...)'
+              - pattern-inside: send_data(...)
+              - pattern-inside: respond_with(...)
+              - pattern-inside: halt(...)
+              - pattern-inside: json(...)
+              - pattern-inside: response.stream.write(...)
+              - pattern-inside: sse.write(...)
+              - pattern-inside: transmit(...)
+              - pattern-inside: ActionCable.server.broadcast(...)
+              # A Turbo stream broadcast, except a removal, which shows nothing.
+              - patterns:
+                  - pattern-inside: Turbo::StreamsChannel.$M(...)
+                  - metavariable-regex:
+                      metavariable: $M
+                      regex: ^(?!broadcast_remove)
+              - pattern-inside: 'render(..., partial: ..., ...)'
+              - pattern-inside: 'render(..., locals: ..., ...)'
+              - pattern-inside: response.body = ...
+              - pattern-inside: self.response_body = ...
+              - pattern-inside: $C.broadcast_to(...)
+              # Sinatra streams to the client through the stream block's output object.
+              - patterns:
+                  - pattern-either:
+                      - pattern-inside: |
+                          stream do |$O|
+                            ...
+                          end
+                      - pattern-inside: |
+                          stream(...) do |$O|
+                            ...
+                          end
+                  - pattern-either:
+                      - pattern-inside: $O << ...
+                      - pattern-inside: $O.puts(...)
+                      - pattern-inside: $O.write(...)
+                      - pattern-inside: $O.print(...)
+              # Turbo::Broadcastable calls that put content on the page or make it refetch.
+              - patterns:
+                  - pattern-inside: $R.$B(...)
+                  - metavariable-regex:
+                      metavariable: $B
+                      regex: ^broadcast_(append|prepend|replace|update|before|after|render|action|refresh)\w*$
+              - pattern-inside: send_file(...)
+          - pattern: $V
+          - metavariable-regex:
+              metavariable: $V
+              regex: ^@?[a-z_][A-Za-z0-9_]*$
+      # An instance variable that a Rails controller action or a Sinatra route sets is shown by
+      # the view it renders. Rails renders the action's template when the action names no other
+      # response; an action that redirects or sends only a status renders no view. A Sinatra
+      # route names its template.
+      - patterns:
+          - pattern-either:
+              - patterns:
+                  - pattern-inside: |
+                      class $CTRL < $BASE
+                        ...
+                      end
+                  - metavariable-regex:
+                      metavariable: $CTRL
+                      regex: ^(.*::)?[A-Z][A-Za-z0-9_]*Controller$
+                  - pattern-inside: |
+                      def $ACTION(...)
+                        ...
+                      end
+                  - pattern-not-inside: |
+                      def $ACTION(...)
+                        ...
+                        redirect_to(...)
+                        ...
+                      end
+                  - pattern-not-inside: |
+                      def $ACTION(...)
+                        ...
+                        redirect_back(...)
+                        ...
+                      end
+                  - pattern-not-inside: |
+                      def $ACTION(...)
+                        ...
+                        redirect_back_or_to(...)
+                        ...
+                      end
+                  - pattern-not-inside: |
+                      def $ACTION(...)
+                        ...
+                        head(...)
+                        ...
+                      end
+              - patterns:
+                  - pattern-either:
+                      - pattern-inside: |
+                          $VERB $PATH, ... do
+                            ...
+                            $TPL(...)
+                            ...
+                          end
+                      - pattern-inside: |
+                          $VERB $PATH, ... do |...|
+                            ...
+                            $TPL(...)
+                            ...
+                          end
+                  - metavariable-regex:
+                      metavariable: $VERB
+                      regex: ^(get|post|put|patch|delete)$
+                  - metavariable-regex:
+                      metavariable: $TPL
+                      regex: ^(erb|haml|slim|liquid|markdown|builder|rabl|mustache)$
+          - pattern-either:
+              - pattern-inside: $IV = $RHS
+              - pattern-inside: $IV ||= $RHS
+              - pattern-inside: $IV << $RHS
+              - pattern-inside: $IV += $RHS
+              - pattern-inside: $IV.$ATTR = $RHS
+          - metavariable-regex:
+              metavariable: $IV
+              regex: ^@[a-z_][A-Za-z0-9_]*$
+          - focus-metavariable: $RHS
+      # A Sinatra route's value, its last statement, is the response body. The verbs are
+      # spelled out: a $VERB metavariable makes the engine try every block call (each `it ... do`
+      # in a spec), which cost about half a second per rule over Canvas.
+      - patterns:
+          - pattern-either:
+              - pattern: |
+                  get $PATH, ... do
+                    ...
+                    $LAST
+                  end
+              - pattern: |
+                  get $PATH, ... do |...|
+                    ...
+                    $LAST
+                  end
+              - pattern: |
+                  post $PATH, ... do
+                    ...
+                    $LAST
+                  end
+              - pattern: |
+                  post $PATH, ... do |...|
+                    ...
+                    $LAST
+                  end
+              - pattern: |
+                  put $PATH, ... do
+                    ...
+                    $LAST
+                  end
+              - pattern: |
+                  put $PATH, ... do |...|
+                    ...
+                    $LAST
+                  end
+              - pattern: |
+                  patch $PATH, ... do
+                    ...
+                    $LAST
+                  end
+              - pattern: |
+                  patch $PATH, ... do |...|
+                    ...
+                    $LAST
+                  end
+              - pattern: |
+                  delete $PATH, ... do
+                    ...
+                    $LAST
+                  end
+              - pattern: |
+                  delete $PATH, ... do |...|
+                    ...
+                    $LAST
+                  end
+          - pattern-not: |
+              get $PATH, ... do
+                ...
+                $LAST
+                $NEXT
+                ...
+              end
+          - pattern-not: |
+              get $PATH, ... do |...|
+                ...
+                $LAST
+                $NEXT
+                ...
+              end
+          - pattern-not: |
+              post $PATH, ... do
+                ...
+                $LAST
+                $NEXT
+                ...
+              end
+          - pattern-not: |
+              post $PATH, ... do |...|
+                ...
+                $LAST
+                $NEXT
+                ...
+              end
+          - pattern-not: |
+              put $PATH, ... do
+                ...
+                $LAST
+                $NEXT
+                ...
+              end
+          - pattern-not: |
+              put $PATH, ... do |...|
+                ...
+                $LAST
+                $NEXT
+                ...
+              end
+          - pattern-not: |
+              patch $PATH, ... do
+                ...
+                $LAST
+                $NEXT
+                ...
+              end
+          - pattern-not: |
+              patch $PATH, ... do |...|
+                ...
+                $LAST
+                $NEXT
+                ...
+              end
+          - pattern-not: |
+              delete $PATH, ... do
+                ...
+                $LAST
+                $NEXT
+                ...
+              end
+          - pattern-not: |
+              delete $PATH, ... do |...|
+                ...
+                $LAST
+                $NEXT
+                ...
+              end
+          # A last statement that ends in a call that only hands the text on (a log call, printing,
+          # a file write, a save, a queued job, a notifier's post or a mail) has that call's value,
+          # not the text. The regex asks whether the statement ends in such a call: its name, then
+          # balanced arguments (nested to any depth), an optional block or if/unless modifier, and
+          # the end. So `Message.create!(...).to_json` is still the text and `Message.new(...).save`
+          # is not.
+          - metavariable-regex:
+              metavariable: $LAST
+              regex: '\A(?!\s*(?:puts|print|pp|p|warn)(?:[ \t(]|\z)|[\s\S]*\.\s*(?:debug|info|warn|error|fatal|unknown|puts|print|write|binwrite|open|set|create|save|update|update_all|update_column|update_columns|insert|insert_all|upsert|destroy|perform_later|perform_async|perform_in|perform_at|deliver_later|deliver_now|deliver|enqueue|publish|post|append|push|notify|send_message|mail)[!?]?\s*(\((?:[^()]++|(?1))*+\))?\s*(?:\{[\s\S]*\}|do\b[\s\S]*\bend)?\s*(?:(?:if|unless)\b[^\n]*)?\z|[\s\S]*\.\s*(?:debug|info|warn|error|fatal|unknown|puts|print|write|binwrite|open|set|create|save|update|update_all|update_column|update_columns|insert|insert_all|upsert|destroy|perform_later|perform_async|perform_in|perform_at|deliver_later|deliver_now|deliver|enqueue|publish|post|append|push|notify|send_message|mail)[!?]?[ \t]+[^\n]*\z)'
+          - focus-metavariable: $LAST
+    metadata:
+      activity: generates_video
+      mentioned: performs
+      definition: https://lexlint.io/activities/generates-video
+      provenance: ungovr-original
+      license: MIT

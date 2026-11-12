@@ -1,0 +1,37 @@
+rules:
+  - id: lexcode.crawl.rb-nokogiri-fetched-page
+    languages: [ruby]
+    severity: INFO
+    message: Fetches a web page and parses its HTML with Nokogiri, which is scraping a site the operator may not run (crawls_web).
+    patterns:
+      - pattern-inside: |
+          $NK(...)
+      - metavariable-regex:
+          metavariable: $NK
+          regex: ^Nokogiri(::HTML5?(::Document)?(\.parse)?|\.HTML5?)$
+      - pattern-either:
+          - patterns:
+              - pattern-either:
+                  - pattern: $F($URL, ...)
+                  - pattern: $F(URI($URL), ...)
+                  - pattern: $F(URI.parse($URL), ...)
+              - metavariable-regex:
+                  metavariable: $F
+                  regex: ^(Net::HTTP\.(get|get_response)|URI\.open|HTTParty\.get|Faraday\.get|RestClient\.get|Typhoeus\.get|HTTP\.get|@{0,2}(?!\w*(redis|cache|dalli|memcache|store|storage|s3|aws))(\w*[cC]lient|conn|\w*[cC]onn(ection)?|\w*[hH]ttp\w*|\w*[sS]ession|agent|\w*[aA]gent|\w*[fF]araday\w*)\.get)$
+          - pattern: URI.parse($URL).open(...)
+          - pattern: URI($URL).open(...)
+          - patterns:
+              - pattern: open($URL, ...)
+              - metavariable-regex:
+                  metavariable: $URL
+                  regex: (?i)(^["']https?://|url|uri|link|href|site)
+      - metavariable-regex:
+          metavariable: $URL
+          regex: (?s)^(?!URI(\.parse)?\()(?!["']https?://(localhost|127\.|0\.0\.0\.0|\[::1\])).*$
+    metadata:
+      activity: crawls_web
+      mentioned: performs
+      definition: https://lexlint.io/activities/crawls-web
+      provenance: ungovr-original
+      license: MIT
+      host_metavar: $URL

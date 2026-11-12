@@ -1,0 +1,46 @@
+rules:
+  - id: lexcode.distribute.rb-gemspec-published
+    languages: [ruby]
+    severity: INFO
+    message: Declares a gem specification with registry links or a command-line executable, which is a Ruby library or tool made available for others to install (distributes_software_product).
+    patterns:
+      - pattern-either:
+          - patterns:
+              - pattern: $S.metadata[$K] = $X
+              - metavariable-regex:
+                  metavariable: $K
+                  regex: '^[":'']?(source_code_uri|homepage_uri|changelog_uri|bug_tracker_uri|documentation_uri|wiki_uri|mailing_list_uri|funding_uri|rubygems_mfa_required)'
+              - metavariable-regex:
+                  metavariable: $X
+                  regex: '^(?!["'']?TODO)(?s).*'
+              - pattern-not: $S.metadata[$K] = $S.homepage
+          - patterns:
+              - pattern: $S.metadata = $H
+              - metavariable-regex:
+                  metavariable: $H
+                  regex: '(?s).*(source_code_uri|homepage_uri|changelog_uri|bug_tracker_uri|documentation_uri|rubygems_mfa_required)'
+          - patterns:
+              - pattern: $S.executables = $L
+              - metavariable-regex:
+                  metavariable: $L
+                  regex: '^(\[\s*[^\s\]]|%w.\s*[^\s\]\)\}>])'
+          - pattern: $S.executables << $X
+      - pattern-either:
+          - pattern-inside: |
+              Gem::Specification.new do |$S|
+                ...
+              end
+          - pattern-inside: |
+              Gem::Specification.new(...) do |$S|
+                ...
+              end
+          - pattern-inside: |
+              Gem::Specification.new { |$S| ... }
+          - pattern-inside: |
+              Gem::Specification.new(...) { |$S| ... }
+    metadata:
+      activity: distributes_software_product
+      mentioned: performs
+      definition: https://lexlint.io/activities/distributes-software-product
+      provenance: ungovr-original
+      license: MIT

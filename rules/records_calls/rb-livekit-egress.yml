@@ -1,0 +1,16 @@
+rules:
+  - id: lexcode.calls.rb-livekit-egress
+    languages: [ruby]
+    severity: INFO
+    message: Starts a LiveKit egress that records the people in a room or call, which is recording a call (records_calls).
+    pattern-either:
+      - pattern: $X.start_room_composite_egress(...)
+      - pattern: $X.start_participant_egress(...)
+      - pattern: $X.start_track_composite_egress(...)
+      - pattern: $X.start_track_egress(...)
+    metadata:
+      activity: records_calls
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-calls
+      provenance: ungovr-original
+      license: MIT

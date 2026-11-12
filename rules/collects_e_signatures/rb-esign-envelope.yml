@@ -1,0 +1,53 @@
+rules:
+  - id: lexcode.esign.rb-esign-envelope
+    languages: [ruby]
+    severity: INFO
+    message: Sends a document to a person for electronic signature through DocuSign, Dropbox Sign or HelloSign, which is collecting electronic signatures (collects_e_signatures).
+    patterns:
+      - pattern-either:
+          - patterns:
+              - pattern-either:
+                  - pattern: $C.create_envelope(...)
+                  - pattern: $C.send_signature_request(...)
+                  - pattern: $C.send_signature_request_with_template(...)
+                  - pattern: $C.create_embedded_signature_request(...)
+                  - pattern: $C.create_embedded_signature_request_with_template(...)
+                  - pattern: $C.signature_request_send(...)
+                  - pattern: $C.signature_request_send_with_template(...)
+                  - pattern: $C.signature_request_create_embedded(...)
+                  - pattern: $C.signature_request_create_embedded_with_template(...)
+              - pattern-either:
+                  - pattern-inside: |
+                      class $K
+                        ...
+                        <... $LIB.new(...) ...>
+                        ...
+                      end
+                  - pattern-inside: |
+                      def $M(...)
+                        ...
+                        <... $LIB.new(...) ...>
+                        ...
+                      end
+                  - pattern-inside: |
+                      def self.$M(...)
+                        ...
+                        <... $LIB.new(...) ...>
+                        ...
+                      end
+          - patterns:
+              - pattern-either:
+                  - pattern: $LIB.new(...).create_envelope(...)
+                  - pattern: $LIB.new(...).send_signature_request(...)
+                  - pattern: $LIB.new(...).send_signature_request_with_template(...)
+                  - pattern: $LIB.new(...).signature_request_send(...)
+                  - pattern: $LIB.new(...).signature_request_send_with_template(...)
+      - metavariable-regex:
+          metavariable: $LIB
+          regex: ^(?:::)?(?:DocuSign_eSign::EnvelopesApi|HelloSign::Client|Dropbox::Sign::SignatureRequestApi)$
+    metadata:
+      activity: collects_e_signatures
+      mentioned: performs
+      definition: https://lexlint.io/glossary#collects-electronic-signatures
+      provenance: ungovr-original
+      license: MIT

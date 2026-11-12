@@ -1,0 +1,157 @@
+# Not a taint rule on purpose: the cost is that a value passed through a helper method before the
+# call is not followed; a local variable assigned from the request, or from an ActionCable
+# channel's data hash, is. The bar is the JS and Python rules': a messages or history LIST from the
+# request reaches the model call. A single typed message or question inside a fixed prompt is a
+# one-shot tool, not a chatbot, so it does not match.
+rules:
+  - id: lexcode.chatbot.rb-request-messages-to-model
+    languages: [ruby]
+    severity: INFO
+    message: Passes the conversation a client sent in a request or over a channel to a language model, which is deploying a chatbot (deploys_chatbot).
+    patterns:
+      - pattern-either:
+          - patterns:
+              - pattern-either:
+                  - pattern: '$C.chat(parameters: {..., messages: $X, ...})'
+                  - pattern: '$C.chat({..., messages: $X, ...})'
+                  - pattern: '$C.chat(..., messages: $X, ...)'
+                  - pattern: '$C.messages(parameters: {..., messages: $X, ...})'
+                  - pattern: '$C.chat.completions.create(..., messages: $X, ...)'
+                  - pattern: '$C.messages.create(..., messages: $X, ...)'
+                  - pattern: '$C.messages.stream(..., messages: $X, ...)'
+                  - pattern: '$C.converse(..., messages: $X, ...)'
+                  - pattern: '$C.responses.create(..., input: $X, ...)'
+              # The request params value itself, read by a conversation key: alone, joined to a system
+              # message, spread or mapped. The same key inside one message's content, or inside an
+              # interpolated string, is text pasted into a single prompt: a one-shot tool.
+              - metavariable-pattern:
+                  metavariable: $X
+                  patterns:
+                    - pattern-either:
+                        - pattern: $P[$K]
+                        - pattern: $P.dig(..., $K)
+                        - pattern: $P.fetch($K, ...)
+                        - pattern: $P.require($K)
+                        - pattern: $P.slice(..., $K, ...)
+                    - pattern-not-inside: '{..., content: $V, ...}'
+                    - pattern-not-inside: '{..., "content" => $V, ...}'
+                    - pattern-not-inside: '{..., "content": $V, ...}'
+                    - pattern-not-inside: '"...#{$E}..."'
+                    - metavariable-regex:
+                        metavariable: $P
+                        regex: '^(.*\.)?(params|message_params|messages_params|chat_params|chat_message_params|conversation_params)\b'
+                    - metavariable-regex:
+                        metavariable: $K
+                        regex: '^:?["\x27]?(messages|chat_messages|history|chat_history|conversation|conversation_history)["\x27]?$'
+          - patterns:
+              - pattern-either:
+                  - pattern: '$C.chat(parameters: {..., messages: $X, ...})'
+                  - pattern: '$C.chat({..., messages: $X, ...})'
+                  - pattern: '$C.chat(..., messages: $X, ...)'
+                  - pattern: '$C.messages(parameters: {..., messages: $X, ...})'
+                  - pattern: '$C.chat.completions.create(..., messages: $X, ...)'
+                  - pattern: '$C.messages.create(..., messages: $X, ...)'
+                  - pattern: '$C.messages.stream(..., messages: $X, ...)'
+                  - pattern: '$C.converse(..., messages: $X, ...)'
+                  - pattern: '$C.responses.create(..., input: $X, ...)'
+              - pattern-either:
+                  - pattern-inside: |
+                      $X = params[$K]
+                      ...
+                  - pattern-inside: |
+                      $X = params.dig(..., $K)
+                      ...
+                  - pattern-inside: |
+                      $X = params.fetch($K, ...)
+                      ...
+                  - pattern-inside: |
+                      $X = params.require($K)
+                      ...
+                  - pattern-inside: |
+                      $X = params[...][$K]
+                      ...
+                  - pattern-inside: |
+                      $X = chat_params[$K]
+                      ...
+                  - pattern-inside: |
+                      $X = message_params[$K]
+                      ...
+              - metavariable-regex:
+                  metavariable: $K
+                  regex: '^:?["\x27]?(messages|chat_messages|history|chat_history|conversation|conversation_history)["\x27]?$'
+          - patterns:
+              - pattern-inside: |
+                  class $CLS < ApplicationCable::Channel
+                    ...
+                  end
+              - pattern-either:
+                  - pattern: '$C.chat(parameters: {..., messages: $X, ...})'
+                  - pattern: '$C.chat({..., messages: $X, ...})'
+                  - pattern: '$C.chat(..., messages: $X, ...)'
+                  - pattern: '$C.messages(parameters: {..., messages: $X, ...})'
+                  - pattern: '$C.chat.completions.create(..., messages: $X, ...)'
+                  - pattern: '$C.messages.create(..., messages: $X, ...)'
+                  - pattern: '$C.messages.stream(..., messages: $X, ...)'
+                  - pattern: '$C.converse(..., messages: $X, ...)'
+                  - pattern: '$C.responses.create(..., input: $X, ...)'
+              # The channel's data value itself, read by a conversation key: alone, joined to a system
+              # message, spread or mapped. The same key inside one message's content, or inside an
+              # interpolated string, is text pasted into a single prompt: a one-shot tool.
+              - metavariable-pattern:
+                  metavariable: $X
+                  patterns:
+                    - pattern-either:
+                        - pattern: $P[$K]
+                        - pattern: $P.dig(..., $K)
+                        - pattern: $P.fetch($K, ...)
+                        - pattern: $P.require($K)
+                        - pattern: $P.slice(..., $K, ...)
+                    - pattern-not-inside: '{..., content: $V, ...}'
+                    - pattern-not-inside: '{..., "content" => $V, ...}'
+                    - pattern-not-inside: '{..., "content": $V, ...}'
+                    - pattern-not-inside: '"...#{$E}..."'
+                    - metavariable-regex:
+                        metavariable: $P
+                        regex: '^data\b'
+                    - metavariable-regex:
+                        metavariable: $K
+                        regex: '^:?["\x27]?(messages|chat_messages|history|chat_history|conversation|conversation_history)["\x27]?$'
+          - patterns:
+              - pattern-inside: |
+                  class $CLS < ApplicationCable::Channel
+                    ...
+                  end
+              - pattern-either:
+                  - pattern: '$C.chat(parameters: {..., messages: $X, ...})'
+                  - pattern: '$C.chat({..., messages: $X, ...})'
+                  - pattern: '$C.chat(..., messages: $X, ...)'
+                  - pattern: '$C.messages(parameters: {..., messages: $X, ...})'
+                  - pattern: '$C.chat.completions.create(..., messages: $X, ...)'
+                  - pattern: '$C.messages.create(..., messages: $X, ...)'
+                  - pattern: '$C.messages.stream(..., messages: $X, ...)'
+                  - pattern: '$C.converse(..., messages: $X, ...)'
+                  - pattern: '$C.responses.create(..., input: $X, ...)'
+              - pattern-either:
+                  - pattern-inside: |
+                      $X = data[$K]
+                      ...
+                  - pattern-inside: |
+                      $X = data.dig(..., $K)
+                      ...
+                  - pattern-inside: |
+                      $X = data.fetch($K, ...)
+                      ...
+                  - pattern-inside: |
+                      $X = data.require($K)
+                      ...
+              - metavariable-regex:
+                  metavariable: $K
+                  regex: '^:?["\x27]?(messages|chat_messages|history|chat_history|conversation|conversation_history)["\x27]?$'
+      # Literal anchor inside the match (the model call), so the engine skips files with no such call.
+      - pattern-regex: '(&?\.(?:\s|\\|#[^\n]*+)*+chat\b(?!\s*&?\.)|&?\.(?:\s|\\|#[^\n]*+)*+converse\b|&?\.(?:\s|\\|#[^\n]*+)*+messages(?:\s|\\|#[^\n]*+)*+(\(|&?\.(?:\s|\\|#[^\n]*+)*+(create|stream)\b|(?<=\s)parameters)|completions(?:\(\s*\))?(?:\s|\\|#[^\n]*+)*+&?\.(?:\s|\\|#[^\n]*+)*+create\b|&?\.(?:\s|\\|#[^\n]*+)*+responses(?:\(\s*\))?(?:\s|\\|#[^\n]*+)*+&?\.(?:\s|\\|#[^\n]*+)*+create\b)'
+    metadata:
+      activity: deploys_chatbot
+      mentioned: performs
+      definition: https://lexlint.io/activities/deploys-chatbot
+      provenance: ungovr-original
+      license: MIT

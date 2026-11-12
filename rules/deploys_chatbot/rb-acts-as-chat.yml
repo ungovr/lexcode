@@ -1,0 +1,13 @@
+rules:
+  - id: lexcode.chatbot.rb-acts-as-chat
+    languages: [ruby]
+    severity: INFO
+    message: Declares a model as a chat with a language model that keeps its messages (ruby_llm's acts_as_chat), where the code does not show who the conversation is with, which may be deploying a chatbot (deploys_chatbot).
+    pattern: acts_as_chat(...)
+    metadata:
+      activity: deploys_chatbot
+      mentioned: performs
+      definition: https://lexlint.io/activities/deploys-chatbot
+      provenance: ungovr-original
+      license: MIT
+      strength: signal

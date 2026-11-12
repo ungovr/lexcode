@@ -1,0 +1,18 @@
+rules:
+  - id: lexcode.chat.rb-chat-gem-transcripts
+    languages: [ruby]
+    severity: INFO
+    message: Uses a gem that stores a conversation's messages in the database (ruby_llm's acts_as_chat, Mailboxer's conversation replies), which is keeping a text chat (records_text_chat).
+    pattern-either:
+      - pattern: acts_as_chat(...)
+      - pattern: acts_as_message(...)
+      - pattern: $U.reply_to_conversation(...)
+      # Mailboxer passes a receipt and a body; an email client's reply_to_all does not.
+      - pattern: $U.reply_to_all($R, $B, ...)
+      - pattern: $U.reply_to_sender($R, $B, ...)
+    metadata:
+      activity: records_text_chat
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-text-chat
+      provenance: ungovr-original
+      license: MIT
