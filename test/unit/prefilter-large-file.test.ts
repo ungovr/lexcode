@@ -32,6 +32,13 @@ const engine = process.env.LEXCODE_ENGINE ?? cachedEngine();
  * (`(?<![\w\\])\\?LITERAL`) costs steps at every position and lost the top case from 600 KB, so the PHP
  * namespace guards check it after the literal (`LITERAL(?<!\wLITERAL)`). The PHP filler is functions,
  * since some guards lead with `class`.
+ *
+ * The scan gives each rule 30 s per file (`--timeout 30`), so a rule whose cost grows faster than the file
+ * loses the match here too, as a file error. The JVM social rules joined every field with every class before
+ * they checked names, and java-direct-message passed 30 s on the 900 KB file on a CI runner (#13009); each
+ * name check now sits in the block that binds its name (CONTRIBUTING.md, Cost). The Kotlin constructs are
+ * class-body properties, so they go through the arms that pair properties with classes. This test sees
+ * only a cost past 30 s; `scripts/rule-cost.mjs` measures how a rule's cost grows, before a release.
  */
 const END_KB = 300;
 const TOP_KB = 900;
@@ -61,6 +68,41 @@ const CASES: Case[] = [
     head: 'package demo;\n',
     construct: 'class DirectMessage { private String recipient; private String sender; }\n',
     at: 'class DirectMessage { private String recipient; private String sender; }',
+  },
+  {
+    rule: 'lexcode.social.java-follow-relation',
+    file: 'Big.java',
+    head: 'package demo;\n',
+    construct: 'class Follow { private User follower; private User followed; }\n',
+    at: 'class Follow { private User follower; private User followed; }',
+  },
+  {
+    rule: 'lexcode.social.kt-direct-message',
+    file: 'Big.kt',
+    head: 'package demo\n',
+    construct: 'class DirectMessage(val id: Long) { val sender: String = ""; val recipient: String = "" }\n',
+    at: 'class DirectMessage(val id: Long) { val sender: String = ""; val recipient: String = "" }',
+  },
+  {
+    rule: 'lexcode.social.kt-follow-relation',
+    file: 'Big.kt',
+    head: 'package demo\n',
+    construct: 'class Follow(val id: Long) { val follower: String = ""; val followed: String = "" }\n',
+    at: 'class Follow(val id: Long) { val follower: String = ""; val followed: String = "" }',
+  },
+  {
+    rule: 'lexcode.social.kt-post-model',
+    file: 'Big.kt',
+    head: 'package demo\n',
+    construct: 'class Post(val id: Long) { val likes: Int = 0 }\n',
+    at: 'class Post(val id: Long) { val likes: Int = 0 }',
+  },
+  {
+    rule: 'lexcode.social.kt-home-feed',
+    file: 'Big.kt',
+    head: 'package demo\n',
+    construct: 'fun feed(posts: List<Post>, following: Set<Long>) = posts.filter { following.contains(it.authorId) }\n',
+    at: 'fun feed(posts: List<Post>, following: Set<Long>) = posts.filter { following.contains(it.authorId) }',
   },
   {
     rule: 'lexcode.tracking.java-analytics-calls',
