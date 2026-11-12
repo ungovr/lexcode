@@ -3,8 +3,9 @@ import path from 'node:path';
 import { ToolError } from '../errors.js';
 
 // Opengrep has no Vue or Svelte parser (design section 6.10), so a JS or TS
-// rule never reads those files, nor the scripts inside an HTML or Jinja page
-// or an ERB view (`.erb`, whose ERB tags are blanked first).
+// rule never reads those files, nor the scripts inside an HTML or Jinja page,
+// an ERB view (`.erb`, whose ERB tags are blanked first), a JSP, a PHP view
+// (`.php`, `.phtml`), a Blade view (`.blade.php`) or a Twig template (`.twig`).
 // lexcode copies each qualifying <script> body into a temporary file in which
 // every other character is a space (line breaks kept), so a finding's line
 // number is the line in the original file, and scans that.
@@ -12,6 +13,9 @@ import { ToolError } from '../errors.js';
 // see RUBY_BASENAMES, RUBY_COPY_EXTENSIONS and PHP_COPY_EXTENSIONS below.
 
 const JSP_EXTENSIONS = new Set(['.jsp', '.jspf', '.tag']);
+// A `.blade.php` view is told from a `.php` one by its full name, before its extension is looked at.
+const PHP_VIEW_EXTENSIONS = new Set(['.php', '.phtml']);
+const BLADE_SUFFIX = '.blade.php';
 const EXTRACT_EXTENSIONS = new Set([
   '.vue',
   '.svelte',
@@ -23,6 +27,8 @@ const EXTRACT_EXTENSIONS = new Set([
   '.njk',
   '.erb',
   ...JSP_EXTENSIONS,
+  ...PHP_VIEW_EXTENSIONS,
+  '.twig',
 ]);
 
 // The engine takes only `.rb` as Ruby: given as explicit targets, an extension-less `Fastfile` and a `.rake`,
@@ -330,23 +336,298 @@ export function blankJspTags(body: string): string {
   return out + body.slice(cursor);
 }
 
+/** Offset just past the quote that closes the string whose opening quote is at `open`; `text.length` when it never closes. A backslash escapes the next character. */
+function quotedEnd(text: string, open: number): number {
+  const q = text[open];
+  let i = open + 1;
+  while (i < text.length && text[i] !== q) i += text[i] === '\\' ? 2 : 1;
+  return Math.min(i + 1, text.length);
+}
+
+/** What ends a stretch of plain PHP code: a `?>`, a quote, a comment or attribute opener, or a heredoc or nowdoc opener. */
+const PHP_CODE_STOP = /\?>|['"`]|#\[?|\/\/|\/\*|<<</g;
+const PHP_LINE_COMMENT_END = /[\r\n]|\?>/g;
+const HEREDOC_OPENER = /<<<[ \t]*(["']?)([A-Za-z_\x80-\uFFFF][\w\x80-\uFFFF]*)\1\r?\n/y;
+
+/**
+ * Offset just past the `?>` that ends the PHP region whose code starts at `from`; `text.length` when the region
+ * runs to the end of the text, as a PHP file with no closing tag does. A `?>` inside a quoted string (single,
+ * double or backtick quotes, backslash escapes), a block comment, a heredoc or a nowdoc does not end the region;
+ * one in a `//` or `#` line comment does, as it does in PHP. `#[` opens a PHP 8 attribute, which is code.
+ */
+function phpRegionEnd(text: string, from: number): number {
+  let i = from;
+  for (;;) {
+    PHP_CODE_STOP.lastIndex = i;
+    const m = PHP_CODE_STOP.exec(text);
+    if (m === null) return text.length;
+    const at = m.index;
+    const tok = m[0];
+    if (tok === '?>') return at + 2;
+    if (tok === "'" || tok === '"' || tok === '`') {
+      i = quotedEnd(text, at);
+    } else if (tok === '#[') {
+      i = at + 2;
+    } else if (tok === '#' || tok === '//') {
+      PHP_LINE_COMMENT_END.lastIndex = at + tok.length;
+      const e = PHP_LINE_COMMENT_END.exec(text);
+      if (e === null) return text.length;
+      if (e[0] === '?>') return e.index + 2;
+      i = e.index + 1;
+    } else if (tok === '/*') {
+      const close = text.indexOf('*/', at + 2);
+      if (close === -1) return text.length;
+      i = close + 2;
+    } else {
+      HEREDOC_OPENER.lastIndex = at;
+      const h = HEREDOC_OPENER.exec(text);
+      if (h === null) {
+        i = at + 3;
+        continue;
+      }
+      // PHP 7.3 and later let the closing identifier be indented; it must not run on into a longer name.
+      const closer = new RegExp(`^[ \\t]*${h[2] as string}(?![\\w\\x80-\\uFFFF])`, 'gm');
+      closer.lastIndex = HEREDOC_OPENER.lastIndex;
+      const c = closer.exec(text);
+      if (c === null) return text.length;
+      i = c.index + c[0].length;
+    }
+  }
+}
+
+interface PhpRegion {
+  start: number;
+  end: number;
+  /** An output tag: `<?=`, or a `<?php` or `<?` tag whose code begins with `echo` or `print`. */
+  output: boolean;
+}
+
+/**
+ * After `<?`: the code of a `<?php` or `<?` tag that begins with `echo` or `print` (PHP keywords, any case). Such a
+ * tag is the long form of `<?=`: it puts a value in the same place (Controller Ruling 19, #12987).
+ */
+const PHP_PRINTS = /(?:php(?=\s))?\s*(?:echo|print)(?![\w\x80-\uFFFF])/iy;
+
+/** Each PHP region of `text`, in order: from `<?php`, `<?=` or `<?` to just past its `?>`, or to the end of the text. */
+function phpRegions(text: string): PhpRegion[] {
+  const regions: PhpRegion[] = [];
+  let i = 0;
+  while (i < text.length) {
+    const open = text.indexOf('<?', i);
+    if (open === -1) break;
+    const end = phpRegionEnd(text, open + 2);
+    PHP_PRINTS.lastIndex = open + 2;
+    regions.push({ start: open, end, output: text[open + 2] === '=' || PHP_PRINTS.test(text) });
+    i = end;
+  }
+  return regions;
+}
+
+/** Blanks every PHP region of `text`; with `outputAsName`, a `<?=` region becomes `_` padded instead of spaces. */
+function blankRegions(text: string, outputAsName: boolean): string {
+  if (!text.includes('<?')) return text;
+  let out = '';
+  let cursor = 0;
+  for (const r of phpRegions(text)) {
+    const tag = blank(text.slice(r.start, r.end));
+    out += text.slice(cursor, r.start) + (outputAsName && r.output && tag.length > 0 ? '_' + tag.slice(1) : tag);
+    cursor = r.end;
+  }
+  return out + text.slice(cursor);
+}
+
+/**
+ * Blanks every PHP region of a PHP view (from `<?php`, `<?=` or `<?` to `?>`, or to the end of the file) to
+ * spaces, keeping lengths and line breaks, so only the inline HTML is left: a `<script>` that the PHP code writes
+ * in a string is then not a script block. See `phpRegionEnd` for what ends a region.
+ */
+export function blankPhpRegions(text: string): string {
+  return blankRegions(text, false);
+}
+
+/**
+ * Blanks the PHP tags of a script body so the JavaScript parser can read it: an output tag (`<?= ... ?>`, or a
+ * `<?php` or `<?` tag whose code begins with `echo` or `print`) becomes `_` padded with spaces to its length,
+ * every other PHP tag becomes spaces, and line breaks stay, so line and column numbers hold. A tag ends where `blankPhpRegions` ends a region; one that never ends runs to the end of the body.
+ */
+export function blankPhpTags(body: string): string {
+  return blankRegions(body, true);
+}
+
+/**
+ * Offset just past the `)` that closes the argument list whose `(` is at `open`, past nested parentheses and
+ * quoted strings (single and double quotes, backslash escapes); -1 when it never closes.
+ */
+function argumentsEnd(text: string, open: number): number {
+  let depth = 0;
+  let i = open;
+  while (i < text.length) {
+    const ch = text[i] as string;
+    if (ch === '"' || ch === "'") {
+      i = quotedEnd(text, i);
+      continue;
+    }
+    if (ch === '(') depth++;
+    else if (ch === ')') {
+      depth--;
+      if (depth === 0) return i + 1;
+    }
+    i++;
+  }
+  return -1;
+}
+
+/** A Blade comment, raw echo, escaped echo or echo, or a directive: an `@` and a name, not after a letter, digit, `_` or `@`. */
+const BLADE_OPENER = /\{\{--|\{!!|@?\{\{|(?<![\p{L}\p{N}_@])@[A-Za-z_]\w*/gu;
+
+/**
+ * Blanks the Blade syntax of a script body (after `blankPhpTags`) so the JavaScript parser can read it:
+ * `{{ ... }}`, `{!! ... !!}`, `@json(...)` and `@js(...)` become `_` padded with spaces to their length, and a
+ * `{{-- ... --}}` comment, an `@php ... @endphp` span and every other directive, with its argument list when one
+ * follows (after optional spaces or tabs), become spaces. A directive is an `@` and a name not preceded by a
+ * letter, digit, `_` or `@`, so the `@` of an email address in a JavaScript string is left. An argument list
+ * runs to its closing `)`, past nested parentheses and quoted strings; an echo ends at the first `}}` (`!!}`,
+ * `--}}`), as Blade ends it. `@{{ ... }}` is Blade's escaped echo, printed as `{{ ... }}`: its `@` becomes a
+ * space and the rest is left. Line breaks stay. Anything that never ends is blanked to the end of the body.
+ */
+export function blankBladeTags(body: string): string {
+  let out = '';
+  let cursor = 0;
+  BLADE_OPENER.lastIndex = 0;
+  for (let m = BLADE_OPENER.exec(body); m !== null; m = BLADE_OPENER.exec(body)) {
+    const open = m.index;
+    const tok = m[0];
+    let end: number;
+    let output = false;
+    if (tok === '@{{') {
+      const close = body.indexOf('}}', open + 3);
+      end = close === -1 ? body.length : close + 2;
+      out += body.slice(cursor, open) + ' ' + body.slice(open + 1, end);
+      cursor = end;
+      BLADE_OPENER.lastIndex = end;
+      continue;
+    }
+    if (tok === '{{--') {
+      const close = body.indexOf('--}}', open + 4);
+      end = close === -1 ? body.length : close + 4;
+    } else if (tok === '{!!') {
+      const close = body.indexOf('!!}', open + 3);
+      end = close === -1 ? body.length : close + 3;
+      output = true;
+    } else if (tok === '{{') {
+      const close = body.indexOf('}}', open + 2);
+      end = close === -1 ? body.length : close + 2;
+      output = true;
+    } else {
+      const name = tok.slice(1).toLowerCase();
+      end = open + tok.length;
+      let paren = end;
+      while (body[paren] === ' ' || body[paren] === '\t') paren++;
+      if (body[paren] === '(') {
+        const close = argumentsEnd(body, paren);
+        end = close === -1 ? body.length : close;
+        output = name === 'json' || name === 'js';
+      } else if (name === 'php') {
+        const close = body.indexOf('@endphp', end);
+        end = close === -1 ? body.length : close + '@endphp'.length;
+      }
+    }
+    const tag = blank(body.slice(open, end));
+    out += body.slice(cursor, open) + (output && tag.length > 0 ? '_' + tag.slice(1) : tag);
+    cursor = end;
+    BLADE_OPENER.lastIndex = end;
+  }
+  return out + body.slice(cursor);
+}
+
+/**
+ * Offset just past the `closer` (`}}` or `%}`) that ends the Twig tag whose contents start at `from`, past
+ * quoted strings (single and double quotes, backslash escapes) and nested brackets, as Twig's lexer reads an
+ * expression: `{{ {'a': {'b': 1}} }}` ends at its last `}}`. `text.length` when it never ends.
+ */
+function twigTagEnd(text: string, from: number, closer: string): number {
+  let depth = 0;
+  let i = from;
+  while (i < text.length) {
+    const ch = text[i] as string;
+    if (depth === 0 && text.startsWith(closer, i)) return i + closer.length;
+    if (ch === '"' || ch === "'") {
+      i = quotedEnd(text, i);
+      continue;
+    }
+    if (ch === '(' || ch === '[' || ch === '{') depth++;
+    else if ((ch === ')' || ch === ']' || ch === '}') && depth > 0) depth--;
+    i++;
+  }
+  return text.length;
+}
+
+/**
+ * Blanks the Twig syntax of a script body so the JavaScript parser can read it: `{{ ... }}` becomes `_` padded
+ * with spaces to its length, and `{% ... %}` and `{# ... #}` become spaces, the `-` and `~` whitespace-control
+ * forms included. Line breaks stay. A comment ends at the first `#}`; an output or statement tag ends at its
+ * closer past quoted strings and nested brackets (`twigTagEnd`). Anything that never ends is blanked to the end
+ * of the body. It is applied to `.twig` files only: Jinja files keep their tags.
+ */
+export function blankTwigTags(body: string): string {
+  const opener = /\{[{%#]/g;
+  let out = '';
+  let cursor = 0;
+  for (let m = opener.exec(body); m !== null; m = opener.exec(body)) {
+    const open = m.index;
+    let end: number;
+    if (m[0] === '{#') {
+      const close = body.indexOf('#}', open + 2);
+      end = close === -1 ? body.length : close + 2;
+    } else {
+      end = twigTagEnd(body, open + 2, m[0] === '{{' ? '}}' : '%}');
+    }
+    const tag = blank(body.slice(open, end));
+    out += body.slice(cursor, open) + (m[0] === '{{' && tag.length > 0 ? '_' + tag.slice(1) : tag);
+    cursor = end;
+    opener.lastIndex = end;
+  }
+  return out + body.slice(cursor);
+}
+
+interface TemplateOptions {
+  erb?: boolean;
+  jsp?: boolean;
+  /** A PHP view: script blocks are looked for only in its inline HTML, and PHP tags are blanked inside a block. */
+  php?: boolean;
+  /** A Blade view: what `php` does, then Blade syntax is blanked inside a block. */
+  blade?: boolean;
+  twig?: boolean;
+}
+
+function blankTemplateTags(body: string, opts: TemplateOptions): string {
+  if (opts.blade === true) return blankBladeTags(blankPhpTags(body));
+  if (opts.php === true) return blankPhpTags(body);
+  if (opts.twig === true) return blankTwigTags(body);
+  if (opts.erb === true) return blankErbTags(body);
+  if (opts.jsp === true) return blankJspTags(body);
+  return body;
+}
+
 /**
  * Keeps the body of each qualifying `<script>` element and replaces every
  * other character except line breaks with a space, so line and column numbers
- * hold. Returns null when no block qualifies.
+ * hold. Returns null when no block qualifies. In a PHP or Blade view the blocks
+ * are looked for in `blankPhpRegions(text)`, so only inline HTML holds one, and
+ * each body is taken from the original text and then blanked; blanking keeps
+ * every length, so the offsets agree.
  */
-export function blankOutsideScripts(
-  text: string,
-  opts: { erb?: boolean; jsp?: boolean } = {},
-): { text: string; lang: 'ts' | 'js' } | null {
-  const blocks = findScriptBlocks(text).filter((b) => qualifies(b, text));
+export function blankOutsideScripts(text: string, opts: TemplateOptions = {}): { text: string; lang: 'ts' | 'js' } | null {
+  // No "<script" at all, as in a PHP class file: nothing to find, and no PHP region to walk.
+  if (!/<script/i.test(text)) return null;
+  const searched = opts.php === true || opts.blade === true ? blankPhpRegions(text) : text;
+  const blocks = findScriptBlocks(searched).filter((b) => qualifies(b, searched));
   if (blocks.length === 0) return null;
   let out = '';
   let cursor = 0;
   for (const b of blocks) {
     out += blank(text.slice(cursor, b.start));
-    const body = text.slice(b.start, b.end);
-    out += opts.erb === true ? blankErbTags(body) : opts.jsp === true ? blankJspTags(body) : body;
+    out += blankTemplateTags(text.slice(b.start, b.end), opts);
     cursor = b.end;
   }
   out += blank(text.slice(cursor));
@@ -355,7 +636,8 @@ export function blankOutsideScripts(
 
 /**
  * Writes `<tmpDir>/<originalPath>.lexcode.<ts|js>` for each file with an
- * extractable extension that holds at least one script block, and
+ * extractable extension that holds at least one script block (in a `.php`,
+ * `.phtml` or `.blade.php` view, one in its inline HTML), and
  * `<tmpDir>/<originalPath>.lexcode.rb` (the whole file) for a Rakefile,
  * Fastfile, Appfile or Capfile, and for a `.rake`, `.ru` or `.gemspec` file, and
  * `<tmpDir>/<originalPath>.lexcode.php` (the whole file) for an `.inc`, `.module`, `.theme` or `.install` file
@@ -393,7 +675,14 @@ export function extractScripts(
       kept = text;
       suffix = 'php';
     } else {
-      const blanked = blankOutsideScripts(text, { erb: ext === '.erb', jsp: JSP_EXTENSIONS.has(ext) });
+      const blade = originalPath.toLowerCase().endsWith(BLADE_SUFFIX);
+      const blanked = blankOutsideScripts(text, {
+        erb: ext === '.erb',
+        jsp: JSP_EXTENSIONS.has(ext),
+        php: !blade && PHP_VIEW_EXTENSIONS.has(ext),
+        blade,
+        twig: ext === '.twig',
+      });
       if (blanked === null) continue;
       kept = blanked.text;
       suffix = blanked.lang;
