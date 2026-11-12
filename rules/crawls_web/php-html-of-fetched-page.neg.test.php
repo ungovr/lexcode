@@ -4,6 +4,7 @@
 namespace App\Mail;
 
 use App\Html\Crawler;
+use App\Images\Loader;
 use GuzzleHttp\Client;
 use Psr\SimpleCache\CacheInterface;
 
@@ -37,6 +38,12 @@ class NewsletterRenderer
     public function own(string $pageUrl): array
     {
         return (new Crawler(file_get_contents($pageUrl)))->links();
+    }
+
+    // The project's own image loader, with a method named like php-html-parser's.
+    public function avatar(Loader $loader, string $imgUrl): string
+    {
+        return $loader->loadFromUrl($imgUrl)->resize(64, 64)->encode();
     }
 
     // A documented partner API returning JSON, never parsed as HTML.

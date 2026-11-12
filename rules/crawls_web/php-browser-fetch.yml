@@ -4,30 +4,53 @@ rules:
     severity: INFO
     message: Fetches a web page from a site the operator may not run with a scraping browser (Goutte, Symfony BrowserKit's HttpBrowser, Symfony Panther, chrome-php), which is crawling the web (crawls_web).
     patterns:
-      # Scoped to a file that names one of the browsers by its namespace: in a `use` line, aliased
-      # or not, or written out in full where the client is made. The engine does not resolve imports,
-      # so a project class with the same short name in another namespace (an app's own `Client`)
-      # does not admit the file. The regular expressions are also the pre-filter: a file without one
-      # of the names is not parsed.
+      # One branch per browser, each read only in a file that names that browser by its namespace:
+      # in a `use` line, aliased or not, or written out in full where the client is made. The engine
+      # does not resolve imports, so a project class with the same short name in another namespace
+      # (an app's own `Client`) does not admit the file, and one browser's import never admits
+      # another browser's call. Each regular expression is also its branch's pre-filter. A
+      # `request` on a receiver named for the plain HTTP client a browser is built on (HttpBrowser
+      # wraps Symfony's HttpClient) or for Guzzle is an API call, not a page load by the browser.
       - pattern-either:
-          - pattern-regex: '(?s)\A(?=.*\bGoutte\\Client\b).*'
-          - pattern-regex: '(?s)\A(?=.*\bBrowserKit\\HttpBrowser\b).*'
-          - pattern-regex: '(?s)\A(?=.*\bPanther\\Client\b).*'
-          - pattern-regex: '(?s)\A(?=.*\bHeadlessChromium\\BrowserFactory\b).*'
-      - pattern-either:
-          # BrowserKit's request, which Goutte, HttpBrowser and Panther all share.
-          - pattern: $C->request($M, $URL, ...)
-          # Panther's WebDriver-style get, on a receiver named for a browser client.
           - patterns:
-              - pattern: $C->get($URL)
+              - pattern-regex: '(?s)\A(?=.*\bGoutte\\Client\b).*'
+              - pattern: $C->request($M, $URL, ...)
               - metavariable-regex:
                   metavariable: $C
-                  regex: ^\$(this->)?\w*([cC]lient|[bB]rowser|[dD]river|[pP]anther)$
-          # chrome-php's page.
-          - pattern: $P->navigate($URL)
+                  regex: ^(?!\$(this->)?\w*([hH]ttp_?[cC]lient|[gG]uzzle)\w*$)
+          - patterns:
+              - pattern-regex: '(?s)\A(?=.*\bBrowserKit\\HttpBrowser\b).*'
+              - pattern: $C->request($M, $URL, ...)
+              - metavariable-regex:
+                  metavariable: $C
+                  regex: ^(?!\$(this->)?\w*([hH]ttp_?[cC]lient|[gG]uzzle)\w*$)
+          - patterns:
+              - pattern-regex: '(?s)\A(?=.*\bPanther\\Client\b).*'
+              - pattern-either:
+                  # BrowserKit style.
+                  - patterns:
+                      - pattern: $C->request($M, $URL, ...)
+                      - metavariable-regex:
+                          metavariable: $C
+                          regex: ^(?!\$(this->)?\w*([hH]ttp_?[cC]lient|[gG]uzzle)\w*$)
+                  # WebDriver style, on a receiver named for a browser client.
+                  - patterns:
+                      - pattern: $C->get($URL)
+                      - metavariable-regex:
+                          metavariable: $C
+                          regex: ^\$(this->)?\w*([cC]lient|[bB]rowser|[dD]river|[pP]anther)$
+          - patterns:
+              - pattern-regex: '(?s)\A(?=.*\bHeadlessChromium\\BrowserFactory\b).*'
+              - pattern: $P->navigate($URL)
+      # Not a page on another site: loopback hosts; file, data, about and blob addresses (chrome-php
+      # rendering the app's own HTML to PDF); a path relative to the app itself; the app's own
+      # routes and asset helpers (Laravel route(), url(), action(), asset(), secure_url()); and an
+      # address built on the app's own base URL (config('app.url'), env('APP_URL'), a property or
+      # variable named appUrl). A `baseUrl` is not excluded, since a scraper often names its
+      # target site so; any other way of building the app's own address still matches.
       - metavariable-regex:
           metavariable: $URL
-          regex: (?s)^(?!["']https?://(localhost|127\.|0\.0\.0\.0|\[::1\])).*$
+          regex: (?s)^(?!["']https?://(localhost|127\.|0\.0\.0\.0|\[::1\]))(?!["'](file|data|about|blob):)(?!["']/(?!/))(?!(route|url|action|asset|secure_url)\s*\()(?!(?i:config\(\s*["']app\.url|env\(\s*["']app_url))(?!["']?\{?\$(this->)?(?i:\w*app_?url)\b).*$
     metadata:
       activity: crawls_web
       mentioned: performs

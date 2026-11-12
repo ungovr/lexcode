@@ -5,10 +5,10 @@ rules:
     message: Fetches each URL in a list held in a variable, which may be crawling sites the operator does not run (crawls_web).
     patterns:
       # A pre-filter: the client calls below take their receiver from a regular expression, and
-      # `get` is in nearly every PHP file, so without this the engine parses every PHP file (on
-      # Moodle, 44.9 s for the rule alone without it, 29.4 s with it). It names a token inside every call the arms below can
-      # match: each function, a receiver named for a client before the arrow, `Http::`, and a static
-      # get or head (an aliased Laravel Http facade).
+      # `get` is in nearly every PHP file, so without this the engine parses every PHP file, which
+      # on a large codebase is most of this rule's cost. It names a token inside every call the
+      # arms below can match: each function, a receiver named for a client before the arrow,
+      # `Http::`, and a static get or head (an aliased Laravel Http facade).
       - pattern-regex: '(curl_init|CURLOPT_URL|get_headers|wp_(safe_)?remote_(get|head)|file_get_contents|fopen|Http::|(?i:client|http|guzzle|curl|browser)\w*(?:\(\s*\))?\s*->\s*(get|head|getAsync|headAsync|request|requestAsync)\b|::\s*(get|head)\s*\()'
       # The loop variable is the whole address. A loop over ids that builds the address from the
       # app's own base, or a single call to a documented API, does not bind it.

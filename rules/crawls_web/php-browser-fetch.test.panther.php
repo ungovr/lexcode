@@ -32,11 +32,13 @@ final class SnapshotCommand
         $client->get('https://news.example.com/');
     }
 
-    // A loopback target and a service lookup: not counted.
+    // Loopback and relative targets, and a service lookup: not counted.
     public function local(): void
     {
         $client = \Symfony\Component\Panther\Client::createChromeClient();
         $client->get('http://localhost:9080/');
+        $client->request('GET', '/dashboard');
+        $client->get('/health');
         $settings = $this->settings->get('snapshot.width');
     }
 }

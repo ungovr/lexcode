@@ -29,10 +29,13 @@ class RenderRemotePage
         $browser->createPage()->navigate('https://example.com/pricing');
     }
 
-    // The project's own server on loopback: not counted.
-    public function local(): void
+    // The project's own server on loopback, its own HTML and its own routes: not counted.
+    public function local(string $path): void
     {
         $browser = (new Chrome())->createBrowser();
         $browser->createPage()->navigate('http://127.0.0.1:8080/report');
+        $browser->createPage()->navigate('file://' . $path);
+        $browser->createPage()->navigate('/reports/1');
+        $browser->createPage()->navigate(route('reports.print', 1));
     }
 }

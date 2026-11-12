@@ -53,5 +53,12 @@ class ListingScraper
         $client = new GoutteClient();
         $client->request('GET', 'http://localhost:8000/health');
         $client->request('GET', 'http://127.0.0.1:8000/ready');
+        $client->request('GET', '/health');
+    }
+
+    // The HTTP client HttpBrowser is built on, calling a documented API: not counted.
+    public function charges(\Symfony\Contracts\HttpClient\HttpClientInterface $httpClient): array
+    {
+        return $httpClient->request('GET', 'https://api.stripe.com/v1/charges')->toArray();
     }
 }

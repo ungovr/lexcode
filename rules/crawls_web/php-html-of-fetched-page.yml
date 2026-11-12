@@ -111,8 +111,11 @@ rules:
               - metavariable-regex:
                   metavariable: $URL
                   regex: (?is)^(?!.*(path|file|dir|template))(["']https?://|.*(url|uri(?![a-z])|link|href|site))
-          # paquettg/php-html-parser.
-          - pattern: $D->loadFromUrl($URL, ...)
+          # paquettg/php-html-parser, in a file that names its namespace, so a project class's own
+          # loadFromUrl (an image or config loader) is not taken for it.
+          - patterns:
+              - pattern-regex: '(?s)\A(?=.*\bPHPHtmlParser\\).*'
+              - pattern: $D->loadFromUrl($URL, ...)
       - metavariable-regex:
           metavariable: $URL
           regex: (?s)^(?!["']https?://(localhost|127\.|0\.0\.0\.0|\[::1\]))(?!["']file:).*$
