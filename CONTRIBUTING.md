@@ -157,6 +157,45 @@ only where the literal matched. What the test passes still has the reach, so a
 scan says in a notice how many files it handed the engine are over 1,000,000
 bytes in a language with such a rule.
 
+A rule's cost inside one file matters as well: a scan gives each rule 30 s per
+file (`--timeout 30`), and a file the rule does not finish is a file error with
+its matches lost. In a `patterns` block the engine pairs the matches of the
+positive terms (`pattern`, `pattern-inside`, `pattern-either`) before it applies
+a name check (`metavariable-regex` and the other `metavariable-` conditions) at
+the same level. A field pattern (`$T $F;`) beside a class `pattern-inside`, with
+the checks after both, paired every field of a file with every class, so the JVM
+social rules took 10 to 33 s on a 900 KB file and one passed 30 s on a CI runner
+(#13009). Put each check in a nested `patterns` block with the term that binds
+its metavariable, so each term keeps only the matches that pass before the
+pairing:
+
+```yaml
+- patterns:
+    - pattern-either:
+        - pattern: $T $F;
+        - pattern: $T $F = $V;
+    - metavariable-regex:
+        metavariable: $F
+        regex: '^(recipient|receiver)$'
+- patterns:
+    - pattern-inside: |
+        class $C { ... $T2 $G; ... }
+    - metavariable-regex:
+        metavariable: $G
+        regex: '^(sender|author)$'
+- pattern-not-inside: |
+    $RET $M(...) { ... }
+```
+
+The nested form matches the same ranges and took those rules to about 3 s. A
+check on a metavariable that two terms bind stays at the joined level. Before a
+release, `node scripts/rule-cost.mjs` times each rule with a positive fixture in
+Java, Kotlin, PHP, Ruby, Python, JavaScript, TypeScript or Go on that fixture
+followed by filler, at 90 KB and 900 KB, beside a bare rule that only parses the
+same filler. It names a rule whose time grows more than twice as fast as the bare
+rule's for the 10x file, or that takes more than five times the bare rule's time
+on 900 KB, and every rule the engine failed on.
+
 ### Kotlin pattern notes
 
 Measured on Opengrep 1.33.1:
