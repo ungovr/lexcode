@@ -15,7 +15,7 @@ import type {
 type Obj = Record<string, unknown>;
 
 const CLASSES: readonly DetectionClass[] = ['evidence', 'signal', 'declaration-only'];
-const ECOSYSTEMS = ['npm', 'pypi', 'golang', 'gem', 'maven', 'composer', 'files'] as const;
+const ECOSYSTEMS = ['npm', 'pypi', 'golang', 'gem', 'maven', 'composer', 'nuget', 'files'] as const;
 
 function isObj(v: unknown): v is Obj {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
