@@ -5,8 +5,10 @@ rules:
     message: Declares the application delegate of a .NET MAUI or Xamarin.Forms iOS app, the class an installable iPhone or iPad app starts from, which is shipping a mobile app (ships_mobile_app).
     # A plain UIKit.UIApplicationDelegate is left out: tvOS and Mac Catalyst apps derive from it too,
     # and nothing in the C# file tells them from an iOS app (the platform is the project's target
-    # framework). A .NET for iOS app with no MAUI is found by ios-info-plist instead, from the
-    # iPhone-only keys of its Info.plist.
+    # framework). So a .NET for iOS app with no MAUI or Xamarin.Forms is not found by this rule, and
+    # not by ios-info-plist either: the current .NET templates keep the bundle identifier in the
+    # project file (ApplicationId), and their Info.plist has no CFBundleIdentifier. That is a known
+    # gap, recorded in rules/README.md.
     pattern-either:
       # MAUI's iOS head. The template reaches MauiUIApplicationDelegate through the MAUI SDK's
       # implicit global usings, so its product-named short form is matched too.

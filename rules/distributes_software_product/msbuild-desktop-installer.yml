@@ -31,9 +31,11 @@ rules:
         - "*.wapproj"
         - "msbuild-desktop-installer.*"
       # A legacy packages.config restore folder (packages/<Id>.<version>/) holds installed packages'
-      # build files, not the app's own; msbuild-nuget-package records the scan that checked it.
+      # build files, not the app's own; a project under packages/<name>/ is still read.
+      # msbuild-nuget-package records the scan that checked it (packages/Foo.1.0.0/build/Foo.props,
+      # which sets EnableMsixTooling, gave 0 matches).
       exclude:
-        - "**/packages/**"
+        - "**/packages/*.[0-9]*/**"
         - "**/example/**"
         - "**/examples/**"
         - "**/sample/**"

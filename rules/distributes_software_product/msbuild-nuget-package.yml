@@ -27,12 +27,15 @@ rules:
         - "msbuild-nuget-package.*"
       # A legacy packages.config restore folder (packages/<Id>.<version>/) holds every dependency's own
       # .nuspec, committed by some older solutions; those are installed packages, not shipped ones.
-      # The fixture runner reads only the files beside this rule, so no fixture can sit under that
-      # path; the exclusion was checked by a scan of packages/Newtonsoft.Json.13.0.1/Newtonsoft.Json.nuspec,
-      # which gave 1 match without it and 0 with it on Opengrep 1.33.1. A repository that keeps its own
-      # projects under packages/ is missed as well.
+      # Only directories named like <Id>.<version> are left out, so a repository that keeps its own
+      # projects under packages/<name>/ is still read. The fixture runner reads only the files beside
+      # this rule, so no fixture can sit under those paths; the exclusion was checked by a scan on
+      # Opengrep 1.33.1 of packages/Newtonsoft.Json.13.0.1/Newtonsoft.Json.nuspec,
+      # packages/Antlr3.Runtime.3.5.1/Antlr3.Runtime.nuspec and packages/Foo.1.0.0/build/Foo.props
+      # (0 matches) beside packages/MyApp/MyApp.csproj and src/packages/ui-kit/ui-kit.csproj, each with
+      # a PackageId (1 match each).
       exclude:
-        - "**/packages/**"
+        - "**/packages/*.[0-9]*/**"
         - "**/example/**"
         - "**/examples/**"
         - "**/sample/**"
