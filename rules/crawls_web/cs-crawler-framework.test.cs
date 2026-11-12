@@ -1,4 +1,4 @@
-// lexcode-expect: 7
+// lexcode-expect: 9
 using Abot2.Crawler;
 using Abot2.Poco;
 using DotnetSpider;
@@ -12,10 +12,13 @@ public class ArticleHarvester(IWebCrawler injectedCrawler)
 {
     public async Task HarvestAsync(string site)
     {
-        // Abot2, constructed by name and by target-typed new, and injected.
+        // Abot2, constructed by name and by target-typed new, with and without an object initializer,
+        // and injected.
         var crawler = new PoliteWebCrawler(new CrawlConfiguration { MaxPagesToCrawl = 500 });
         await crawler.CrawlAsync(new Uri(site));
         PoliteWebCrawler second = new(new CrawlConfiguration());
+        var third = new PoliteWebCrawler(new CrawlConfiguration()) { ShouldCrawlPageDecisionMaker = (page, context) => new CrawlDecision { Allow = true } };
+        PoliteWebCrawler fourth = new(new CrawlConfiguration()) { ShouldCrawlPageDecisionMaker = (page, context) => new CrawlDecision { Allow = true } };
         await injectedCrawler.CrawlAsync(new Uri(site));
 
         // InfinityCrawler.

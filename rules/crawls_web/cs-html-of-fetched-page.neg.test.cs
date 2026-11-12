@@ -43,8 +43,9 @@ public class PostSanitizer(IDistributedCache cache, HttpClient http, DbConnectio
         return document.QuerySelectorAll("p").Length + parsed.Links.Length;
     }
 
-    // The app's own server, on loopback and by relative path.
-    public async Task PreviewAsync()
+    // The app's own server, on loopback and by paths relative to the client's BaseAddress, and a
+    // blank page.
+    public async Task PreviewAsync(int id)
     {
         var web = new HtmlWeb();
         web.Load("http://localhost:5000/newsletter/preview");
@@ -52,6 +53,11 @@ public class PostSanitizer(IDistributedCache cache, HttpClient http, DbConnectio
         doc.LoadHtml(await http.GetStringAsync("/newsletter/preview"));
         var html = await http.GetStringAsync("http://127.0.0.1:5000/newsletter/preview");
         doc.LoadHtml(html);
+        doc.LoadHtml(await http.GetStringAsync("pages/preview"));
+        doc.LoadHtml(await http.GetStringAsync($"pages/{id}"));
+        var page = await http.GetStringAsync("pages/preview");
+        doc.LoadHtml(page);
+        var blank = await BrowsingContext.New(Configuration.Default).OpenAsync("about:blank");
     }
 
     // A documented partner API returning JSON, never parsed as HTML.

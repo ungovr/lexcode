@@ -20,10 +20,11 @@ rules:
                   - pattern-inside: new Microsoft.SyndicationFeed.Rss.RssFeedReader(...)
                   - pattern-inside: new Microsoft.SyndicationFeed.Atom.AtomFeedReader(...)
               - pattern: System.Xml.XmlReader.Create($URL, ...)
-              # The argument names a web address, not a file, a stream or XML text the app holds.
+              # The argument is a web address: a literal one whatever its path (`feed.xml`), or a
+              # value named for one that is not named for a file, a stream or XML text the app holds.
               - metavariable-regex:
                   metavariable: $URL
-                  regex: (?is)^(?!.*(path|file|dir|stream|reader|xml|text|content))([$@]{0,2}"https?://|.*(url|uri(?![a-z])|feed|rss|atom|link|href))
+                  regex: (?is)^(?:[$@]{0,2}"https?://|(?!.*(path|file|dir|stream|reader|xml|text|content)).*(url|uri(?![a-z])|feed|rss|atom|link|href))
           # The same, over a stream downloaded in the same call.
           - patterns:
               - pattern-either:
@@ -33,6 +34,11 @@ rules:
                   - pattern-inside: new Microsoft.SyndicationFeed.Rss.RssFeedReader(...)
                   - pattern-inside: new Microsoft.SyndicationFeed.Atom.AtomFeedReader(...)
               - pattern: System.Xml.XmlReader.Create($SRC, ...)
+              # The download's address, read with its quotes here: a literal that is not an http or
+              # https address (a path relative to the client's BaseAddress, `pages/{id}`) is the app's own.
+              - metavariable-regex:
+                  metavariable: $SRC
+                  regex: (?s)^(?!.*\b(Get(String|Stream|ByteArray)?Async|DownloadString(TaskAsync)?|DownloadData(TaskAsync)?|OpenRead(TaskAsync)?)\(\s*[$@]{0,2}"(?!https?://)).*$
               - metavariable-pattern:
                   metavariable: $SRC
                   patterns:
@@ -61,7 +67,7 @@ rules:
                   - pattern: new Microsoft.SyndicationFeed.Atom.AtomFeedReader($R, ...)
               - metavariable-regex:
                   metavariable: $URL
-                  regex: (?is)^(?!.*(path|file|dir|stream|reader|xml|text|content))([$@]{0,2}"https?://|.*(url|uri(?![a-z])|feed|rss|atom|link|href))
+                  regex: (?is)^(?:[$@]{0,2}"https?://|(?!.*(path|file|dir|stream|reader|xml|text|content)).*(url|uri(?![a-z])|feed|rss|atom|link|href))
           # A stream downloaded into a variable, then a reader made on it before or inside the call.
           - patterns:
               - pattern-inside: |
@@ -76,6 +82,11 @@ rules:
                   - pattern: (System.ServiceModel.Syndication.Atom10FeedFormatter $F).ReadFrom($R)
                   - pattern: new Microsoft.SyndicationFeed.Rss.RssFeedReader($R, ...)
                   - pattern: new Microsoft.SyndicationFeed.Atom.AtomFeedReader($R, ...)
+              # The download's address, read with its quotes here: a literal that is not an http or
+              # https address (a path relative to the client's BaseAddress, `pages/{id}`) is the app's own.
+              - metavariable-regex:
+                  metavariable: $FETCH
+                  regex: (?s)^(?!.*\b(Get(String|Stream|ByteArray)?Async|DownloadString(TaskAsync)?|DownloadData(TaskAsync)?|OpenRead(TaskAsync)?)\(\s*[$@]{0,2}"(?!https?://)).*$
               - metavariable-pattern:
                   metavariable: $FETCH
                   patterns:
@@ -97,6 +108,11 @@ rules:
                   - pattern-inside: new Microsoft.SyndicationFeed.Rss.RssFeedReader(...)
                   - pattern-inside: new Microsoft.SyndicationFeed.Atom.AtomFeedReader(...)
               - pattern: System.Xml.XmlReader.Create($S, ...)
+              # The download's address, read with its quotes here: a literal that is not an http or
+              # https address (a path relative to the client's BaseAddress, `pages/{id}`) is the app's own.
+              - metavariable-regex:
+                  metavariable: $FETCH
+                  regex: (?s)^(?!.*\b(Get(String|Stream|ByteArray)?Async|DownloadString(TaskAsync)?|DownloadData(TaskAsync)?|OpenRead(TaskAsync)?)\(\s*[$@]{0,2}"(?!https?://)).*$
               - metavariable-pattern:
                   metavariable: $FETCH
                   patterns:
@@ -113,16 +129,23 @@ rules:
           - pattern: CodeHollow.FeedReader.FeedReader.Read($URL, ...)
           - pattern: CodeHollow.FeedReader.FeedReader.GetFeedUrlsFromUrlAsync($URL, ...)
           - pattern: CodeHollow.FeedReader.FeedReader.GetFeedUrlsFromUrl($URL, ...)
-          # A feed loader or parser of any library, or of the app's own, named for a feed (RssFeed,
-          # NewsFeed, feedParser), over a feed downloaded in the same call or the line before.
+          # A feed loader or parser of any library, or of the app's own, named for a syndication
+          # feed (RssFeed, AtomReader, NewsFeed, feedParser, FeedReader), over a feed downloaded in
+          # the same call or the line before. A bare `feed` is not enough: a supplier's product feed
+          # or a feedback service is not another publisher's content.
           - patterns:
               - pattern: $FP.$LOAD($SRC)
               - metavariable-regex:
                   metavariable: $FP
-                  regex: (?i)^(this\.)?_?\w*(rss|atom|feed|syndication)\w*$
+                  regex: (?i)^(this\.)?_?\w*(rss|atom(?!ic)|syndication|newsfeed|feed(parser|reader))\w*$
               - metavariable-regex:
                   metavariable: $LOAD
                   regex: ^(Load|Parse|Read)(Async)?$
+              # The download's address, read with its quotes here: a literal that is not an http or
+              # https address (a path relative to the client's BaseAddress, `pages/{id}`) is the app's own.
+              - metavariable-regex:
+                  metavariable: $SRC
+                  regex: (?s)^(?!.*\b(Get(String|Stream|ByteArray)?Async|DownloadString(TaskAsync)?|DownloadData(TaskAsync)?|OpenRead(TaskAsync)?)\(\s*[$@]{0,2}"(?!https?://)).*$
               - metavariable-pattern:
                   metavariable: $SRC
                   patterns:
@@ -140,10 +163,15 @@ rules:
               - pattern: $FP.$LOAD($S)
               - metavariable-regex:
                   metavariable: $FP
-                  regex: (?i)^(this\.)?_?\w*(rss|atom|feed|syndication)\w*$
+                  regex: (?i)^(this\.)?_?\w*(rss|atom(?!ic)|syndication|newsfeed|feed(parser|reader))\w*$
               - metavariable-regex:
                   metavariable: $LOAD
                   regex: ^(Load|Parse|Read)(Async)?$
+              # The download's address, read with its quotes here: a literal that is not an http or
+              # https address (a path relative to the client's BaseAddress, `pages/{id}`) is the app's own.
+              - metavariable-regex:
+                  metavariable: $FETCH
+                  regex: (?s)^(?!.*\b(Get(String|Stream|ByteArray)?Async|DownloadString(TaskAsync)?|DownloadData(TaskAsync)?|OpenRead(TaskAsync)?)\(\s*[$@]{0,2}"(?!https?://)).*$
               - metavariable-pattern:
                   metavariable: $FETCH
                   patterns:

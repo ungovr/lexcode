@@ -1,4 +1,4 @@
-// lexcode-expect: 9
+// lexcode-expect: 11
 using System.Net;
 
 namespace Research.Harvest;
@@ -24,6 +24,8 @@ public class UrlListFetcher(IHttpClientFactory factory)
         {
             await factory.CreateClient("harvester").GetByteArrayAsync(pageUrl);
             using var request = new HttpRequestMessage(HttpMethod.Get, pageUrl);
+            using var initRequest = new HttpRequestMessage { RequestUri = new Uri(pageUrl) };
+            using var http2Request = new HttpRequestMessage(HttpMethod.Get, pageUrl) { Version = HttpVersion.Version20 };
         }
 
         await Parallel.ForEachAsync(urls, async (link, ct) =>

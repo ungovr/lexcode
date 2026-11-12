@@ -20,15 +20,17 @@ rules:
                   regex: (?s)^(?![$@]{0,2}"(?!https?://)).*$
           # AngleSharp's browsing context opens an address and its loader downloads it. The context
           # comes from `BrowsingContext.New(...)`, whose type the engine does not infer, so the file
-          # must name AngleSharp's namespace (a `using` line, aliased or not, or a type written out
-          # in full; a comment does not count). A lambda builds a page from HTML the app holds (see
-          # below), and a cancellation token is a database connection's OpenAsync.
+          # must name AngleSharp's namespace (a `using` line at the start of a line, aliased or not,
+          # or a type written out in full on a line that does not open with a comment). A lambda
+          # builds a page from HTML the app holds (see below), a cancellation token is a database
+          # connection's OpenAsync, and a literal that is not an http or https address
+          # (`about:blank`, a relative path) is not a page on another site.
           - patterns:
-              - pattern-regex: '(?s)(?:\busing\s+(?:static\s+)?(?:\w+\s*=\s*)?(?:global::)?AngleSharp\b|(?<![\w.])AngleSharp\.\w).*'
+              - pattern-regex: '(?s)(?m:^[ \t]*(?:global[ \t]+)?using[ \t]+(?:static[ \t]+)?(?:\w+[ \t]*=[ \t]*)?(?:global::)?AngleSharp\b|^(?![ \t]*(?://|/?\*))[^\n]*?(?<![\w.])AngleSharp\.\w).*'
               - pattern: $C.OpenAsync($URL, ...)
               - metavariable-regex:
                   metavariable: $URL
-                  regex: (?s)^(?!.*=>)(?!(?i:\w*(token|ct)$)).*$
+                  regex: (?s)^(?!.*=>)(?!(?i:\w*(token|ct)$))(?![$@]{0,2}"(?!https?://)).*$
           # A page fetched inside the parser call itself.
           - patterns:
               - pattern-either:
@@ -39,8 +41,13 @@ rules:
                   - pattern: (AngleSharp.Html.Parser.IHtmlParser $P).ParseDocument($SRC)
                   - pattern: (AngleSharp.Html.Parser.IHtmlParser $P).ParseDocumentAsync($SRC, ...)
                   - patterns:
-                      - pattern-regex: '(?s)(?:\busing\s+(?:static\s+)?(?:\w+\s*=\s*)?(?:global::)?AngleSharp\b|(?<![\w.])AngleSharp\.\w).*'
+                      - pattern-regex: '(?s)(?m:^[ \t]*(?:global[ \t]+)?using[ \t]+(?:static[ \t]+)?(?:\w+[ \t]*=[ \t]*)?(?:global::)?AngleSharp\b|^(?![ \t]*(?://|/?\*))[^\n]*?(?<![\w.])AngleSharp\.\w).*'
                       - pattern: $C.OpenAsync($R => $R.Content($SRC, ...))
+              # The download's address, read with its quotes here: a literal that is not an http or
+              # https address (a path relative to the client's BaseAddress, `pages/{id}`) is the app's own.
+              - metavariable-regex:
+                  metavariable: $SRC
+                  regex: (?s)^(?!.*\b(Get(String|Stream|ByteArray)?Async|DownloadString(TaskAsync)?|DownloadData(TaskAsync)?|OpenRead(TaskAsync)?)\(\s*[$@]{0,2}"(?!https?://)).*$
               - metavariable-pattern:
                   metavariable: $SRC
                   patterns:
@@ -74,8 +81,13 @@ rules:
                   - pattern: (AngleSharp.Html.Parser.IHtmlParser $P).ParseDocument($SRC)
                   - pattern: (AngleSharp.Html.Parser.IHtmlParser $P).ParseDocumentAsync($SRC, ...)
                   - patterns:
-                      - pattern-regex: '(?s)(?:\busing\s+(?:static\s+)?(?:\w+\s*=\s*)?(?:global::)?AngleSharp\b|(?<![\w.])AngleSharp\.\w).*'
+                      - pattern-regex: '(?s)(?m:^[ \t]*(?:global[ \t]+)?using[ \t]+(?:static[ \t]+)?(?:\w+[ \t]*=[ \t]*)?(?:global::)?AngleSharp\b|^(?![ \t]*(?://|/?\*))[^\n]*?(?<![\w.])AngleSharp\.\w).*'
                       - pattern: $C.OpenAsync($R => $R.Content($SRC, ...))
+              # The download's address, read with its quotes here: a literal that is not an http or
+              # https address (a path relative to the client's BaseAddress, `pages/{id}`) is the app's own.
+              - metavariable-regex:
+                  metavariable: $FETCH
+                  regex: (?s)^(?!.*\b(Get(String|Stream|ByteArray)?Async|DownloadString(TaskAsync)?|DownloadData(TaskAsync)?|OpenRead(TaskAsync)?)\(\s*[$@]{0,2}"(?!https?://)).*$
               - metavariable-pattern:
                   metavariable: $FETCH
                   patterns:

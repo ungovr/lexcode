@@ -32,6 +32,22 @@ rules:
                           regex: ^Get(String|Stream|ByteArray)?Async$
                   - pattern: new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Get, $ARG)
                   - pattern: new HttpRequestMessage(HttpMethod.Get, $ARG)
+                  # A request with an object initializer: the constructor with a trailing initializer
+                  # is a different shape to the engine, and an initializer-only request reads GET when
+                  # its Method is Get or left at its default.
+                  - pattern: new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Get, $ARG) { ... }
+                  - pattern: new HttpRequestMessage(HttpMethod.Get, $ARG) { ... }
+                  - patterns:
+                      - pattern-either:
+                          - pattern-inside: new System.Net.Http.HttpRequestMessage(...) { ..., Method = System.Net.Http.HttpMethod.Get, ... }
+                          - pattern-inside: new HttpRequestMessage(...) { ..., Method = HttpMethod.Get, ... }
+                          - patterns:
+                              - pattern-either:
+                                  - pattern-inside: new System.Net.Http.HttpRequestMessage(...) { ... }
+                                  - pattern-inside: new HttpRequestMessage(...) { ... }
+                              - pattern-not-inside: new System.Net.Http.HttpRequestMessage(...) { ..., Method = $METHOD, ... }
+                              - pattern-not-inside: new HttpRequestMessage(...) { ..., Method = $METHOD, ... }
+                      - pattern: RequestUri = $ARG
                   - pattern: (HtmlAgilityPack.HtmlWeb $W).Load($ARG, ...)
                   - pattern: (HtmlAgilityPack.HtmlWeb $W).LoadFromWebAsync($ARG, ...)
                   - pattern: $X.OpenAsync($ARG, ...)
@@ -69,6 +85,22 @@ rules:
                           regex: ^Get(String|Stream|ByteArray)?Async$
                   - pattern: new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Get, $ARG)
                   - pattern: new HttpRequestMessage(HttpMethod.Get, $ARG)
+                  # A request with an object initializer: the constructor with a trailing initializer
+                  # is a different shape to the engine, and an initializer-only request reads GET when
+                  # its Method is Get or left at its default.
+                  - pattern: new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Get, $ARG) { ... }
+                  - pattern: new HttpRequestMessage(HttpMethod.Get, $ARG) { ... }
+                  - patterns:
+                      - pattern-either:
+                          - pattern-inside: new System.Net.Http.HttpRequestMessage(...) { ..., Method = System.Net.Http.HttpMethod.Get, ... }
+                          - pattern-inside: new HttpRequestMessage(...) { ..., Method = HttpMethod.Get, ... }
+                          - patterns:
+                              - pattern-either:
+                                  - pattern-inside: new System.Net.Http.HttpRequestMessage(...) { ... }
+                                  - pattern-inside: new HttpRequestMessage(...) { ... }
+                              - pattern-not-inside: new System.Net.Http.HttpRequestMessage(...) { ..., Method = $METHOD, ... }
+                              - pattern-not-inside: new HttpRequestMessage(...) { ..., Method = $METHOD, ... }
+                      - pattern: RequestUri = $ARG
                   - pattern: (HtmlAgilityPack.HtmlWeb $W).Load($ARG, ...)
                   - pattern: (HtmlAgilityPack.HtmlWeb $W).LoadFromWebAsync($ARG, ...)
                   - pattern: $X.OpenAsync($ARG, ...)

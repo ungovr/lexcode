@@ -33,6 +33,8 @@ public class CatalogSync(HttpClient http, IDistributedCache cache)
         foreach (var subscriberUrl in subscriberUrls)
         {
             await http.PostAsync(subscriberUrl, payload);
+            using var post = new HttpRequestMessage { Method = HttpMethod.Post, RequestUri = new Uri(subscriberUrl), Content = payload };
+            using var put = new HttpRequestMessage(HttpMethod.Put, subscriberUrl) { Content = payload };
         }
 
         await Parallel.ForEachAsync(subscriberUrls, async (url, ct) => await http.PutAsync(url, payload, ct));

@@ -1,4 +1,4 @@
-// lexcode-expect: 6
+// lexcode-expect: 8
 using AngleSharp;
 using AngleSharp.Dom;
 using HtmlAgilityPack;
@@ -16,6 +16,8 @@ public class LinkFollower(HttpClient http, IBrowsingContext context, IPage page)
             await http.GetStringAsync(a.GetAttributeValue("href", string.Empty));
             var next = a.Attributes["href"].Value;
             new HtmlWeb().Load(next);
+            HtmlWeb follower = new();
+            follower.Load(a.GetAttributeValue("href", ""));
         }
 
         foreach (var element in angleDoc.QuerySelectorAll("a"))
@@ -33,6 +35,7 @@ public class LinkFollower(HttpClient http, IBrowsingContext context, IPage page)
         foreach (var image in doc.DocumentNode.SelectNodes("//img[@src]"))
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, image.GetAttributeValue("src", ""));
+            using var initRequest = new HttpRequestMessage { Method = HttpMethod.Get, RequestUri = new Uri(pageUri, image.GetAttributeValue("src", "")) };
         }
     }
 }

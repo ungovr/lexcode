@@ -11,6 +11,9 @@ rules:
       # Abot (2.x and 1.x): making the crawler, and an injected one starting a crawl.
       - pattern: new Abot2.Crawler.PoliteWebCrawler(...)
       - pattern: Abot2.Crawler.PoliteWebCrawler $V = new(...);
+      # A construction with a non-empty object initializer is a different shape to the engine.
+      - pattern: new Abot2.Crawler.PoliteWebCrawler(...) { ... }
+      - pattern: Abot2.Crawler.PoliteWebCrawler $V = new(...) { ... };
       - pattern: new Abot.Crawler.PoliteWebCrawler(...)
       - pattern: Abot.Crawler.PoliteWebCrawler $V = new(...);
       - pattern: (Abot2.Crawler.IWebCrawler $C).CrawlAsync(...)

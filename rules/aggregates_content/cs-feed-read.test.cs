@@ -1,4 +1,4 @@
-// lexcode-expect: 11
+// lexcode-expect: 13
 using System.ServiceModel.Syndication;
 using System.Xml;
 using CodeHollow.FeedReader;
@@ -15,6 +15,7 @@ public class HeadlineCollector(IHttpClientFactory factory, IFeedParser feedParse
     public async Task<int> SyndicationAsync(string feedUrl)
     {
         var first = SyndicationFeed.Load(XmlReader.Create(feedUrl));
+        var literal = SyndicationFeed.Load(XmlReader.Create("https://example.com/content/feed.xml"));
 
         using var reader = XmlReader.Create("https://news.example.com/rss");
         var second = SyndicationFeed.Load(reader);
@@ -53,6 +54,7 @@ public class HeadlineCollector(IHttpClientFactory factory, IFeedParser feedParse
     public async Task<object> OwnParserAsync(string feedUrl)
     {
         var parsed = feedParser.Parse(await factory.CreateClient("feeds").GetStringAsync(feedUrl));
+        var fresh = await RssFeed.LoadAsync(await new HttpClient().GetStreamAsync(feedUrl));
         await using var news = await _http.GetStreamAsync(feedUrl);
 
         return await NewsFeed.LoadAsync(news);
