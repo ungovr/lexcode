@@ -195,7 +195,7 @@ function isTypeScript(block: ScriptBlock): boolean {
 }
 
 function blank(s: string): string {
-  return s.replace(/[^\r\n]/gu, ' ');
+  return s.replace(/[^\r\n]/g, ' ');
 }
 
 /**
@@ -336,12 +336,15 @@ export function blankJspTags(body: string): string {
   return out + body.slice(cursor);
 }
 
-/** Offset just past the quote that closes the string whose opening quote is at `open`; `text.length` when it never closes. A backslash escapes the next character. */
-function quotedEnd(text: string, open: number): number {
+/**
+ * Offset just past the quote that closes the string whose opening quote is at `open`; `limit` (the end of the
+ * text by default) when it does not close before that. A backslash escapes the next character.
+ */
+function quotedEnd(text: string, open: number, limit: number = text.length): number {
   const q = text[open];
   let i = open + 1;
-  while (i < text.length && text[i] !== q) i += text[i] === '\\' ? 2 : 1;
-  return Math.min(i + 1, text.length);
+  while (i < limit && text[i] !== q) i += text[i] === '\\' ? 2 : 1;
+  return Math.min(i + 1, limit);
 }
 
 /** What ends a stretch of plain PHP code: a `?>`, a quote, a comment or attribute opener, or a heredoc or nowdoc opener. */
@@ -455,16 +458,25 @@ export function blankPhpTags(body: string): string {
 }
 
 /**
+ * The longest Blade argument list lexcode will look for a closing `)` in. Without a bound, a body of unclosed
+ * `@x(` openers would be searched to its end once per opener (quadratic); a real argument list, even an
+ * `@json` of a literal array, is far shorter.
+ */
+const MAX_ARGUMENT_CHARS = 10_000;
+
+/**
  * Offset just past the `)` that closes the argument list whose `(` is at `open`, past nested parentheses and
- * quoted strings (single and double quotes, backslash escapes); -1 when it never closes.
+ * quoted strings (single and double quotes, backslash escapes); -1 when it does not close within
+ * MAX_ARGUMENT_CHARS.
  */
 function argumentsEnd(text: string, open: number): number {
+  const limit = Math.min(text.length, open + MAX_ARGUMENT_CHARS);
   let depth = 0;
   let i = open;
-  while (i < text.length) {
+  while (i < limit) {
     const ch = text[i] as string;
     if (ch === '"' || ch === "'") {
-      i = quotedEnd(text, i);
+      i = quotedEnd(text, i, limit);
       continue;
     }
     if (ch === '(') depth++;
@@ -486,9 +498,11 @@ const BLADE_OPENER = /\{\{--|\{!!|@?\{\{|(?<![\p{L}\p{N}_@])@[A-Za-z_]\w*/gu;
  * `{{-- ... --}}` comment, an `@php ... @endphp` span and every other directive, with its argument list when one
  * follows (after optional spaces or tabs), become spaces. A directive is an `@` and a name not preceded by a
  * letter, digit, `_` or `@`, so the `@` of an email address in a JavaScript string is left. An argument list
- * runs to its closing `)`, past nested parentheses and quoted strings; an echo ends at the first `}}` (`!!}`,
- * `--}}`), as Blade ends it. `@{{ ... }}` is Blade's escaped echo, printed as `{{ ... }}`: its `@` becomes a
- * space and the rest is left. Line breaks stay. Anything that never ends is blanked to the end of the body.
+ * runs to its closing `)`, past nested parentheses and quoted strings; one with no closing `)` is not an argument
+ * list, as Blade's argument group is optional, so only the directive's name is blanked (Controller Ruling 25).
+ * An echo ends at the first `}}` (`!!}`, `--}}`), as Blade ends it. `@{{ ... }}` is Blade's escaped echo,
+ * printed as `{{ ... }}`: its `@` becomes a space and the rest is left. Line breaks stay. An echo, comment or
+ * `@php` span that never ends is blanked to the end of the body.
  */
 export function blankBladeTags(body: string): string {
   let out = '';
@@ -523,9 +537,9 @@ export function blankBladeTags(body: string): string {
       end = open + tok.length;
       let paren = end;
       while (body[paren] === ' ' || body[paren] === '\t') paren++;
-      if (body[paren] === '(') {
-        const close = argumentsEnd(body, paren);
-        end = close === -1 ? body.length : close;
+      const close = body[paren] === '(' ? argumentsEnd(body, paren) : -1;
+      if (close !== -1) {
+        end = close;
         output = name === 'json' || name === 'js';
       } else if (name === 'php') {
         const close = body.indexOf('@endphp', end);

@@ -806,11 +806,22 @@ describe('PHP, Blade and Twig views', () => {
       expect(blankBladeTags("t = '@{{ name }}';")).toBe("t = ' {{ name }}';");
     });
 
-    it('blanks an unterminated tag, comment, argument list or @php to the end of the block', () => {
+    it('blanks an unterminated echo, comment or @php to the end of the block', () => {
       expect(blankBladeTags('a(); {{ $b')).toBe(`a(); ${pad('{{ $b')}`);
       expect(blankBladeTags('a(); {{-- b')).toBe(`a(); ${sp('{{-- b')}`);
-      expect(blankBladeTags('a(); @if($b')).toBe(`a(); ${sp('@if($b')}`);
       expect(blankBladeTags('a(); @php $b = 1;')).toBe(`a(); ${sp('@php $b = 1;')}`);
+    });
+
+    it('blanks only the name of a directive whose "(" never closes, as Blade does (Controller Ruling 25)', () => {
+      expect(blankBladeTags('a(); @if($b')).toBe(`a(); ${sp('@if')}($b`);
+      // An "@" in a JavaScript string that reads as a directive must not swallow the code after it.
+      expect(blankBladeTags("s = 'call @support (24/7'; f(); g();")).toBe(`s = 'call ${sp('@support')} (24/7'; f(); g();`);
+      expect(blankBladeTags('v = @json($a; f();')).toBe(`v = ${sp('@json')}($a; f();`);
+      // An argument list that does not close within 10,000 characters is not one.
+      const long = `@json([${"'x', ".repeat(2_100)}])`;
+      expect(blankBladeTags(`v = ${long};`)).toBe(`v = ${sp('@json')}${long.slice('@json'.length)};`);
+      const fits = `@json([${"'x', ".repeat(1_900)}])`;
+      expect(blankBladeTags(`v = ${fits};`)).toBe(`v = ${pad(fits)};`);
     });
 
     it('Blade is matched before PHP', () => {
@@ -932,6 +943,70 @@ describe('PHP, Blade and Twig views', () => {
     expect(extractOne('t/e.twig', src)[0]!.text).not.toContain('{{');
   });
 
+  describe('characters outside the Basic Multilingual Plane (an emoji is two UTF-16 units)', () => {
+    it('an emoji in a PHP region before a block does not move the block', () => {
+      const src = '<?php $s = "😀"; ?>\n<script>gtag("config", "x");</script>\n';
+      const r = blankOutsideScripts(src, { php: true })!;
+      sameShape(src, r.text);
+      expect(r.text).toBe(sp('<?php $s = "😀"; ?>') + '\n' + sp('<script>') + 'gtag("config", "x");' + sp('</script>') + '\n');
+      expect(extractOne('views/a.php', src)[0]!.text).toBe(r.text);
+    });
+
+    it('an emoji blanked in a tag inside a block, or in markup around it, keeps every later column', () => {
+      const cases: [string, Parameters<typeof blankOutsideScripts>[1], string][] = [
+        ['<script>var a = "<?= "😀" ?>"; gtag("c");</script>', { php: true }, ' gtag("c");'],
+        ['<script>var a = @json("😀"); @if("😀") b(); @endif</script>', { blade: true }, ' b(); '],
+        ['<script>var a = {{ "😀" }}; {# 😀 #} b();</script>', { twig: true }, ' b();'],
+        ['<script>var a = "<%= "😀" %>"; b();</script>', { erb: true }, ' b();'],
+        ['<script>var a = "${"😀"}"; b();</script>', { jsp: true }, ' b();'],
+        ['<p>😀</p><script>b();</script><p>😀</p>', {}, 'b();'],
+      ];
+      for (const [src, opts, tail] of cases) {
+        const r = blankOutsideScripts(src, opts)!;
+        sameShape(src, r.text);
+        const at = src.indexOf(tail.trim());
+        expect(r.text.slice(at, at + tail.trim().length), src).toBe(tail.trim());
+      }
+    });
+
+    it('every blanker keeps length and line breaks on generated input, astral characters included', () => {
+      // A fixed-seed generator, so a failure names an input that can be run again.
+      let seed = 12_987;
+      const rnd = (): number => (seed = (seed * 1_103_515_245 + 12_345) & 0x7fffffff) / 0x7fffffff;
+      const tokens = [
+        '<?php ', '<?=', '<?', '?>', "'", '"', '\\', '\n', '\r\n', '<<<EOT\n', "<<<'N'\n", 'EOT;', '  N', '/*', '*/', '//',
+        '#', '#[', '`', '@if(', ')', '(', '{', '}', '{{', '}}', '{!!', '!!}', '{{--', '--}}', '@php', '@endphp', '@json(',
+        '@@', '@{{', '@', '{%', '%}', '{#', '#}', '<%=', '<%', '%>', '${', '<c:out', '>', 'echo ', 'print ', ';',
+        'é', '日', '😀', '𝒳', '\u{1F468}‍\u{1F469}', 'a', ' ', '\t', '<script>', '</script>', '<!--', '-->',
+      ];
+      const blankers: [string, (s: string) => string][] = [
+        ['blankPhpRegions', blankPhpRegions],
+        ['blankPhpTags', blankPhpTags],
+        ['blankBladeTags', blankBladeTags],
+        ['blankTwigTags', blankTwigTags],
+        ['blankErbTags', blankErbTags],
+        ['blankJspTags', blankJspTags],
+      ];
+      const variants: Parameters<typeof blankOutsideScripts>[1][] = [{}, { php: true }, { blade: true }, { twig: true }, { erb: true }, { jsp: true }];
+      for (let n = 0; n < 2_000; n++) {
+        let src = '';
+        const count = 1 + Math.floor(rnd() * 30);
+        for (let i = 0; i < count; i++) src += tokens[Math.floor(rnd() * tokens.length)];
+        for (const [name, fn] of blankers) {
+          const out = fn(src);
+          expect(out.length, `${name} ${JSON.stringify(src)}`).toBe(src.length);
+          for (let i = 0; i < src.length; i++) {
+            if (src[i] === '\n' || src[i] === '\r' || out[i] === '\n' || out[i] === '\r') expect(out[i], `${name} ${JSON.stringify(src)}`).toBe(src[i]);
+          }
+        }
+        for (const opts of variants) {
+          const r = blankOutsideScripts(src, opts);
+          if (r !== null) expect(r.text.length, `${JSON.stringify(opts)} ${JSON.stringify(src)}`).toBe(src.length);
+        }
+      }
+    });
+  });
+
   describe('on hostile input', () => {
     it('blankPhpRegions grows near-linearly over unterminated openers and quotes', () => {
       const m = measureScaling({
@@ -943,11 +1018,24 @@ describe('PHP, Blade and Twig views', () => {
       expectNearLinear(m, 'blankPhpRegions');
     });
 
-    it('blankBladeTags grows near-linearly over unterminated argument lists, echoes and @php', () => {
+    it('blankBladeTags grows near-linearly over directives whose argument list never closes', () => {
+      // Each opener's search for ")" is bounded at 10,000 characters, so a body of unclosed openers is not
+      // quadratic. Both sizes are well past that bound (40,000 and 400,000 characters), so the cost grows with
+      // the number of openers alone; openers sit 50 characters apart to keep each call short.
+      const m = measureScaling({
+        small: 400,
+        large: 4_000,
+        setup: (n) => ('@if((' + ' '.repeat(45) + "@a('(" + ' '.repeat(45)).repeat(n),
+        run: (text) => blankBladeTags(text),
+      });
+      expectNearLinear(m, 'blankBladeTags');
+    });
+
+    it('blankBladeTags grows near-linearly over unterminated echoes and @php', () => {
       const m = measureScaling({
         small: 20_000,
         large: 200_000,
-        setup: (n) => '@if(('.repeat(n / 4) + '{{ '.repeat(n / 4) + '@php '.repeat(n / 4) + "@a('".repeat(n / 4),
+        setup: (n) => '@php '.repeat(n / 2) + '{{ '.repeat(n / 2),
         run: (text) => blankBladeTags(text),
       });
       expectNearLinear(m, 'blankBladeTags');
