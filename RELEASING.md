@@ -12,19 +12,23 @@ waits for a reviewer to approve the `npm` environment.
 
 1. The rule set's gate passes: `LEXCODE_GATE=1 npm test` (every
    evidence-class activity has a rule with positive and negative fixtures).
-2. The truth sets pass with zero false FAIL, and the recall table in
+2. On a quiet machine, `npm run build`, then `node scripts/rule-cost.mjs`
+   (about 20 minutes). Every rule it names, over a bound or failed, is fixed or
+   has an open issue that the release's issue links. The bounds and why they
+   matter are in CONTRIBUTING.md, Cost.
+3. The truth sets pass with zero false FAIL, and the recall table in
    `rules/README.md` is refreshed with its date. The truth sets and their
    runner live with LexLint's own code; the maintainers run them.
-3. Bump `version` in `package.json`, and `version` in `rules/ruleset.yml` when
+4. Bump `version` in `package.json`, and `version` in `rules/ruleset.yml` when
    any rule or component-map entry changed. `npm install` to refresh the
    lockfile's own version.
-4. Read the `package-lock.json` diff since the last release, line by line. A
+5. Read the `package-lock.json` diff since the last release, line by line. A
    new dependency, direct or transitive, is named and justified in the
    release's issue.
-5. Commit, then tag `v<version>` (a prerelease such as `v1.1.0-rc.1` publishes
+6. Commit, then tag `v<version>` (a prerelease such as `v1.1.0-rc.1` publishes
    under the `next` dist-tag; anything else under `latest`) and push the tag.
-6. Approve the `npm` environment when the build job is green.
-7. Verify: `npm view @ungovr/lexcode dist-tags`, the provenance statement on
+7. Approve the `npm` environment when the build job is green.
+8. Verify: `npm view @ungovr/lexcode dist-tags`, the provenance statement on
    https://www.npmjs.com/package/@ungovr/lexcode, and
    `npx @ungovr/lexcode@<version> version`
    from a clean directory.
