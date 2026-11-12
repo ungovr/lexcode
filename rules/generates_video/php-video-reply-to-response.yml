@@ -5,7 +5,9 @@ rules:
     message: Sends a clip a video model made back in an HTTP response, a view or a broadcast, which is generating video with AI that reaches users (generates_video).
     mode: taint
     # Every source starts with a whole-file anchor (CONTRIBUTING.md, Cost), so the engine skips
-    # a file that cannot hold the call instead of parsing it.
+    # a file that cannot hold the call instead of parsing it. Each anchor leads with the endpoint's
+    # own path, not `https://`: a lookahead that leads with a common literal backtracks over every
+    # address in a file dense with them, and lost a call at the top from about 400 KB.
     #
     # PHP has no SDK for the video models the other languages' rules name (openai-php has no
     # videos resource), so a PHP app calls their REST endpoints with an HTTP client: OpenAI's
@@ -17,7 +19,11 @@ rules:
       # Laravel's Http facade, Guzzle and Symfony HttpClient, or curl_init, with the endpoint
       # written in the call.
       - patterns:
-          - pattern-regex: (?s)\A(?=.*https://[^\n]*(?:/v1/videos|:predictLongRunning|/v1/text_to_video|/v1/image_to_video)).*
+          - pattern-either: &anchor
+              - pattern-regex: (?s)\A(?=.*/v1/videos).*
+              - pattern-regex: (?s)\A(?=.*:predictLongRunning).*
+              - pattern-regex: (?s)\A(?=.*/v1/text_to_video).*
+              - pattern-regex: (?s)\A(?=.*/v1/image_to_video).*
           - pattern-either:
               - pattern: $HTTP->post($URL, ...)
               - pattern: $HTTP->get($URL, ...)
@@ -28,11 +34,14 @@ rules:
           - metavariable-regex:
               metavariable: $URL
               regex: ^['"]https://(?:api\.openai\.com/v1/videos|generativelanguage\.googleapis\.com/[^'"]*:predictLongRunning|[^'"]*aiplatform\.googleapis\.com/[^'"]*veo[^'"]*:predictLongRunning|api\.(?:dev\.)?runwayml\.com/v1/(?:text|image)_to_video)
-      # curl with the endpoint set as an option: the handle carries it to curl_exec.
+      # curl with the endpoint set as an option, alone or in an options array: the handle carries
+      # it to curl_exec.
       - by-side-effect: true
         patterns:
-          - pattern-regex: (?s)\A(?=.*https://[^\n]*(?:/v1/videos|:predictLongRunning|/v1/text_to_video|/v1/image_to_video)).*
-          - pattern: curl_setopt($CH, CURLOPT_URL, $URL)
+          - pattern-either: *anchor
+          - pattern-either:
+              - pattern: curl_setopt($CH, CURLOPT_URL, $URL)
+              - pattern: "curl_setopt_array($CH, [..., CURLOPT_URL => $URL, ...])"
           - metavariable-regex:
               metavariable: $URL
               regex: ^['"]https://(?:api\.openai\.com/v1/videos|generativelanguage\.googleapis\.com/[^'"]*:predictLongRunning|[^'"]*aiplatform\.googleapis\.com/[^'"]*veo[^'"]*:predictLongRunning|api\.(?:dev\.)?runwayml\.com/v1/(?:text|image)_to_video)

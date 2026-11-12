@@ -1,7 +1,8 @@
 <?php
-// lexcode-expect: 9
+// lexcode-expect: 10
 // Calling an identity-verification vendor's HTTP API directly: through Guzzle, Laravel's Http
-// client, Symfony's HttpClient, a Guzzle base URI, curl and file_get_contents.
+// client, Symfony's HttpClient, a Guzzle base URI, curl (with the address given to curl_init, set
+// as an option and set in an options array) and file_get_contents.
 
 namespace App\Kyc;
 
@@ -51,6 +52,16 @@ class VendorCalls
     {
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, "https://gateway.idnow.io/api/v1/acme/identifications/{$txn}/start");
+        return curl_exec($ch);
+    }
+
+    public function veriffDecision(string $session): mixed
+    {
+        $ch = curl_init();
+        curl_setopt_array($ch, [
+            CURLOPT_URL => "https://stationapi.veriff.com/v1/sessions/{$session}/decision",
+            CURLOPT_RETURNTRANSFER => true,
+        ]);
         return curl_exec($ch);
     }
 

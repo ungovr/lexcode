@@ -1,5 +1,5 @@
 <?php
-// lexcode-expect: 14
+// lexcode-expect: 15
 
 namespace App\Monitor;
 
@@ -27,6 +27,11 @@ class LinkMonitor
             curl_setopt($handle, CURLOPT_URL, $pageUrl);
             $html = file_get_contents($pageUrl);
             $headers = get_headers($pageUrl);
+        }
+        foreach ($urls as $link) {
+            $handle = curl_init();
+            curl_setopt_array($handle, [CURLOPT_URL => $link, CURLOPT_RETURNTRANSFER => true]);
+            curl_exec($handle);
         }
     }
 

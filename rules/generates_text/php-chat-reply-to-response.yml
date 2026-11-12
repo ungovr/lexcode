@@ -13,8 +13,7 @@ rules:
       # property, never a class: a static call is a facade, and only the library's own facade
       # counts (below). An Eloquent responses or messages relation also has create, and a survey
       # response may keep a model column, so the receiver has to look like a model client, as the
-      # images and video rules require; the request also names its model, or for Anthropic its
-      # token limit.
+      # images rule requires; the request also names its model, or for Anthropic its token limit.
       - patterns:
           - pattern-regex: (?s)\A(?=.*->\s*(?:chat|completions|responses|messages)\s*\(\s*\)\s*->\s*create).*
           - pattern-either:

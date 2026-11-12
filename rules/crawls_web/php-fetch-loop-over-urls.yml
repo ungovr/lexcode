@@ -37,6 +37,7 @@ rules:
       - pattern-either:
           - pattern: curl_init($URL)
           - pattern: curl_setopt($CH, CURLOPT_URL, $URL)
+          - pattern: "curl_setopt_array($CH, [..., CURLOPT_URL => $URL, ...])"
           - pattern: get_headers($URL, ...)
           - pattern: wp_remote_get($URL, ...)
           - pattern: wp_remote_head($URL, ...)
