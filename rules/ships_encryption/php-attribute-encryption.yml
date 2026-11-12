@@ -1,0 +1,50 @@
+rules:
+  - id: lexcode.crypto.php-attribute-encryption
+    languages: [php]
+    severity: INFO
+    message: Encrypts model attributes with Laravel's encrypted casts, which is shipping encryption (ships_encryption).
+    patterns:
+      # Every match holds the word (a cast name or an AsEncrypted class), so a whole-file regex on it
+      # keeps the engine's pre-filter: the array key pattern below has no literal of its own.
+      - pattern-regex: '(?is)\A(?=.*encrypted).*'
+      - pattern-either:
+          # The encrypted cast names, as a cast's value (never its column name)
+          - patterns:
+              - pattern: '[..., $K => $V, ...]'
+              - focus-metavariable: $V
+              - metavariable-regex:
+                  metavariable: $V
+                  regex: ^(['"])encrypted(?::(?:array|collection|object))?\1$
+          # The encrypted cast classes, read only under Laravel's own import or fully qualified
+          - patterns:
+              - pattern-either:
+                  - pattern: \Illuminate\Database\Eloquent\Casts\$X::class
+                  - pattern: \Illuminate\Database\Eloquent\Casts\$X::$M(...)
+                  - patterns:
+                      - pattern-either:
+                          - pattern: $X::class
+                          - pattern: $X::$M(...)
+                      - pattern-inside: |
+                          use Illuminate\Database\Eloquent\Casts\$X;
+                          ...
+                  - patterns:
+                      - pattern-either:
+                          - pattern: $A::class
+                          - pattern: $A::$M(...)
+                      - pattern-inside: |
+                          use Illuminate\Database\Eloquent\Casts\$X as $A;
+                          ...
+              - metavariable-regex:
+                  metavariable: $X
+                  regex: ^AsEncrypted(?:ArrayObject|Collection)$
+      # A model's cast list: the $casts property or the casts() method
+      - pattern-either:
+          - pattern-inside: $casts = [...]
+          - pattern-inside: |
+              function casts(...) { ... }
+    metadata:
+      activity: ships_encryption
+      mentioned: performs
+      definition: https://lexlint.io/glossary#ships-encryption
+      provenance: ungovr-original
+      license: MIT

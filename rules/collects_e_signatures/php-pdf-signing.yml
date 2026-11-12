@@ -1,0 +1,23 @@
+rules:
+  - id: lexcode.esign.php-pdf-signing
+    languages: [php]
+    severity: INFO
+    message: Applies a digital signature to a PDF with a key (TCPDF or SetaPDF-Signer), which may be collecting electronic signatures and is worth a look (collects_e_signatures).
+    # One branch per library, each read in a file that names the library's class (imported, aliased,
+    # fully qualified or subclassed). TCPDF clears its signature settings with empty arguments,
+    # which is not signing.
+    pattern-either:
+      - patterns:
+          - pattern: $P->setSignature(...)
+          - pattern-not: $P->setSignature('', ...)
+          - pattern-regex: '(?s)\A(?=.*\bTCPDF\b).*'
+      - patterns:
+          - pattern: $S->sign(...)
+          - pattern-regex: '(?s)\A(?=.*\bSetaPDF_Signer\b).*'
+    metadata:
+      activity: collects_e_signatures
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/glossary#collects-electronic-signatures
+      provenance: ungovr-original
+      license: MIT
