@@ -10,7 +10,8 @@ rules:
     # as often as cron does (symfony/demo's app:list-users mails its table to the address typed on the
     # command line), and the scheduler entry that names a command is in another file. A command that
     # sends in a loop is still php-send-in-loop's. The engine's `use X;` also matches `use X as Y;`, so
-    # each short-name branch steps aside where the class is aliased and the short name may be the app's own.
+    # each short-name branch steps aside where the class is aliased and the short name may be the
+    # app's own.
     patterns:
       - pattern-either:
           # A Laravel job, queued listener or queued notification.
