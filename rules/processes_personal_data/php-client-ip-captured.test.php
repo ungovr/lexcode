@@ -1,11 +1,12 @@
 <?php
-// lexcode-expect: 8
+// lexcode-expect: 10
 // The visitor's IP address written into a log or a database.
 
 namespace App\Http\Controllers;
 
 use App\Models\ActivityLog;
 use App\Models\LoginAttempt;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -63,5 +64,20 @@ class AuditController
         // Plain PHP: the server array, through a variable, into the error log.
         $ip = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'];
         error_log("comment posted from {$ip}");
+    }
+
+    public function signedIn(Request $request, $user): void
+    {
+        // Laravel: an update with the address under an address-named key.
+        $user->update(['last_login_ip' => $request->ip()]);
+    }
+}
+
+// Laravel: an attribute set inside an Eloquent model.
+class LoginHistory extends Model
+{
+    public function stamp(Request $request): void
+    {
+        $this->last_login_ip = $request->ip();
     }
 }

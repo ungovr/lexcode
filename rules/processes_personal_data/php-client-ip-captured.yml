@@ -87,17 +87,58 @@ rules:
       - pattern: logger(...)
       - pattern: error_log(...)
       - pattern: syslog(...)
-      # A write to the database: Eloquent and the query builder.
+      # A write to the database (Eloquent and the query builder), as an inline array: the address
+      # is the value of an address-named key, so a value only derived from it (a country looked
+      # up from the address) is not read as the address.
       - patterns:
           - pattern-either:
-              - pattern: $C::$M(...)
-              - pattern: $C->$M(...)
+              - pattern: "$C::$M(..., [..., $K => $V, ...], ...)"
+              - pattern: "$C->$M(..., [..., $K => $V, ...], ...)"
           - metavariable-regex:
               metavariable: $M
               regex: ^(create|forceCreate|insert|insertGetId|insertOrIgnore|upsert|updateOrCreate|firstOrCreate|updateOrInsert|update|fill|forceFill)$
-      # An address-named attribute set on an object (an Eloquent model or an entity).
+          - metavariable-regex:
+              metavariable: $K
+              regex: ^['"](ip|ip_address|ip_addr|ipaddress|ipAddress|address|client_ip|clientIp|remote_ip|remoteIp|remote_addr|remoteAddr|last_ip|lastip|lastIp|last_ip_address|last_login_ip|lastLoginIp|last_sign_in_ip|current_sign_in_ip|forwarded_for|x_forwarded_for)['"]$
+          - focus-metavariable: $V
+      # The same write given an array built first (ActivityLog::create($data)). A known limit: the
+      # engine taints the whole variable, so an array holding only a value derived from the
+      # address would match here too.
+      - patterns:
+          - pattern-either:
+              - pattern: $C::$M($X, ...)
+              - pattern: $C->$M($X, ...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(create|forceCreate|insert|insertGetId|insertOrIgnore|upsert|updateOrCreate|firstOrCreate|updateOrInsert|update|fill|forceFill)$
+          - metavariable-regex:
+              metavariable: $X
+              regex: ^\$\w+$
+          - focus-metavariable: $X
+      # An address-named attribute set on a stored object: inside an Eloquent model class (as
+      # rb-client-ip-captured holds to an ActiveRecord class), or on an object the same block
+      # then saves. A plain object or a request-scoped context that carries the address is not.
       - patterns:
           - pattern: $O->$F = $V
+          - pattern-either:
+              - pattern-inside: |
+                  class $CLS extends \Illuminate\Database\Eloquent\Model { ... }
+              - patterns:
+                  - pattern-inside: |
+                      use Illuminate\Database\Eloquent\Model;
+                      ...
+                  - pattern-inside: |
+                      class $CLS extends Model { ... }
+              - patterns:
+                  - pattern-inside: |
+                      use Illuminate\Database\Eloquent\Model as $BASE;
+                      ...
+                  - pattern-inside: |
+                      class $CLS extends $BASE { ... }
+              - pattern-inside: |
+                  $O->$F = $V;
+                  ...
+                  $O->save(...);
           - metavariable-regex:
               metavariable: $F
               regex: ^(ip_address|ip_addr|ipaddress|ipAddress|client_ip|clientIp|remote_ip|remoteIp|remote_addr|remoteAddr|last_ip|lastip|lastIp|last_ip_address|last_login_ip|lastLoginIp|last_sign_in_ip|current_sign_in_ip|forwarded_for)$

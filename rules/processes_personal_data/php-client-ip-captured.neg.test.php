@@ -1,7 +1,8 @@
 <?php
 // lexcode-expect: 0
 // The visitor's address is read but not kept: throttling, comparisons, a verification call,
-// and an address that belongs to a server, not a person.
+// an address that belongs to a server, a value derived from the address, and a plain object
+// or request context that carries it without storing it.
 
 namespace App\Http\Controllers;
 
@@ -59,5 +60,41 @@ class GuardController
     {
         // An anonymous total that can no longer be tied to anyone.
         Cache::increment('visits:' . date('Y-m-d'));
+    }
+
+    public function region(Request $request, $user, $geo): void
+    {
+        // Only a country looked up from the address is stored, not the address.
+        $user->update(['country' => $geo->lookup($request->ip())->country]);
+    }
+}
+
+// A plain object that carries the address to a check and is then dropped.
+class QuizParticipant
+{
+    public ?string $accessCode = null;
+    public ?string $ip_address = null;
+}
+
+class QuizGate
+{
+    public function eligible(Request $request, string $code): bool
+    {
+        $participant = new QuizParticipant();
+        $participant->accessCode = $code;
+        $participant->ip_address = $request->ip();
+
+        return $participant->accessCode !== null;
+    }
+}
+
+// A request-scoped context object, set from the request and gone when the request ends.
+class RequestContext
+{
+    public string $ipAddress;
+
+    public function __construct(Request $request)
+    {
+        $this->ipAddress = $request->ip();
     }
 }

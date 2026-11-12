@@ -35,6 +35,18 @@ class PreferencesController
         $other = $request->cookies->get('_gid');
         $raw = $_COOKIE['_fbp'] ?? null;
 
+        // Removing analytics cookies when the visitor withdraws consent: an empty, false or null
+        // value with a past expiry.
+        setcookie('_ga', '', time() - 3600, '/');
+        setcookie('_gid', false, 1, '/');
+        setcookie('_ga', "", ['expires' => time() - 3600, 'path' => '/']);
+        setrawcookie('_fbp', '', 1);
+        $response->cookie('_fbp', '', -1);
+        $forgotten = cookie('visitor_id', null, -2628000);
+        \Illuminate\Support\Facades\Cookie::queue('_gcl_au', null, -1);
+        $cleared = \Symfony\Component\HttpFoundation\Cookie::create('_gid', null, 1);
+        $none = new \Symfony\Component\HttpFoundation\Cookie('device_id', NULL);
+
         // The app's own Cookie class in this namespace, not Laravel's facade.
         $pair = Cookie::make('visitor_id', 'x', 60);
 
