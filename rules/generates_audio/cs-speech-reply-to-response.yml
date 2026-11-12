@@ -1,0 +1,242 @@
+rules:
+  - id: lexcode.audio.cs-speech-reply-to-response
+    languages: [csharp]
+    severity: INFO
+    message: Sends speech a text-to-speech model made back in an HTTP response, a page or a hub message, which is generating audio with AI that reaches users (generates_audio).
+    mode: taint
+    # A library type is written fully qualified: the engine resolves a file's using lines (an
+    # alias too), so the pattern also matches the short form under using, and never an app's own
+    # class of the same short name. A type reached only through a global using in another file
+    # is missed (rules/README.md).
+    # A short name that carries the vendor's own name is also read in its short form, so a file
+    # that reaches it through a global using elsewhere is still read (Decision 10): a class named
+    # after the vendor is that vendor's client either way. Here: OpenAIClient,
+    # AzureOpenAIClient, AmazonPollyClient and IAmazonPolly.
+    pattern-sources:
+      # The OpenAI .NET SDK: speech from an AudioClient, typed, or taken from the OpenAI or Azure
+      # OpenAI client into a local. Transcription and translation on the same client read a
+      # person's recording (the sanitizers below); only speech makes sound.
+      - pattern: (OpenAI.Audio.AudioClient $A).GenerateSpeech(...)
+      - pattern: (OpenAI.Audio.AudioClient $A).GenerateSpeechAsync(...)
+      - pattern: (OpenAI.OpenAIClient $O).GetAudioClient(...)
+      - pattern: (Azure.AI.OpenAI.AzureOpenAIClient $O).GetAudioClient(...)
+      - pattern: (OpenAIClient $O).GetAudioClient(...)
+      - pattern: (AzureOpenAIClient $O).GetAudioClient(...)
+      # Semantic Kernel: a text-to-audio service, injected or taken from the kernel.
+      - pattern: (Microsoft.SemanticKernel.TextToAudio.ITextToAudioService $S).GetAudioContentAsync(...)
+      - pattern: (Microsoft.SemanticKernel.TextToAudio.ITextToAudioService $S).GetAudioContentsAsync(...)
+      - pattern: $K.GetRequiredService<Microsoft.SemanticKernel.TextToAudio.ITextToAudioService>(...)
+      # Azure AI Speech text to speech. SpeechSynthesizer is also System.Speech's class, so it is
+      # read qualified only.
+      - pattern: (Microsoft.CognitiveServices.Speech.SpeechSynthesizer $S).SpeakTextAsync(...)
+      - pattern: (Microsoft.CognitiveServices.Speech.SpeechSynthesizer $S).SpeakSsmlAsync(...)
+      - pattern: (Microsoft.CognitiveServices.Speech.SpeechSynthesizer $S).StartSpeakingTextAsync(...)
+      - pattern: (Microsoft.CognitiveServices.Speech.SpeechSynthesizer $S).StartSpeakingSsmlAsync(...)
+      # Amazon Polly.
+      - pattern: (Amazon.Polly.IAmazonPolly $P).SynthesizeSpeechAsync(...)
+      - pattern: (Amazon.Polly.AmazonPollyClient $P).SynthesizeSpeechAsync(...)
+      - pattern: (IAmazonPolly $P).SynthesizeSpeechAsync(...)
+      - pattern: (AmazonPollyClient $P).SynthesizeSpeechAsync(...)
+      # Google Cloud Text-to-Speech, typed or created into a local.
+      - pattern: (Google.Cloud.TextToSpeech.V1.TextToSpeechClient $C).SynthesizeSpeech(...)
+      - pattern: (Google.Cloud.TextToSpeech.V1.TextToSpeechClient $C).SynthesizeSpeechAsync(...)
+      - pattern: Google.Cloud.TextToSpeech.V1.TextToSpeechClient.Create(...)
+      - pattern: Google.Cloud.TextToSpeech.V1.TextToSpeechClient.CreateAsync(...)
+    pattern-sanitizers:
+      # Transcribing or translating a recording, and listing voices, make no sound.
+      - pattern: $A.TranscribeAudio(...)
+      - pattern: $A.TranscribeAudioAsync(...)
+      - pattern: $A.TranslateAudio(...)
+      - pattern: $A.TranslateAudioAsync(...)
+      - pattern: $C.ListVoices(...)
+      - pattern: $C.ListVoicesAsync(...)
+    pattern-propagators:
+      # Output written to a file carries on in the path, which a file result then hands to the
+      # person. System.IO is imported implicitly, so the short form is read as well.
+      - pattern: System.IO.File.WriteAllBytes($PATH, $V, ...)
+        from: $V
+        to: $PATH
+        by-side-effect: true
+      - pattern: File.WriteAllBytes($PATH, $V, ...)
+        from: $V
+        to: $PATH
+        by-side-effect: true
+      - pattern: System.IO.File.WriteAllBytesAsync($PATH, $V, ...)
+        from: $V
+        to: $PATH
+        by-side-effect: true
+      - pattern: File.WriteAllBytesAsync($PATH, $V, ...)
+        from: $V
+        to: $PATH
+        by-side-effect: true
+      - pattern: System.IO.File.WriteAllText($PATH, $V, ...)
+        from: $V
+        to: $PATH
+        by-side-effect: true
+      - pattern: File.WriteAllText($PATH, $V, ...)
+        from: $V
+        to: $PATH
+        by-side-effect: true
+      - pattern: System.IO.File.WriteAllTextAsync($PATH, $V, ...)
+        from: $V
+        to: $PATH
+        by-side-effect: true
+      - pattern: File.WriteAllTextAsync($PATH, $V, ...)
+        from: $V
+        to: $PATH
+        by-side-effect: true
+      # A stream copied into another carries on in the copy.
+      - pattern: $SRC.CopyToAsync($DEST, ...)
+        from: $SRC
+        to: $DEST
+        by-side-effect: true
+      # Output gathered into a builder or a list is sent on with it.
+      - pattern: $SB.Append($V)
+        from: $V
+        to: $SB
+        by-side-effect: true
+      - pattern: $L.Add($V)
+        from: $V
+        to: $L
+        by-side-effect: true
+      - pattern: $L.AddRange($V)
+        from: $V
+        to: $L
+        by-side-effect: true
+    pattern-sinks:
+      # ASP.NET Core MVC and Web API: a public action of a class named like a controller (the
+      # framework's own convention) or a view component is the response, whether it returns,
+      # streams with yield return, or is written as an expression body. A private helper's value
+      # is not.
+      - patterns:
+          - pattern-inside: |
+              class $CTRL : $BASE { ... }
+          - metavariable-regex:
+              metavariable: $CTRL
+              regex: ^\w*(Controller|ViewComponent)$
+          - pattern-either:
+              - patterns:
+                  - pattern-inside: |
+                      public $R $ACTION(...) { ... }
+                  - pattern-either:
+                      - pattern: return $X;
+                      - pattern: yield return $X;
+              - patterns:
+                  - pattern: public $R $ACTION(...) => $X;
+                  # The expression-body pattern also binds a block body; only an expression counts.
+                  - metavariable-regex:
+                      metavariable: $X
+                      regex: ^[^{]
+          - focus-metavariable: $X
+      # Minimal APIs: a route handler's value is the response.
+      - patterns:
+          - pattern-either:
+              - patterns:
+                  - pattern-inside: $APP.$MAP($ROUTE, ...)
+                  - pattern: return $X;
+              - patterns:
+                  - pattern: $APP.$MAP($ROUTE, (...) => $X)
+                  - metavariable-regex:
+                      metavariable: $X
+                      regex: ^[^{]
+          - metavariable-regex:
+              metavariable: $MAP
+              regex: ^Map(Get|Post|Put|Patch|Delete|Methods)?$
+          - focus-metavariable: $X
+      # The Results and TypedResults helpers build a response anywhere (Microsoft.AspNetCore.Http
+      # is imported implicitly in a web project, so the short form is read as well).
+      - patterns:
+          - pattern-either:
+              - pattern: Microsoft.AspNetCore.Http.Results.$RM(...)
+              - pattern: Microsoft.AspNetCore.Http.TypedResults.$RM(...)
+              - pattern: Results.$RM(...)
+              - pattern: TypedResults.$RM(...)
+          - metavariable-regex:
+              metavariable: $RM
+              regex: ^(Ok|Text|Content|Json|File|Stream|Bytes|Created|Accepted|ServerSentEvents)$
+      # Writing the response body directly, from a controller, middleware or a handler.
+      - patterns:
+          - pattern-either:
+              - pattern: $CTX.Response.$W(...)
+              - pattern: Response.$W(...)
+              - pattern: (Microsoft.AspNetCore.Http.HttpResponse $RESP).$W(...)
+              - pattern: (HttpResponse $RESP).$W(...)
+              - pattern: $CTX.Response.Body.$W(...)
+              - pattern: Response.Body.$W(...)
+          - metavariable-regex:
+              metavariable: $W
+              regex: ^(WriteAsync|WriteAsJsonAsync|SendFileAsync)$
+      - patterns:
+          - pattern-either:
+              - pattern: $SRC.CopyToAsync($CTX.Response.Body, ...)
+              - pattern: $SRC.CopyToAsync(Response.Body, ...)
+          - focus-metavariable: $SRC
+      # MVC view data is rendered by the view.
+      - patterns:
+          - pattern-either:
+              - pattern: ViewBag.$P = $X
+              - pattern: ViewData[$K] = $X
+              - pattern: TempData[$K] = $X
+          - focus-metavariable: $X
+      # Razor Pages: a page model's property is rendered by its page. A local is not a property.
+      - patterns:
+          - pattern-inside: |
+              class $PAGE : Microsoft.AspNetCore.Mvc.RazorPages.PageModel { ... }
+          - pattern: $P = $X
+          - metavariable-regex:
+              metavariable: $P
+              regex: ^(this\.)?[A-Z]
+          - focus-metavariable: $X
+      # Blazor: a component's state is rendered by its markup. __RazorCode is the class lexcode
+      # writes for the @code blocks of a .razor file (its C# copy).
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  class $COMP : Microsoft.AspNetCore.Components.ComponentBase { ... }
+              - pattern-inside: |
+                  class $COMP : Microsoft.AspNetCore.Components.OwningComponentBase { ... }
+              - pattern-inside: |
+                  class $COMP : Microsoft.AspNetCore.Components.LayoutComponentBase { ... }
+              - pattern-inside: |
+                  class __RazorCode { ... }
+          - pattern-either:
+              - pattern: $F = $X
+              - pattern: $F.Add($X)
+          - focus-metavariable: $X
+      # SignalR: a message to connected clients, from a hub or through a hub context.
+      - pattern: Clients.$WHO.SendAsync(...)
+      - pattern: Clients.$WHO(...).SendAsync(...)
+      - pattern: $HUB.Clients.$WHO.SendAsync(...)
+      - pattern: $HUB.Clients.$WHO(...).SendAsync(...)
+      # A hub's own methods: a strongly typed client call, or the value a hub method returns or
+      # streams to its caller.
+      - patterns:
+          # Written without its type argument, the base also matches a strongly typed Hub<T>;
+          # written with one, it matches nothing.
+          - pattern-inside: |
+              class $HUBC : Microsoft.AspNetCore.SignalR.Hub { ... }
+          - pattern-either:
+              - pattern: Clients.$WHO.$CM(...)
+              - pattern: Clients.$WHO(...).$CM(...)
+              - patterns:
+                  - pattern-inside: |
+                      public $R $HM(...) { ... }
+                  - pattern-either:
+                      - pattern: return $X;
+                      - pattern: yield return $X;
+                  - focus-metavariable: $X
+      # .NET MAUI: a control's text on the screen of the person using the app.
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  class $SCREEN : Microsoft.Maui.Controls.ContentPage { ... }
+              - pattern-inside: |
+                  class $SCREEN : ContentPage { ... }
+          - pattern: $V.Text = $X
+          - focus-metavariable: $X
+    metadata:
+      activity: generates_audio
+      mentioned: performs
+      definition: https://lexlint.io/activities/generates-audio
+      provenance: ungovr-original
+      license: MIT

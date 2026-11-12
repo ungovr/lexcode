@@ -1,0 +1,229 @@
+rules:
+  - id: lexcode.video.cs-video-reply-to-response
+    languages: [csharp]
+    severity: INFO
+    message: Sends a clip a video model made back in an HTTP response, a page or a hub message, which is generating video with AI that reaches users (generates_video).
+    mode: taint
+    # A library type is written fully qualified: the engine resolves a file's using lines (an
+    # alias too), so the pattern also matches the short form under using, and never an app's own
+    # class of the same short name. A type reached only through a global using in another file
+    # is missed (rules/README.md).
+    pattern-sources:
+      # The Google Gen AI SDK: Veo.
+      - pattern: (Google.GenAI.Client $C).Models.GenerateVideosAsync(...)
+      # AWS Bedrock Runtime: a video model (Nova Reel, Luma) started by id; the request carries it
+      # to the result.
+      - patterns:
+          - pattern: new Amazon.BedrockRuntime.Model.StartAsyncInvokeRequest { ..., ModelId = $ID, ... }
+          - metavariable-regex:
+              metavariable: $ID
+              regex: (?i)^"[^"]*(nova-reel|luma\.)[^"]*"$
+      # The video models with no .NET SDK are called over HTTP: OpenAI's Videos API (Sora:
+      # /v1/videos, and /v1/videos/{id}/content for the clip), Google's Veo (a predictLongRunning
+      # call on the Gemini API or on Vertex AI) and Runway's text_to_video and image_to_video. The
+      # call is the source, not the address: a settings page that only shows the endpoint
+      # generates nothing. No whole-file anchor: the HTTP method names give the engine its
+      # pre-filter, and a C# lookahead would put C# in the large-file notice.
+      - patterns:
+          - pattern-either:
+              - pattern: $HTTP.PostAsync($URL, ...)
+              - pattern: $HTTP.PostAsJsonAsync($URL, ...)
+              - pattern: $HTTP.GetAsync($URL, ...)
+              - pattern: $HTTP.GetStreamAsync($URL, ...)
+              - pattern: $HTTP.GetByteArrayAsync($URL, ...)
+              # With or without an initializer.
+              - pattern: new System.Net.Http.HttpRequestMessage($VERB, $URL) { ... }
+              - pattern: new HttpRequestMessage($VERB, $URL) { ... }
+          - metavariable-regex:
+              metavariable: $URL
+              regex: ^\$?@?"https://(?:api\.openai\.com/v1/videos|generativelanguage\.googleapis\.com/[^"]*:predictLongRunning|[^"]*aiplatform\.googleapis\.com/[^"]*veo[^"]*:predictLongRunning|api\.(?:dev\.)?runwayml\.com/v1/(?:text|image)_to_video)
+    pattern-propagators:
+      # Output written to a file carries on in the path, which a file result then hands to the
+      # person. System.IO is imported implicitly, so the short form is read as well.
+      - pattern: System.IO.File.WriteAllBytes($PATH, $V, ...)
+        from: $V
+        to: $PATH
+        by-side-effect: true
+      - pattern: File.WriteAllBytes($PATH, $V, ...)
+        from: $V
+        to: $PATH
+        by-side-effect: true
+      - pattern: System.IO.File.WriteAllBytesAsync($PATH, $V, ...)
+        from: $V
+        to: $PATH
+        by-side-effect: true
+      - pattern: File.WriteAllBytesAsync($PATH, $V, ...)
+        from: $V
+        to: $PATH
+        by-side-effect: true
+      - pattern: System.IO.File.WriteAllText($PATH, $V, ...)
+        from: $V
+        to: $PATH
+        by-side-effect: true
+      - pattern: File.WriteAllText($PATH, $V, ...)
+        from: $V
+        to: $PATH
+        by-side-effect: true
+      - pattern: System.IO.File.WriteAllTextAsync($PATH, $V, ...)
+        from: $V
+        to: $PATH
+        by-side-effect: true
+      - pattern: File.WriteAllTextAsync($PATH, $V, ...)
+        from: $V
+        to: $PATH
+        by-side-effect: true
+      # A stream copied into another carries on in the copy.
+      - pattern: $SRC.CopyToAsync($DEST, ...)
+        from: $SRC
+        to: $DEST
+        by-side-effect: true
+      # Output gathered into a builder or a list is sent on with it.
+      - pattern: $SB.Append($V)
+        from: $V
+        to: $SB
+        by-side-effect: true
+      - pattern: $L.Add($V)
+        from: $V
+        to: $L
+        by-side-effect: true
+      - pattern: $L.AddRange($V)
+        from: $V
+        to: $L
+        by-side-effect: true
+    pattern-sinks:
+      # ASP.NET Core MVC and Web API: a public action of a class named like a controller (the
+      # framework's own convention) or a view component is the response, whether it returns,
+      # streams with yield return, or is written as an expression body. A private helper's value
+      # is not.
+      - patterns:
+          - pattern-inside: |
+              class $CTRL : $BASE { ... }
+          - metavariable-regex:
+              metavariable: $CTRL
+              regex: ^\w*(Controller|ViewComponent)$
+          - pattern-either:
+              - patterns:
+                  - pattern-inside: |
+                      public $R $ACTION(...) { ... }
+                  - pattern-either:
+                      - pattern: return $X;
+                      - pattern: yield return $X;
+              - patterns:
+                  - pattern: public $R $ACTION(...) => $X;
+                  # The expression-body pattern also binds a block body; only an expression counts.
+                  - metavariable-regex:
+                      metavariable: $X
+                      regex: ^[^{]
+          - focus-metavariable: $X
+      # Minimal APIs: a route handler's value is the response.
+      - patterns:
+          - pattern-either:
+              - patterns:
+                  - pattern-inside: $APP.$MAP($ROUTE, ...)
+                  - pattern: return $X;
+              - patterns:
+                  - pattern: $APP.$MAP($ROUTE, (...) => $X)
+                  - metavariable-regex:
+                      metavariable: $X
+                      regex: ^[^{]
+          - metavariable-regex:
+              metavariable: $MAP
+              regex: ^Map(Get|Post|Put|Patch|Delete|Methods)?$
+          - focus-metavariable: $X
+      # The Results and TypedResults helpers build a response anywhere (Microsoft.AspNetCore.Http
+      # is imported implicitly in a web project, so the short form is read as well).
+      - patterns:
+          - pattern-either:
+              - pattern: Microsoft.AspNetCore.Http.Results.$RM(...)
+              - pattern: Microsoft.AspNetCore.Http.TypedResults.$RM(...)
+              - pattern: Results.$RM(...)
+              - pattern: TypedResults.$RM(...)
+          - metavariable-regex:
+              metavariable: $RM
+              regex: ^(Ok|Text|Content|Json|File|Stream|Bytes|Created|Accepted|ServerSentEvents)$
+      # Writing the response body directly, from a controller, middleware or a handler.
+      - patterns:
+          - pattern-either:
+              - pattern: $CTX.Response.$W(...)
+              - pattern: Response.$W(...)
+              - pattern: (Microsoft.AspNetCore.Http.HttpResponse $RESP).$W(...)
+              - pattern: (HttpResponse $RESP).$W(...)
+              - pattern: $CTX.Response.Body.$W(...)
+              - pattern: Response.Body.$W(...)
+          - metavariable-regex:
+              metavariable: $W
+              regex: ^(WriteAsync|WriteAsJsonAsync|SendFileAsync)$
+      - patterns:
+          - pattern-either:
+              - pattern: $SRC.CopyToAsync($CTX.Response.Body, ...)
+              - pattern: $SRC.CopyToAsync(Response.Body, ...)
+          - focus-metavariable: $SRC
+      # MVC view data is rendered by the view.
+      - patterns:
+          - pattern-either:
+              - pattern: ViewBag.$P = $X
+              - pattern: ViewData[$K] = $X
+              - pattern: TempData[$K] = $X
+          - focus-metavariable: $X
+      # Razor Pages: a page model's property is rendered by its page. A local is not a property.
+      - patterns:
+          - pattern-inside: |
+              class $PAGE : Microsoft.AspNetCore.Mvc.RazorPages.PageModel { ... }
+          - pattern: $P = $X
+          - metavariable-regex:
+              metavariable: $P
+              regex: ^(this\.)?[A-Z]
+          - focus-metavariable: $X
+      # Blazor: a component's state is rendered by its markup. __RazorCode is the class lexcode
+      # writes for the @code blocks of a .razor file (its C# copy).
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  class $COMP : Microsoft.AspNetCore.Components.ComponentBase { ... }
+              - pattern-inside: |
+                  class $COMP : Microsoft.AspNetCore.Components.OwningComponentBase { ... }
+              - pattern-inside: |
+                  class $COMP : Microsoft.AspNetCore.Components.LayoutComponentBase { ... }
+              - pattern-inside: |
+                  class __RazorCode { ... }
+          - pattern-either:
+              - pattern: $F = $X
+              - pattern: $F.Add($X)
+          - focus-metavariable: $X
+      # SignalR: a message to connected clients, from a hub or through a hub context.
+      - pattern: Clients.$WHO.SendAsync(...)
+      - pattern: Clients.$WHO(...).SendAsync(...)
+      - pattern: $HUB.Clients.$WHO.SendAsync(...)
+      - pattern: $HUB.Clients.$WHO(...).SendAsync(...)
+      # A hub's own methods: a strongly typed client call, or the value a hub method returns or
+      # streams to its caller.
+      - patterns:
+          # Written without its type argument, the base also matches a strongly typed Hub<T>;
+          # written with one, it matches nothing.
+          - pattern-inside: |
+              class $HUBC : Microsoft.AspNetCore.SignalR.Hub { ... }
+          - pattern-either:
+              - pattern: Clients.$WHO.$CM(...)
+              - pattern: Clients.$WHO(...).$CM(...)
+              - patterns:
+                  - pattern-inside: |
+                      public $R $HM(...) { ... }
+                  - pattern-either:
+                      - pattern: return $X;
+                      - pattern: yield return $X;
+                  - focus-metavariable: $X
+      # .NET MAUI: a control's text on the screen of the person using the app.
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  class $SCREEN : Microsoft.Maui.Controls.ContentPage { ... }
+              - pattern-inside: |
+                  class $SCREEN : ContentPage { ... }
+          - pattern: $V.Text = $X
+          - focus-metavariable: $X
+    metadata:
+      activity: generates_video
+      mentioned: performs
+      definition: https://lexlint.io/activities/generates-video
+      provenance: ungovr-original
+      license: MIT
