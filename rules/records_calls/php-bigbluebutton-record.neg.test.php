@@ -19,6 +19,10 @@ class LiveClass
     {
         $params = new CreateMeetingParameters($id, $name);
         $params->setRecord(false);
+        // PHP's false and null are case-insensitive.
+        $params->setRecord(FALSE);
+        $params->setRecord(False);
+        $params->setRecord(NULL);
         $params->setAllowStartStopRecording(false);
         $this->bbb->createMeeting($params);
     }
@@ -32,6 +36,9 @@ class LiveClass
     {
         $data = ['meetingID' => $id, 'name' => 'Office hours', 'record' => 'false'];
         $data['record'] = false;
+        $data['record'] = FALSE;
+        $data['record'] = NULL;
+        $upper = ['meetingID' => $id, 'name' => 'Office hours', 'record' => False];
         $query = http_build_query($data);
         return "$server/api/create?$query&checksum=" . sha1('create' . $query . $secret);
     }

@@ -18,6 +18,17 @@ class MenuController
         return (string) $response;
     }
 
+    public function message(): string
+    {
+        // A message with Twilio's transcription turned off, in PHP's case-insensitive constants.
+        // Recording it is records_calls' TwiML rule; no transcription is asked for here.
+        $response = new VoiceResponse();
+        $response->record(['maxLength' => 60, 'transcribe' => FALSE]);
+        $response->record(['transcribe' => False]);
+        $response->record(['transcribe' => NULL]);
+        return (string) $response;
+    }
+
     public function collect($form, $request): array
     {
         return $form->gather(['input' => $request->all(), 'rules' => ['email' => 'required']]);

@@ -22,7 +22,8 @@ rules:
               - pattern: "$R->record([..., 'transcribe' => $T, ...])"
               - metavariable-regex:
                   metavariable: $T
-                  regex: ^(?!\s*(false|null|0|['"](false|0)?['"])\s*$)
+                  # PHP's false and null are case-insensitive.
+                  regex: (?i)^(?!\s*(false|null|0|['"](false|0)?['"])\s*$)
     metadata:
       activity: processes_voice
       mentioned: performs

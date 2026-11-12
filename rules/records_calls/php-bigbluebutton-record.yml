@@ -15,7 +15,7 @@ rules:
                   - pattern-inside: |
                       use BigBlueButton\Parameters\CreateMeetingParameters;
                       ...
-                  - pattern-regex: (?s)\A(?=.*\\BigBlueButton\\Parameters\\CreateMeetingParameters\b).*
+                  - pattern-regex: (?s)\A(?=.*(?<![\w\\])\\BigBlueButton\\Parameters\\CreateMeetingParameters\b).*
           # The HTTP API's create call built by hand: a record parameter, in a file that names the
           # API's meetingID parameter. The file conjunct also lets the engine skip other files.
           - patterns:
@@ -25,7 +25,8 @@ rules:
                   - pattern: "[..., 'record' => $V, ...]"
       - metavariable-regex:
           metavariable: $V
-          regex: ^(?!\s*(false|null|0|['"](false|0)?['"])\s*$)
+          # PHP's false and null are case-insensitive.
+          regex: (?i)^(?!\s*(false|null|0|['"](false|0)?['"])\s*$)
     metadata:
       activity: records_calls
       mentioned: performs

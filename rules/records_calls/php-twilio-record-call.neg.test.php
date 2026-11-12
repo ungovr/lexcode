@@ -20,6 +20,11 @@ class Dialer
         $off = $this->twilio->calls->create($to, $from, ['url' => 'https://example.org/twiml/bridge', 'record' => false]);
         $string = $this->twilio->calls->create($to, $from, ['twiml' => '<Response><Dial/></Response>', 'record' => 'false']);
         $room = $this->twilio->video->v1->rooms->create(['uniqueName' => 'standup', 'recordParticipantsOnConnect' => false]);
+        // PHP's false and null are case-insensitive.
+        $this->twilio->calls->create($to, $from, ['url' => 'https://example.org/twiml/bridge', 'record' => FALSE]);
+        $this->twilio->calls->create($to, $from, ['url' => 'https://example.org/twiml/bridge', 'record' => False]);
+        $this->twilio->calls->create($to, $from, ['url' => 'https://example.org/twiml/bridge', 'record' => NULL]);
+        $this->twilio->video->rooms->create(['uniqueName' => 'retro', 'recordParticipantsOnConnect' => False]);
         $this->twilio->messages->create($to, ['from' => $from, 'body' => 'Your callback is booked.']);
         $this->twilio->calls($plain->sid)->update(['status' => 'completed']);
         $this->crm->calls->create(['subject' => 'Follow-up', 'record' => $room->sid]);

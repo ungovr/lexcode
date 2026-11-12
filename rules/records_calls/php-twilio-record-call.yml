@@ -21,7 +21,8 @@ rules:
                   - pattern: "$C->rooms->create([..., 'recordParticipantsOnConnect' => $V, ...])"
               - metavariable-regex:
                   metavariable: $V
-                  regex: ^(?!\s*(false|null|0|['"](false|0|do-not-record)?['"])\s*$)
+                  # PHP's false and null are case-insensitive.
+                  regex: (?i)^(?!\s*(false|null|0|['"](false|0|do-not-record)?['"])\s*$)
           # Start recording a call that is in progress.
           - pattern: $C->calls($SID)->recordings->create(...)
     metadata:
