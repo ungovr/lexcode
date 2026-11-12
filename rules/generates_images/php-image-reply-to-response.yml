@@ -1,0 +1,188 @@
+rules:
+  - id: lexcode.image.php-image-reply-to-response
+    languages: [php]
+    severity: INFO
+    message: Sends a picture an image model made back in an HTTP response, a view or a broadcast, which is generating images with AI that reaches users (generates_images).
+    mode: taint
+    # Every source starts with a whole-file anchor (CONTRIBUTING.md, Cost), so the engine skips
+    # a file that cannot hold the call instead of parsing it.
+    pattern-sources:
+      # openai-php on a client object. An Eloquent images relation also has create, and a
+      # gallery of generated pictures may keep a prompt column, so the receiver has to look like
+      # a model client. Edits and variations are the Images API's own methods.
+      - patterns:
+          - pattern-regex: (?s)\A(?=.*->\s*images\s*\(\s*\)\s*->).*
+          - pattern: "$C->images()->create([..., 'prompt' => $P, ...])"
+          - metavariable-regex:
+              metavariable: $C
+              regex: (?i)^\$.*(client|openai|open_ai|dall)
+      - patterns:
+          - pattern-regex: (?s)\A(?=.*->\s*images\s*\(\s*\)\s*->).*
+          - pattern-either:
+              - pattern: $C->images()->edit(...)
+              - pattern: $C->images()->variation(...)
+          - metavariable-regex:
+              metavariable: $C
+              regex: ^\$
+      # The openai-php/laravel facade, fully qualified or imported (under its own name or an alias).
+      - patterns:
+          - pattern-regex: (?s)\A(?=.*OpenAI).*
+          - pattern-either:
+              - pattern: \OpenAI\Laravel\Facades\OpenAI::images()->$M(...)
+              - patterns:
+                  - pattern-inside: |
+                      use OpenAI\Laravel\Facades\OpenAI;
+                      ...
+                  - pattern: OpenAI::images()->$M(...)
+              - patterns:
+                  - pattern-inside: |
+                      use OpenAI\Laravel\Facades\OpenAI as $A;
+                      ...
+                  - pattern: $A::images()->$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(create|edit|variation)$
+      # Prism: an image request, fully qualified or imported (the class or its Laravel facade).
+      - patterns:
+          - pattern-regex: (?s)\A(?=.*Prism).*
+          - pattern-either:
+              - pattern: \Prism\Prism\Prism::image()-> ... ->generate()
+              - pattern: \Prism\Prism\Facades\Prism::image()-> ... ->generate()
+              - patterns:
+                  - pattern-either:
+                      - pattern-inside: |
+                          use Prism\Prism\Prism;
+                          ...
+                      - pattern-inside: |
+                          use Prism\Prism\Facades\Prism;
+                          ...
+                  - pattern: Prism::image()-> ... ->generate()
+              - patterns:
+                  - pattern-either:
+                      - pattern-inside: |
+                          use Prism\Prism\Prism as $A;
+                          ...
+                      - pattern-inside: |
+                          use Prism\Prism\Facades\Prism as $A;
+                          ...
+                  - pattern: $A::image()-> ... ->generate()
+      # AWS Bedrock Runtime: an image model invoked by id.
+      - patterns:
+          - pattern-regex: (?s)\A(?=.*modelId).*
+          - pattern: "$C->invokeModel([..., 'modelId' => $ID, ...])"
+          - metavariable-regex:
+              metavariable: $ID
+              regex: (?i)^['"][^'"]*(titan-image|nova-canvas|stability\.|stable-diffusion|stable-image|sd3)[^'"]*['"]$
+    pattern-propagators:
+      # A record updated with the model's output carries it to whatever shows or broadcasts the record.
+      - pattern: "$REC->update([..., $K => $V, ...])"
+        from: $V
+        to: $REC
+        by-side-effect: true
+      - pattern: "$REC->fill([..., $K => $V, ...])"
+        from: $V
+        to: $REC
+        by-side-effect: true
+      # Output written to a file or a storage disk carries on in the path, which a download, a
+      # file response or a storage URL then hands to the person.
+      - pattern: file_put_contents($PATH, $V, ...)
+        from: $V
+        to: $PATH
+        by-side-effect: true
+      - pattern: Storage::put($PATH, $V, ...)
+        from: $V
+        to: $PATH
+        by-side-effect: true
+      - pattern: Storage::disk(...)->put($PATH, $V, ...)
+        from: $V
+        to: $PATH
+        by-side-effect: true
+    pattern-sinks:
+      # Known residual: view data passed with compact('reply') is not followed. Taint cannot tie
+      # the string 'reply' to the variable $reply, and a shape that joins the assignment and the
+      # compact() call needs a statement sequence across the method body, which costs too much
+      # on a large app. view('x', ['reply' => $reply]) and ->with('reply', $reply) are found.
+      # Plain PHP writes the response body with echo, print and printf. A console command's
+      # output goes to the terminal of whoever runs it, so it does not count.
+      - patterns:
+          - pattern-either:
+              - pattern: echo ...;
+              - pattern: print(...)
+              - pattern: printf(...)
+          - pattern-not-inside: |
+              class $CMD extends Command {
+                ...
+              }
+      # Laravel: the response and view helpers, the Response, View and Inertia facades, and a broadcast.
+      - pattern: response(...)
+      - pattern: response()->$RM(...)
+      - pattern: view(...)
+      - pattern: view(...)->with(...)
+      - pattern: inertia(...)
+      - pattern: broadcast(...)
+      - patterns:
+          - pattern: $FACADE::$FM(...)
+          - metavariable-regex:
+              metavariable: $FACADE
+              regex: ^\\?(Illuminate\\Support\\Facades\\)?(Response|View|Inertia)$
+          - metavariable-regex:
+              metavariable: $FM
+              regex: ^(json|make|stream|streamJson|eventStream|view|render)$
+      # Symfony and PSR-7: a response built with the text, or the controller's json, render and
+      # stream and file helpers (Livewire's stream too).
+      - patterns:
+          - pattern: new $RESP(...)
+          - metavariable-regex:
+              metavariable: $RESP
+              regex: ^\\?([A-Za-z_]\w*\\)*(Response|JsonResponse|StreamedResponse|StreamedJsonResponse|EventStreamResponse|BinaryFileResponse|HtmlResponse|TextResponse)$
+      - patterns:
+          - pattern: $this->$TM(...)
+          - metavariable-regex:
+              metavariable: $TM
+              regex: ^(json|render|stream|file)$
+      - pattern: $RESPONSE->setContent(...)
+      - pattern: $RESPONSE->getBody()->write(...)
+      # A Laravel controller action's value is the response: a public method of a class named
+      # like a controller. A private helper's value is not.
+      - patterns:
+          - pattern-inside: |
+              class $CTRL extends $BASE {
+                ...
+              }
+          - metavariable-regex:
+              metavariable: $CTRL
+              regex: ^\w*Controller$
+          - pattern-inside: |
+              public function $ACTION(...) {
+                ...
+              }
+          - pattern: return $X;
+          - focus-metavariable: $X
+      # A Laravel route closure's value is the response.
+      - patterns:
+          - pattern-inside: Route::$VERB($PATH, function (...) { ... })
+          - pattern: return $X;
+          - focus-metavariable: $X
+      # A Livewire component's property is rendered by its view.
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  class $LW extends \Livewire\Component {
+                    ...
+                  }
+              - patterns:
+                  - pattern-inside: |
+                      use Livewire\Component;
+                      ...
+                  - pattern-inside: |
+                      class $LW extends Component {
+                        ...
+                      }
+          - pattern: $this->$PROP = $X
+          - focus-metavariable: $X
+    metadata:
+      activity: generates_images
+      mentioned: performs
+      definition: https://lexlint.io/activities/generates-images
+      provenance: ungovr-original
+      license: MIT

@@ -1,0 +1,160 @@
+rules:
+  - id: lexcode.video.php-video-reply-to-response
+    languages: [php]
+    severity: INFO
+    message: Sends a clip a video model made back in an HTTP response, a view or a broadcast, which is generating video with AI that reaches users (generates_video).
+    mode: taint
+    # Every source starts with a whole-file anchor (CONTRIBUTING.md, Cost), so the engine skips
+    # a file that cannot hold the call instead of parsing it.
+    #
+    # PHP has no SDK for the video models the other languages' rules name (openai-php has no
+    # videos resource), so a PHP app calls their REST endpoints with an HTTP client: OpenAI's
+    # Videos API (Sora: /v1/videos, and /v1/videos/{id}/content for the clip), Google's Veo
+    # (generateVideos, a predictLongRunning call on the Gemini API or on Vertex AI) and Runway's
+    # text_to_video and image_to_video. The call is the source, not the address: a settings page
+    # that only shows the endpoint generates nothing.
+    pattern-sources:
+      # Laravel's Http facade, Guzzle and Symfony HttpClient, or curl_init, with the endpoint
+      # written in the call.
+      - patterns:
+          - pattern-regex: (?s)\A(?=.*https://[^\n]*(?:/v1/videos|:predictLongRunning|/v1/text_to_video|/v1/image_to_video)).*
+          - pattern-either:
+              - pattern: $HTTP->post($URL, ...)
+              - pattern: $HTTP->get($URL, ...)
+              - pattern: $HTTP->request($VERB, $URL, ...)
+              - pattern: Http::post($URL, ...)
+              - pattern: Http::get($URL, ...)
+              - pattern: curl_init($URL)
+          - metavariable-regex:
+              metavariable: $URL
+              regex: ^['"]https://(?:api\.openai\.com/v1/videos|generativelanguage\.googleapis\.com/[^'"]*:predictLongRunning|[^'"]*aiplatform\.googleapis\.com/[^'"]*veo[^'"]*:predictLongRunning|api\.(?:dev\.)?runwayml\.com/v1/(?:text|image)_to_video)
+      # curl with the endpoint set as an option: the handle carries it to curl_exec.
+      - by-side-effect: true
+        patterns:
+          - pattern-regex: (?s)\A(?=.*https://[^\n]*(?:/v1/videos|:predictLongRunning|/v1/text_to_video|/v1/image_to_video)).*
+          - pattern: curl_setopt($CH, CURLOPT_URL, $URL)
+          - metavariable-regex:
+              metavariable: $URL
+              regex: ^['"]https://(?:api\.openai\.com/v1/videos|generativelanguage\.googleapis\.com/[^'"]*:predictLongRunning|[^'"]*aiplatform\.googleapis\.com/[^'"]*veo[^'"]*:predictLongRunning|api\.(?:dev\.)?runwayml\.com/v1/(?:text|image)_to_video)
+          - focus-metavariable: $CH
+      # AWS Bedrock Runtime: a video model (Nova Reel, Luma) started by id, as the Java and Kotlin
+      # rules read it.
+      - patterns:
+          - pattern-regex: (?s)\A(?=.*startAsyncInvoke).*
+          - pattern: "$C->startAsyncInvoke([..., 'modelId' => $ID, ...])"
+          - metavariable-regex:
+              metavariable: $ID
+              regex: (?i)^['"][^'"]*(nova-reel|luma\.)[^'"]*['"]$
+    pattern-propagators:
+      # A record updated with the model's output carries it to whatever shows or broadcasts the record.
+      - pattern: "$REC->update([..., $K => $V, ...])"
+        from: $V
+        to: $REC
+        by-side-effect: true
+      - pattern: "$REC->fill([..., $K => $V, ...])"
+        from: $V
+        to: $REC
+        by-side-effect: true
+      # Output written to a file or a storage disk carries on in the path, which a download, a
+      # file response or a storage URL then hands to the person.
+      - pattern: file_put_contents($PATH, $V, ...)
+        from: $V
+        to: $PATH
+        by-side-effect: true
+      - pattern: Storage::put($PATH, $V, ...)
+        from: $V
+        to: $PATH
+        by-side-effect: true
+      - pattern: Storage::disk(...)->put($PATH, $V, ...)
+        from: $V
+        to: $PATH
+        by-side-effect: true
+    pattern-sinks:
+      # Known residual: view data passed with compact('reply') is not followed. Taint cannot tie
+      # the string 'reply' to the variable $reply, and a shape that joins the assignment and the
+      # compact() call needs a statement sequence across the method body, which costs too much
+      # on a large app. view('x', ['reply' => $reply]) and ->with('reply', $reply) are found.
+      # Plain PHP writes the response body with echo, print and printf. A console command's
+      # output goes to the terminal of whoever runs it, so it does not count.
+      - patterns:
+          - pattern-either:
+              - pattern: echo ...;
+              - pattern: print(...)
+              - pattern: printf(...)
+          - pattern-not-inside: |
+              class $CMD extends Command {
+                ...
+              }
+      # Laravel: the response and view helpers, the Response, View and Inertia facades, and a broadcast.
+      - pattern: response(...)
+      - pattern: response()->$RM(...)
+      - pattern: view(...)
+      - pattern: view(...)->with(...)
+      - pattern: inertia(...)
+      - pattern: broadcast(...)
+      - patterns:
+          - pattern: $FACADE::$FM(...)
+          - metavariable-regex:
+              metavariable: $FACADE
+              regex: ^\\?(Illuminate\\Support\\Facades\\)?(Response|View|Inertia)$
+          - metavariable-regex:
+              metavariable: $FM
+              regex: ^(json|make|stream|streamJson|eventStream|view|render)$
+      # Symfony and PSR-7: a response built with the text, or the controller's json, render and
+      # stream and file helpers (Livewire's stream too).
+      - patterns:
+          - pattern: new $RESP(...)
+          - metavariable-regex:
+              metavariable: $RESP
+              regex: ^\\?([A-Za-z_]\w*\\)*(Response|JsonResponse|StreamedResponse|StreamedJsonResponse|EventStreamResponse|BinaryFileResponse|HtmlResponse|TextResponse)$
+      - patterns:
+          - pattern: $this->$TM(...)
+          - metavariable-regex:
+              metavariable: $TM
+              regex: ^(json|render|stream|file)$
+      - pattern: $RESPONSE->setContent(...)
+      - pattern: $RESPONSE->getBody()->write(...)
+      # A Laravel controller action's value is the response: a public method of a class named
+      # like a controller. A private helper's value is not.
+      - patterns:
+          - pattern-inside: |
+              class $CTRL extends $BASE {
+                ...
+              }
+          - metavariable-regex:
+              metavariable: $CTRL
+              regex: ^\w*Controller$
+          - pattern-inside: |
+              public function $ACTION(...) {
+                ...
+              }
+          - pattern: return $X;
+          - focus-metavariable: $X
+      # A Laravel route closure's value is the response.
+      - patterns:
+          - pattern-inside: Route::$VERB($PATH, function (...) { ... })
+          - pattern: return $X;
+          - focus-metavariable: $X
+      # A Livewire component's property is rendered by its view.
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  class $LW extends \Livewire\Component {
+                    ...
+                  }
+              - patterns:
+                  - pattern-inside: |
+                      use Livewire\Component;
+                      ...
+                  - pattern-inside: |
+                      class $LW extends Component {
+                        ...
+                      }
+          - pattern: $this->$PROP = $X
+          - focus-metavariable: $X
+    metadata:
+      activity: generates_video
+      mentioned: performs
+      definition: https://lexlint.io/activities/generates-video
+      provenance: ungovr-original
+      license: MIT
