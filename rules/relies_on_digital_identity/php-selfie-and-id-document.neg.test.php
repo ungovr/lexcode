@@ -2,7 +2,8 @@
 // lexcode-expect: 0
 // A face image alone, an identity document alone, and the two in separate lists, none of which is
 // a document-and-selfie check: a profile selfie, a supplier's registration document, a container's
-// liveness probe, and a face photo validated in one request and an ID card in another.
+// liveness probe, an SDK's API model with PascalCase shape names, and a face photo validated in one
+// request and an ID card in another.
 
 namespace App\Http\Requests;
 
@@ -32,6 +33,20 @@ class Deployment
             'livenessProbe' => ['httpGet' => ['path' => '/healthz']],
             'image' => 'app:latest',
             'document_root' => '/var/www',
+        ];
+    }
+}
+
+// An SDK's API model names both shapes, as PascalCase schema keys, without holding any image.
+class VerificationApiModel
+{
+    public function shapes(): array
+    {
+        return [
+            'SelfieImage' => ['type' => 'blob'],
+            'IdentityDocument' => ['type' => 'structure'],
+            'DocumentFront' => ['type' => 'blob'],
+            'LivenessSession' => ['type' => 'structure'],
         ];
     }
 }

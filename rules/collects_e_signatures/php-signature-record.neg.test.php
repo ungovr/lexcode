@@ -2,13 +2,44 @@
 // lexcode-expect: 0
 // A signature that is not a person signing an agreement: a webhook's HMAC signature, a release
 // artifact's signature, an email signature block on a user profile, a key-signed attestation of a
-// build, a JWT's signature part, a
-// signature passed to a method, and an agreement record whose fields are not a signature (its
-// status, its text and whether the terms were accepted).
+// build, an HTTP authorization header's and a deployment approval's key signatures, a JWT's
+// signature part, a signature passed to a method, and an agreement record whose fields are not a
+// signature (its status, its text and whether the terms were accepted). Last, Laravel Artisan
+// commands whose names hold an agreement word: $signature is the framework's command line, through
+// the imported base class and the fully qualified one.
 
 namespace App\Models;
 
+use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Model;
+
+class SendContractReminders extends Command
+{
+    protected $signature = 'contracts:remind {--days=3}';
+    protected $description = 'Remind customers about unsigned contracts';
+}
+
+final class ExpireLeaseAgreements extends \Illuminate\Console\Command implements \Countable
+{
+    protected $signature = 'leases:expire';
+
+    public function count(): int
+    {
+        return 0;
+    }
+}
+
+class AuthorizationHeader
+{
+    public $credential;
+    public $signature;
+}
+
+class DeploymentApproval
+{
+    public string $approver;
+    private ?string $signature = null;
+}
 
 class WebhookEvent extends Model
 {

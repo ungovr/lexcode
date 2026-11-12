@@ -1,7 +1,7 @@
 <?php
-// lexcode-expect: 4
+// lexcode-expect: 5
 // A face or selfie image held beside an image of a photo ID: a form request's validation rules, a
-// controller's inline validation, a model's fillable columns and an API payload.
+// controller's inline validation, a model's fillable columns, and API payloads in snake case and camel case.
 
 namespace App\Kyc;
 
@@ -42,5 +42,10 @@ class Submission
     public function payload(string $face, string $document): array
     {
         return ['selfie_image' => base64_encode($face), 'document_front' => base64_encode($document)];
+    }
+
+    public function camelCase(string $face, string $card): array
+    {
+        return ['faceImage' => $face, 'idCard' => $card];
     }
 }

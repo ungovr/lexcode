@@ -5,10 +5,20 @@ rules:
     message: 'Holds a face or selfie image beside an image of a photo ID, the shape of document-and-selfie identity verification, whose result the app acts on (relies_on_digital_identity). The verifier usually matches the face to the ID photo, so ask about processes_biometrics too.'
     # No literal anchor of its own. Two sets of whole-file regexes keep the engine's pre-filter: the
     # file must hold a string that starts with a face name and one that starts with an ID-document
-    # name, as the metavariable tests below require. The array patterns bind every element of every
-    # array, which on a large generated array (an SDK's API model of several hundred KB) costs tens of
-    # seconds, so a file without both names is not read at all. A name that only sits inside a longer
-    # one (an API model's 'PeerLivenessDetection') does not open the file.
+    # name, so a file without both is not read at all. A name that only sits inside a longer one (an
+    # API model's 'PeerLivenessDetection') does not open the file.
+    #
+    # The names sit in the patterns as string-literal regexes, never as a free metavariable filtered
+    # afterwards: `[..., $FACE => $V, ...]` inside `[..., $DOC => $W, ...]` binds a pair for every two
+    # elements of an array before any regex runs: 9 s and 1.8 GB on one array of 1,000 entries, and
+    # out of memory (a 6 GB cap) or out of time on 2,000. Here only an element whose name matches is
+    # bound, so the cost is linear in the array's size (2 s on 6,000 entries). The fixture
+    # php-selfie-and-id-document.test.large.php holds 2,500 entries; the fixture suite fails if the
+    # engine cannot finish it.
+    #
+    # A name's first letter is lowercase, as a PHP array key or column is written (selfie, faceImage,
+    # idCard), so an SDK's API model, whose shapes are PascalCase ('SelfieImage', 'IdentityDocument'),
+    # is not read as an app holding the images.
     patterns:
       - pattern-either:
           - pattern-regex: '(?is)\A(?=.*[''"]selfie).*'
@@ -28,21 +38,15 @@ rules:
           - pattern-regex: '(?is)\A(?=.*[''"]passport_?(?:image|photo|scan|page|front)).*'
           - pattern-regex: '(?is)\A(?=.*[''"]drivers?_?licen[cs]e).*'
           - pattern-regex: '(?is)\A(?=.*[''"]document_?(?:image|photo|front|back|scan)).*'
-      # One array literal (validation rules, fillable columns, a request payload) holds a face name and
-      # an ID-document name, each as a key or as a string element
+      # The face name, as a string, in an array literal (validation rules, fillable columns, a request
+      # payload) that holds a face name and an ID-document name, each as a key or as a string element
+      - pattern: '"=~/^(?:selfie|liveness|face_?(?i:image|photo|img|picture|pic|capture|snapshot|scan))\w*$/"'
       - pattern-either:
-          - pattern: '[..., $FACE => $V, ...]'
-          - pattern: '[..., $FACE, ...]'
-      - metavariable-regex:
-          metavariable: $FACE
-          regex: '(?i)^([''"])(?:selfie|liveness|face_?(?:image|photo|img|picture|pic|capture|snapshot|scan))\w*\1$'
+          - pattern-inside: '[..., "=~/^(?:selfie|liveness|face_?(?i:image|photo|img|picture|pic|capture|snapshot|scan))\w*$/" => $V, ...]'
+          - pattern-inside: '[..., "=~/^(?:selfie|liveness|face_?(?i:image|photo|img|picture|pic|capture|snapshot|scan))\w*$/", ...]'
       - pattern-either:
-          - pattern-inside: '[..., $DOC => $W, ...]'
-          - pattern-inside: '[..., $DOC, ...]'
-      - metavariable-regex:
-          metavariable: $DOC
-          regex: '(?i)^([''"])(?:photo_?id_?(?:image|img|photo|card|doc|document|scan|front|back|upload|file)|id_?(?:document|doc|card|photo|image|img|scan|front|back)|identity_?(?:document|doc|card)|identification_?(?:image|photo|document|doc|card)|passport_?(?:image|photo|scan|page|front)|drivers?_?licen[cs]e_?(?:image|photo|scan|front|back)|document_?(?:image|photo|front|back|scan))\w*\1$'
-      - focus-metavariable: $FACE
+          - pattern-inside: '[..., "=~/^(?:photo_?(?i:id)_?(?i:image|img|photo|card|doc|document|scan|front|back|upload|file)|id_?(?i:document|doc|card|photo|image|img|scan|front|back)|identity_?(?i:document|doc|card)|identification_?(?i:image|photo|document|doc|card)|passport_?(?i:image|photo|scan|page|front)|drivers?_?(?i:licen[cs]e)_?(?i:image|photo|scan|front|back)|document_?(?i:image|photo|front|back|scan))\w*$/" => $W, ...]'
+          - pattern-inside: '[..., "=~/^(?:photo_?(?i:id)_?(?i:image|img|photo|card|doc|document|scan|front|back|upload|file)|id_?(?i:document|doc|card|photo|image|img|scan|front|back)|identity_?(?i:document|doc|card)|identification_?(?i:image|photo|document|doc|card)|passport_?(?i:image|photo|scan|page|front)|drivers?_?(?i:licen[cs]e)_?(?i:image|photo|scan|front|back)|document_?(?i:image|photo|front|back|scan))\w*$/", ...]'
     metadata:
       activity: relies_on_digital_identity
       mentioned: performs
