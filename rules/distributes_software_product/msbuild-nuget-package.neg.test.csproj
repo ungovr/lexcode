@@ -1,0 +1,33 @@
+<!-- lexcode-expect: 0 -->
+<!-- An ASP.NET Core service the operator runs: it is marked not packable, carries only assembly
+     metadata (authors, company, version, description, copyright), consumes NuGet packages, and has
+     packaging settings only inside comments, on one line and across lines. A service used through a
+     browser or API is not distributed software. -->
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <PackAsTool>false</PackAsTool>
+    <Authors>Contoso</Authors>
+    <Company>Contoso Ltd</Company>
+    <Version>2.4.0</Version>
+    <Description>The storefront web application.</Description>
+    <Copyright>Copyright Contoso Ltd</Copyright>
+    <UserSecretsId>7f1c6b8e-2d4a-4a57-9a2e-9c1f0e5b3d21</UserSecretsId>
+    <!-- <PackageId>Contoso.Storefront</PackageId> -->
+    <!--
+    <PackageId>Contoso.Storefront</PackageId>
+    <GeneratePackageOnBuild Condition="'$(Configuration)' == 'Release'">true</GeneratePackageOnBuild>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.0" />
+    <PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="all" />
+  </ItemGroup>
+
+</Project>

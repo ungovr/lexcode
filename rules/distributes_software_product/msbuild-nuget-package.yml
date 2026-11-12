@@ -1,0 +1,50 @@
+rules:
+  - id: lexcode.distribute.msbuild-nuget-package
+    languages: [generic]
+    severity: INFO
+    message: Declares a NuGet package (a package id, packing on build or by explicit opt-in, a .NET tool, a package license, or a .nuspec), which makes a library, tool or template available for others to install (distributes_software_product).
+    # An element may carry attributes (a Condition), and a match inside an XML comment, on one line or
+    # across lines, is dropped. Assembly metadata (Authors, Company, Version, Description) is set by
+    # apps too and is not matched; neither is IsPackable, GeneratePackageOnBuild or PackAsTool set to
+    # false.
+    patterns:
+      - pattern-either:
+          - pattern-regex: '(?i)<PackageId\b[^>]*>[ \t]*[^<\s]'
+          - pattern-regex: '(?i)<PackAsTool\b[^>]*>[ \t]*true[ \t]*</PackAsTool>'
+          - pattern-regex: '(?i)<GeneratePackageOnBuild\b[^>]*>[ \t]*true[ \t]*</GeneratePackageOnBuild>'
+          - pattern-regex: '(?i)<IsPackable\b[^>]*>[ \t]*true[ \t]*</IsPackable>'
+          - pattern-regex: '(?i)<PackageLicense(?:Expression|File|Url)\b[^>]*>[ \t]*[^<\s]'
+          # A .nuspec names its package in <metadata><id>; no project file has an <id> element.
+          - pattern-regex: '<id>[ \t]*[^<\s]'
+      - pattern-not-regex: '(?s)<!--.*?-->'
+    paths:
+      include:
+        - "*.csproj"
+        - "*.fsproj"
+        - "*.vbproj"
+        - "*.props"
+        - "*.nuspec"
+        - "msbuild-nuget-package.*"
+      # A legacy packages.config restore folder (packages/<Id>.<version>/) holds every dependency's own
+      # .nuspec, committed by some older solutions; those are installed packages, not shipped ones.
+      # Only directories named like <Id>.<version> are left out, so a repository that keeps its own
+      # projects under packages/<name>/ is still read. The fixture runner reads only the files beside
+      # this rule, so no fixture can sit under those paths; the exclusion was checked by a scan on
+      # Opengrep 1.33.1 of packages/Newtonsoft.Json.13.0.1/Newtonsoft.Json.nuspec,
+      # packages/Antlr3.Runtime.3.5.1/Antlr3.Runtime.nuspec and packages/Foo.1.0.0/build/Foo.props
+      # (0 matches) beside packages/MyApp/MyApp.csproj and src/packages/ui-kit/ui-kit.csproj, each with
+      # a PackageId (1 match each).
+      exclude:
+        - "**/packages/*.[0-9]*/**"
+        - "**/example/**"
+        - "**/examples/**"
+        - "**/sample/**"
+        - "**/samples/**"
+        - "**/demo/**"
+        - "**/demos/**"
+    metadata:
+      activity: distributes_software_product
+      mentioned: performs
+      definition: https://lexlint.io/activities/distributes-software-product
+      provenance: ungovr-original
+      license: MIT

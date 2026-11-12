@@ -1,0 +1,25 @@
+<!-- lexcode-expect: 0 -->
+<!-- A WinUI app built unpackaged for the team's own machines, with MSIX tooling and app package
+     generation turned off and no ClickOnce manifests, beside settings that only resemble packaging
+     (self-contained publishing and a single-file executable) and packaging settings left in comments,
+     on one line and across lines. -->
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <UseWinUI>true</UseWinUI>
+    <WindowsPackageType>None</WindowsPackageType>
+    <EnableMsixTooling>false</EnableMsixTooling>
+    <GenerateAppxPackageOnBuild>false</GenerateAppxPackageOnBuild>
+    <GenerateManifests>false</GenerateManifests>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <!-- <WindowsPackageType>MSIX</WindowsPackageType> -->
+    <!--
+    <EnableMsixTooling Condition="'$(Configuration)' == 'Release'">true</EnableMsixTooling>
+    <GenerateAppxPackageOnBuild>true</GenerateAppxPackageOnBuild>
+    -->
+  </PropertyGroup>
+
+</Project>

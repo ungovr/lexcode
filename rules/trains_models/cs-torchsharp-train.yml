@@ -1,0 +1,15 @@
+rules:
+  - id: lexcode.train.cs-torchsharp-train
+    languages: [csharp]
+    severity: INFO
+    message: Builds a TorchSharp optimizer, which steps a model's weights during a training loop, so it is training models (trains_models).
+    # An optimizer exists only to update weights, so building one is the training; loading weights and
+    # a forward pass under no_grad are not matched. Written in full: the engine resolves `using`,
+    # `using static TorchSharp.torch` and aliases, and an app's own `torch` class is not matched.
+    pattern: TorchSharp.torch.optim.$OPTIMIZER(...)
+    metadata:
+      activity: trains_models
+      mentioned: performs
+      definition: https://lexlint.io/activities/trains-models
+      provenance: ungovr-original
+      license: MIT

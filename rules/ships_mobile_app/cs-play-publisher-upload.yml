@@ -1,0 +1,19 @@
+rules:
+  - id: lexcode.mobile.cs-play-publisher-upload
+    languages: [csharp]
+    severity: INFO
+    message: Uploads an Android bundle or APK, or moves a release track, through the Google Play Developer API, which is distributing a mobile app through Google's store (ships_mobile_app).
+    # Google.Apis.AndroidPublisher.v3, written in full: the engine resolves a file's `using` lines and
+    # aliases, and the typed receiver also finds a service that is injected or built with `var` or
+    # target-typed new. An app's own AndroidPublisherService in another namespace is not matched.
+    pattern-either:
+      - pattern: (Google.Apis.AndroidPublisher.v3.AndroidPublisherService $S).Edits.Bundles.Upload(...)
+      - pattern: (Google.Apis.AndroidPublisher.v3.AndroidPublisherService $S).Edits.Apks.Upload(...)
+      - pattern: (Google.Apis.AndroidPublisher.v3.AndroidPublisherService $S).Edits.Tracks.Update(...)
+      - pattern: (Google.Apis.AndroidPublisher.v3.AndroidPublisherService $S).Edits.Tracks.Patch(...)
+    metadata:
+      activity: ships_mobile_app
+      mentioned: performs
+      definition: https://lexlint.io/activities/ships-mobile-app
+      provenance: ungovr-original
+      license: MIT
