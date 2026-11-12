@@ -184,6 +184,19 @@ describe('scan with a stand-in engine', () => {
       delete process.env.FAKE_OPENGREP_RESULTS;
     }
   });
+
+  it('does not count a PHP rule as run over a Pascal .inc, and says nothing was looked at', async () => {
+    const root = tree({ 'src/defs.inc': '{ Pascal include }\nconst\n  MaxItems = 100;\n', 'README.md': '# hi\n' });
+    process.env.FAKE_OPENGREP_RESULTS = '[]';
+    try {
+      const rec = await scan({ root, rulesDirs: [], rs: stubRuleSet('php'), enginePath: STUB, includeTests: false, snippets: false });
+      expect(rec.scope.extracted).toBe(0);
+      expect(rec.searched_not_found.map((r) => r.id)).not.toContain('processes_voice');
+      expect(rec.notices.some((n) => n.startsWith('no file in scope is in a language lexcode reads') && n.includes('nothing was looked at'))).toBe(true);
+    } finally {
+      delete process.env.FAKE_OPENGREP_RESULTS;
+    }
+  });
 });
 
 describe('scan without source rules', () => {

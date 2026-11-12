@@ -427,6 +427,23 @@ describe('unreadLanguages for PHP', () => {
     expect(unreadLanguages(only(php), all)).toEqual([]);
     expect(engineTargets(only(php), [...all, 'z.py'])).toEqual(all);
   });
+
+  it('counts a PHP rule as run over an .inc only through its .lexcode.php copy, never the original', () => {
+    const rs = ruleSetWith([{ id: 'lexcode.a.php', activity: 'trains_models', languages: ['php'] }]);
+    rs.rules = only(rs);
+    // A Pascal .inc gets no copy: no PHP rule read anything.
+    const pascal = countRulesRun(rs, rs.rules, ['src/defs.inc', 'README.md'], new Set());
+    expect(pascal.get('trains_models')).toBeUndefined();
+    expect(pascal.codeRulesRan).toBe(0);
+    // A PHP .module with its copy: the rule ran, once.
+    const drupal = countRulesRun(rs, rs.rules, ['m.module', '/tmp/x/scripts/m.module.lexcode.php'], new Set());
+    expect(drupal.get('trains_models')).toBe(1);
+    expect(drupal.codeRulesRan).toBe(1);
+    // The other copied extensions read the same way: a .rake with no .rb beside it runs no Ruby rule by itself.
+    const rb = ruleSetWith([{ id: 'lexcode.a.rb', activity: 'trains_models', languages: ['ruby'] }]);
+    expect(countRulesRun(rb, only(rb), ['lib/t.rake'], new Set()).codeRulesRan).toBe(0);
+    expect(countRulesRun(rb, only(rb), ['lib/t.rake', '/tmp/x/scripts/lib/t.rake.lexcode.rb'], new Set()).codeRulesRan).toBe(1);
+  });
 });
 
 describe('the notice for files past a whole-file pre-filter\'s reach', () => {
@@ -488,6 +505,19 @@ describe('the notice for files past a whole-file pre-filter\'s reach', () => {
     const asked: string[] = [];
     expect(largePrefilteredFiles(only(none), files, (f) => (asked.push(f), bytesOf(f)))).toEqual([]);
     expect(asked).toEqual([]);
+  });
+
+  it('counts a large .module once, through its .lexcode.php copy, and a large non-PHP .inc not at all', () => {
+    const php = ruleSetWith([{ id: 'lexcode.a.php', languages: ['php'], wholeFilePrefilter: true }]);
+    const targets = ['big.module', '/tmp/x/scripts/big.module.lexcode.php', 'pascal/huge.inc', 'small.php'];
+    const size = (f: string): number => (f === 'small.php' ? 10 : big);
+    expect(largePrefilteredFiles(only(php), targets, size)).toEqual([{ language: 'PHP', files: 1 }]);
+    // The same for Ruby's copied extensions: a .rake and its copy are one file.
+    const rb = ruleSetWith([{ id: 'lexcode.a.rb', languages: ['ruby'], wholeFilePrefilter: true }]);
+    expect(largePrefilteredFiles(only(rb), ['t.rake', '/tmp/x/scripts/t.rake.lexcode.rb'], () => big)).toEqual([{ language: 'Ruby', files: 1 }]);
+    // A rule over every file (generic) reads the original as text, so it still counts there.
+    const every = ruleSetWith([{ id: 'lexcode.a.g', languages: ['generic'], wholeFilePrefilter: true }]);
+    expect(largePrefilteredFiles(only(every), ['pascal/huge.inc'], () => big)).toEqual([{ language: 'PHP', files: 1 }]);
   });
 
   it('asks the size only of files in a pre-filtered language', () => {

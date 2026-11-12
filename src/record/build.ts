@@ -1,5 +1,6 @@
 import { posix } from 'node:path';
 import { classOf } from '../rules/load.js';
+import { COPIED_WHOLE_EXTENSIONS } from '../scope/extract.js';
 import type {
   ActivityRow,
   ComponentRow,
@@ -177,7 +178,8 @@ export function largePrefilteredFiles(
   const counts = new Map<string, number>();
   for (const f of targets) {
     const ext = posix.extname(f).toLowerCase();
-    if (!all && !exts.has(ext)) continue;
+    // A language rule reads an `.inc` or `.rake` original only through its copy, which is a target of its own.
+    if (!all && (!exts.has(ext) || COPIED_WHOLE_EXTENSIONS.has(ext))) continue;
     if (bytesOf(f) <= PREFILTER_REACH_BYTES) continue;
     const name = languageName(ext);
     counts.set(name, (counts.get(name) ?? 0) + 1);
@@ -214,7 +216,8 @@ export class RulesRun extends Map<string, number> {
  * entry reads the file list on every scan, so it always counts.
  */
 export function countRulesRun(rs: RuleSet, rules: RuleMeta[], files: string[], ecosystems: ReadonlySet<string>): RulesRun {
-  const present = new Set(files.map((f) => posix.extname(f).toLowerCase()));
+  // An original the engine reads only through its whole-file copy is present through the copy alone.
+  const present = new Set(files.map((f) => posix.extname(f).toLowerCase()).filter((e) => !COPIED_WHOLE_EXTENSIONS.has(e)));
   const out = new RulesRun();
   const bump = (id: string): void => void out.set(id, (out.get(id) ?? 0) + 1);
   for (const r of rules) {

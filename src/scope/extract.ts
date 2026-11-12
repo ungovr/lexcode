@@ -38,6 +38,13 @@ const RUBY_COPY_EXTENSIONS = new Set(['.rake', '.ru', '.gemspec']);
 const PHP_COPY_EXTENSIONS = new Set(['.inc', '.module', '.theme', '.install']);
 const PHP_OPENING = /^\uFEFF?\s*<\?php(?:\s|$)/i;
 
+/**
+ * Extensions a language rule reads only through a whole-file copy: the engine takes 0 files of the original.
+ * Such an original is never counted as code a rule read (rules that ran, the large-file pre-filter notice);
+ * its copy is, when one was made. A C or Pascal `.inc` gets no copy, so no PHP rule counts as having read it.
+ */
+export const COPIED_WHOLE_EXTENSIONS: ReadonlySet<string> = new Set([...RUBY_COPY_EXTENSIONS, ...PHP_COPY_EXTENSIONS]);
+
 /** `type` values of a script that holds code; an absent or empty `type` qualifies as well. */
 const CODE_TYPES = new Set([
   'module',
