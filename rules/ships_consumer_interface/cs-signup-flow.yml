@@ -1,0 +1,100 @@
+# The sign-up name expressions repeat between the method and class arms. The staff words repeat
+# across the exclusions, which are the same as in cs-signup-route and cs-signup-screen, with the
+# start-up and seeding class names added. Edit every copy together, or an arm drifts.
+rules:
+  - id: lexcode.consumer.cs-signup-flow
+    languages: [csharp]
+    severity: INFO
+    message: Registers a new account from a sign-up flow on ASP.NET Core Identity (the user manager creating an account in a sign-up action, page or service, or Identity's default UI, whose pages include Register, switched on), a screen that members of the public use to reach a service (ships_consumer_interface).
+    patterns:
+      - pattern-either:
+          # The injected user manager creates the account in a method or class named for sign-up.
+          # The engine resolves `using`, aliases and the injected field or parameter type for the
+          # qualified UserManager, so an app's own UserManager in another namespace is not read.
+          # The plain form reads UserManager<TUser> written short under a using; the generic form
+          # reads it written fully qualified. An alias of the namespace with a type argument
+          # (Id.UserManager<TUser>) is read by neither, a known gap.
+          - patterns:
+              - pattern-either:
+                  - pattern: (Microsoft.AspNetCore.Identity.UserManager $U).CreateAsync(...)
+                  - pattern: (Microsoft.AspNetCore.Identity.UserManager<$TU> $U).CreateAsync(...)
+              - pattern-either:
+                  - patterns:
+                      - pattern-either:
+                          - pattern-inside: $RET $M(...) { ... }
+                          - pattern-inside: $RET $M(...) => $E;
+                      - metavariable-regex:
+                          metavariable: $M
+                          regex: '^(On(Post|Get))?(Register|Registration|SignUp|Signup|CreateAccount)(User|Account|Customer|Member)?(Async)?$'
+                  - patterns:
+                      - pattern-inside: class $C { ... }
+                      - metavariable-regex:
+                          metavariable: $C
+                          regex: '^(User|Account|Customer|Member|New|Self)?(SignUp|Signup|Register|Registration|CreateAccount)(Model|PageModel|Page|Component|Controller|Service|Handler)?$'
+          # Identity's default UI (the Razor class library with the Register page), added with
+          # the user type or chained on an Identity builder. These are extension methods, which
+          # carry no type of their own, so they are matched by name and type argument.
+          - pattern: $S.AddDefaultIdentity<$T>(...)
+          - patterns:
+              - pattern: $B.AddDefaultUI()
+              - metavariable-regex:
+                  metavariable: $B
+                  regex: '(?s).*\bAdd(Default)?Identity(Core)?<'
+      # An account created for a signed-in user, or by staff, is not a public sign-up.
+      - pattern-not-inside: |
+          [Microsoft.AspNetCore.Authorization.Authorize(...)]
+          $RET2 $M2(...) { ... }
+      - pattern-not-inside: |
+          [Microsoft.AspNetCore.Authorization.Authorize(...)]
+          $RET2 $M2(...) => $E2;
+      # A staff or start-up path: an admin area, an admin or staff role or policy, an attribute
+      # named for admins, a staff namespace, or a staff, seeding or start-up class.
+      - pattern-not-inside:
+          patterns:
+            - pattern: |
+                [$A(...)]
+                class $K { ... }
+            - metavariable-regex:
+                metavariable: $A
+                regex: '(?i)^(\w+\.)*\w*(admin|staff|backoffice)\w*$'
+      - pattern-not-inside:
+          patterns:
+            - pattern-either:
+                - pattern: |
+                    [Microsoft.AspNetCore.Mvc.Area($R)]
+                    class $K { ... }
+                - pattern: |
+                    [Microsoft.AspNetCore.Authorization.Authorize($R)]
+                    class $K { ... }
+                - pattern: |
+                    [Microsoft.AspNetCore.Authorization.Authorize(..., Roles = $R, ...)]
+                    class $K { ... }
+                - pattern: |
+                    [Microsoft.AspNetCore.Authorization.Authorize(..., Policy = $R, ...)]
+                    class $K { ... }
+            - metavariable-regex:
+                metavariable: $R
+                regex: '(?i).*(admin|staff|internal|backoffice|manage|employee|operator)'
+      - pattern-not-inside:
+          patterns:
+            - pattern-either:
+                - pattern: |
+                    namespace $NS;
+                    ...
+                - pattern: namespace $NS { ... }
+            - metavariable-regex:
+                metavariable: $NS
+                regex: '(?i)^(.*\W)?\w*(admin|staff|internal|backoffice)\w*(\W.*)?$'
+      - pattern-not-inside:
+          patterns:
+            - pattern: class $K { ... }
+            - metavariable-regex:
+                metavariable: $K
+                regex: '(?i)(.*(admin|staff|internal|backoffice)|.*(Seed|Seeder|Seeding|Initiali[sz]er|Command|Factory|Fixture))'
+    metadata:
+      activity: ships_consumer_interface
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/ships-consumer-interface
+      provenance: ungovr-original
+      license: MIT
