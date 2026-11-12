@@ -1,0 +1,81 @@
+rules:
+  - id: lexcode.crawl.cs-fetch-loop-over-urls
+    languages: [csharp]
+    severity: INFO
+    message: Fetches each URL in a list held in a variable, which may be crawling sites the operator does not run (crawls_web).
+    patterns:
+      # The loop variable is the whole address. A loop over ids that builds the address from the
+      # app's own base, or a single call to a documented API, does not bind it.
+      - pattern-either:
+          - pattern-inside: |
+              foreach (var $URL in $L) { ... }
+          - pattern-inside: |
+              foreach ($T $URL in $L) { ... }
+          # A lambda's expression body and its block body are different shapes to the engine.
+          - pattern-inside: $P.ForEach($L, $URL => $BODY)
+          - pattern-inside: $P.ForEach($L, $URL => { ... })
+          - pattern-inside: $P.ForEachAsync($L, async ($URL, $CT) => $BODY)
+          - pattern-inside: $P.ForEachAsync($L, async ($URL, $CT) => { ... })
+          - patterns:
+              - pattern-either:
+                  - pattern-inside: $L.$M($URL => $BODY)
+                  - pattern-inside: $L.$M($URL => { ... })
+                  - pattern-inside: $L.$M(async $URL => $BODY)
+                  - pattern-inside: $L.$M(async $URL => { ... })
+              - metavariable-regex:
+                  metavariable: $M
+                  regex: ^(Select|SelectMany|ForEach|Where|Any|All)$
+      - pattern-either:
+          # HttpClient is in a namespace the .NET SDK imports implicitly, so its type is matched
+          # written in full and by its short name; a client from IHttpClientFactory has no declared
+          # type, so a receiver named for an HTTP client counts too, and so does `CreateClient(...)`.
+          # A cache, a store or a session with a GetStringAsync of its own (IDistributedCache) does
+          # not. Only reads count: a POST or PUT to each address is a delivery (webhooks).
+          - patterns:
+              - pattern-either:
+                  - pattern: (System.Net.Http.HttpClient $C).$GET($URL, ...)
+                  - pattern: (HttpClient $C).$GET($URL, ...)
+                  - patterns:
+                      - pattern: $C.$GET($URL, ...)
+                      - metavariable-regex:
+                          metavariable: $C
+                          regex: ^((this\.)?_?(?!(?i:\w*(cache|store|storage|redis|blob|queue|session|context|accessor|config|settings)))\w*([cC]lient|[hH]ttp\w*)|[\w.]+\.CreateClient\([^)]*\))$
+              - metavariable-regex:
+                  metavariable: $GET
+                  regex: ^Get(String|Stream|ByteArray)?Async$
+          - pattern: new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Get, $URL)
+          - pattern: new HttpRequestMessage(HttpMethod.Get, $URL)
+          # A request with an object initializer: the constructor with a trailing initializer
+          # is a different shape to the engine, and an initializer-only request reads GET when
+          # its Method is Get or left at its default.
+          - pattern: new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Get, $URL) { ... }
+          - pattern: new HttpRequestMessage(HttpMethod.Get, $URL) { ... }
+          - patterns:
+              - pattern-either:
+                  - pattern-inside: new System.Net.Http.HttpRequestMessage(...) { ..., Method = System.Net.Http.HttpMethod.Get, ... }
+                  - pattern-inside: new HttpRequestMessage(...) { ..., Method = HttpMethod.Get, ... }
+                  - patterns:
+                      - pattern-either:
+                          - pattern-inside: new System.Net.Http.HttpRequestMessage(...) { ... }
+                          - pattern-inside: new HttpRequestMessage(...) { ... }
+                      - pattern-not-inside: new System.Net.Http.HttpRequestMessage(...) { ..., Method = $METHOD, ... }
+                      - pattern-not-inside: new HttpRequestMessage(...) { ..., Method = $METHOD, ... }
+              - pattern-either:
+                  - pattern: RequestUri = new Uri($URL)
+                  - pattern: RequestUri = new System.Uri($URL)
+                  - pattern: RequestUri = $URL
+          # The older System.Net clients, which no namespace imports implicitly.
+          - patterns:
+              - pattern: (System.Net.WebClient $W).$GET($URL, ...)
+              - metavariable-regex:
+                  metavariable: $GET
+                  regex: ^(DownloadString|DownloadData|OpenRead)(TaskAsync)?$
+          - pattern: System.Net.WebRequest.Create($URL)
+    metadata:
+      activity: crawls_web
+      mentioned: performs
+      definition: https://lexlint.io/activities/crawls-web
+      provenance: ungovr-original
+      license: MIT
+      strength: signal
+      host_metavar: $URL
