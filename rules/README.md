@@ -9,7 +9,7 @@ class. Every rule is original to UnGovr and MIT licensed. The recall table below
 is measured against the truth sets, per activity.
 
 <!-- recall:start -->
-Measured 2026-11-11 over the UnGovr monorepo, 6 pinned starter templates and 2 real apps,
+Measured 2026-11-12 over the UnGovr monorepo, 8 pinned starter templates and 3 real apps,
 against answer keys read by an agent that had not seen the rules, unreviewed.
 Found counts evidence of either kind for the activity or its family; signal
 only counts the misses where lexcode showed a worth-a-look row and nothing
@@ -17,24 +17,26 @@ stronger. Recall is printed, never gated.
 
 | Activity | Expected | Found | Signal only | Missed in |
 |---|---:|---:|---:|---|
-| `aggregates_content` | 2 | 0 | 1 | monorepo, nowinandroid |
-| `automated_outreach` | 2 | 2 | 0 |  |
-| `crawls_web` | 2 | 2 | 0 |  |
+| `aggregates_content` | 3 | 1 | 1 | monorepo, nowinandroid |
+| `automated_outreach` | 4 | 4 | 0 |  |
+| `crawls_web` | 3 | 2 | 1 | moodle |
 | `deploys_chatbot` | 2 | 1 | 0 | canvas-android |
-| `distributes_software_product` | 5 | 3 | 0 | nowinandroid, canvas-android |
-| `generates_content` | 3 | 2 | 0 | canvas-android |
-| `generates_text` | 2 | 1 | 0 | canvas-android |
-| `operates_social_platform` | 2 | 0 | 1 | canvas-android, sakai |
+| `distributes_software_product` | 6 | 4 | 0 | nowinandroid, canvas-android |
+| `generates_content` | 4 | 2 | 0 | canvas-android, moodle |
+| `generates_images` | 1 | 0 | 0 | moodle |
+| `generates_text` | 3 | 1 | 0 | canvas-android, moodle |
+| `operates_social_platform` | 4 | 0 | 2 | symfony-demo, canvas-android, moodle, sakai |
 | `processes_biometrics` | 1 | 1 | 0 |  |
-| `processes_personal_data` | 9 | 9 | 0 |  |
-| `processes_voice` | 3 | 3 | 0 |  |
-| `records_calls` | 2 | 0 | 0 | monorepo, sakai |
-| `records_text_chat` | 2 | 2 | 0 |  |
-| `ships_consumer_interface` | 8 | 0 | 2 | vercel-chatbot, nextjs-subscription-payments, obytes-expo, full-stack-fastapi, spring-petclinic, nowinandroid, canvas-android, sakai |
-| `ships_encryption` | 6 | 3 | 0 | vercel-chatbot, obytes-expo, full-stack-fastapi |
+| `processes_personal_data` | 12 | 12 | 0 |  |
+| `processes_voice` | 4 | 3 | 1 | moodle |
+| `records_calls` | 3 | 1 | 0 | monorepo, sakai |
+| `records_text_chat` | 3 | 2 | 0 | moodle |
+| `ships_consumer_interface` | 11 | 0 | 3 | vercel-chatbot, nextjs-subscription-payments, obytes-expo, full-stack-fastapi, spring-petclinic, nowinandroid, symfony-demo, wave, canvas-android, moodle, sakai |
+| `ships_encryption` | 9 | 4 | 2 | vercel-chatbot, obytes-expo, full-stack-fastapi, symfony-demo, wave |
 | `ships_mobile_app` | 4 | 4 | 0 |  |
 | `statutory_requests` | 1 | 0 | 1 | monorepo |
-| `tracks_devices` | 5 | 4 | 0 | sakai |
+| `tracks_devices` | 6 | 5 | 0 | sakai |
+| `trains_models` | 1 | 0 | 0 | moodle |
 <!-- recall:end -->
 
 <!-- canvas:start -->
