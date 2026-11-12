@@ -1,0 +1,42 @@
+ecosystem: nuget
+entries:
+
+  # Authentication and user management
+  # A NuGet Id is matched case-insensitively. Each says is read from the package's nuget.org page (its About text, or the
+  # first sentence of its README where the page has no separate description). A package whose page does not say it signs
+  # people in or stores their accounts is left out, so a framework such as Duende.IdentityServer, whose tagline names
+  # protocols only, is not listed.
+  - match: "microsoft.aspnetcore.identity.entityframeworkcore"
+    enables: [processes_personal_data]
+    says: "Microsoft.AspNetCore.Identity.EntityFrameworkCore utilizes Entity Framework Core to provide functionality enabling the storage of user, role, and other identity-related data in a database."
+    source: https://www.nuget.org/packages/Microsoft.AspNetCore.Identity.EntityFrameworkCore
+  - match: "microsoft.aspnetcore.authentication.facebook"
+    enables: [processes_personal_data]
+    says: "Microsoft.AspNetCore.Authentication.Facebook provides ASP.NET Core middleware that enables an application to support Facebook's OAuth 2.0 authentication workflow."
+    source: https://www.nuget.org/packages/Microsoft.AspNetCore.Authentication.Facebook
+  - match: "microsoft.aspnetcore.authentication.openidconnect"
+    enables: [processes_personal_data]
+    says: "Microsoft.AspNetCore.Authentication.OpenIdConnect provides middleware that enables an application to support the OpenID Connect authentication workflow."
+    source: https://www.nuget.org/packages/Microsoft.AspNetCore.Authentication.OpenIdConnect
+
+  # Model SDKs
+  - match: "aspire.azure.ai.openai"
+    enables: [generates_content]
+    says: "Registers OpenAIClient as a singleton in the DI container for connecting to Azure OpenAI or OpenAI."
+    source: https://www.nuget.org/packages/Aspire.Azure.AI.OpenAI
+  - match: "deepl.net"
+    enables: [generates_text]
+    says: "The DeepL API is a language AI API that allows other computer programs to send texts and documents to DeepL's servers and receive high-quality translations and improvements to the text."
+    source: https://www.nuget.org/packages/DeepL.net
+
+  # Email, SMS and push senders
+  # MailKit's nuget.org page opens with "MailKit is a cross-platform mail client library built on top of MimeKit."; the
+  # sentence quoted here is the page's own statement of what the library is for.
+  - match: "mailkit"
+    enables: [automated_outreach]
+    says: "One of the more common operations that MailKit is meant for is sending email messages."
+    source: https://www.nuget.org/packages/MailKit
+  - match: "twilio"
+    enables: [automated_outreach]
+    says: "Twilio provides a HTTP-based API for sending and receiving phone calls and text messages."
+    source: https://www.nuget.org/packages/Twilio
