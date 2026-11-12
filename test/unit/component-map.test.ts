@@ -14,6 +14,7 @@ const FILES = [
   { file: 'go.yml', ecosystem: 'golang' },
   { file: 'gem.yml', ecosystem: 'gem' },
   { file: 'maven.yml', ecosystem: 'maven' },
+  { file: 'composer.yml', ecosystem: 'composer' },
   { file: 'files.yml', ecosystem: 'files' },
 ] as const;
 
