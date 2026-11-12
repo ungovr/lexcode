@@ -18,7 +18,7 @@ function encPath(path: string): string {
  * Build the package URL of a dependency. npm keeps its case and percent-encodes a
  * scope's `@`; PyPI is normalized per PEP 503; Go namespace and name are lowercased,
  * as the purl specification requires for the golang type; a gem name is kept as written; a Maven `group:artifact` becomes the namespace and name, as written;
- * a Composer `vendor/name` is the namespace and name.
+ * a Composer `vendor/name` is the namespace and name; a NuGet package Id is the name, as written.
  */
 export function purlOf(d: Dependency): string {
   let type: string;
@@ -48,6 +48,11 @@ export function purlOf(d: Dependency): string {
     case 'composer':
       // vendor/name is the purl namespace and name; the reader has already lowercased it, as Composer compares names.
       type = 'composer';
+      name = d.name;
+      break;
+    case 'nuget':
+      // A NuGet package Id is compared case-insensitively; the purl keeps it as the manifest first writes it.
+      type = 'nuget';
       name = d.name;
       break;
   }
