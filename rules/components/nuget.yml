@@ -30,12 +30,6 @@ entries:
     source: https://www.nuget.org/packages/DeepL.net
 
   # Email, SMS and push senders
-  # MailKit's nuget.org page opens with "MailKit is a cross-platform mail client library built on top of MimeKit."; the
-  # sentence quoted here is the page's own statement of what the library is for.
-  - match: "mailkit"
-    enables: [automated_outreach]
-    says: "One of the more common operations that MailKit is meant for is sending email messages."
-    source: https://www.nuget.org/packages/MailKit
   - match: "twilio"
     enables: [automated_outreach]
     says: "Twilio provides a HTTP-based API for sending and receiving phone calls and text messages."
