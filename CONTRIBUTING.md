@@ -194,7 +194,7 @@ Java, Kotlin, PHP, Ruby, Python, JavaScript, TypeScript or Go on that fixture
 followed by filler, at 90 KB and 900 KB, beside a bare rule that only parses the
 same filler. It names a rule whose time grows more than twice as fast as the bare
 rule's for the 10x file, or that takes more than five times the bare rule's time
-on 900 KB.
+on 900 KB, and every rule the engine failed on.
 
 ### Kotlin pattern notes
 

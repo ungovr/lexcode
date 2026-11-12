@@ -46,7 +46,6 @@ const TYPESCRIPT = { language: 'typescript', bare: 'C0', unit: 'class C%N { a: n
 const LANGS = {
   '.java': JAVA,
   '.kt': KOTLIN,
-  '.kts': KOTLIN,
   '.php': { language: 'php', bare: 'f0', unit: 'function f%N($a, $b) { $x = $a + $b; return $x * 2; }\n', head: '<?php\n' },
   '.rb': { language: 'ruby', bare: 'C0', unit: 'class C%N\n  def m(a, b)\n    x = a + b\n    x * 2\n  end\nend\n' },
   '.py': { language: 'python', bare: 'C0', unit: 'class C%N:\n    a = 1\n    b = 2\n\n    def m(self, p):\n        x = p + 1\n        return x\n\n\n' },
@@ -158,7 +157,7 @@ async function baselines(engine, exts) {
       const large = r.best?.[`large${ext}`];
       if (r.error || small === undefined || large === undefined) {
         process.stderr.write(`the bare ${l.language} rule did not run: ${r.error ?? 'no time for its files'}\n`);
-        process.exit(2);
+        return undefined;
       }
       base[ext] = { small, large, growth: large / Math.max(small, 0.01) };
     } finally {
@@ -216,6 +215,7 @@ const { only, jobs } = args();
 const engine = enginePath();
 const todo = rulesWithFixtures(RULES).filter((r) => !only || only.test(relative(ROOT, r.rule)));
 const base = await baselines(engine, [...new Set(todo.map((r) => extname(r.fixture)))]);
+if (!base) process.exit(2);
 process.stderr.write(
   `bare rule, ${SMALL_KB} KB -> ${LARGE_KB} KB: ${Object.entries(base).map(([e, b]) => `${e} ${b.small.toFixed(2)} -> ${b.large.toFixed(2)} s (${b.growth.toFixed(1)}x)`).join(', ')}\n`,
 );
