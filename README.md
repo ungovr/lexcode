@@ -57,9 +57,9 @@ file you cannot open for reading (counted in a notice), and never directories
 named `test`, `tests`, `__tests__`, `spec`, `fixtures`, `testdata`,
 `androidTest`, `testFixtures` or `integrationTest`, or the Kotlin Multiplatform
 test source sets `commonTest`, `jvmTest`, `androidUnitTest`,
-`androidInstrumentedTest`, `iosTest`, `jsTest` or `nativeTest`, unless you pass
-`--include-tests`. `app.scope` in `lexlint.yml` narrows the read, as the
-lint reads it.
+`androidInstrumentedTest`, `iosTest`, `jsTest` or `nativeTest`, in any case (so
+Symfony's `Tests` and Magento's `Test` too), unless you pass `--include-tests`.
+`app.scope` in `lexlint.yml` narrows the read, as the lint reads it.
 
 Languages: TypeScript, JavaScript (with JSX and TSX), Python, Go, Ruby
 (`.rb`, `.rake`, `.ru` and `.gemspec` files, and a `Rakefile`, `Fastfile`,

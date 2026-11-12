@@ -87,27 +87,32 @@ function ignoredBy(rules: IgnoreRule[], rel: string, isDir: boolean): boolean {
   return false;
 }
 
-/** Directories skipped unless `includeTests`. */
-const TEST_DIRS = new Set([
-  'test',
-  'tests',
-  '__tests__',
-  'spec',
-  'fixtures',
-  'testdata',
-  // JVM test source sets: Gradle's `androidTest`, `testFixtures` and `integrationTest`.
-  'androidTest',
-  'testFixtures',
-  'integrationTest',
-  // Kotlin Multiplatform test source sets (`src/commonTest/kotlin` and the like).
-  'commonTest',
-  'jvmTest',
-  'androidUnitTest',
-  'androidInstrumentedTest',
-  'iosTest',
-  'jsTest',
-  'nativeTest',
-]);
+/**
+ * Directories skipped unless `includeTests`, matched in any case: Symfony bundles write `Tests/` and Magento
+ * modules `Test/`. The names are written as each ecosystem writes them and compared in lower case.
+ */
+const TEST_DIRS = new Set(
+  [
+    'test',
+    'tests',
+    '__tests__',
+    'spec',
+    'fixtures',
+    'testdata',
+    // JVM test source sets: Gradle's `androidTest`, `testFixtures` and `integrationTest`.
+    'androidTest',
+    'testFixtures',
+    'integrationTest',
+    // Kotlin Multiplatform test source sets (`src/commonTest/kotlin` and the like).
+    'commonTest',
+    'jvmTest',
+    'androidUnitTest',
+    'androidInstrumentedTest',
+    'iosTest',
+    'jsTest',
+    'nativeTest',
+  ].map((name) => name.toLowerCase()),
+);
 /**
  * File names of bundled or minified code: someone else's library copied in,
  * never the project's own code, and the costliest files to parse (a vendored
@@ -122,7 +127,7 @@ export function toPosix(p: string, flavor: Pick<typeof path, 'sep'> = path): str
 }
 
 function skippedDir(name: string, includeTests: boolean): boolean {
-  return ALWAYS_SKIPPED.has(name) || (!includeTests && TEST_DIRS.has(name));
+  return ALWAYS_SKIPPED.has(name) || (!includeTests && TEST_DIRS.has(name.toLowerCase()));
 }
 
 /** True when a directory segment of `rel` (never the file name) is on the skip list. */
