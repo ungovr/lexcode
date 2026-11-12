@@ -1,0 +1,105 @@
+rules:
+  - id: lexcode.crawl.cs-html-of-fetched-page
+    languages: [csharp]
+    severity: INFO
+    message: Downloads a web page and reads its HTML (HtmlAgilityPack, AngleSharp), which is scraping a site the operator may not run (crawls_web).
+    patterns:
+      - pattern-either:
+          # HtmlAgilityPack's HtmlWeb downloads the page itself. The type is written in full: the
+          # engine resolves `using` lines and aliases for C#, and infers a local's type from
+          # `new HtmlWeb()` or target-typed `new()`, so a project's own `HtmlWeb` in another
+          # namespace is not taken for it.
+          - patterns:
+              - pattern-either:
+                  - pattern: (HtmlAgilityPack.HtmlWeb $W).Load($URL, ...)
+                  - pattern: (HtmlAgilityPack.HtmlWeb $W).LoadFromWebAsync($URL, ...)
+                  - pattern: (HtmlAgilityPack.HtmlWeb $W).LoadFromBrowser($URL, ...)
+              # A string literal is a web address, not a file name.
+              - metavariable-regex:
+                  metavariable: $URL
+                  regex: (?s)^(?![$@]{0,2}"(?!https?://)).*$
+          # AngleSharp's browsing context opens an address and its loader downloads it. The context
+          # comes from `BrowsingContext.New(...)`, whose type the engine does not infer, so the file
+          # must name AngleSharp's namespace (a `using` line, aliased or not, or a type written out
+          # in full; a comment does not count). A lambda builds a page from HTML the app holds (see
+          # below), and a cancellation token is a database connection's OpenAsync.
+          - patterns:
+              - pattern-regex: '(?s)(?:\busing\s+(?:static\s+)?(?:\w+\s*=\s*)?(?:global::)?AngleSharp\b|(?<![\w.])AngleSharp\.\w).*'
+              - pattern: $C.OpenAsync($URL, ...)
+              - metavariable-regex:
+                  metavariable: $URL
+                  regex: (?s)^(?!.*=>)(?!(?i:\w*(token|ct)$)).*$
+          # A page fetched inside the parser call itself.
+          - patterns:
+              - pattern-either:
+                  - pattern: (HtmlAgilityPack.HtmlDocument $D).LoadHtml($SRC)
+                  - pattern: (HtmlAgilityPack.HtmlDocument $D).Load($SRC, ...)
+                  - pattern: (AngleSharp.Html.Parser.HtmlParser $P).ParseDocument($SRC)
+                  - pattern: (AngleSharp.Html.Parser.HtmlParser $P).ParseDocumentAsync($SRC, ...)
+                  - pattern: (AngleSharp.Html.Parser.IHtmlParser $P).ParseDocument($SRC)
+                  - pattern: (AngleSharp.Html.Parser.IHtmlParser $P).ParseDocumentAsync($SRC, ...)
+                  - patterns:
+                      - pattern-regex: '(?s)(?:\busing\s+(?:static\s+)?(?:\w+\s*=\s*)?(?:global::)?AngleSharp\b|(?<![\w.])AngleSharp\.\w).*'
+                      - pattern: $C.OpenAsync($R => $R.Content($SRC, ...))
+              - metavariable-pattern:
+                  metavariable: $SRC
+                  patterns:
+                    # The engine reads this value apart from its file, so a declared type and the
+                    # file's `using` lines are not seen here: a client is known by `new HttpClient()`
+                    # (System.Net.Http is imported implicitly, so in full or by its short name), by
+                    # `new WebClient()`, by `CreateClient(...)` on a factory, or by a receiver named
+                    # for an HTTP client. A cache, a store or a session with a GetStringAsync of its
+                    # own (IDistributedCache) is not one. An HttpClient under another name is missed.
+                    - pattern-either:
+                        - pattern: (System.Net.Http.HttpClient $HC).$GET($URL, ...)
+                        - pattern: (HttpClient $HC).$GET($URL, ...)
+                        - patterns:
+                            - pattern: $HC.$GET($URL, ...)
+                            - metavariable-regex:
+                                metavariable: $HC
+                                regex: ^((this\.)?_?(?!(?i:\w*(cache|store|storage|redis|blob|queue|session|context|accessor|config|settings)))\w*([cC]lient|[hH]ttp\w*)|[\w.]+\.CreateClient\([^)]*\)|new\s+(System\.Net\.)?WebClient\(\))$
+                    - metavariable-regex:
+                        metavariable: $GET
+                        regex: ^(Get(String|Stream|ByteArray)?Async|DownloadString(TaskAsync)?|DownloadData(TaskAsync)?|OpenRead(TaskAsync)?)$
+          # A page fetched into a variable, then parsed. The fetch is read from the assigned value.
+          - patterns:
+              - pattern-inside: |
+                  var $SRC = $FETCH;
+                  ...
+              - pattern-either:
+                  - pattern: (HtmlAgilityPack.HtmlDocument $D).LoadHtml($SRC)
+                  - pattern: (HtmlAgilityPack.HtmlDocument $D).Load($SRC, ...)
+                  - pattern: (AngleSharp.Html.Parser.HtmlParser $P).ParseDocument($SRC)
+                  - pattern: (AngleSharp.Html.Parser.HtmlParser $P).ParseDocumentAsync($SRC, ...)
+                  - pattern: (AngleSharp.Html.Parser.IHtmlParser $P).ParseDocument($SRC)
+                  - pattern: (AngleSharp.Html.Parser.IHtmlParser $P).ParseDocumentAsync($SRC, ...)
+                  - patterns:
+                      - pattern-regex: '(?s)(?:\busing\s+(?:static\s+)?(?:\w+\s*=\s*)?(?:global::)?AngleSharp\b|(?<![\w.])AngleSharp\.\w).*'
+                      - pattern: $C.OpenAsync($R => $R.Content($SRC, ...))
+              - metavariable-pattern:
+                  metavariable: $FETCH
+                  patterns:
+                    - pattern-either:
+                        - pattern: (System.Net.Http.HttpClient $HC).$GET($URL, ...)
+                        - pattern: (HttpClient $HC).$GET($URL, ...)
+                        - patterns:
+                            - pattern: $HC.$GET($URL, ...)
+                            - metavariable-regex:
+                                metavariable: $HC
+                                regex: ^((this\.)?_?(?!(?i:\w*(cache|store|storage|redis|blob|queue|session|context|accessor|config|settings)))\w*([cC]lient|[hH]ttp\w*)|[\w.]+\.CreateClient\([^)]*\)|new\s+(System\.Net\.)?WebClient\(\))$
+                    - metavariable-regex:
+                        metavariable: $GET
+                        regex: ^(Get(String|Stream|ByteArray)?Async|DownloadString(TaskAsync)?|DownloadData(TaskAsync)?|OpenRead(TaskAsync)?)$
+      # Not a page on another site: loopback hosts, a file address, and a path relative to the app
+      # itself (an HttpClient whose BaseAddress is the app's own server). A string read from inside
+      # a value comes without its quotes, so the quote is optional.
+      - metavariable-regex:
+          metavariable: $URL
+          regex: (?s)^(?![$@]{0,2}"?(https?://(localhost|127\.|0\.0\.0\.0|\[::1\])|file:|/(?!/))).*$
+    metadata:
+      activity: crawls_web
+      mentioned: performs
+      definition: https://lexlint.io/activities/crawls-web
+      provenance: ungovr-original
+      license: MIT
+      host_metavar: $URL

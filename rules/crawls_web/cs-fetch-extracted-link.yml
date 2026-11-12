@@ -1,0 +1,99 @@
+rules:
+  - id: lexcode.crawl.cs-fetch-extracted-link
+    languages: [csharp]
+    severity: INFO
+    message: Fetches a link taken from a page it has read (an anchor's href, an image's src), which is following links from site to site, crawling the web (crawls_web).
+    patterns:
+      # The fetch. HttpClient is in a namespace the .NET SDK imports implicitly, so its type is
+      # matched written in full and by its short name; a client from IHttpClientFactory has no
+      # declared type, so a receiver named for an HTTP client counts too. HtmlAgilityPack's HtmlWeb
+      # is written in full (the engine resolves `using` lines and aliases). A browser's navigation
+      # and AngleSharp's OpenAsync are read by their method names alone: the link read below is
+      # what makes the call a crawl. The address is a link read from a page (HtmlAgilityPack's
+      # GetAttributeValue and Attributes, AngleSharp's and Selenium's GetAttribute, Playwright's
+      # GetAttributeAsync), in the call itself or in the variable assigned from it before the call,
+      # and it may be wrapped (`new Uri(base, link)`). The engine needs a positive term in each
+      # branch, so the fetch is written in both.
+      - pattern-either:
+          # The link in the call itself.
+          - patterns:
+              - pattern-either:
+                  - patterns:
+                      - pattern-either:
+                          - pattern: (System.Net.Http.HttpClient $C).$GET($ARG, ...)
+                          - pattern: (HttpClient $C).$GET($ARG, ...)
+                          - patterns:
+                              - pattern: $C.$GET($ARG, ...)
+                              - metavariable-regex:
+                                  metavariable: $C
+                                  regex: ^((this\.)?_?(?!(?i:\w*(cache|store|storage|redis|blob|queue|session|context|accessor|config|settings)))\w*([cC]lient|[hH]ttp\w*)|[\w.]+\.CreateClient\([^)]*\))$
+                      - metavariable-regex:
+                          metavariable: $GET
+                          regex: ^Get(String|Stream|ByteArray)?Async$
+                  - pattern: new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Get, $ARG)
+                  - pattern: new HttpRequestMessage(HttpMethod.Get, $ARG)
+                  - pattern: (HtmlAgilityPack.HtmlWeb $W).Load($ARG, ...)
+                  - pattern: (HtmlAgilityPack.HtmlWeb $W).LoadFromWebAsync($ARG, ...)
+                  - pattern: $X.OpenAsync($ARG, ...)
+                  - pattern: $X.GotoAsync($ARG, ...)
+                  - pattern: $X.GoToAsync($ARG, ...)
+                  - pattern: $X.Navigate().GoToUrl($ARG)
+              - metavariable-pattern:
+                  metavariable: $ARG
+                  patterns:
+                    - pattern-either:
+                        - pattern: $N.GetAttributeValue($A, ...)
+                        - pattern: $N.Attributes[$A].Value
+                        - pattern: $N.GetAttribute($A)
+                        - pattern: $N.GetAttributeAsync($A)
+                    - metavariable-regex:
+                        metavariable: $A
+                        regex: ^"(href|src)"$
+          # The link in a variable assigned before the call.
+          - patterns:
+              - pattern-inside: |
+                  var $ARG = $LINK;
+                  ...
+              - pattern-either:
+                  - patterns:
+                      - pattern-either:
+                          - pattern: (System.Net.Http.HttpClient $C).$GET($ARG, ...)
+                          - pattern: (HttpClient $C).$GET($ARG, ...)
+                          - patterns:
+                              - pattern: $C.$GET($ARG, ...)
+                              - metavariable-regex:
+                                  metavariable: $C
+                                  regex: ^((this\.)?_?(?!(?i:\w*(cache|store|storage|redis|blob|queue|session|context|accessor|config|settings)))\w*([cC]lient|[hH]ttp\w*)|[\w.]+\.CreateClient\([^)]*\))$
+                      - metavariable-regex:
+                          metavariable: $GET
+                          regex: ^Get(String|Stream|ByteArray)?Async$
+                  - pattern: new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Get, $ARG)
+                  - pattern: new HttpRequestMessage(HttpMethod.Get, $ARG)
+                  - pattern: (HtmlAgilityPack.HtmlWeb $W).Load($ARG, ...)
+                  - pattern: (HtmlAgilityPack.HtmlWeb $W).LoadFromWebAsync($ARG, ...)
+                  - pattern: $X.OpenAsync($ARG, ...)
+                  - pattern: $X.GotoAsync($ARG, ...)
+                  - pattern: $X.GoToAsync($ARG, ...)
+                  - pattern: $X.Navigate().GoToUrl($ARG)
+              - metavariable-pattern:
+                  metavariable: $LINK
+                  patterns:
+                    - pattern-either:
+                        - pattern: $N.GetAttributeValue($A, ...)
+                        - pattern: $N.Attributes[$A].Value
+                        - pattern: $N.GetAttribute($A)
+                        - pattern: $N.GetAttributeAsync($A)
+                    - metavariable-regex:
+                        metavariable: $A
+                        regex: ^"(href|src)"$
+      # A link joined onto the app's own server (loopback, or a path relative to the app) is the app
+      # reading its own pages.
+      - metavariable-regex:
+          metavariable: $ARG
+          regex: (?s)^(?![$@]{0,2}"(https?://(localhost|127\.|0\.0\.0\.0|\[::1\])|/(?!/))).*$
+    metadata:
+      activity: crawls_web
+      mentioned: performs
+      definition: https://lexlint.io/activities/crawls-web
+      provenance: ungovr-original
+      license: MIT

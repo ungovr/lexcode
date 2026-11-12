@@ -1,0 +1,35 @@
+rules:
+  - id: lexcode.crawl.cs-crawler-framework
+    languages: [csharp]
+    severity: INFO
+    message: Builds a crawler on a crawling framework or crawler library (Abot, InfinityCrawler, DotnetSpider, TurnerSoftware.SitemapTools), which is crawling the web (crawls_web).
+    # Every type is written in full. The engine resolves C# `using` lines and aliases, and infers a
+    # local's type from `new T()` and target-typed `new()`, so a project's own `PoliteWebCrawler`,
+    # `Crawler`, `Spider` or `SitemapQuery` in another namespace is not taken for the library's. A
+    # library named only in another file's `global using` is not seen (rules/README.md).
+    pattern-either:
+      # Abot (2.x and 1.x): making the crawler, and an injected one starting a crawl.
+      - pattern: new Abot2.Crawler.PoliteWebCrawler(...)
+      - pattern: Abot2.Crawler.PoliteWebCrawler $V = new(...);
+      - pattern: new Abot.Crawler.PoliteWebCrawler(...)
+      - pattern: Abot.Crawler.PoliteWebCrawler $V = new(...);
+      - pattern: (Abot2.Crawler.IWebCrawler $C).CrawlAsync(...)
+      - pattern: (Abot.Crawler.IWebCrawler $C).Crawl(...)
+      # InfinityCrawler: making the crawler.
+      - pattern: new InfinityCrawler.Crawler(...)
+      - pattern: InfinityCrawler.Crawler $V = new(...);
+      # DotnetSpider: a spider class.
+      - pattern: |
+          class $K : DotnetSpider.Spider { ... }
+      # TurnerSoftware.SitemapTools: reading another site's sitemaps.
+      - patterns:
+          - pattern: (TurnerSoftware.SitemapTools.SitemapQuery $Q).$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(GetAllSitemapsForDomainAsync|DiscoverSitemapsAsync|GetSitemapAsync)$
+    metadata:
+      activity: crawls_web
+      mentioned: performs
+      definition: https://lexlint.io/activities/crawls-web
+      provenance: ungovr-original
+      license: MIT

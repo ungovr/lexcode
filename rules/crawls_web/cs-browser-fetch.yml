@@ -1,0 +1,49 @@
+rules:
+  - id: lexcode.crawl.cs-browser-fetch
+    languages: [csharp]
+    severity: INFO
+    message: Opens a web page from a site the operator may not run in an automated browser (Microsoft.Playwright, Selenium WebDriver, PuppeteerSharp), which is crawling the web (crawls_web).
+    patterns:
+      # One branch per browser, each read only from the first place the file names that browser's
+      # namespace (a `using` line, aliased or not, a `global using` in the same file, or a type
+      # written out in full) to its end; a comment that only mentions the library does not count.
+      # The page and driver objects come from factory calls
+      # (`await browser.NewPageAsync()`) whose type the engine does not infer, so a typed
+      # metavariable would miss most of them; the namespace stands in for the type. A project's own
+      # `IPage` or `IWebDriver` in another namespace does not admit the file, and one browser's
+      # namespace never admits another browser's call. A namespace is read whole, from its first
+      # segment, so an app namespace that ends in a browser's (Shop.Fakes.OpenQA.Selenium) does not
+      # count. A browser named only in another file's `global using` is not seen (rules/README.md).
+      - pattern-either:
+          - patterns:
+              - pattern-regex: '(?s)(?:\busing\s+(?:static\s+)?(?:\w+\s*=\s*)?(?:global::)?Microsoft\.Playwright\b|(?<![\w.])Microsoft\.Playwright\.\w).*'
+              - pattern: $P.GotoAsync($URL, ...)
+          - patterns:
+              - pattern-regex: '(?s)(?:\busing\s+(?:static\s+)?(?:\w+\s*=\s*)?(?:global::)?OpenQA\.Selenium\b|(?<![\w.])OpenQA\.Selenium\.\w).*'
+              - pattern-either:
+                  - pattern: $D.Navigate().GoToUrl($URL)
+                  # Setting the address navigates too, on a receiver named for a driver or browser.
+                  - patterns:
+                      - pattern: $D.Url = $URL
+                      - metavariable-regex:
+                          metavariable: $D
+                          regex: ^(this\.)?_?(\w*[dD]river|\w*[bB]rowser|wd)$
+          - patterns:
+              - pattern-regex: '(?s)(?:\busing\s+(?:static\s+)?(?:\w+\s*=\s*)?(?:global::)?PuppeteerSharp\b|(?<![\w.])PuppeteerSharp\.\w).*'
+              - pattern: $P.GoToAsync($URL, ...)
+      # Not a page on another site: loopback hosts; file, data, about and blob addresses (a browser
+      # rendering the app's own HTML to PDF); a path relative to the app itself, plain or
+      # interpolated; and an address built on a field or variable named for the app's own URL
+      # (`appUrl`, `_appUrl`, `AppUrl`). A `baseUrl` is not excluded, since a scraper often names
+      # its target site so. The engine prints an interpolated string as `$"` and its text with the
+      # braces dropped, which is the shape the last look-ahead reads.
+      - metavariable-regex:
+          metavariable: $URL
+          regex: (?s)^(?![$@]{0,2}"(https?://(localhost|127\.|0\.0\.0\.0|\[::1\])|(file|data|about|blob):|/(?!/)))(?!\$?@?"?\{?(this\.)?_?(?i:app_?url)\b).*$
+    metadata:
+      activity: crawls_web
+      mentioned: performs
+      definition: https://lexlint.io/activities/crawls-web
+      provenance: ungovr-original
+      license: MIT
+      host_metavar: $URL
