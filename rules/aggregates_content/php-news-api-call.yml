@@ -1,0 +1,24 @@
+rules:
+  - id: lexcode.aggregate.php-news-api-call
+    languages: [php]
+    severity: INFO
+    message: Pulls headlines and article snippets from a third-party news API, which is reusing other publishers' content (aggregates_content).
+    pattern-either:
+      # A news API's address in a string, whichever client sends it (Guzzle, Laravel Http, Symfony
+      # HttpClient, curl).
+      - pattern-regex: '["'']https?://(newsapi\.org/v2|newsdata\.io/api|gnews\.io/api|api\.nytimes\.com/svc/(topstories|mostpopular|search|news)|content\.guardianapis\.com|api\.mediastack\.com|api\.thenewsapi\.com|newsapi\.ai/api|api\.worldnewsapi\.com|api\.bing\.microsoft\.com/v7\.0/news)'
+      # The NewsAPI PHP client, read only in a file that names its namespace (imported, aliased or
+      # written out in full), so a project class with the same short name and method names is not
+      # taken for it.
+      - patterns:
+          - pattern-regex: '(?s)\A(?=.*\bjcobhams\\NewsApi\b).*'
+          - pattern-either:
+              - pattern: $N->getTopHeadlines(...)
+              - pattern: $N->getEverything(...)
+              - pattern: $N->getSources(...)
+    metadata:
+      activity: aggregates_content
+      mentioned: performs
+      definition: https://lexlint.io/activities/aggregates-content
+      provenance: ungovr-original
+      license: MIT

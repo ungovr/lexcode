@@ -1,0 +1,74 @@
+rules:
+  - id: lexcode.crawl.php-crawler-framework
+    languages: [php]
+    severity: INFO
+    message: Builds a crawler on a crawling framework (Spatie Crawler, Roach, crwlr), which is crawling the web (crawls_web).
+    # The engine does not resolve `use` imports, so each class is matched three ways: written out in
+    # full, by its short name under its own `use` line, and by an alias under `use ... as`. A project
+    # class with the same short name in another namespace (an app's own `Crawler` or `BasicSpider`,
+    # or Symfony's DomCrawler `Crawler`) matches none of them.
+    pattern-either:
+      # Spatie Crawler: Crawler::create(), the start of every crawl.
+      - pattern: \Spatie\Crawler\Crawler::create(...)
+      - patterns:
+          - pattern-inside: |
+              use Spatie\Crawler\Crawler;
+              ...
+          - pattern: Crawler::create(...)
+      - patterns:
+          - pattern-inside: |
+              use Spatie\Crawler\Crawler as $A;
+              ...
+          - pattern: $A::create(...)
+      # Roach: a spider class, and the runner that starts one.
+      - pattern: |
+          class $K extends \RoachPHP\Spider\BasicSpider { ... }
+      - patterns:
+          - pattern-inside: |
+              use RoachPHP\Spider\BasicSpider;
+              ...
+          - pattern: |
+              class $K extends BasicSpider { ... }
+      - patterns:
+          - pattern-inside: |
+              use RoachPHP\Spider\BasicSpider as $A;
+              ...
+          - pattern: |
+              class $K extends $A { ... }
+      - patterns:
+          - pattern-either:
+              - pattern: \RoachPHP\Roach::$M(...)
+              - patterns:
+                  - pattern-inside: |
+                      use RoachPHP\Roach;
+                      ...
+                  - pattern: Roach::$M(...)
+              - patterns:
+                  - pattern-inside: |
+                      use RoachPHP\Roach as $A;
+                      ...
+                  - pattern: $A::$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(startSpider|collectSpider)$
+      # crwlr: a crawler class.
+      - pattern: |
+          class $K extends \Crwlr\Crawler\HttpCrawler { ... }
+      - patterns:
+          - pattern-inside: |
+              use Crwlr\Crawler\HttpCrawler;
+              ...
+          - pattern: |
+              class $K extends HttpCrawler { ... }
+      - patterns:
+          - pattern-inside: |
+              use Crwlr\Crawler\HttpCrawler as $A;
+              ...
+          - pattern: |
+              class $K extends $A { ... }
+    metadata:
+      activity: crawls_web
+      mentioned: performs
+      definition: https://lexlint.io/activities/crawls-web
+      provenance: ungovr-original
+      license: MIT
