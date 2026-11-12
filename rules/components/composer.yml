@@ -1,6 +1,12 @@
 ecosystem: composer
 entries:
 
+  # Authentication and user management SDKs
+  - match: "devdojo/auth"
+    enables: [processes_personal_data]
+    says: "The auth package to make authentication in your laravel applications easy to use."
+    source: https://packagist.org/packages/devdojo/auth
+
   # Feed readers
   - match: "simplepie/simplepie"
     enables: [aggregates_content]
@@ -16,3 +22,9 @@ entries:
     enables: [automated_outreach]
     says: "Helps sending emails"
     source: https://packagist.org/packages/symfony/mailer
+
+  # Bundled cryptography
+  - match: "phpseclib/phpseclib"
+    enables: [ships_encryption]
+    says: "PHP Secure Communications Library - Pure-PHP implementations of RSA, AES, SSH2, SFTP, X.509 etc."
+    source: https://packagist.org/packages/phpseclib/phpseclib
