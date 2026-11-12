@@ -4,12 +4,12 @@
 //                           sleep: keep running for two minutes (a hung engine); sleep-ignore-term also ignores SIGTERM
 //   FAKE_OPENGREP_PID_FILE  write this process id there at the start of a scan run
 //   FAKE_OPENGREP_GRANDCHILD_PID_FILE  in the sleep modes, start a worker process and write its id there
-//   FAKE_OPENGREP_ARGV_LOG  append one JSON line {argv, cwd, env} per scan run
+//   FAKE_OPENGREP_ARGV_LOG  append one JSON line {argv, cwd, env, ruleIds} per scan run (ruleIds: the config's rule ids)
 //   FAKE_OPENGREP_ERRORS    JSON array that replaces the engine's errors
 //   FAKE_OPENGREP_RESULTS   JSON array that replaces the default results (ok and errors modes)
 //   FAKE_OPENGREP_VERSION   the version to print and report (default 1.33.1)
 import { spawn } from 'node:child_process';
-import { appendFileSync, readlinkSync, realpathSync, writeFileSync } from 'node:fs';
+import { appendFileSync, readFileSync, readlinkSync, realpathSync, writeFileSync } from 'node:fs';
 
 const argv = process.argv.slice(2);
 const version = process.env.FAKE_OPENGREP_VERSION ?? '1.33.1';
@@ -50,6 +50,13 @@ if (process.env.FAKE_OPENGREP_ARGV_LOG) {
       flags,
       targets,
       cwd: process.cwd(),
+      ruleIds: (() => {
+        try {
+          return [...readFileSync(options['--config'], 'utf8').matchAll(/^ {2}- id: (.+)$/gm)].map((m) => m[1]);
+        } catch {
+          return null;
+        }
+      })(),
       rootLink: (() => {
         try {
           return realpathSync(readlinkSync('scan-root'));

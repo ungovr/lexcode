@@ -77,6 +77,8 @@ export interface RuleMeta {
   replaces: string[];
   /** Set when a `pattern-regex` of the rule is a whole-file lookahead pre-filter (`\A(?=...)`). */
   wholeFilePrefilter?: true;
+  /** The rule's `paths.include` patterns, when it has a non-empty list of them. */
+  include?: string[];
 }
 
 export interface RegistryEntry {

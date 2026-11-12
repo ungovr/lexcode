@@ -173,6 +173,19 @@ only where the literal matched. What the test passes still has the reach, so a
 scan says in a notice how many files it handed the engine are over 1,000,000
 bytes in a language with such a rule.
 
+A scan hands the engine only the rules that have a file to read and only the
+files those rules read (#12997): every config parse costs time, about 2.6 s
+for the PHP rules alone, and a `generic` rule with no limit makes every file in
+the repository a target, photographs and all. So give a `generic`, `regex` or
+build-file rule a `paths.include`. lexcode tests each include's last segment
+(`*`, `?` and literal characters) against a path's file and directory names; an
+include with a bracket, a brace, a backslash, a `!` or `**` in its last segment
+cannot be tested that way, and the rule then reads every file of its languages.
+A rule's languages reach only the extensions `LANGUAGE_EXTENSIONS` in
+`src/record/build.ts` lists, so a new language lists every extension the engine
+reads for it, measured on explicit targets (a `javascript` rule also reads
+`.ts`); a rule naming a language lexcode does not map reads every file.
+
 A PHP taint rule keeps its pre-filter only when each source has a whole-file
 `pattern-regex` anchor and the rule has about six sources or fewer; beyond that
 the engine parses every file, so split a rule that grows past it. Two free
