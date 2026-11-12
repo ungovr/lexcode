@@ -537,9 +537,10 @@ A `.php` or `.phtml` file joins the `<script>` block extraction used for Vue,
 Svelte, HTML, Jinja, ERB and JSP, and the block is read as JavaScript. A block
 is looked for only in inline HTML: every PHP region (from `<?php`, `<?=` or
 `<?` to `?>`, or to the end of the file) is blanked before the search, so a
-`<script>` written inside a PHP string is not a block. Inside a block, a `<?= ... ?>`
-tag becomes `_` padded with spaces to its length, and every other PHP tag
-becomes spaces. Line breaks are kept, so line numbers hold. The scan of a PHP
+`<script>` written inside a PHP string is not a block. Inside a block, an output
+tag becomes `_` padded with spaces to its length, so the JavaScript around it
+still parses: `<?= ... ?>`, and a `<?php` or `<?` tag whose code begins with
+`echo` or `print` (in any case). Every other PHP tag becomes spaces. Line breaks are kept, so line numbers hold. The scan of a PHP
 region honors quotes, heredocs and comments.
 
 A `.blade.php` view (matched before `.php`) is read that way first. Then, inside
@@ -585,9 +586,12 @@ ruled before it is added.
 ### Known PHP gaps
 
 - On Opengrep 1.33.1 a `use X;` pattern also matches `use X as Y;`. Every PHP
-  short-name branch carries a `pattern-not-inside: use X as $A; ...` for it, so
-  a file that imports the same class both plainly and aliased loses its
-  plain-name matches.
+  branch that matches a class, facade or trait by its short name carries a
+  `pattern-not-inside: use X as $A; ...` for it, so a file that imports the same
+  class both plainly and aliased loses its plain-name matches. A rule that uses
+  `use X;` only as a file-level signal that the library is present (it then
+  matches a method call on a variable) has no such guard and counts an aliased
+  import too, on purpose.
 - A grouped `use A\{B, C};` cannot be written as a pattern. In a target file it
   is matched by a `use A\$C;` pattern, so only the patterns are affected.
 - Scanning a PHP region honors quotes, heredocs and comments. What remains is a

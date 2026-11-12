@@ -67,10 +67,11 @@ Languages: TypeScript, JavaScript (with JSX and TSX), Python, Go, Ruby
 `.phtml`, and `.inc`, `.module`, `.theme` and `.install` files that open with
 `<?php`), plus the `<script>` blocks of Vue, Svelte, HTML, Jinja, ERB (`.erb`,
 so `.html.erb`), JSP (`.jsp`, `.jspf`, `.tag`), PHP (`.php`, `.phtml`), Blade
-(`.blade.php`) and Twig (`.twig`, so `.html.twig`) files. In an ERB, JSP, PHP,
-Blade or Twig view only the `<script>` blocks are read, as JavaScript; the Ruby,
-Java, PHP or template code inside the tags is not (the tags are blanked, so line
-numbers hold). Code in any other language (Swift, C#, Rust and the like) is not
+(`.blade.php`) and Twig (`.twig`, so `.html.twig`) files. In an ERB, JSP or Twig
+view only the `<script>` blocks are read, as JavaScript; the Ruby, Java or
+template code inside the tags is not (the tags are blanked, so line numbers
+hold). A PHP, Blade or `.phtml` view is PHP source, so the whole file is also
+scanned as PHP, and its `<script>` blocks are read as JavaScript as well. Code in any other language (Swift, C#, Rust and the like) is not
 read, and the scan names each such language with its file count in a notice, so
 a missing activity there reads as "not checked", never as "not there".
 Manifests: npm

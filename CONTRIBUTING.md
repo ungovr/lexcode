@@ -117,7 +117,9 @@ PHP and Composer carry a prefix as well:
 | Composer | `composer-<what>` | `composer-<what>.yml`, fixtures `composer-<what>.test.json` and `.neg.test.json`; `languages: [json]` |
 
 A PHP rule is `lexcode.<activity-short>.php-<what>`, and a Composer rule is
-`lexcode.<activity-short>.composer-<what>`. A PHP fixture opens with `<?php`.
+`lexcode.<activity-short>.composer-<what>`. A PHP fixture opens with `<?php`. A JSON fixture cannot hold an expect comment,
+so each Composer fixture has a `.expect` file beside it (for example
+`composer-<what>.test.json.expect`) holding its match count as one integer.
 A second positive fixture for the same rule takes a middle word
 (`php-<what>.test.qualified.php`), which is how a fully qualified form with no
 import is pinned beside the imported one.
@@ -178,8 +180,12 @@ metavariables bound per array element and joined (`[..., $A => $X, ...]` with a
 `pattern-inside` of `[..., $B => $Y, ...]`) cost time quadratic in the array's
 size: put the names in string-literal regexes instead.
 
-A whole-file guard on a fully qualified PHP name takes a left boundary,
-`(?<![\w\\])`, so the name is not found as the tail of a longer name.
+A whole-file guard on a fully qualified PHP name checks its left boundary after
+the name, not before it: `NAME\b(?<!\wNAME)(?<![\w\\]\\NAME)`, and for a name
+written with a leading backslash `\\NAME\b(?<![\w\\]\\NAME)`. A lookbehind written
+before the name (`(?<![\w\\])\\?NAME`) costs steps at every position and lost the
+only match at the top of a file over about 600 KB. After the name it is tried
+only where the name matched.
 
 ### Kotlin pattern notes
 
@@ -224,8 +230,12 @@ Measured on Opengrep 1.33.1:
   form inside a `pattern-inside` of `use <FQN>;` followed by `...`.
 - An alias binds. A `pattern-inside` of `use Twilio\Rest\Client as $A;` followed
   by `...`, with `new $A(...)`, matches `new TwilioClient(...)`.
-- A `use X;` pattern also matches `use X as Y;`, so every short-name branch of a
-  twin carries a `pattern-not-inside` of `use X as $A;` followed by `...`.
+- A `use X;` pattern also matches `use X as Y;`, so every branch of a
+  twin that matches a class, facade or trait by its short name carries a
+  `pattern-not-inside` of `use X as $A;` followed by `...`. A rule that uses
+  `use X;` only as a file-level signal that the library is present, and matches
+  a method call on a variable, leaves the guard off so that an aliased import
+  counts too.
 - A grouped use (`use Aws\{S3\S3Client, ...};`) does not parse as a pattern, so
   it cannot be a guard. In a target file it is matched by a `use A\$C;` pattern.
 - `new $C(...)` with a `metavariable-regex` on the class name also matches an
