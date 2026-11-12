@@ -1,0 +1,22 @@
+rules:
+  - id: lexcode.identity.rb-idv-sdk
+    languages: [ruby]
+    severity: INFO
+    message: Checks who a person is with an identity-verification service (Stripe Identity, Onfido or Veriff), which is relying on a digital identity (relies_on_digital_identity).
+    pattern-either:
+      - pattern: Stripe::Identity::VerificationSession.create(...)
+      - pattern: ::Stripe::Identity::VerificationSession.create(...)
+      - pattern: Stripe::Identity::VerificationReport.retrieve(...)
+      - pattern: ::Stripe::Identity::VerificationReport.retrieve(...)
+      - pattern: Onfido::DefaultApi.new(...)
+      - pattern: ::Onfido::DefaultApi.new(...)
+      - pattern: Onfido::API.new(...)
+      - pattern: ::Onfido::API.new(...)
+      - pattern: Veriff::Session.create(...)
+      - pattern: ::Veriff::Session.create(...)
+    metadata:
+      activity: relies_on_digital_identity
+      mentioned: performs
+      definition: https://lexlint.io/glossary#relies-on-a-digital-identity
+      provenance: ungovr-original
+      license: MIT

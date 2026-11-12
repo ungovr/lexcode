@@ -82,6 +82,14 @@ describe('matchComponents', () => {
     expect(r.evidence[0]?.ev.rule).toBe('lexcode.manifest.go');
   });
 
+  it('matches a gem by name, and its evidence rule reads lexcode.manifest.gem', () => {
+    const d: Dependency = { ecosystem: 'gem', name: 'aws-sdk-s3', version: '1.140.0', manifest: 'Gemfile:6' };
+    const r = matchComponents([d], [], [entry({ ecosystem: 'gem', match: 'aws-sdk-s3', enables: ['stores_data'] })]);
+    expect(r.components[0]?.purl).toBe('pkg:gem/aws-sdk-s3@1.140.0');
+    expect(r.evidence[0]?.ev.rule).toBe('lexcode.manifest.gem');
+    expect(matchComponents([d], [], [entry({ ecosystem: 'npm', match: 'aws-sdk-s3', enables: ['x'] })]).components).toEqual([]);
+  });
+
   it('matches PyPI names after PEP 503 normalization on both sides', () => {
     const d: Dependency = {
       ecosystem: 'pypi',

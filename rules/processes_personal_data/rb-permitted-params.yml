@@ -1,0 +1,22 @@
+rules:
+  - id: lexcode.personal.rb-permitted-params
+    languages: [ruby]
+    severity: INFO
+    message: Accepts an email address, phone number, date of birth or government identifier from a submitted form through Rails strong parameters, which is processing personal data (processes_personal_data).
+    patterns:
+      - pattern-either:
+          - pattern: "params.permit(..., $K, ...)"
+          - pattern: "params.require(...).permit(..., $K, ...)"
+          - pattern: "params.fetch(...).permit(..., $K, ...)"
+          - pattern: "params.expect(..., $K, ...)"
+          - pattern: "params.expect(..., $X: [..., $K, ...])"
+      - metavariable-regex:
+          metavariable: $K
+          regex: (?i)^:?["']?(e_?mail|email_?(address|addr)?|(user|contact|work|primary|customer)_?e_?mail|phone(_?(number|no|num))?|mobile(_?(number|phone|no))?|telephone|date_?of_?birth|dob|birth_?(date|day)|birthday|ssn|social_?security(_?(number|no))?|national_?(id|insurance)(_?number)?|passport(_?(number|no))?|tax_?(id|number)|drivers?_?licen[sc]e(_?(number|no))?)["']?$
+      - focus-metavariable: $K
+    metadata:
+      activity: processes_personal_data
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-personal-data
+      provenance: ungovr-original
+      license: MIT

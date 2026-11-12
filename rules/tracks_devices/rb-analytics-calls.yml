@@ -1,0 +1,33 @@
+rules:
+  - id: lexcode.tracking.rb-analytics-calls
+    languages: [ruby]
+    severity: INFO
+    message: Sends visits or events to an analytics service, first-party (Ahoy) or third-party (Segment, Rudder, Mixpanel, PostHog, Amplitude or Staccato for Google Analytics), that follows the visitor with its own id, which is tracking devices (tracks_devices).
+    pattern-either:
+      - pattern: ahoy.track(...)
+      - pattern: Ahoy::Tracker.new(...)
+      - pattern: visitable :ahoy_visit
+      - pattern: visitable(:ahoy_visit, ...)
+      - pattern: Segment::Analytics.new(...)
+      - pattern: Rudder::Analytics.new(...)
+      - pattern: Mixpanel::Tracker.new(...)
+      - pattern: PostHog::Client.new(...)
+      - pattern: "$C.capture(..., distinct_id: $D, ...)"
+      - pattern: AmplitudeAPI.track(...)
+      - pattern: Staccato.tracker(...)
+      - patterns:
+          - pattern-either:
+              - pattern: Analytics.track(...)
+              - pattern: Analytics.identify(...)
+              - pattern: Analytics.page(...)
+              - pattern: Analytics.screen(...)
+              - pattern: Analytics.group(...)
+          - pattern-inside: |
+              require "segment/analytics"
+              ...
+    metadata:
+      activity: tracks_devices
+      mentioned: performs
+      definition: https://lexlint.io/activities/tracks-devices
+      provenance: ungovr-original
+      license: MIT

@@ -17,7 +17,10 @@ waits for a reviewer to approve the `npm` environment.
    runner live with LexLint's own code; the maintainers run them.
 3. Bump `version` in `package.json`, and `version` in `rules/ruleset.yml` when
    any rule or component-map entry changed. `npm install` to refresh the
-   lockfile's own version.
+   lockfile's own version. A rule-set bump also moves its three test pins:
+   `test/repos/rules-home/ruleset.yml` (a mirror the tests hold equal),
+   `test/unit/rules-load.test.ts` and the `version` line in
+   `test/unit/cli.test.ts`.
 4. Read the `package-lock.json` diff since the last release, line by line. A
    new dependency, direct or transitive, is named and justified in the
    release's issue.

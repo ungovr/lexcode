@@ -1,0 +1,17 @@
+rules:
+  - id: lexcode.train.rb-train-call
+    languages: [ruby]
+    severity: INFO
+    message: Trains a model on a dataset in one call with XGBoost, LightGBM or Eps, which is training models (trains_models).
+    pattern-either:
+      - pattern: XGBoost.train(...)
+      - pattern: LightGBM.train(...)
+      - pattern: "Eps::Model.new(..., target: $T, ...)"
+      - pattern: Eps::Regressor.new(...)
+      - pattern: Eps::Classifier.new(...)
+    metadata:
+      activity: trains_models
+      mentioned: performs
+      definition: https://lexlint.io/activities/trains-models
+      provenance: ungovr-original
+      license: MIT

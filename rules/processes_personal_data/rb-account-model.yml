@@ -1,0 +1,17 @@
+rules:
+  - id: lexcode.personal.rb-account-model
+    languages: [ruby]
+    severity: INFO
+    message: Declares a user account model with stored credentials (Devise, has_secure_password, Authlogic or Sorcery), which is processing personal data (processes_personal_data).
+    pattern-either:
+      - pattern: devise(..., :database_authenticatable, ...)
+      - pattern: devise(..., :registerable, ...)
+      - pattern: has_secure_password
+      - pattern: acts_as_authentic
+      - pattern: authenticates_with_sorcery!
+    metadata:
+      activity: processes_personal_data
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-personal-data
+      provenance: ungovr-original
+      license: MIT

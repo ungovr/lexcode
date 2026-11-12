@@ -90,7 +90,7 @@ export interface RegistryEntry {
 }
 
 export interface ComponentEntry {
-  ecosystem: 'npm' | 'pypi' | 'golang' | 'files';
+  ecosystem: 'npm' | 'pypi' | 'golang' | 'gem' | 'files';
   match: string;
   enables: string[];
   says: string;
@@ -107,7 +107,7 @@ export interface RuleSet {
 }
 
 export interface Dependency {
-  ecosystem: 'npm' | 'pypi' | 'golang';
+  ecosystem: 'npm' | 'pypi' | 'golang' | 'gem';
   name: string;
   version?: string;
   /** POSIX path ':' line of the dependency's entry in its manifest. */

@@ -1,0 +1,39 @@
+rules:
+  - id: lexcode.voice.rb-transcription-api
+    languages: [ruby]
+    severity: INFO
+    message: Sends recorded speech to a speech-to-text service from Ruby, which is transcribing human voices (processes_voice).
+    patterns:
+      - pattern-either:
+          # ruby-openai: client.audio.transcribe / translate (a parameters: hash)
+          - pattern: $C.audio.transcribe(...)
+          - pattern: $C.audio.translate(...)
+          # the official openai gem
+          - pattern: $C.audio.transcriptions.create(...)
+          - pattern: $C.audio.translations.create(...)
+          # aws-sdk-transcribeservice and aws-sdk-transcribestreamingservice
+          - pattern: $C.start_transcription_job(...)
+          - pattern: $C.start_medical_transcription_job(...)
+          - pattern: $C.start_call_analytics_job(...)
+          - pattern: $C.start_stream_transcription(...)
+          - pattern: $C.start_medical_stream_transcription(...)
+          - pattern: $C.start_call_analytics_stream_transcription(...)
+          # google-cloud-speech: the audio: and recognizer: keywords keep a local recognize out
+          - pattern: $C.long_running_recognize(...)
+          - pattern: $C.streaming_recognize(...)
+          - pattern: "$C.recognize(..., audio: $A, ...)"
+          - pattern: "$C.recognize(..., recognizer: $R, ...)"
+          - patterns:
+              - pattern: Google::Cloud::Speech::$V::$REQ.new(...)
+              - metavariable-regex:
+                  metavariable: $REQ
+                  regex: ^(Streaming|LongRunning|Batch)?RecognizeRequest$
+          # the assemblyai gem
+          - pattern: $C.transcripts.transcribe(...)
+          - pattern: $C.transcripts.submit(...)
+    metadata:
+      activity: processes_voice
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-voice
+      provenance: ungovr-original
+      license: MIT

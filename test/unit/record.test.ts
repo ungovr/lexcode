@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { buildRecord, countRulesRun } from '../../src/record/build.js';
+import { buildRecord, countRulesRun, engineTargets, unreadLanguages } from '../../src/record/build.js';
+import { loadRuleSet } from '../../src/rules/load.js';
 import type { Sidecar } from '../../src/types.js';
 import { NOW, SCOPE, match, ruleSetWith } from '../helpers/record.js';
 
@@ -271,7 +272,7 @@ describe('buildRecord', () => {
 
   describe('a repository lexcode cannot read (S4)', () => {
     const rs = ruleSetWith([{ id: 'lexcode.voice.whisper', activity: 'processes_voice' }]);
-    const noRead = /no file in scope is in a language lexcode reads \(TypeScript, JavaScript, Python, Go, and script blocks in HTML, Vue, Svelte and Jinja\); nothing was looked at/;
+    const noRead = /no file in scope is in a language lexcode reads \(TypeScript, JavaScript, Python, Go and Ruby, and script blocks in HTML, Vue, Svelte, Jinja and ERB\); nothing was looked at/;
 
     it('adds a notice when no code rule had a file to read', () => {
       const rulesRun = countRulesRun(rs, rs.rules, ['app.rb', 'README.md'], new Set());
@@ -288,6 +289,31 @@ describe('buildRecord', () => {
       const withJson = ruleSetWith([{ id: 'lexcode.voice.whisper', activity: 'processes_voice' }, { id: 'lexcode.cfg.json', activity: 'tracks_devices', languages: ['json'] }]);
       const rulesRun = countRulesRun(withJson, withJson.rules.filter((x) => x.id.startsWith('lexcode.cfg') || x.id === 'lexcode.voice.whisper'), ['app.rb', 'package.json'], new Set());
       expect(buildRecord({ ...base, rs: withJson, rulesRun }).notices.join('\n')).toMatch(noRead);
+    });
+
+    it('the notice names every language and view type lexcode reads, Ruby and ERB included', () => {
+      const rulesRun = countRulesRun(rs, rs.rules, ['app.rb', 'README.md'], new Set());
+      const text = buildRecord({ ...base, rs, rulesRun }).notices.find((n) => n.startsWith('no file in scope is in a language lexcode reads')) ?? '';
+      for (const name of ['TypeScript', 'JavaScript', 'Python', 'Go', 'Ruby', 'HTML', 'Vue', 'Svelte', 'Jinja', 'ERB']) {
+        expect(text).toMatch(new RegExp(`\\b${name}\\b`));
+      }
+    });
+
+    it('stays in step with the bundled rules: every source language a rule reads is named', () => {
+      const display: Record<string, string> = {
+        typescript: 'TypeScript',
+        javascript: 'JavaScript',
+        python: 'Python',
+        go: 'Go',
+        ruby: 'Ruby',
+      };
+      // settings formats and build-file readers are not source languages
+      const notSource = new Set(['json', 'yaml', 'yml', 'xml', 'generic', 'regex']);
+      const rulesRun = countRulesRun(rs, rs.rules, ['app.rb', 'README.md'], new Set());
+      const text = buildRecord({ ...base, rs, rulesRun }).notices.find((n) => n.startsWith('no file in scope is in a language lexcode reads')) ?? '';
+      const langs = new Set(loadRuleSet().rules.flatMap((r) => r.languages.map((l) => l.toLowerCase())));
+      const unnamed = [...langs].filter((l) => !notSource.has(l) && !new RegExp(`\\b${display[l] ?? `no name for ${l}`}\\b`).test(text));
+      expect(unnamed).toEqual([]);
     });
 
     it('a component map entry that ran does not stand in for a code rule', () => {
@@ -342,5 +368,33 @@ describe('countRulesRun', () => {
     const m = countRulesRun(rs, rs.rules, ['a.rb'], new Set());
     expect(m.get('trains_models')).toBeUndefined();
     expect(m.get('tracks_devices')).toBe(2);
+  });
+});
+
+describe('unreadLanguages for Ruby', () => {
+  const files = ['a.rb', 'b.rake', 'c.php'];
+  /** The rules of the test alone: the helper's rule set carries the bundled ones as well. */
+  const only = (rs: ReturnType<typeof ruleSetWith>) => rs.rules.filter((r) => r.id.startsWith('lexcode.a.'));
+
+  it('reads .rb and .rake with a Ruby rule, so only PHP is unread', () => {
+    const rs = ruleSetWith([{ id: 'lexcode.a.rb', activity: 'trains_models', languages: ['ruby'] }]);
+    expect(unreadLanguages(only(rs), files)).toEqual([{ language: 'PHP', files: 1 }]);
+  });
+
+  it('counts .rb and .rake as Ruby files when no rule reads Ruby', () => {
+    const rs = ruleSetWith([{ id: 'lexcode.a.py', activity: 'trains_models', languages: ['python'] }]);
+    expect(unreadLanguages(only(rs), files)).toEqual([
+      { language: 'Ruby', files: 2 },
+      { language: 'PHP', files: 1 },
+    ]);
+  });
+
+  it('counts .ru and .gemspec as Ruby, and hands them to a Ruby rule', () => {
+    const rs = ruleSetWith([{ id: 'lexcode.a.rb', activity: 'trains_models', languages: ['ruby'] }]);
+    const all = ['config.ru', 'x.gemspec', 'y.rb'];
+    expect(unreadLanguages(only(rs), all)).toEqual([]);
+    expect(engineTargets(only(rs), [...all, 'z.py'])).toEqual(all);
+    const py = ruleSetWith([{ id: 'lexcode.a.py', activity: 'trains_models', languages: ['python'] }]);
+    expect(unreadLanguages(only(py), all)).toEqual([{ language: 'Ruby', files: 3 }]);
   });
 });

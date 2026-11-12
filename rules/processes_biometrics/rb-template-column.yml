@@ -1,0 +1,24 @@
+rules:
+  - id: lexcode.biometric.rb-template-column
+    languages: [ruby]
+    severity: INFO
+    message: Defines a column or attachment that holds a biometric template (a face embedding, a fingerprint template, a voiceprint), which is storing biometric data (processes_biometrics).
+    patterns:
+      # A pre-filter: `t.$TYPE $N` has no literal of its own, so without this the engine parses
+      # every Ruby file. The name pattern below decides what matches.
+      - pattern-regex: (face|facial|finger|voice|speaker|iris|palm|biometric)
+      - pattern-either:
+          - pattern: t.$TYPE $N, ...
+          - pattern: add_column $TABLE, $N, ...
+          - pattern: has_one_attached $N, ...
+          - pattern: has_many_attached $N, ...
+          - pattern: has_neighbors $N, ...
+      - metavariable-regex:
+          metavariable: $N
+          regex: ^[:"']?(faceprints?|voiceprints?|biometric_(templates?|data)|(face|facial)_(templates?|embeddings?|encodings?|descriptors?|geometry|vector|prints?|scan)|(finger|fingerprint)_(templates?|minutiae|scan|image)|(voice|speaker)_(templates?|embeddings?|prints?)|iris_(templates?|code|scan)|palm_(templates?|prints?|scan|vein))["']?$
+    metadata:
+      activity: processes_biometrics
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-biometrics
+      provenance: ungovr-original
+      license: MIT

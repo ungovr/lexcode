@@ -1,0 +1,39 @@
+rules:
+  - id: lexcode.personal.rb-third-party-person
+    languages: [ruby]
+    severity: INFO
+    message: Sends a person's email address, or a hash of it, to a third-party service (Stripe, Sentry, Segment, Intercom, Mailchimp through Gibbon, HubSpot or Gravatar), which is processing personal data (processes_personal_data).
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: "Stripe::Customer.create(..., email: $E, ...)"
+              - pattern: "Stripe::Customer.create({..., email: $E, ...})"
+              - pattern: "Stripe::Customer.update($ID, ..., email: $E, ...)"
+              - pattern: "Sentry.set_user(..., email: $E, ...)"
+              - pattern: "Sentry.set_user({..., email: $E, ...})"
+              - pattern: "Raven.user_context(..., email: $E, ...)"
+              - pattern: "$A.identify(..., traits: {..., email: $E, ...}, ...)"
+              - pattern: "$I.contacts.create(..., email: $E, ...)"
+              - pattern: "Hubspot::Contact.create(..., email: $E, ...)"
+          - metavariable-regex:
+              metavariable: $E
+              regex: ^[^"']
+          - focus-metavariable: $E
+      # The two shapes below are matched on text first (the regex) so the engine does not test
+      # every string and every call in every file; the AST pattern is what confirms the match.
+      - patterns:
+          - pattern-regex: 'gravatar\.com/avatar/#\{'
+          - pattern-either:
+              - pattern: '"https://secure.gravatar.com/avatar/#{$H}..."'
+              - pattern: '"https://www.gravatar.com/avatar/#{$H}..."'
+      - patterns:
+          - pattern-regex: '(?s)\bmembers\b.{0,3000}?\bemail_address\s*(:|=>)'
+          - pattern-either:
+              - pattern: "$G.members.create(..., body: {..., email_address: $E, ...}, ...)"
+              - pattern: "$G.members(...).upsert(..., body: {..., email_address: $E, ...}, ...)"
+    metadata:
+      activity: processes_personal_data
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-personal-data
+      provenance: ungovr-original
+      license: MIT

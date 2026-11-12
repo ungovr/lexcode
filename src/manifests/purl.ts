@@ -17,7 +17,7 @@ function encPath(path: string): string {
 /**
  * Build the package URL of a dependency. npm keeps its case and percent-encodes a
  * scope's `@`; PyPI is normalized per PEP 503; Go namespace and name are lowercased,
- * as the purl specification requires for the golang type.
+ * as the purl specification requires for the golang type; a gem name is kept as written.
  */
 export function purlOf(d: Dependency): string {
   let type: string;
@@ -34,6 +34,10 @@ export function purlOf(d: Dependency): string {
     case 'golang':
       type = 'golang';
       name = d.name.toLowerCase();
+      break;
+    case 'gem':
+      type = 'gem';
+      name = d.name;
       break;
   }
   const base = `pkg:${type}/${encPath(name)}`;

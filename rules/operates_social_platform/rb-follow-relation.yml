@@ -1,0 +1,53 @@
+rules:
+  - id: lexcode.social.rb-follow-relation
+    languages: [ruby]
+    severity: INFO
+    message: Defines a follow or friendship relation between user accounts, which is how people connect on a social platform (operates_social_platform).
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: |
+                  belongs_to :followed, ...
+              - pattern: |
+                  belongs_to :followee, ...
+              - pattern: |
+                  belongs_to :following, ...
+              - pattern: |
+                  belongs_to :followed_user, ...
+          - pattern-inside: |
+              class $C < $P
+                ...
+                belongs_to :follower, ...
+                ...
+              end
+      - pattern: |
+          class Friendship < $P
+            ...
+          end
+      - pattern: |
+          class FriendRequest < $P
+            ...
+          end
+      - pattern: |
+          class Friend < $P
+            ...
+          end
+      - pattern: |
+          has_many :followers, ...
+      - pattern: |
+          has_many :following, ...
+      - pattern: |
+          has_many :followees, ...
+      - pattern: |
+          has_many :followed_users, ...
+      - pattern: |
+          acts_as_follower
+      - pattern: |
+          acts_as_followable
+    metadata:
+      activity: operates_social_platform
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/operates-social-platform
+      provenance: ungovr-original
+      license: MIT

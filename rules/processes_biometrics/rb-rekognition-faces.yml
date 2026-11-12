@@ -1,0 +1,26 @@
+rules:
+  - id: lexcode.biometric.rb-rekognition-faces
+    languages: [ruby]
+    severity: INFO
+    message: Matches or indexes faces with Amazon Rekognition from Ruby, which is recognizing people from face geometry (processes_biometrics).
+    pattern-either:
+      # Keyword arguments. The Rekognition keyword keeps a local method of the same name out.
+      - pattern: "$C.compare_faces(..., source_image: $X, ...)"
+      - pattern: "$C.index_faces(..., collection_id: $X, ...)"
+      - pattern: "$C.search_faces(..., collection_id: $X, ...)"
+      - pattern: "$C.search_faces_by_image(..., collection_id: $X, ...)"
+      - pattern: "$C.search_users(..., collection_id: $X, ...)"
+      - pattern: "$C.search_users_by_image(..., collection_id: $X, ...)"
+      # The hash form the AWS SDK documentation uses.
+      - pattern: "$C.compare_faces({ ..., source_image: $X, ... })"
+      - pattern: "$C.index_faces({ ..., collection_id: $X, ... })"
+      - pattern: "$C.search_faces({ ..., collection_id: $X, ... })"
+      - pattern: "$C.search_faces_by_image({ ..., collection_id: $X, ... })"
+      - pattern: "$C.search_users({ ..., collection_id: $X, ... })"
+      - pattern: "$C.search_users_by_image({ ..., collection_id: $X, ... })"
+    metadata:
+      activity: processes_biometrics
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-biometrics
+      provenance: ungovr-original
+      license: MIT

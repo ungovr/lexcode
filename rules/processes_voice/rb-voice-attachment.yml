@@ -1,0 +1,21 @@
+rules:
+  - id: lexcode.voice.rb-voice-attachment
+    languages: [ruby]
+    severity: INFO
+    message: Stores a person's recorded voice as a model attachment (a voice note, a voice message or a voicemail), which is storing human voices (processes_voice).
+    patterns:
+      - pattern-either:
+          - pattern: has_one_attached $N, ...
+          - pattern: has_many_attached $N, ...
+          - pattern: mount_uploader $N, ...
+          - pattern: mount_uploaders $N, ...
+          - pattern: has_attached_file $N, ...
+      - metavariable-regex:
+          metavariable: $N
+          regex: ^:(voicemails?|voice_(notes?|messages?|memos?|recordings?|clips?))$
+    metadata:
+      activity: processes_voice
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-voice
+      provenance: ungovr-original
+      license: MIT

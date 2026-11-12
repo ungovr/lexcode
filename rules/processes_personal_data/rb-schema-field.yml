@@ -1,0 +1,33 @@
+rules:
+  - id: lexcode.personal.rb-schema-field
+    languages: [ruby]
+    severity: INFO
+    message: Declares a stored column for an email, phone number, date of birth, government identifier or IP address in a Rails migration or schema, which is processing personal data (processes_personal_data).
+    patterns:
+      - pattern-either:
+          # The text test first keeps the engine from walking every call in every file: the AST
+          # patterns below are what confirm the match, the regex is what makes the rule cheap.
+          - patterns:
+              - pattern-regex: (?i)\b(t|table)(?:\s|\\|#[^\n]*+)*+&?\.(?:\s|\\|#[^\n]*+)*+(string|text|citext|varchar|char|column|date|datetime|inet|cidr|integer|bigint|binary)\b[\s(]+:?["']?(e_?mail|email_?(address|addr)?|(user|contact|work|primary|customer|unconfirmed)_?e_?mail|phone(_?(number|no|num))?|mobile(_?(number|phone|no))?|telephone|date_?of_?birth|dob|birth_?(date|day)|birthday|ssn|social_?security(_?(number|no))?|national_?(id|insurance)(_?number)?|passport(_?(number|no))?|tax_?(id|number)|drivers?_?licen[sc]e(_?(number|no))?|ip_?(address|addr)?|last_?(sign_?in_?)?ip(_?address)?|current_?sign_?in_?ip|client_?ip|remote_?(addr|ip|address))["']?(?![A-Za-z0-9_])
+              - pattern-either:
+                  - pattern: "t.$M($F, ...)"
+                  - pattern: "table.$M($F, ...)"
+              - metavariable-regex:
+                  metavariable: $M
+                  regex: ^(string|text|citext|varchar|char|column|date|datetime|inet|cidr|integer|bigint|binary)$
+              - metavariable-regex:
+                  metavariable: $F
+                  regex: (?i)^:?["']?(e_?mail|email_?(address|addr)?|(user|contact|work|primary|customer|unconfirmed)_?e_?mail|phone(_?(number|no|num))?|mobile(_?(number|phone|no))?|telephone|date_?of_?birth|dob|birth_?(date|day)|birthday|ssn|social_?security(_?(number|no))?|national_?(id|insurance)(_?number)?|passport(_?(number|no))?|tax_?(id|number)|drivers?_?licen[sc]e(_?(number|no))?|ip_?(address|addr)?|last_?(sign_?in_?)?ip(_?address)?|current_?sign_?in_?ip|client_?ip|remote_?(addr|ip|address))["']?$
+              - focus-metavariable: $F
+          - patterns:
+              - pattern: "add_column($TBL, $F, ...)"
+              - metavariable-regex:
+                  metavariable: $F
+                  regex: (?i)^:?["']?(e_?mail|email_?(address|addr)?|(user|contact|work|primary|customer|unconfirmed)_?e_?mail|phone(_?(number|no|num))?|mobile(_?(number|phone|no))?|telephone|date_?of_?birth|dob|birth_?(date|day)|birthday|ssn|social_?security(_?(number|no))?|national_?(id|insurance)(_?number)?|passport(_?(number|no))?|tax_?(id|number)|drivers?_?licen[sc]e(_?(number|no))?|ip_?(address|addr)?|last_?(sign_?in_?)?ip(_?address)?|current_?sign_?in_?ip|client_?ip|remote_?(addr|ip|address))["']?$
+              - focus-metavariable: $F
+    metadata:
+      activity: processes_personal_data
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-personal-data
+      provenance: ungovr-original
+      license: MIT

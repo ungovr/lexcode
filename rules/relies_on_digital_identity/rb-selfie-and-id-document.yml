@@ -1,0 +1,118 @@
+rules:
+  - id: lexcode.identity.rb-selfie-and-id-document
+    languages: [ruby]
+    severity: INFO
+    message: 'Holds a face or selfie image beside an image of a photo ID, the shape of document-and-selfie identity verification, whose result the app acts on (relies_on_digital_identity). The verifier usually matches the face to the ID photo, so ask about processes_biometrics too.'
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: has_one_attached $FACE, ...
+              - pattern: has_attached_file $FACE, ...
+              - pattern: mount_uploader $FACE, ...
+              - pattern: has_one_base64_attached $FACE, ...
+          - metavariable-regex:
+              metavariable: $FACE
+              regex: '(?i)^:?["'']?(?:selfie|liveness|face_?(?:image|photo|img|picture|pic|capture|snapshot|scan))\w*["'']?:?$'
+          - pattern-either:
+              - pattern-inside: |
+                  class $C
+                    ...
+                    has_one_attached $DOC, ...
+                    ...
+                  end
+              - pattern-inside: |
+                  class $C
+                    ...
+                    has_attached_file $DOC, ...
+                    ...
+                  end
+              - pattern-inside: |
+                  class $C
+                    ...
+                    mount_uploader $DOC, ...
+                    ...
+                  end
+              - pattern-inside: |
+                  class $C
+                    ...
+                    has_one_base64_attached $DOC, ...
+                    ...
+                  end
+          - metavariable-regex:
+              metavariable: $DOC
+              regex: '(?i)^:?["'']?(?:photo_?id_?(?:image|img|photo|card|doc|document|scan|front|back|upload|file)|id_?(?:document|doc|card|photo|image|img|scan|front|back)|identity_?(?:document|doc|card)|identification_?(?:image|photo|document|doc|card)|passport_?(?:image|photo|scan|page|front)|drivers?_?licen[cs]e_?(?:image|photo|scan|front|back)|document_?(?:image|photo|front|back|scan))\w*["'']?:?$'
+      - patterns:
+          - pattern-either:
+              - pattern: $P.permit(..., :selfie, ...)
+              - pattern: $P.permit(..., :selfie_image, ...)
+              - pattern: $P.permit(..., :selfie_photo, ...)
+              - pattern: $P.permit(..., :liveness, ...)
+              - pattern: $P.permit(..., :liveness_capture, ...)
+              - pattern: $P.permit(..., :liveness_image, ...)
+              - pattern: $P.permit(..., :face_image, ...)
+              - pattern: $P.permit(..., :face_photo, ...)
+              - pattern: $P.permit(..., :face_capture, ...)
+          - pattern-regex: (?i)(?<![\w.@$])[:"']?(?:photo_?id_?(?:image|img|photo|card|doc|document|scan|front|back|upload|file)|id_?(?:document|doc|card|photo|image|img|scan|front|back)|identity_?(?:document|doc|card)|identification_?(?:image|photo|document|doc|card)|passport_?(?:image|photo|scan|page|front)|drivers?_?licen[cs]e_?(?:image|photo|scan|front|back)|document_?(?:image|photo|front|back|scan))\w*["']?(?=\s*(?::(?!:)|=>|,|\)))
+      - patterns:
+          - pattern-either:
+              - pattern: '{..., selfie: $V, ...}'
+              - pattern: '{..., "selfie" => $V, ...}'
+              - pattern: '$F(..., selfie: $V, ...)'
+              - pattern: '$F(..., "selfie" => $V, ...)'
+              - pattern: '$F(..., :selfie => $V, ...)'
+              - pattern: '{..., :selfie => $V, ...}'
+              - pattern: '{..., selfie_image: $V, ...}'
+              - pattern: '{..., "selfie_image" => $V, ...}'
+              - pattern: '$F(..., selfie_image: $V, ...)'
+              - pattern: '$F(..., "selfie_image" => $V, ...)'
+              - pattern: '$F(..., :selfie_image => $V, ...)'
+              - pattern: '{..., :selfie_image => $V, ...}'
+              - pattern: '{..., selfie_photo: $V, ...}'
+              - pattern: '{..., "selfie_photo" => $V, ...}'
+              - pattern: '$F(..., selfie_photo: $V, ...)'
+              - pattern: '$F(..., "selfie_photo" => $V, ...)'
+              - pattern: '$F(..., :selfie_photo => $V, ...)'
+              - pattern: '{..., :selfie_photo => $V, ...}'
+              - pattern: '{..., liveness: $V, ...}'
+              - pattern: '{..., "liveness" => $V, ...}'
+              - pattern: '$F(..., liveness: $V, ...)'
+              - pattern: '$F(..., "liveness" => $V, ...)'
+              - pattern: '$F(..., :liveness => $V, ...)'
+              - pattern: '{..., :liveness => $V, ...}'
+              - pattern: '{..., liveness_capture: $V, ...}'
+              - pattern: '{..., "liveness_capture" => $V, ...}'
+              - pattern: '$F(..., liveness_capture: $V, ...)'
+              - pattern: '$F(..., "liveness_capture" => $V, ...)'
+              - pattern: '$F(..., :liveness_capture => $V, ...)'
+              - pattern: '{..., :liveness_capture => $V, ...}'
+              - pattern: '{..., liveness_image: $V, ...}'
+              - pattern: '{..., "liveness_image" => $V, ...}'
+              - pattern: '$F(..., liveness_image: $V, ...)'
+              - pattern: '$F(..., "liveness_image" => $V, ...)'
+              - pattern: '$F(..., :liveness_image => $V, ...)'
+              - pattern: '{..., :liveness_image => $V, ...}'
+              - pattern: '{..., face_image: $V, ...}'
+              - pattern: '{..., "face_image" => $V, ...}'
+              - pattern: '$F(..., face_image: $V, ...)'
+              - pattern: '$F(..., "face_image" => $V, ...)'
+              - pattern: '$F(..., :face_image => $V, ...)'
+              - pattern: '{..., :face_image => $V, ...}'
+              - pattern: '{..., face_photo: $V, ...}'
+              - pattern: '{..., "face_photo" => $V, ...}'
+              - pattern: '$F(..., face_photo: $V, ...)'
+              - pattern: '$F(..., "face_photo" => $V, ...)'
+              - pattern: '$F(..., :face_photo => $V, ...)'
+              - pattern: '{..., :face_photo => $V, ...}'
+              - pattern: '{..., face_capture: $V, ...}'
+              - pattern: '{..., "face_capture" => $V, ...}'
+              - pattern: '$F(..., face_capture: $V, ...)'
+              - pattern: '$F(..., "face_capture" => $V, ...)'
+              - pattern: '$F(..., :face_capture => $V, ...)'
+              - pattern: '{..., :face_capture => $V, ...}'
+          - pattern-regex: (?i)(?<![\w.@$])[:"']?(?:photo_?id_?(?:image|img|photo|card|doc|document|scan|front|back|upload|file)|id_?(?:document|doc|card|photo|image|img|scan|front|back)|identity_?(?:document|doc|card)|identification_?(?:image|photo|document|doc|card)|passport_?(?:image|photo|scan|page|front)|drivers?_?licen[cs]e_?(?:image|photo|scan|front|back)|document_?(?:image|photo|front|back|scan))\w*["']?(?=\s*(?::(?!:)|=>|,|\)))
+    metadata:
+      activity: relies_on_digital_identity
+      mentioned: performs
+      definition: https://lexlint.io/glossary#relies-on-a-digital-identity
+      provenance: ungovr-original
+      license: MIT

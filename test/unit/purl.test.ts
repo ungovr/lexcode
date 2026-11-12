@@ -29,6 +29,10 @@ describe('purlOf', () => {
       purlOf({ ecosystem: 'golang', name: 'github.com/Azure/go-autorest', version: 'v0.11.0', manifest: 'go.mod:5' }),
     ).toBe('pkg:golang/github.com/azure/go-autorest@v0.11.0');
   });
+  it('keeps a gem name as written, with its version', () => {
+    expect(purlOf({ ecosystem: 'gem', name: 'aws-sdk-s3', version: '1.140.0', manifest: 'Gemfile:5' })).toBe('pkg:gem/aws-sdk-s3@1.140.0');
+    expect(purlOf({ ecosystem: 'gem', name: 'Rails_Admin', manifest: 'Gemfile:5' })).toBe('pkg:gem/Rails_Admin');
+  });
   it('percent-encodes a plus sign in a version', () => {
     expect(
       purlOf({ ecosystem: 'golang', name: 'github.com/a/b', version: 'v2.0.0+incompatible', manifest: 'go.mod:5' }),
