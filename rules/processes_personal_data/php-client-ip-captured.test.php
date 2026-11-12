@@ -1,11 +1,13 @@
 <?php
-// lexcode-expect: 10
+// lexcode-expect: 13
 // The visitor's IP address written into a log or a database.
 
 namespace App\Http\Controllers;
 
 use App\Models\ActivityLog;
+use App\Models\Comment;
 use App\Models\LoginAttempt;
+use App\Models\Visitor;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -70,6 +72,17 @@ class AuditController
     {
         // Laravel: an update with the address under an address-named key.
         $user->update(['last_login_ip' => $request->ip()]);
+    }
+
+    public function visited(Request $request): void
+    {
+        // Laravel: an upsert given an array built first as its second argument.
+        $visit = ['path' => $request->path(), 'ip' => $request->ip()];
+        Visitor::updateOrCreate(['session_id' => $request->session()->getId()], $visit);
+
+        // Address keys with a prefix of their own.
+        Comment::create(['body' => $request->input('body'), 'author_ip' => $request->ip()]);
+        DB::table('votes')->insert(['poll_id' => 7, 'user_ip' => $request->ip()]);
     }
 }
 
