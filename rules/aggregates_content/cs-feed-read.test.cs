@@ -1,4 +1,4 @@
-// lexcode-expect: 13
+// lexcode-expect: 14
 using System.ServiceModel.Syndication;
 using System.Xml;
 using CodeHollow.FeedReader;
@@ -26,6 +26,10 @@ public class HeadlineCollector(IHttpClientFactory factory, IFeedParser feedParse
 
         await using var body = await _http.GetStreamAsync(feedUrl);
         var fourth = SyndicationFeed.Load(XmlReader.Create(body));
+
+        // A feed address built on a base the reader holds for the publisher.
+        var onBase = await _http.GetStreamAsync($"{feedUrl}/rss/{DateTime.UtcNow.Year}");
+        var fifth = SyndicationFeed.Load(XmlReader.Create(onBase));
 
         Rss20FeedFormatter formatter = new();
         formatter.ReadFrom(XmlReader.Create(feedUrl));

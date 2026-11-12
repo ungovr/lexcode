@@ -7,7 +7,8 @@ rules:
       # One branch per browser, each read only from the first place the file names that browser's
       # namespace (a `using` line at the start of a line, aliased or not, a `global using` in the
       # same file, or a type written out in full on a line that does not open with a comment) to its
-      # end. Prose that mentions the library, or a commented-out `//using ...;`, does not count.
+      # end. Prose that mentions the library, or a commented-out `//using ...;`, does not count. A
+      # UTF-8 byte order mark may stand before the first line.
       # The page and driver objects come from factory calls
       # (`await browser.NewPageAsync()`) whose type the engine does not infer, so a typed
       # metavariable would miss most of them; the namespace stands in for the type. A project's own
@@ -17,10 +18,10 @@ rules:
       # count. A browser named only in another file's `global using` is not seen (rules/README.md).
       - pattern-either:
           - patterns:
-              - pattern-regex: '(?s)(?m:^[ \t]*(?:global[ \t]+)?using[ \t]+(?:static[ \t]+)?(?:\w+[ \t]*=[ \t]*)?(?:global::)?Microsoft\.Playwright\b|^(?![ \t]*(?://|/?\*))[^\n]*?(?<![\w.])Microsoft\.Playwright\.\w).*'
+              - pattern-regex: '(?s)(?m:^\x{FEFF}?[ \t]*(?:global[ \t]+)?using[ \t]+(?:static[ \t]+)?(?:\w+[ \t]*=[ \t]*)?(?:global::)?Microsoft\.Playwright\b|^(?!\x{FEFF}?[ \t]*(?://|/?\*))[^\n]*?(?<![\w.])Microsoft\.Playwright\.\w).*'
               - pattern: $P.GotoAsync($URL, ...)
           - patterns:
-              - pattern-regex: '(?s)(?m:^[ \t]*(?:global[ \t]+)?using[ \t]+(?:static[ \t]+)?(?:\w+[ \t]*=[ \t]*)?(?:global::)?OpenQA\.Selenium\b|^(?![ \t]*(?://|/?\*))[^\n]*?(?<![\w.])OpenQA\.Selenium\.\w).*'
+              - pattern-regex: '(?s)(?m:^\x{FEFF}?[ \t]*(?:global[ \t]+)?using[ \t]+(?:static[ \t]+)?(?:\w+[ \t]*=[ \t]*)?(?:global::)?OpenQA\.Selenium\b|^(?!\x{FEFF}?[ \t]*(?://|/?\*))[^\n]*?(?<![\w.])OpenQA\.Selenium\.\w).*'
               - pattern-either:
                   - pattern: $D.Navigate().GoToUrl($URL)
                   # Setting the address navigates too, on a receiver named for a driver or browser.
@@ -30,7 +31,7 @@ rules:
                           metavariable: $D
                           regex: ^(this\.)?_?(\w*[dD]river|\w*[bB]rowser|wd)$
           - patterns:
-              - pattern-regex: '(?s)(?m:^[ \t]*(?:global[ \t]+)?using[ \t]+(?:static[ \t]+)?(?:\w+[ \t]*=[ \t]*)?(?:global::)?PuppeteerSharp\b|^(?![ \t]*(?://|/?\*))[^\n]*?(?<![\w.])PuppeteerSharp\.\w).*'
+              - pattern-regex: '(?s)(?m:^\x{FEFF}?[ \t]*(?:global[ \t]+)?using[ \t]+(?:static[ \t]+)?(?:\w+[ \t]*=[ \t]*)?(?:global::)?PuppeteerSharp\b|^(?!\x{FEFF}?[ \t]*(?://|/?\*))[^\n]*?(?<![\w.])PuppeteerSharp\.\w).*'
               - pattern: $P.GoToAsync($URL, ...)
       # Not a page on another site: loopback hosts; file, data, about and blob addresses (a browser
       # rendering the app's own HTML to PDF); a path relative to the app itself, plain or

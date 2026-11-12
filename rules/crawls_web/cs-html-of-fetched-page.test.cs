@@ -1,4 +1,4 @@
-// lexcode-expect: 10
+// lexcode-expect: 14
 using System.Net;
 using AngleSharp;
 using AngleSharp.Html.Parser;
@@ -47,5 +47,17 @@ public class ListingReader(HtmlWeb injectedWeb, IHttpClientFactory factory)
         var virtualDoc = await context.OpenAsync(req => req.Content(body));
 
         return document.Links.Length + parsed.Links.Length + virtualDoc.Links.Length;
+    }
+
+    // Addresses built on a base the scraper holds for its target site, the commonest shape.
+    public async Task BaseAddressAsync(string baseUrl, string siteRoot, int id, int n)
+    {
+        var doc = new HtmlDocument();
+        doc.LoadHtml(await _http.GetStringAsync($"{baseUrl}/listing/{id}"));
+        var page = await _http.GetStringAsync($"{siteRoot}/page/{n}");
+        doc.LoadHtml(page);
+        new HtmlWeb().Load($"{baseUrl}/page/{n}");
+        var context = BrowsingContext.New(Configuration.Default.WithDefaultLoader());
+        await context.OpenAsync($"{baseUrl}/page/{n}");
     }
 }

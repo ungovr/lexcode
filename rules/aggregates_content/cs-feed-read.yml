@@ -34,11 +34,13 @@ rules:
                   - pattern-inside: new Microsoft.SyndicationFeed.Rss.RssFeedReader(...)
                   - pattern-inside: new Microsoft.SyndicationFeed.Atom.AtomFeedReader(...)
               - pattern: System.Xml.XmlReader.Create($SRC, ...)
-              # The download's address, read with its quotes here: a literal that is not an http or
-              # https address (a path relative to the client's BaseAddress, `pages/{id}`) is the app's own.
+              # The download's address, read with its quotes and braces here: a plain literal, or an
+              # interpolated one that starts with text, that is not an http or https address (a path
+              # relative to the client's BaseAddress, `pages/{id}`) is the app's own. One that starts with an
+              # interpolation (`$"{baseUrl}/listing/{id}"`) is built on a base the code holds and stays matched.
               - metavariable-regex:
                   metavariable: $SRC
-                  regex: (?s)^(?!.*\b(Get(String|Stream|ByteArray)?Async|DownloadString(TaskAsync)?|DownloadData(TaskAsync)?|OpenRead(TaskAsync)?)\(\s*[$@]{0,2}"(?!https?://)).*$
+                  regex: (?s)^(?!.*\b(Get(String|Stream|ByteArray)?Async|DownloadString(TaskAsync)?|DownloadData(TaskAsync)?|OpenRead(TaskAsync)?)\(\s*(?:@?"(?!https?://)|(?:\$@?|@\$)"(?!https?://|\{))).*$
               - metavariable-pattern:
                   metavariable: $SRC
                   patterns:
@@ -82,11 +84,13 @@ rules:
                   - pattern: (System.ServiceModel.Syndication.Atom10FeedFormatter $F).ReadFrom($R)
                   - pattern: new Microsoft.SyndicationFeed.Rss.RssFeedReader($R, ...)
                   - pattern: new Microsoft.SyndicationFeed.Atom.AtomFeedReader($R, ...)
-              # The download's address, read with its quotes here: a literal that is not an http or
-              # https address (a path relative to the client's BaseAddress, `pages/{id}`) is the app's own.
+              # The download's address, read with its quotes and braces here: a plain literal, or an
+              # interpolated one that starts with text, that is not an http or https address (a path
+              # relative to the client's BaseAddress, `pages/{id}`) is the app's own. One that starts with an
+              # interpolation (`$"{baseUrl}/listing/{id}"`) is built on a base the code holds and stays matched.
               - metavariable-regex:
                   metavariable: $FETCH
-                  regex: (?s)^(?!.*\b(Get(String|Stream|ByteArray)?Async|DownloadString(TaskAsync)?|DownloadData(TaskAsync)?|OpenRead(TaskAsync)?)\(\s*[$@]{0,2}"(?!https?://)).*$
+                  regex: (?s)^(?!.*\b(Get(String|Stream|ByteArray)?Async|DownloadString(TaskAsync)?|DownloadData(TaskAsync)?|OpenRead(TaskAsync)?)\(\s*(?:@?"(?!https?://)|(?:\$@?|@\$)"(?!https?://|\{))).*$
               - metavariable-pattern:
                   metavariable: $FETCH
                   patterns:
@@ -108,11 +112,13 @@ rules:
                   - pattern-inside: new Microsoft.SyndicationFeed.Rss.RssFeedReader(...)
                   - pattern-inside: new Microsoft.SyndicationFeed.Atom.AtomFeedReader(...)
               - pattern: System.Xml.XmlReader.Create($S, ...)
-              # The download's address, read with its quotes here: a literal that is not an http or
-              # https address (a path relative to the client's BaseAddress, `pages/{id}`) is the app's own.
+              # The download's address, read with its quotes and braces here: a plain literal, or an
+              # interpolated one that starts with text, that is not an http or https address (a path
+              # relative to the client's BaseAddress, `pages/{id}`) is the app's own. One that starts with an
+              # interpolation (`$"{baseUrl}/listing/{id}"`) is built on a base the code holds and stays matched.
               - metavariable-regex:
                   metavariable: $FETCH
-                  regex: (?s)^(?!.*\b(Get(String|Stream|ByteArray)?Async|DownloadString(TaskAsync)?|DownloadData(TaskAsync)?|OpenRead(TaskAsync)?)\(\s*[$@]{0,2}"(?!https?://)).*$
+                  regex: (?s)^(?!.*\b(Get(String|Stream|ByteArray)?Async|DownloadString(TaskAsync)?|DownloadData(TaskAsync)?|OpenRead(TaskAsync)?)\(\s*(?:@?"(?!https?://)|(?:\$@?|@\$)"(?!https?://|\{))).*$
               - metavariable-pattern:
                   metavariable: $FETCH
                   patterns:
@@ -141,11 +147,13 @@ rules:
               - metavariable-regex:
                   metavariable: $LOAD
                   regex: ^(Load|Parse|Read)(Async)?$
-              # The download's address, read with its quotes here: a literal that is not an http or
-              # https address (a path relative to the client's BaseAddress, `pages/{id}`) is the app's own.
+              # The download's address, read with its quotes and braces here: a plain literal, or an
+              # interpolated one that starts with text, that is not an http or https address (a path
+              # relative to the client's BaseAddress, `pages/{id}`) is the app's own. One that starts with an
+              # interpolation (`$"{baseUrl}/listing/{id}"`) is built on a base the code holds and stays matched.
               - metavariable-regex:
                   metavariable: $SRC
-                  regex: (?s)^(?!.*\b(Get(String|Stream|ByteArray)?Async|DownloadString(TaskAsync)?|DownloadData(TaskAsync)?|OpenRead(TaskAsync)?)\(\s*[$@]{0,2}"(?!https?://)).*$
+                  regex: (?s)^(?!.*\b(Get(String|Stream|ByteArray)?Async|DownloadString(TaskAsync)?|DownloadData(TaskAsync)?|OpenRead(TaskAsync)?)\(\s*(?:@?"(?!https?://)|(?:\$@?|@\$)"(?!https?://|\{))).*$
               - metavariable-pattern:
                   metavariable: $SRC
                   patterns:
@@ -167,11 +175,13 @@ rules:
               - metavariable-regex:
                   metavariable: $LOAD
                   regex: ^(Load|Parse|Read)(Async)?$
-              # The download's address, read with its quotes here: a literal that is not an http or
-              # https address (a path relative to the client's BaseAddress, `pages/{id}`) is the app's own.
+              # The download's address, read with its quotes and braces here: a plain literal, or an
+              # interpolated one that starts with text, that is not an http or https address (a path
+              # relative to the client's BaseAddress, `pages/{id}`) is the app's own. One that starts with an
+              # interpolation (`$"{baseUrl}/listing/{id}"`) is built on a base the code holds and stays matched.
               - metavariable-regex:
                   metavariable: $FETCH
-                  regex: (?s)^(?!.*\b(Get(String|Stream|ByteArray)?Async|DownloadString(TaskAsync)?|DownloadData(TaskAsync)?|OpenRead(TaskAsync)?)\(\s*[$@]{0,2}"(?!https?://)).*$
+                  regex: (?s)^(?!.*\b(Get(String|Stream|ByteArray)?Async|DownloadString(TaskAsync)?|DownloadData(TaskAsync)?|OpenRead(TaskAsync)?)\(\s*(?:@?"(?!https?://)|(?:\$@?|@\$)"(?!https?://|\{))).*$
               - metavariable-pattern:
                   metavariable: $FETCH
                   patterns:
