@@ -2,7 +2,8 @@
 // lexcode-expect: 0
 // Not a batch send: Filament's Notification toast, an app's own Notification class in another
 // namespace imported under the short name and sent to many, the Notification facade to one
-// notifiable, to one address and to the administrators, a Mailchimp audience read, a Mailgun send to
+// notifiable, to one address and to the administrators (by any name, admin users included, which
+// only the administrators' term holds out), a Mailchimp audience read, a Mailgun send to
 // one person, and a report built from many rows.
 namespace App\Http\Controllers;
 
@@ -20,12 +21,13 @@ final class ProfileController
         return back();
     }
 
-    public function invite(Request $request, array $admins)
+    public function invite(Request $request, array $admins, array $adminUsers)
     {
         $address = $request->input('email');
         \Illuminate\Support\Facades\Notification::route('mail', $address)->notify(new Invitation());
         \Illuminate\Support\Facades\Notification::send($address, new Invitation());
         \Illuminate\Support\Facades\Notification::send($admins, new InvitationSent($address));
+        \Illuminate\Support\Facades\Notification::send($adminUsers, new InvitationSent($address));
         return back();
     }
 

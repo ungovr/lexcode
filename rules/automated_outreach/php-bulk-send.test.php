@@ -1,8 +1,9 @@
 <?php
-// lexcode-expect: 15
+// lexcode-expect: 16
 // One message to many recipients in one call: Laravel's Notification facade to a collection (under an
-// alias, fully qualified and as the global alias), Amazon SES bulk sends, Firebase multicast, a
-// Mailchimp campaign, Twilio Notify, Postmark and Resend batches, a Brevo campaign and a Mailgun batch.
+// alias, fully qualified and as the global alias, and to a query walked with lazyById()), Amazon SES
+// bulk sends, Firebase multicast, a Mailchimp campaign, Twilio Notify, Postmark and Resend batches, a
+// Brevo campaign and a Mailgun batch.
 namespace App\Services;
 
 use Illuminate\Support\Facades\Notification as Notifier;
@@ -15,6 +16,7 @@ final class Announcements
         Notifier::send(User::all(), new ProductLaunch());
         \Illuminate\Support\Facades\Notification::send($this->subscribers, new ProductLaunch());
         \Notification::sendNow(User::where('opted_in', true)->get(), new ProductLaunch());
+        \Illuminate\Support\Facades\Notification::send(User::where('opted_in', true)->lazyById(), new ProductLaunch());
     }
 
     public function ses(SesClient $ses, SesV2Client $sesV2): void
