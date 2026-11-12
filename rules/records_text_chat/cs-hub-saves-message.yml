@@ -9,8 +9,9 @@ rules:
     # rule's anchors (Chat(Message|Turn|...), Conversation(Message|...), or a bare Message): a DbSet
     # named for them, a new message handed to a context or repository, a repository or store named for
     # messages, or a method named for saving one (SaveMessageAsync, AddChatMessageAsync), its name with no
-    # free middle and no Append or Log verb, so CreateChatAsync, AddNotificationMessageAsync, a
-    # StringBuilder's AppendLine and an audit log's LogEntry or LogMessage do not count. A hub that only relays
+    # free middle, nouns Message, Msg, Turn or Transcript only, and no Log verb, so CreateChatAsync,
+    # AddNotificationMessageAsync, a StringBuilder's AppendLine and an audit log's LogEntry or
+    # LogMessage do not count, while AppendMessageAsync and RecordMessageAsync do. A hub that only relays
     # (Clients.All.SendAsync), one that saves a position, a connection, a chat room or a notification,
     # and a static list in the hub (kept only until the process ends) do not match.
     patterns:
@@ -49,9 +50,9 @@ rules:
               - pattern: $R.$M(...)
               - metavariable-regex:
                   metavariable: $M
-                  regex: ^(Save|Store|Persist|Insert|Add|Create)(Chat|Conversation)?(Message|Msg|Turn|Transcript)s?(Async)?$
+                  regex: ^(Save|Store|Persist|Insert|Add|Create|Append|Record)(Chat|Conversation)?(Message|Msg|Turn|Transcript)s?(Async)?$
       # Literal anchor inside the match (the write), so the engine skips files with no such call.
-      - pattern-regex: '\.(Add|Insert|Save|Create|Upsert|Store|Persist|Append)\w*\('
+      - pattern-regex: '\.(Add|Insert|Save|Create|Upsert|Store|Persist|Append|Record)\w*\('
     metadata:
       activity: records_text_chat
       mentioned: performs

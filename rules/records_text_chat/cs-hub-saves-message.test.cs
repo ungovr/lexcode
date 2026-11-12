@@ -1,7 +1,7 @@
-// lexcode-expect: 4
+// lexcode-expect: 6
 // What a person sends to a SignalR hub, written to a store: a DbSet of messages, a context's Add of a new message, a
-// chat service's save method (in a strongly typed hub with a primary constructor), and a message repository in a hub
-// named under an alias.
+// chat service's save, append and record methods (in a strongly typed hub with a primary constructor), and a message
+// repository in a hub named under an alias.
 using Microsoft.AspNetCore.SignalR;
 using Sr = Microsoft.AspNetCore.SignalR;
 
@@ -28,6 +28,8 @@ public class SupportHub(IChatService chatService) : Hub<ISupportClient>
     public async Task Send(string text)
     {
         await chatService.SaveMessageAsync(Context.UserIdentifier!, text);
+        await chatService.AppendMessageAsync(Context.UserIdentifier!, text);
+        await chatService.RecordMessageAsync(Context.UserIdentifier!, text);
         await Clients.Others.Receive(text);
     }
 }

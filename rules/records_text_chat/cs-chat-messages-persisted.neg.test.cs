@@ -40,6 +40,7 @@ public class SupportService(AppDb db, ChatRoomRepository chatRoomRepository, Sys
         chatContext.Messages.Add(new ChatMessage { Role = ChatRole.User, Text = text });
         chatContext.Messages.Add(new PromptTurn { Role = "user", Content = text });
         chatContext.ChatMessages.Add(new ChatMessage(ChatRole.User, text));
+        chatContext.Add(new ChatMessage { Role = ChatRole.User, Text = text });
         db.Add(new UserRoleEntry { Role = "user", UserId = text });
         db.Members.Add(new MemberEntry { Role = UserRole.User, Name = text });
     }

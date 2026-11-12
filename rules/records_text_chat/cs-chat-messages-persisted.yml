@@ -17,8 +17,9 @@ rules:
     # asynchronous add, never on `this` or a state object with List's Add or AddRange; the entity branch
     # needs a receiver named for a store and leaves Microsoft.Extensions.AI's ChatMessage out; and a list
     # named for the chat history counts only with a store's method (an insert, a save, an asynchronous add).
-    # A receiver named for a chat, conversation, prompt, session or history (`chatContext`,
-    # `conversationContext`) is a holder object, not a store, even when its name ends in Context.
+    # A receiver that begins with chat, conversation, prompt, session or history and ends in a bare
+    # Context (`chatContext`, `conversationContext`) is taken for a holder object, and its synchronous
+    # Add stays out as ambiguous; with a store suffix (`chatDb`, `chatDbContext`) it is a store.
     #
     # The C# counterpart of php/rb-assistant-turns-stored: a message or turn record (or an entry named
     # for a chat or transcript) handed to a DbContext or repository with a literal user or assistant role
@@ -33,7 +34,10 @@ rules:
               regex: ^(Chat(Message|Msg|Turn|Entry|History|Histories|Log|Transcript)|Conversation(Message|Turn|Entry|Transcript)|Dialog(Message|Turn))s?$
           - metavariable-regex:
               metavariable: $CTX
-              regex: (?i)^(?!(this\.)?_?(chat|conversation|prompt|session|history))(this\.)?_?\w*(db|context|ctx|uow|unitofwork|repo|repository|store|database)$
+              # A store suffix (db, dbcontext, ctx, uow, repo, repository, store, dao, database) counts
+              # whatever the prefix (chatDbContext, chatDb); a bare Context suffix only without a holder
+              # prefix, so chatContext.ChatMessages.Add stays out as ambiguous.
+              regex: (?i)^(this\.)?_?\w*(db|dbcontext|ctx|uow|unitofwork|repo|repository|store|dao|database)$|^(?!(this\.)?_?(chat|conversation|prompt|session|history))(this\.)?_?\w*context$
           - metavariable-regex:
               metavariable: $W
               regex: ^(Add|AddAsync|AddRange|AddRangeAsync)$
@@ -43,9 +47,7 @@ rules:
           - metavariable-regex:
               metavariable: $SET
               regex: ^(Chat(Message|Msg|Turn|Entry|History|Histories|Log|Transcript)|Conversation(Message|Turn|Entry|Transcript)|Dialog(Message|Turn))s?$
-          - metavariable-regex:
-              metavariable: $CTX
-              regex: (?i)^(?!(this\.)?_?\w*(db|context|ctx|uow|unitofwork|repo|repository|store|database)$)
+          # EF Core's asynchronous adds; an in-memory list has neither, so any receiver counts.
           - metavariable-regex:
               metavariable: $W
               regex: ^(AddAsync|AddRangeAsync)$
@@ -55,12 +57,13 @@ rules:
       - patterns:
           - pattern: $R.$W(<... new $T(...) { ... } ...>)
           - pattern-not-inside: $R.$W(new Microsoft.Extensions.AI.ChatMessage(...) { ... })
-          # A DbContext-style receiver (db, dbContext, _context, ctx, uow, a name ending DbContext) or one
-          # ending repo, repository, store or dao, optionally with a set after it (`db.Messages`); never a
-          # holder named for a chat, conversation, prompt, session or history (`chatContext.Messages`).
+          # A receiver with a store suffix whatever its prefix (chatDb.Messages, conversationDb), or a
+          # Context suffix without a holder prefix, optionally with a set after it (`db.Messages`); a
+          # holder named for a chat, conversation, prompt, session or history (`chatContext.Messages`)
+          # does not count.
           - metavariable-regex:
               metavariable: $R
-              regex: (?i)^(?!(this\.)?_?(chat|conversation|prompt|session|history))(this\.)?_?(db|dbcontext|\w*dbcontext|context|ctx|uow|unitofwork|\w*(repo|repository|store|dao))(\.\w+)?$
+              regex: (?i)^(this\.)?_?\w*(db|dbcontext|ctx|uow|unitofwork|repo|repository|store|dao|database)(\.\w+)?$|^(?!(this\.)?_?(chat|conversation|prompt|session|history))(this\.)?_?\w*context(\.\w+)?$
           # A message or turn record, or an entry named for a chat or transcript; an account's
           # UserRoleEntry or MemberEntry carries a role that is not a conversation's.
           - metavariable-regex:
@@ -77,7 +80,7 @@ rules:
           - pattern-not-inside: $R.$W(new Microsoft.Extensions.AI.ChatMessage(...))
           - metavariable-regex:
               metavariable: $R
-              regex: (?i)^(?!(this\.)?_?(chat|conversation|prompt|session|history))(this\.)?_?\w*(context|db|repository|repo|store|dao|collection|container|table|unitofwork)$
+              regex: (?i)^(this\.)?_?\w*(db|dbcontext|ctx|uow|unitofwork|repo|repository|store|dao|database|collection|container|table)$|^(?!(this\.)?_?(chat|conversation|prompt|session|history))(this\.)?_?\w*context$
           - metavariable-regex:
               metavariable: $T
               regex: ^(\w+\.)*(Chat(Message|Msg|Turn|Entry|History|Log|Transcript)|Conversation(Message|Turn|Entry|Transcript)|Dialog(Message|Turn))$
