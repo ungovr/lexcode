@@ -1,0 +1,29 @@
+rules:
+  - id: lexcode.biometric.cs-device-biometric-prompt
+    languages: [csharp]
+    severity: INFO
+    message: Asks the phone to confirm the user with a fingerprint or face, which may be using biometric data (processes_biometrics).
+    # Library types are written in full: the engine resolves a file's `using` lines and aliases, so an
+    # app's own BiometricPrompt or LAContext in another namespace is not taken for the platform's.
+    # Windows Hello's UserConsentVerifier accepts a PIN and is identity, not biometric processing, and
+    # an iOS policy that accepts the passcode is not biometrics-only; both are left out.
+    pattern-either:
+      # Plugin.Fingerprint (.NET MAUI, Xamarin), through its default instance or injected
+      - pattern: Plugin.Fingerprint.CrossFingerprint.Current.AuthenticateAsync(...)
+      - pattern: (Plugin.Fingerprint.Abstractions.IFingerprint $F).AuthenticateAsync(...)
+      # .NET for Android: AndroidX's BiometricPrompt and the platform prompt's builder.
+      # `new T(...) { ... }` also matches a construction with no initializer, and `T $V = new(...)
+      # { ... };` a target-typed one.
+      - pattern: new AndroidX.Biometric.BiometricPrompt(...) { ... }
+      - pattern: AndroidX.Biometric.BiometricPrompt $V = new(...) { ... };
+      - pattern: new Android.Hardware.Biometrics.BiometricPrompt.Builder(...) { ... }
+      # .NET for iOS and Mac Catalyst: LocalAuthentication with the biometrics-only policy
+      - pattern: (LocalAuthentication.LAContext $C).EvaluatePolicy(LocalAuthentication.LAPolicy.DeviceOwnerAuthenticationWithBiometrics, ...)
+      - pattern: (LocalAuthentication.LAContext $C).EvaluatePolicyAsync(LocalAuthentication.LAPolicy.DeviceOwnerAuthenticationWithBiometrics, ...)
+    metadata:
+      activity: processes_biometrics
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/processes-biometrics
+      provenance: ungovr-original
+      license: MIT

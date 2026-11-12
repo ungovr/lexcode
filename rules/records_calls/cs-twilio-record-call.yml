@@ -1,0 +1,33 @@
+rules:
+  - id: lexcode.calls.cs-twilio-record-call
+    languages: [csharp]
+    severity: INFO
+    message: Places a Twilio call or opens a video room with recording turned on, or starts recording a live call, which is recording a call (records_calls).
+    # Twilio's types are written in full: the engine resolves a file's `using` lines and aliases, so an
+    # app's own CallResource or CreateCallOptions in another namespace is not taken for them.
+    pattern-either:
+      # Placing a call, or opening a video room, with a record option that is not false: named
+      # arguments, call options in an initializer (target-typed too), or the option set afterwards.
+      - patterns:
+          - pattern-either:
+              - pattern: "Twilio.Rest.Api.V2010.Account.CallResource.Create(..., record: $V, ...)"
+              - pattern: "Twilio.Rest.Api.V2010.Account.CallResource.CreateAsync(..., record: $V, ...)"
+              - pattern: "new Twilio.Rest.Api.V2010.Account.CreateCallOptions(...) { ..., Record = $V, ... }"
+              - pattern: "Twilio.Rest.Api.V2010.Account.CreateCallOptions $O = new(...) { ..., Record = $V, ... };"
+              - pattern: (Twilio.Rest.Api.V2010.Account.CreateCallOptions $O).Record = $V
+              - pattern: "Twilio.Rest.Video.V1.RoomResource.Create(..., recordParticipantsOnConnect: $V, ...)"
+              - pattern: "Twilio.Rest.Video.V1.RoomResource.CreateAsync(..., recordParticipantsOnConnect: $V, ...)"
+              - pattern: "new Twilio.Rest.Video.V1.CreateRoomOptions(...) { ..., RecordParticipantsOnConnect = $V, ... }"
+              - pattern: (Twilio.Rest.Video.V1.CreateRoomOptions $O).RecordParticipantsOnConnect = $V
+          - metavariable-regex:
+              metavariable: $V
+              regex: ^(?!\s*false\s*$)
+      # Starting to record a call that is in progress.
+      - pattern: Twilio.Rest.Api.V2010.Account.Call.RecordingResource.Create(...)
+      - pattern: Twilio.Rest.Api.V2010.Account.Call.RecordingResource.CreateAsync(...)
+    metadata:
+      activity: records_calls
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-calls
+      provenance: ungovr-original
+      license: MIT

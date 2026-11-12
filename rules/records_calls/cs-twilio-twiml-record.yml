@@ -1,0 +1,29 @@
+rules:
+  - id: lexcode.calls.cs-twilio-twiml-record
+    languages: [csharp]
+    severity: INFO
+    message: Answers a Twilio call with TwiML that records it, which is recording a call (records_calls).
+    # Twilio's types are written in full: the engine resolves a file's `using` lines and aliases, so
+    # Record counts only on Twilio's VoiceResponse and Record verb, not on an app's own VoiceResponse, an
+    # app's own record type named Record, or an audit log with a Record method.
+    pattern-either:
+      # The Record verb, on the response or built on its own (target-typed too)
+      - pattern: (Twilio.TwiML.VoiceResponse $R).Record(...)
+      - pattern: new Twilio.TwiML.Voice.Record(...) { ... }
+      - pattern: Twilio.TwiML.Voice.Record $V = new(...) { ... };
+      # A Dial or a Conference with a record setting other than DoNotRecord
+      - patterns:
+          - pattern-either:
+              - pattern: "(Twilio.TwiML.VoiceResponse $R).Dial(..., record: $V, ...)"
+              - pattern: "new Twilio.TwiML.Voice.Dial(..., record: $V, ...) { ... }"
+              - pattern: "(Twilio.TwiML.Voice.Dial $D).Conference(..., record: $V, ...)"
+              - pattern: "new Twilio.TwiML.Voice.Conference(..., record: $V, ...) { ... }"
+          - metavariable-regex:
+              metavariable: $V
+              regex: ^(?![\s\S]*\bDoNotRecord\s*$)
+    metadata:
+      activity: records_calls
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-calls
+      provenance: ungovr-original
+      license: MIT
