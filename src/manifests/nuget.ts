@@ -10,10 +10,12 @@ import { parseXml, XmlError, type XmlElement } from './xml.js';
  * Its name is the package Id as written, compared case-insensitively, and its manifest is the line of
  * the element. `Update` and `Remove` forms add no dependency.
  *
- * Skipped and counted as development: a reference whose `PrivateAssets` is `all`, every reference of a
- * test project (`<IsTestProject>true</IsTestProject>`, or a reference to `Microsoft.NET.Test.Sdk`), every
- * `<GlobalPackageReference>` (analyzers and build tools), and a `packages.config` entry marked
- * `developmentDependency="true"`.
+ * Skipped and counted as development: a reference whose `PrivateAssets` is `all`; every reference of a
+ * test project (`<IsTestProject>true</IsTestProject>`, a reference to `Microsoft.NET.Test.Sdk`, or the
+ * `MSTest.Sdk` project SDK); every `<GlobalPackageReference>` (analyzers and build tools); and a
+ * `packages.config` entry marked `developmentDependency="true"`. A Directory.Build file is not a project,
+ * so it is judged reference by reference: a reference is development there when it, or its enclosing
+ * `<ItemGroup>`, has a `Condition` that names `IsTestProject`, and `Microsoft.NET.Test.Sdk` always is.
  *
  * A version comes, in order, from the `packages.lock.json` beside the file (the first framework in file
  * order that lists the Id as a `Direct` dependency), the reference's own `VersionOverride` or `Version`,
@@ -30,6 +32,9 @@ const PACKAGES_PROPS = 'Directory.Packages.props';
 const PACKAGES_CONFIG = 'packages.config';
 const LOCK = 'packages.lock.json';
 const TEST_SDK = 'microsoft.net.test.sdk';
+/** The MSTest project SDK, which makes a project a test project by itself. */
+const MSTEST_SDK = 'mstest.sdk';
+const NAMES_IS_TEST_PROJECT = /\bIsTestProject\b/i;
 
 /** `1.2.3`, `1.2.3.4`, `1.2.3-beta.1`, with optional build metadata: what NuGet resolves to one version. */
 const PLAIN_VERSION = /^\d+(?:\.\d+){0,3}(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
@@ -73,6 +78,16 @@ function* descendants(el: XmlElement): Generator<XmlElement> {
     yield c;
     yield* descendants(c);
   }
+}
+
+/** True when an SDK reference (`Name`, `Name/1.2.3`, or a `;`-separated list of them) names `sdk`. */
+function namesSdk(value: string | undefined, sdk: string): boolean {
+  return (value ?? '').split(';').some((s) => same(s.trim().split('/')[0]?.trim() ?? '', sdk));
+}
+
+/** A project file whose SDK is MSTest.Sdk: the `Sdk` attribute of `<Project>`, or an `<Sdk Name>` element. */
+function usesMstestSdk(root: XmlElement): boolean {
+  return namesSdk(attr(root, 'Sdk'), MSTEST_SDK) || root.children.some((c) => same(c.name, 'Sdk') && namesSdk(attr(c, 'Name'), MSTEST_SDK));
 }
 
 function plural(n: number, one: string, many: string): string {
@@ -217,26 +232,36 @@ class NugetReader {
     this.deps.push({ ecosystem: 'nuget', name: id, ...(version !== undefined ? { version } : {}), manifest: `${rel}:${el.line}` });
   }
 
-  /** The references of a project file or a Directory.Build.props / .targets. */
-  readProject(rel: string): void {
+  /** The references of a project file (`isProject`) or a Directory.Build.props / .targets. */
+  readProject(rel: string, isProject: boolean): void {
     const file = this.file(rel);
     if (!file) return;
-    const refs: { el: XmlElement; id: string }[] = [];
-    for (const el of descendants(file.root)) {
-      if (same(el.name, 'GlobalPackageReference') && include(el)) this.devSkipped++;
-      if (!same(el.name, 'PackageReference')) continue;
-      const id = include(el);
-      if (id) refs.push({ el, id });
-    }
+    const refs: { el: XmlElement; id: string; testOnly: boolean }[] = [];
+    const walk = (parent: XmlElement): void => {
+      for (const el of parent.children) {
+        if (same(el.name, 'GlobalPackageReference') && include(el)) this.devSkipped++;
+        const id = same(el.name, 'PackageReference') ? include(el) : undefined;
+        if (id) {
+          const conditions = [attr(el, 'Condition'), same(parent.name, 'ItemGroup') ? attr(parent, 'Condition') : undefined];
+          refs.push({ el, id, testOnly: conditions.some((c) => c !== undefined && NAMES_IS_TEST_PROJECT.test(c)) });
+        }
+        walk(el);
+      }
+    };
+    walk(file.root);
+    // A project file is judged whole; a Directory.Build file applies to every project below it, so only
+    // the references it reserves for test projects, and the test SDK itself, are development there.
     const isTest =
-      same(file.props.get('istestproject')?.trim() ?? '', 'true') || refs.some((r) => r.id.toLowerCase() === TEST_SDK);
+      isProject &&
+      (same(file.props.get('istestproject')?.trim() ?? '', 'true') || usesMstestSdk(file.root) || refs.some((r) => r.id.toLowerCase() === TEST_SDK));
     const seen = new Set<string>();
-    for (const { el, id } of refs) {
+    for (const { el, id, testOnly } of refs) {
       const key = id.toLowerCase();
       if (seen.has(key)) continue;
       seen.add(key);
       const priv = meta(el, 'PrivateAssets') ?? '';
-      if (isTest || priv.split(';').some((a) => same(a.trim(), 'all'))) {
+      const dev = isTest || (!isProject && (testOnly || key === TEST_SDK));
+      if (dev || priv.split(';').some((a) => same(a.trim(), 'all'))) {
         this.devSkipped++;
         continue;
       }
@@ -274,7 +299,8 @@ export function readNuget(root: string, files: string[]): ReaderResult {
   const r = new NugetReader(root);
   for (const rel of files) {
     const base = baseName(rel);
-    if (PROJECT_EXT.test(base) || BUILD_FILES.has(base)) r.readProject(rel);
+    if (PROJECT_EXT.test(base)) r.readProject(rel, true);
+    else if (BUILD_FILES.has(base)) r.readProject(rel, false);
     else if (base === PACKAGES_PROPS) r.readPackagesProps(rel);
     else if (base === PACKAGES_CONFIG) r.readPackagesConfig(rel);
   }

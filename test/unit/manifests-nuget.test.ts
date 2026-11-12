@@ -236,6 +236,75 @@ describe('readNuget', () => {
     expect(r.devSkipped).toBe(0);
   });
 
+  it('an MSTest.Sdk project is a test project, however the SDK is named', () => {
+    const items = ['    <PackageReference Include="NSubstitute" Version="5.3.0" />', '    <PackageReference Include="Moq" Version="4.20.72" />'].join('\n');
+    const withSdk = (open: string, extra = ''): string => project(items).replace('<Project Sdk="Microsoft.NET.Sdk">', open + extra);
+    const root = tree({
+      'A/A.csproj': withSdk('<Project Sdk="MSTest.Sdk">'),
+      'B/B.csproj': withSdk('<Project Sdk="mstest.sdk/3.6.4">'),
+      'C/C.csproj': withSdk('<Project Sdk="Microsoft.NET.Sdk; MSTest.Sdk/3.6.4">'),
+      'D/D.csproj': withSdk('<Project>', '\n  <Sdk Name="MSTest.Sdk" Version="3.6.4" />'),
+    });
+    const r = readNuget(root, ['A/A.csproj', 'B/B.csproj', 'C/C.csproj', 'D/D.csproj']);
+    expect(r.deps).toEqual([]);
+    expect(r.devSkipped).toBe(8);
+    expect(r.notices).toEqual([]);
+  });
+
+  it('an SDK whose name only contains MSTest.Sdk is not a test SDK', () => {
+    const app = project('    <PackageReference Include="Twilio" Version="7.4.0" />').replace('Microsoft.NET.Sdk', 'Acme.MSTest.Sdk.Tools');
+    const root = tree({ 'App.csproj': app });
+    const r = readNuget(root, ['App.csproj']);
+    expect(r.deps.map((d) => d.name)).toEqual(['Twilio']);
+    expect(r.devSkipped).toBe(0);
+  });
+
+  it('in a Directory.Build.props, only references conditioned on IsTestProject are development', () => {
+    const build = [
+      '<Project>',
+      '  <ItemGroup>',
+      '    <PackageReference Include="Sentry" Version="4.12.1" />',
+      '    <PackageReference Include="coverlet.collector" Version="6.0.2" Condition="\'$(IsTestProject)\' == \'true\'" />',
+      '  </ItemGroup>',
+      '  <ItemGroup Condition="\'$(IsTestProject)\' == \'true\'">',
+      '    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />',
+      '    <PackageReference Include="xunit" Version="2.9.2" />',
+      '  </ItemGroup>',
+      '</Project>',
+      '',
+    ].join('\n');
+    const root = tree({ 'Directory.Build.props': build });
+    const r = readNuget(root, ['Directory.Build.props']);
+    expect(r.deps).toEqual([{ ecosystem: 'nuget', name: 'Sentry', version: '4.12.1', manifest: `Directory.Build.props:${lineOf(build, 'Sentry')}` }]);
+    expect(r.devSkipped).toBe(3);
+  });
+
+  it('in a Directory.Build.targets, an unconditional Microsoft.NET.Test.Sdk is counted and the other references stay rows', () => {
+    const targets = [
+      '<Project>',
+      '  <PropertyGroup>',
+      '    <IsTestProject>true</IsTestProject>',
+      '  </PropertyGroup>',
+      '  <ItemGroup>',
+      '    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />',
+      '    <PackageReference Include="Serilog" Version="4.0.0" />',
+      '    <PackageReference Include="Twilio" Version="7.4.0" />',
+      '  </ItemGroup>',
+      '</Project>',
+      '',
+    ].join('\n');
+    const root = tree({ 'Directory.Build.targets': targets });
+    const r = readNuget(root, ['Directory.Build.targets']);
+    expect(r.deps.map((d) => d.name)).toEqual(['Serilog', 'Twilio']);
+    expect(r.devSkipped).toBe(1);
+  });
+
+  it('a project file is not judged reference by reference: an IsTestProject condition there changes nothing', () => {
+    const app = project('    <PackageReference Include="Twilio" Version="7.4.0" Condition="\'$(IsTestProject)\' == \'true\'" />');
+    const root = tree({ 'App.csproj': app });
+    expect(readNuget(root, ['App.csproj']).deps.map((d) => d.name)).toEqual(['Twilio']);
+  });
+
   it('GlobalPackageReference is development', () => {
     const props = [
       '<Project>',
