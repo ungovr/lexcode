@@ -1,0 +1,128 @@
+rules:
+  - id: lexcode.personal.cs-entity-field
+    languages: [csharp]
+    severity: INFO
+    message: Declares a stored field for an email, phone number, date of birth, government identifier or IP address on a persistent class (an EF Core or data-annotations mapped class, or a MongoDB document), which is processing personal data (processes_personal_data).
+    patterns:
+      - pattern-either:
+          # A class mapped as a whole, and a stored member of it: a property with a setter or an
+          # init accessor (with or without an initial value), or a field. The engine resolves
+          # `using` and aliases for a fully qualified attribute, so the app's own attribute of
+          # the same short name in another namespace is not read as the library's.
+          - patterns:
+              - pattern-either:
+                  - pattern-inside: |
+                      [System.ComponentModel.DataAnnotations.Schema.Table(...)]
+                      class $C { ... }
+                  - pattern-inside: |
+                      [Microsoft.EntityFrameworkCore.Index(...)]
+                      class $C { ... }
+                  - pattern-inside: |
+                      [Microsoft.EntityFrameworkCore.PrimaryKey(...)]
+                      class $C { ... }
+                  - pattern-inside: |
+                      [Microsoft.EntityFrameworkCore.Owned]
+                      class $C { ... }
+              - pattern-either:
+                  - pattern: |
+                      class $D {
+                        ...
+                        $T $P { get; set; }
+                        ...
+                      }
+                  - pattern: |
+                      class $D {
+                        ...
+                        $T $P { get; set; } = $X;
+                        ...
+                      }
+                  - pattern: |
+                      class $D {
+                        ...
+                        $T $P { get; init; }
+                        ...
+                      }
+                  - pattern: |
+                      class $D {
+                        ...
+                        $T $P { get; init; } = $X;
+                        ...
+                      }
+                  - pattern: |
+                      class $D {
+                        ...
+                        $T $P;
+                        ...
+                      }
+              # An unmapped or static member is not a stored column.
+              - pattern-not: |
+                  class $D {
+                    ...
+                    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+                    $T $P { get; set; }
+                    ...
+                  }
+              - pattern-not: |
+                  class $D {
+                    ...
+                    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+                    $T $P { get; set; } = $X;
+                    ...
+                  }
+              - pattern-not: |
+                  class $D {
+                    ...
+                    static $T $P { get; set; }
+                    ...
+                  }
+              - pattern-not: |
+                  class $D {
+                    ...
+                    static $T $P { get; set; } = $X;
+                    ...
+                  }
+              - pattern-not: |
+                  class $D {
+                    ...
+                    static $T $P;
+                    ...
+                  }
+          # A member mapped on its own: a data-annotations Column, or a MongoDB element.
+          - pattern: |
+              class $D {
+                ...
+                [System.ComponentModel.DataAnnotations.Schema.Column(...)]
+                $T $P { get; set; }
+                ...
+              }
+          - pattern: |
+              class $D {
+                ...
+                [System.ComponentModel.DataAnnotations.Schema.Column(...)]
+                $T $P { get; set; } = $X;
+                ...
+              }
+          - pattern: |
+              class $D {
+                ...
+                [MongoDB.Bson.Serialization.Attributes.BsonElement(...)]
+                $T $P { get; set; }
+                ...
+              }
+          - pattern: |
+              class $D {
+                ...
+                [MongoDB.Bson.Serialization.Attributes.BsonElement(...)]
+                $T $P { get; set; } = $X;
+                ...
+              }
+      - metavariable-regex:
+          metavariable: $P
+          regex: (?i)^(e_?mail|email_?(address|addr)?|(user|contact|work|primary|customer|billing|normalized|unconfirmed)_?e_?mail(_?address)?|phone(_?(number|no|num))?|mobile(_?(number|phone|no))?|telephone|date_?of_?birth|dob|birth_?(date|day)|birthday|ssn|social_?security(_?(number|no))?|national_?(id|insurance)(_?number)?|passport(_?(number|no))?|tax_?(id|number)|drivers?_?licen[sc]e(_?(number|no))?|ip_?(address|addr)?|last_?(login_?)?ip(_?address)?|client_?ip(_?address)?|remote_?(addr|ip|address))$
+      - focus-metavariable: $P
+    metadata:
+      activity: processes_personal_data
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-personal-data
+      provenance: ungovr-original
+      license: MIT
