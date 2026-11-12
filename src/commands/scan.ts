@@ -88,13 +88,13 @@ function pathMapper(pairs: { tempPath: string; originalPath: string }[]): (repor
   for (const p of pairs) {
     const posix = p.tempPath.replace(/\\/g, '/');
     exact.set(posix, p.originalPath);
-    const ext = /\.lexcode\.(?:ts|js|rb)$/.exec(posix)?.[0] ?? '';
+    const ext = /\.lexcode\.(?:ts|js|rb|php)$/.exec(posix)?.[0] ?? '';
     tails.push({ tail: `/${p.originalPath}${ext}`, original: p.originalPath });
   }
   return (reported) => {
     const hit = exact.get(reported);
     if (hit !== undefined) return hit;
-    if (!/\.lexcode\.(?:ts|js|rb)$/.test(reported)) return reported;
+    if (!/\.lexcode\.(?:ts|js|rb|php)$/.test(reported)) return reported;
     return tails.find((t) => reported.endsWith(t.tail))?.original ?? reported;
   };
 }
