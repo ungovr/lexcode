@@ -1,4 +1,4 @@
-// lexcode-expect: 8
+// lexcode-expect: 9
 // Reading the person's precise location from the device: .NET MAUI and Xamarin.Essentials
 // geolocation (static, injected and aliased), the Android location manager, Core Location on
 // iOS, and the Windows geolocator.
@@ -57,5 +57,12 @@ public class WindowsTracker
         Windows.Devices.Geolocation.Geolocator locator = new();
         var position = await locator.GetGeopositionAsync();
         return position.Coordinate.Point.Position.Latitude;
+    }
+
+    public async Task<double> Precise()
+    {
+        var locator = new Windows.Devices.Geolocation.Geolocator { DesiredAccuracyInMeters = 10 };
+        var position = await locator.GetGeopositionAsync();
+        return position.Coordinate.Point.Position.Longitude;
     }
 }

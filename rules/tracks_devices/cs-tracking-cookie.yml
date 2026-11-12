@@ -7,13 +7,17 @@ rules:
       - pattern-either:
           # ASP.NET Core: a cookie appended to the response (HttpResponse.Cookies).
           - pattern: $R.Cookies.Append($N, $V, ...)
-          # System.Net and ASP.NET (System.Web) cookies, constructed or target-typed. Neither
-          # namespace is imported implicitly, so these are written fully qualified: the engine
-          # resolves `using` and aliases, and the app's own Cookie class is not read as theirs.
-          - pattern: new System.Net.Cookie($N, $V, ...)
-          - pattern: System.Net.Cookie $C = new($N, $V, ...);
+          # ASP.NET (System.Web): a response cookie, constructed or target-typed. The namespace is
+          # not imported implicitly, so it is written fully qualified: the engine resolves `using`
+          # and aliases, and the app's own class of the same name is not read as it. A
+          # System.Net.Cookie is not matched: it is an outbound HTTP client's cookie jar (a
+          # CookieContainer), which sets nothing on a visitor's browser or device.
           - pattern: new System.Web.HttpCookie($N, $V, ...)
           - pattern: System.Web.HttpCookie $C = new($N, $V, ...);
+          # With an object initializer (which `new T(...)` alone does not match): the value given
+          # to the constructor, or set as Value in the initializer.
+          - pattern: 'new System.Web.HttpCookie($N, $V, ...) { ... }'
+          - pattern: 'new System.Web.HttpCookie($N) { ..., Value = $V, ... }'
       - metavariable-regex:
           metavariable: $N
           regex: (?i)^@?"(_ga(_.*)?|_gid|_gat(_.*)?|_gcl_.*|_fbp|_fbc|_hjid|_hjSessionUser.*|ajs_(anonymous|user)_id|mp_.*_mixpanel|ph_.*_posthog|amplitude_id.*|_uetvid|_uetsid|_clck|_clsk|__utm.|ai_user|ai_session|(visitor|tracking|anonymous|device|browser)_?(id|token|uuid)|fingerprint)"$

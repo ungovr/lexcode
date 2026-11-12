@@ -1,14 +1,17 @@
-// lexcode-expect: 13
+// lexcode-expect: 19
 // Visits and events sent to third-party analytics services that follow the visitor or device
-// with their own id: Application Insights given a user or device id, Segment, Mixpanel (injected,
-// constructed and target-typed), PostHog, Firebase Analytics on .NET MAUI, and the Google
-// Analytics Measurement Protocol.
+// with their own id: Application Insights given a user or device id (in an initializer and on a
+// client), Segment (Analytics.NET, and
+// Analytics-CSharp through an alias), Mixpanel and PostHog (injected, constructed and
+// target-typed), Firebase Analytics on .NET MAUI, and the Google Analytics Measurement Protocol.
+using Microsoft.ApplicationInsights;
 using Microsoft.ApplicationInsights.Channel;
 using Microsoft.ApplicationInsights.Extensibility;
 using Mixpanel;
 using PostHog;
 using Segment;
 using Fb = Plugin.Firebase.Analytics;
+using SegmentCs = Segment.Analytics;
 
 namespace Demo.Telemetry;
 
@@ -19,6 +22,11 @@ public class UserTelemetryInitializer(IHttpContextAccessor accessor) : ITelemetr
         telemetry.Context.User.AuthenticatedUserId = accessor.HttpContext?.User.Identity?.Name;
         telemetry.Context.Device.Id = accessor.HttpContext?.Request.Headers["X-Device-Id"];
     }
+}
+
+public class SignedInTelemetry(TelemetryClient client)
+{
+    public void Attach(string userId) => client.Context.User.AuthenticatedUserId = userId;
 }
 
 public class Events(IMixpanelClient mixpanel, IPostHogClient posthog)
@@ -37,6 +45,24 @@ public class Events(IMixpanelClient mixpanel, IPostHogClient posthog)
     {
         MixpanelClient client = new("token");
         client.Track("Opened", "anon");
+    }
+}
+
+public class Clients
+{
+    public PostHogClient MakePostHog(PostHogOptions options) => new PostHogClient(options);
+
+    public void LocalPostHog(PostHogOptions options)
+    {
+        PostHogClient client = new(options);
+    }
+
+    public SegmentCs.Analytics MakeSegment(SegmentCs.Configuration config) => new SegmentCs.Analytics(config);
+
+    public void LocalSegment(SegmentCs.Configuration config)
+    {
+        SegmentCs.Analytics analytics = new(config);
+        analytics.Track("Opened");
     }
 }
 

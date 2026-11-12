@@ -12,6 +12,13 @@ public class Distances
         Microsoft.Maui.Devices.Sensors.Location.CalculateDistance(lat1, lon1, lat2, lon2, Microsoft.Maui.Devices.Sensors.DistanceUnits.Kilometers);
 
     public Task<PermissionStatus> Allowed() => Permissions.CheckStatusAsync<Permissions.LocationWhenInUse>();
+
+    // The shop's own branch address, geocoded from text the shop wrote: not the device's position.
+    public Task<IEnumerable<Microsoft.Maui.Devices.Sensors.Location>> Branch() =>
+        Microsoft.Maui.Devices.Sensors.Geocoding.GetLocationsAsync("1 Main Street");
+
+    public Task<IEnumerable<Microsoft.Maui.Devices.Sensors.Location>> BranchDefault() =>
+        Microsoft.Maui.Devices.Sensors.Geocoding.Default.GetLocationsAsync("1 Main Street");
 }
 
 // The app's own classes of the same short names: a parser for coordinates typed into the store

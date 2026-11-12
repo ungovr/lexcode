@@ -1,7 +1,8 @@
 // lexcode-expect: 0
 // The visitor's address read but not kept: an allow-list check whose answer is logged, a loopback
-// test, an address echoed back or shown on a page, a log line without the address, and the app's own
-// Log class (a math helper), which shares Serilog's short name.
+// test, an address echoed back or shown on a page (with an unrelated list insert after it), a log
+// line without the address, and the app's own Log class (a math helper), which shares Serilog's
+// short name.
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 
@@ -30,6 +31,9 @@ public class DiagnosticsController(ILogger<DiagnosticsController> logger) : Cont
     {
         var view = new VisitView();
         view.IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+        var items = new List<string> { "home" };
+        items.Insert(0, "whoami");
+        view.Breadcrumbs = items;
         return View(view);
     }
 
@@ -48,6 +52,7 @@ public class DiagnosticsController(ILogger<DiagnosticsController> logger) : Cont
 public class VisitView
 {
     public string? IpAddress { get; set; }
+    public List<string> Breadcrumbs { get; set; } = [];
 }
 
 // The app's own class of the same short name as Serilog's static logger: a math helper giving

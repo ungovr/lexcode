@@ -1,6 +1,9 @@
-// lexcode-expect: 11
+// lexcode-expect: 14
 // Stored columns for an email, phone number, date of birth, government identifier or IP address,
-// declared in schema code: EF Core migrations, EF Core model configuration, and FluentMigrator.
+// declared in schema code: EF Core migrations, EF Core model configuration (a configuration class,
+// an owned type, and a DbContext's model builder), and FluentMigrator (a migration and an
+// entity builder given its table builder).
+using FluentMigrator.Builders.Create.Table;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -42,6 +45,7 @@ public class CustomerConfiguration : IEntityTypeConfiguration<Customer>
         builder.Property(c => c.Email).HasMaxLength(256).IsRequired();
         builder.HasIndex(c => c.PassportNumber).IsUnique();
         builder.Property(c => c.Title).HasMaxLength(100);
+        builder.OwnsOne(c => c.Contact, contact => contact.Property(k => k.PhoneNumber).HasMaxLength(30));
     }
 }
 
@@ -50,6 +54,7 @@ public class ShopDb : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Customer>().Property(c => c.TaxId).HasMaxLength(20);
+        modelBuilder.Entity<Customer>(entity => entity.HasIndex(c => c.Ssn).IsUnique());
     }
 }
 
@@ -70,6 +75,16 @@ public class CreateSubscribers : FluentMigrator.Migration
     }
 }
 
+public class CustomerBuilder
+{
+    public void MapEntity(CreateTableExpressionBuilder table)
+    {
+        table
+            .WithColumn(nameof(Customer.Title)).AsString(400).NotNullable()
+            .WithColumn(nameof(Customer.Email)).AsString(1000).Nullable();
+    }
+}
+
 public class Customer
 {
     public int Id { get; set; }
@@ -79,4 +94,11 @@ public class Customer
     public string? TaxId { get; set; }
     public string? IpAddress { get; set; }
     public string? MobileNumber { get; set; }
+    public string? Ssn { get; set; }
+    public ContactDetails Contact { get; set; } = new();
+}
+
+public class ContactDetails
+{
+    public string? PhoneNumber { get; set; }
 }

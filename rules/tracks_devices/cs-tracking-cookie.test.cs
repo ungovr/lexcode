@@ -1,8 +1,9 @@
-// lexcode-expect: 5
+// lexcode-expect: 6
 // Cookies whose names mark them as analytics, advertising or visitor-identifier cookies: set on an
-// ASP.NET Core response, built as System.Net cookies (constructed and target-typed), and built
-// as an ASP.NET (System.Web) cookie through an alias.
-using System.Net;
+// ASP.NET Core response, and built as an ASP.NET (System.Web) response cookie, through a using
+// (target-typed) and through an alias (constructed, and with an object initializer that sets the
+// value or the lifetime).
+using System.Web;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Legacy = System.Web;
@@ -31,15 +32,12 @@ public class AdsController : Controller
     }
 }
 
-public class TrackingClient
+public class LegacyVisitor
 {
-    public CookieContainer Jar()
+    public void Remember(System.Web.HttpResponse response)
     {
-        var jar = new CookieContainer();
-        jar.Add(new Cookie("_ga", "GA1.1.123.456", "/", "example.org"));
-        Cookie device = new("device_id", Guid.NewGuid().ToString());
-        jar.Add(device);
-        return jar;
+        HttpCookie visitor = new("anonymous_id", Guid.NewGuid().ToString());
+        response.Cookies.Add(visitor);
     }
 }
 
@@ -47,4 +45,10 @@ public class LegacyTracking
 {
     public void Set(Legacy.HttpResponse response) =>
         response.Cookies.Add(new Legacy.HttpCookie("tracking_id", Guid.NewGuid().ToString()));
+
+    public void Analytics(Legacy.HttpResponse response, string clientId)
+    {
+        response.Cookies.Add(new Legacy.HttpCookie("_ga") { Value = clientId, Expires = DateTime.UtcNow.AddYears(2) });
+        response.Cookies.Add(new Legacy.HttpCookie("_gid", clientId) { HttpOnly = false });
+    }
 }

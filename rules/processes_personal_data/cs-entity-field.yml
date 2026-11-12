@@ -4,15 +4,6 @@ rules:
     severity: INFO
     message: Declares a stored field for an email, phone number, date of birth, government identifier or IP address on a persistent class (an EF Core or data-annotations mapped class, or a MongoDB document), which is processing personal data (processes_personal_data).
     patterns:
-      # The text test first lets the engine skip a file that cannot match: every branch below
-      # names one of these attributes.
-      - pattern-either:
-          - pattern-regex: '(?s)\A(?=.*\bTable\b).*'
-          - pattern-regex: '(?s)\A(?=.*\bIndex\b).*'
-          - pattern-regex: '(?s)\A(?=.*\bPrimaryKey\b).*'
-          - pattern-regex: '(?s)\A(?=.*\bOwned\b).*'
-          - pattern-regex: '(?s)\A(?=.*\bColumn\b).*'
-          - pattern-regex: '(?s)\A(?=.*\bBsonElement\b).*'
       - pattern-either:
           # A class mapped as a whole, and a stored member of it: a property with a setter or an
           # init accessor (with or without an initial value), or a field. The engine resolves

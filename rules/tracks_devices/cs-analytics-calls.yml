@@ -6,14 +6,16 @@ rules:
     pattern-either:
       # Application Insights: a user or device id set on the telemetry context (a telemetry
       # initializer, or a client's own context). Telemetry with no such id is not following one
-      # visitor. The context chain carries no type, so the file must name Application Insights.
-      - patterns:
-          - pattern-regex: '(?s)\A(?=.*\bApplicationInsights\b).*'
-          - pattern-either:
-              - pattern: $X.Context.User.Id = $V
-              - pattern: $X.Context.User.AuthenticatedUserId = $V
-              - pattern: $X.Context.User.AccountId = $V
-              - pattern: $X.Context.Device.Id = $V
+      # visitor. The context is reached from a typed telemetry item (an initializer's parameter)
+      # or a typed TelemetryClient.
+      - pattern: (Microsoft.ApplicationInsights.Channel.ITelemetry $X).Context.User.Id = $V
+      - pattern: (Microsoft.ApplicationInsights.Channel.ITelemetry $X).Context.User.AuthenticatedUserId = $V
+      - pattern: (Microsoft.ApplicationInsights.Channel.ITelemetry $X).Context.User.AccountId = $V
+      - pattern: (Microsoft.ApplicationInsights.Channel.ITelemetry $X).Context.Device.Id = $V
+      - pattern: (Microsoft.ApplicationInsights.TelemetryClient $X).Context.User.Id = $V
+      - pattern: (Microsoft.ApplicationInsights.TelemetryClient $X).Context.User.AuthenticatedUserId = $V
+      - pattern: (Microsoft.ApplicationInsights.TelemetryClient $X).Context.User.AccountId = $V
+      - pattern: (Microsoft.ApplicationInsights.TelemetryClient $X).Context.Device.Id = $V
       # Segment: Analytics.NET (the static Analytics in namespace Segment) and Analytics-CSharp
       # (Segment.Analytics.Analytics). The short name Analytics carries no vendor name, so these
       # are written fully qualified: the engine resolves `using` and aliases, and the app's own
@@ -25,6 +27,7 @@ rules:
               metavariable: $M
               regex: ^(Track|Identify|Page|Screen|Group|Alias)$
       - pattern: new Segment.Analytics.Analytics(...)
+      - pattern: Segment.Analytics.Analytics $C = new(...);
       - patterns:
           - pattern: (Segment.Analytics.Analytics $A).$M(...)
           - metavariable-regex:
@@ -47,7 +50,9 @@ rules:
       # PostHog (.NET SDK): the client constructed or registered, and its capture and identify
       # calls. PostHogClient and AddPostHog carry the vendor's name.
       - pattern: new PostHog.PostHogClient(...)
+      - pattern: PostHog.PostHogClient $C = new(...);
       - pattern: new PostHogClient(...)
+      - pattern: PostHogClient $C = new(...);
       - pattern: $B.AddPostHog(...)
       - patterns:
           - pattern: (PostHog.IPostHogClient $C).$M(...)

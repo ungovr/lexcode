@@ -6,16 +6,6 @@ rules:
     mode: taint
     pattern-sources:
       - patterns:
-          # A whole-file pre-filter lets the engine skip a file that cannot match: every source
-          # below holds one of these words.
-          - pattern-either:
-              - pattern-regex: '(?is)\A(?=.*RemoteIpAddress).*'
-              - pattern-regex: '(?is)\A(?=.*forwarded).*'
-              - pattern-regex: '(?is)\A(?=.*real-ip).*'
-              - pattern-regex: '(?is)\A(?=.*connecting-ip).*'
-              - pattern-regex: '(?is)\A(?=.*client-ip).*'
-              - pattern-regex: '(?is)\A(?=.*UserHostAddress).*'
-              - pattern-regex: '(?is)\A(?=.*REMOTE_ADDR).*'
           - pattern-either:
               # ASP.NET Core: the connection's remote address (HttpContext.Connection, or the
               # connection feature).
@@ -63,7 +53,9 @@ rules:
               metavariable: $M
               regex: ^(Verbose|Debug|Information|Warning|Error|Fatal|Write)$
       # A database row: an address-named property set on an object, or in an object initializer,
-      # in a block that then writes (EF Core, the MongoDB driver, Dapper).
+      # in a block that then saves (EF Core's SaveChanges, the MongoDB driver's InsertOne or
+      # ReplaceOne). Only store-shaped names count: a list's Insert or a command's Execute after
+      # the assignment is not a write of that object.
       - patterns:
           - pattern-either:
               - pattern: $O.$F = $V
@@ -81,7 +73,7 @@ rules:
                   $DB.$SAVE(new $T { ..., $F = $V, ... }, ...);
           - metavariable-regex:
               metavariable: $SAVE
-              regex: ^(SaveChanges|SaveChangesAsync|InsertOne|InsertOneAsync|ReplaceOne|ReplaceOneAsync|Execute|ExecuteAsync|Insert|InsertAsync)$
+              regex: ^(SaveChanges|SaveChangesAsync|InsertOne|InsertOneAsync|ReplaceOne|ReplaceOneAsync)$
           - metavariable-regex:
               metavariable: $F
               regex: ^(Ip|IP|IpAddress|IPAddress|IpAddr|ClientIp|ClientIP|ClientIpAddress|RemoteIp|RemoteIP|RemoteAddress|RemoteIpAddress|LastIp|LastIpAddress|LastLoginIp|LastLoginIpAddress|UserIp|UserIpAddress|ForwardedFor)$
