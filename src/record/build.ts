@@ -41,8 +41,10 @@ export interface BuildInput {
  * Per rule language, every extension the engine reads as that language, plus the extensions lexcode
  * reads through a whole-file copy (`COPIED_WHOLE_EXTENSIONS`). The engine's sets were measured on explicit
  * targets (opengrep 1.33.1, 2026-11-12): a `javascript` rule reads `.ts` and `.tsx` too, `json` reads
- * `.ipynb`, `kotlin` reads `.ktm` and `php` reads `.tpl`. Only the files these name are handed to the
- * engine (`enginePlan`), so an extension missing here is code a rule never sees; one too many costs nothing.
+ * `.ipynb`, `kotlin` reads `.ktm` and `php` reads `.tpl`. `csharp` reads `.cs` alone: a `.csx`, `.cake`, `.razor`
+ * or `.cshtml` target reads nothing, and a Razor file's C# is read through its `.lexcode.cs` copy. Only the
+ * files these name are handed to the engine (`enginePlan`), so an extension missing here is code a rule never
+ * sees; one too many costs nothing.
  */
 const LANGUAGE_EXTENSIONS: Record<string, string[]> = {
   python: ['.py', '.pyi'],
@@ -57,6 +59,7 @@ const LANGUAGE_EXTENSIONS: Record<string, string[]> = {
   swift: ['.swift'],
   ruby: ['.rb', '.rake', '.ru', '.gemspec'],
   php: ['.php', '.phtml', '.tpl', '.inc', '.module', '.theme', '.install'],
+  csharp: ['.cs'],
 };
 const LANGUAGE_ALIASES: Record<string, string> = {
   js: 'javascript',
@@ -68,6 +71,8 @@ const LANGUAGE_ALIASES: Record<string, string> = {
   python3: 'python',
   golang: 'go',
   yml: 'yaml',
+  'c#': 'csharp',
+  cs: 'csharp',
 };
 
 /** The extensions a rule reads, or `'all'` for `generic`, `regex` and any language lexcode does not map. */
@@ -99,6 +104,9 @@ const CODE_LANGUAGES: [string, string[]][] = [
   ['Kotlin', ['.kt', '.kts']],
   ['Swift', ['.swift']],
   ['C#', ['.cs']],
+  // `.fs` is F# too, but only beside an `.fsproj` (FSHARP_PROJECT): it is also a GLSL fragment shader's extension.
+  ['F#', ['.fsi', '.fsx']],
+  ['Visual Basic', ['.vb']],
   ['Rust', ['.rs']],
   ['Elixir', ['.ex', '.exs']],
   ['Scala', ['.scala']],
@@ -106,10 +114,14 @@ const CODE_LANGUAGES: [string, string[]][] = [
   ['C and C++', ['.c', '.cc', '.cpp', '.cxx', '.h', '.hpp']],
 ];
 
+/** An `.fs` file is counted as F# only when the scope holds an F# project file. */
+const FSHARP_SOURCE = '.fs';
+const FSHARP_PROJECT = '.fsproj';
+
 /**
  * Per code language with files in scope that no rule names among its languages, how many files: most
  * first, then by name. A `generic` or `regex` rule reads every file as text and does not count as a
- * rule for a language.
+ * rule for a language. `.fs` counts as F# only when `files` holds an `.fsproj`.
  */
 export function unreadLanguages(rules: RuleMeta[], files: string[]): { language: string; files: number }[] {
   const read = new Set<string>();
@@ -117,12 +129,13 @@ export function unreadLanguages(rules: RuleMeta[], files: string[]): { language:
     const exts = extensionsOf(r);
     if (exts !== 'all') for (const e of exts) read.add(e);
   }
+  const fileExts = files.map((f) => posix.extname(f).toLowerCase());
+  const fsharpProject = fileExts.includes(FSHARP_PROJECT);
   const counts = new Map<string, number>();
-  for (const f of files) {
-    const ext = posix.extname(f).toLowerCase();
+  for (const ext of fileExts) {
     if (ext === '' || read.has(ext)) continue;
-    const lang = CODE_LANGUAGES.find(([, exts]) => exts.includes(ext));
-    if (lang) counts.set(lang[0], (counts.get(lang[0]) ?? 0) + 1);
+    const lang = ext === FSHARP_SOURCE ? (fsharpProject ? 'F#' : undefined) : CODE_LANGUAGES.find(([, e]) => e.includes(ext))?.[0];
+    if (lang) counts.set(lang, (counts.get(lang) ?? 0) + 1);
   }
   return [...counts.entries()]
     .map(([language, n]) => ({ language, files: n }))

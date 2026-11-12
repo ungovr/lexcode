@@ -34,6 +34,24 @@ const WALK_SKIPPED = new Set([
 ]);
 /** Skipped by a walk only when the directory holds a `pyvenv.cfg`, which is what makes it a virtual environment. */
 const VENV_NAMES = new Set(['.venv', 'venv', 'env']);
+/**
+ * .NET build output, skipped by a walk only when the directory holds what MSBuild writes there: `obj` the
+ * restore's `project.assets.json`, `bin` a `Debug` or `Release` configuration directory. A `bin/` of scripts is read.
+ */
+function dotnetOutputDir(dirAbs: string, name: string): boolean {
+  if (name === 'obj') return existsSync(path.join(dirAbs, 'project.assets.json'));
+  if (name === 'bin') return isDirectory(path.join(dirAbs, 'Debug')) || isDirectory(path.join(dirAbs, 'Release'));
+  return false;
+}
+
+function isDirectory(abs: string): boolean {
+  try {
+    return lstatSync(abs).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
 /** The largest root .gitignore a walk reads, and the most patterns it applies: every entry is tested against every pattern. */
 const MAX_GITIGNORE_BYTES = 1024 * 1024;
 const MAX_GITIGNORE_RULES = 5000;
@@ -114,20 +132,34 @@ const TEST_DIRS = new Set(
   ].map((name) => name.toLowerCase()),
 );
 /**
+ * Name endings of a .NET test project's directory, matched in any case: the convention keeps it beside the app's
+ * own project (`src/MyApp.Tests/`), outside any `tests/` directory. Skipped unless `includeTests`, as TEST_DIRS are.
+ */
+const TEST_DIR_SUFFIXES = ['.Tests', '.Test', '.UnitTests', '.IntegrationTests', '.FunctionalTests', '.AcceptanceTests', '.Specs'].map((s) =>
+  s.toLowerCase(),
+);
+/**
  * File names of bundled or minified code: someone else's library copied in,
  * never the project's own code, and the costliest files to parse (a vendored
  * jsPDF alone cost 15 CPU-seconds on the UnGovr monorepo). The engine's own
- * minified-file check catches what these names miss.
+ * minified-file check catches what these names miss. The C# compiler's and the
+ * XAML build's generated sources (`*.g.cs`, `*.g.i.cs`) are skipped the same way;
+ * a designer's `*.Designer.cs` is the project's own and is read.
  */
-const BUNDLED_NAME = /(?:\.min\.(?:js|mjs|cjs)|\.bundle\.js|\.vendor\.js)$|^vendor\.[^/]+\.js$/;
+const BUNDLED_NAME = /(?:\.min\.(?:js|mjs|cjs)|\.bundle\.js|\.vendor\.js|\.g(?:\.i)?\.cs)$|^vendor\.[^/]+\.js$/;
 
 /** A POSIX relative path from a path built with the platform's own separator. */
 export function toPosix(p: string, flavor: Pick<typeof path, 'sep'> = path): string {
   return flavor.sep === '/' ? p : p.split(flavor.sep).join('/');
 }
 
+function testDir(name: string): boolean {
+  const lower = name.toLowerCase();
+  return TEST_DIRS.has(lower) || TEST_DIR_SUFFIXES.some((s) => lower.endsWith(s));
+}
+
 function skippedDir(name: string, includeTests: boolean): boolean {
-  return ALWAYS_SKIPPED.has(name) || (!includeTests && TEST_DIRS.has(name.toLowerCase()));
+  return ALWAYS_SKIPPED.has(name) || (!includeTests && testDir(name));
 }
 
 /** True when a directory segment of `rel` (never the file name) is on the skip list. */
@@ -235,6 +267,7 @@ function walk(root: string): { found: string[]; gitignore: { rules: number; notA
       if (entry.isDirectory()) {
         if (ALWAYS_SKIPPED.has(entry.name) || WALK_SKIPPED.has(entry.name)) continue;
         if (VENV_NAMES.has(entry.name) && existsSync(path.join(abs, entry.name, 'pyvenv.cfg'))) continue;
+        if (dotnetOutputDir(path.join(abs, entry.name), entry.name)) continue;
         if (ignoredBy(ignore.rules, rel, true)) continue;
         visit(rel);
       } else if (!ignoredBy(ignore.rules, rel, false)) {
