@@ -1,0 +1,63 @@
+rules:
+  - id: lexcode.chat.php-chat-message-entity
+    languages: [php]
+    severity: INFO
+    message: Maps chat messages or conversation turns to a table with a Doctrine entity or an Eloquent model, which is keeping a text chat (records_text_chat).
+    # The class is named for a chat message (ChatMessage, ConversationTurn, ChatTranscript), as in the
+    # Java rule, and is a Doctrine entity (#[ORM\Entity] under the usual ORM alias, #[Entity] under its
+    # import or an alias, or fully qualified) or an Eloquent model (extending Model under its import,
+    # an alias or fully qualified). A plain class of that name stores nothing; a contact message, a
+    # ticket and a chat room hold no chat text; an app's own Model or Entity in another namespace is not
+    # Eloquent's or Doctrine's. Known gap: on Opengrep 1.33.1 a plain `use X;` pattern also matches
+    # `use X as Y;`, so a file that imports Eloquent's Model under an alias AND an app's own Model under
+    # the short name passes the plain-import branch.
+    patterns:
+      - pattern-either:
+          - patterns:
+              - pattern-inside: |
+                  use Doctrine\ORM\Mapping as ORM;
+                  ...
+              - pattern: |
+                  #[ORM\Entity($...A)]
+                  class $K { ... }
+          - pattern: |
+              #[\Doctrine\ORM\Mapping\Entity($...A)]
+              class $K { ... }
+          - patterns:
+              - pattern-inside: |
+                  use Doctrine\ORM\Mapping\Entity;
+                  ...
+              - pattern: |
+                  #[Entity($...A)]
+                  class $K { ... }
+          - patterns:
+              - pattern-inside: |
+                  use Doctrine\ORM\Mapping\Entity as $EA;
+                  ...
+              - pattern: |
+                  #[$EA($...A)]
+                  class $K { ... }
+          - pattern: |
+              class $K extends \Illuminate\Database\Eloquent\Model { ... }
+          - patterns:
+              - pattern-inside: |
+                  use Illuminate\Database\Eloquent\Model;
+                  ...
+              - pattern: |
+                  class $K extends Model { ... }
+          - patterns:
+              - pattern-inside: |
+                  use Illuminate\Database\Eloquent\Model as $MA;
+                  ...
+              - pattern: |
+                  class $K extends $MA { ... }
+      - focus-metavariable: $K
+      - metavariable-regex:
+          metavariable: $K
+          regex: ^\w*(Chat(Message|Msg|Turn|Entry|History|Log|Transcript)|Conversation(Message|Turn|Entry|Transcript))s?$
+    metadata:
+      activity: records_text_chat
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-text-chat
+      provenance: ungovr-original
+      license: MIT

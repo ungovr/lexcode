@@ -1,0 +1,29 @@
+rules:
+  - id: lexcode.chat.php-assistant-turns-stored
+    languages: [php]
+    severity: INFO
+    message: Writes the turns of a conversation with an assistant, each with a user or assistant role, to a message record, which is keeping a text chat (records_text_chat).
+    # As in the Ruby rule: a record created with a literal user, assistant, model, ai or bot role, on a
+    # model named for a message, turn, chat, conversation or transcript, or through a messages
+    # relation. A role kept in a variable, and a role on a user account (admin, editor), do not match.
+    patterns:
+      - pattern-either:
+          - pattern: "$X->messages()->create([..., 'role' => $ROLE, ...])"
+          - patterns:
+              - pattern-either:
+                  - pattern: "$K::create([..., 'role' => $ROLE, ...])"
+                  - pattern: "$K::query()->create([..., 'role' => $ROLE, ...])"
+              - metavariable-regex:
+                  metavariable: $K
+                  regex: ^\\?(\w+\\)*\w*(Message|Turn|Chat|Conversation|Transcript)\w*$
+      - metavariable-regex:
+          metavariable: $ROLE
+          regex: ^["'](user|assistant|model|ai|bot)["']$
+      # Literal anchor inside the match, so the engine skips files that never set such a role.
+      - pattern-regex: (?i)['"]role['"]\s*=>\s*['"](user|assistant|model|ai|bot)['"]
+    metadata:
+      activity: records_text_chat
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-text-chat
+      provenance: ungovr-original
+      license: MIT
