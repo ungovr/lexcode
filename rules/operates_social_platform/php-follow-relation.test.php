@@ -1,13 +1,15 @@
 <?php
-// lexcode-expect: 9
+// lexcode-expect: 10
 // Follow and friendship relations between accounts: a Doctrine follow entity (follower and
 // followed), an account's followers and following collections, Eloquent followers and friends
 // relations, a Friendship model, the overtrue/laravel-follow trait (aliased) and the
-// multicaret/laravel-acquaintances trait (fully qualified), and finders keyed on the follower.
+// multicaret/laravel-acquaintances trait (fully qualified and imported by name), and finders keyed
+// on the follower.
 namespace App\Models;
 
 use Doctrine\ORM\Mapping as ORM;
 use Illuminate\Database\Eloquent\Model;
+use Multicaret\Acquaintances\Traits\Friendable;
 use Overtrue\LaravelFollow\Traits\Follower as CanFollow;
 
 #[ORM\Entity]
@@ -54,6 +56,11 @@ class Friendship extends Model
 class Member extends Model
 {
     use \Multicaret\Acquaintances\Traits\Friendable;
+}
+
+class Profile extends Model
+{
+    use HasFactory, Friendable;
 }
 
 class FollowQueries

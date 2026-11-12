@@ -12,44 +12,56 @@ rules:
       # constructor parameter), and an Eloquent model with a sender and a recipient relation.
       - patterns:
           - pattern-either:
-              - pattern-regex: '(?is)\A(?=.*recipient).*'
-              - pattern-regex: '(?is)\A(?=.*receiver).*'
-              - pattern-regex: '(?is)\A(?=.*to_?user).*'
+              - pattern-regex: '(?s)\A(?=.*recipient).*'
+              - pattern-regex: '(?s)\A(?=.*receiver).*'
+              - pattern-regex: '(?s)\A(?=.*toUser).*'
+              - pattern-regex: '(?s)\A(?=.*to_user_id).*'
           - pattern-either:
+              # Each member pattern is filtered by its own names before the two are joined, so a
+              # class with many members is not paired member by member (the cost on a large app).
               - patterns:
-                  - pattern-either:
-                      - pattern: class $C { ... $F; ... }
-                      - pattern: class $C { ... $F = $V; ... }
-                  - pattern-either:
-                      - pattern: class $C { ... $G; ... }
-                      - pattern: class $C { ... $G = $W; ... }
-                  - metavariable-regex:
-                      metavariable: $F
-                      regex: '^\$(recipient|receiver|toUser|recipientId|receiverId|toUserId|recipient_id|receiver_id|to_user_id)$'
-                  - metavariable-regex:
-                      metavariable: $G
-                      regex: '^\$(sender|fromUser|senderId|fromUserId|sender_id|from_user_id|author|authorId|author_id)$'
-                  - metavariable-regex:
-                      metavariable: $C
-                      regex: '^(?!.*(Email|Mail|Sms|Notification|Log|Event|Contact|Audit|Queue|Jms|Kafka)).*(DirectMessage|PrivateMessage|ChatMessage|UserMessage|InboxMessage|Dm|DM)$'
+                  - patterns:
+                      - pattern-either:
+                          - pattern: class $C { ... $F; ... }
+                          - pattern: class $C { ... $F = $V; ... }
+                      - metavariable-regex:
+                          metavariable: $C
+                          regex: '^(?!.*(Email|Mail|Sms|Notification|Log|Event|Contact|Audit|Queue|Jms|Kafka)).*(DirectMessage|PrivateMessage|ChatMessage|UserMessage|InboxMessage|Dm|DM)$'
+                      - metavariable-regex:
+                          metavariable: $F
+                          regex: '^\$(recipient|receiver|toUser|recipientId|receiverId|toUserId|recipient_id|receiver_id|to_user_id)$'
+                  - patterns:
+                      - pattern-either:
+                          - pattern: class $C { ... $G; ... }
+                          - pattern: class $C { ... $G = $W; ... }
+                      - metavariable-regex:
+                          metavariable: $C
+                          regex: '^(?!.*(Email|Mail|Sms|Notification|Log|Event|Contact|Audit|Queue|Jms|Kafka)).*(DirectMessage|PrivateMessage|ChatMessage|UserMessage|InboxMessage|Dm|DM)$'
+                      - metavariable-regex:
+                          metavariable: $G
+                          regex: '^\$(sender|fromUser|senderId|fromUserId|sender_id|from_user_id|author|authorId|author_id)$'
                   - focus-metavariable: $F
               # An Eloquent relation to the recipient's account, in a model that also relates the
               # sender. A relation is a stored link between two accounts, so a model named only
               # Message counts here, as a plain class with those properties does not.
               - patterns:
                   - pattern: $this->belongsTo(...)
-                  - pattern-inside: |
-                      function $F(...) { ... }
-                  - pattern-inside: class $C { ... function $G(...) { ... } ... }
-                  - metavariable-regex:
-                      metavariable: $F
-                      regex: '^(recipient|receiver|toUser)$'
-                  - metavariable-regex:
-                      metavariable: $G
-                      regex: '^(sender|fromUser|author)$'
-                  - metavariable-regex:
-                      metavariable: $C
-                      regex: '^(?!.*(Email|Mail|Sms|Notification|Log|Event|Contact|Audit|Queue|Jms|Kafka)).*(Message|Dm|DM)$'
+                  - pattern-inside:
+                      patterns:
+                        - pattern: |
+                            function $F(...) { ... }
+                        - metavariable-regex:
+                            metavariable: $F
+                            regex: '^(recipient|receiver|toUser)$'
+                  - pattern-inside:
+                      patterns:
+                        - pattern: class $C { ... function $G(...) { ... } ... }
+                        - metavariable-regex:
+                            metavariable: $C
+                            regex: '^(?!.*(Email|Mail|Sms|Notification|Log|Event|Contact|Audit|Queue|Jms|Kafka)).*(Message|Dm|DM)$'
+                        - metavariable-regex:
+                            metavariable: $G
+                            regex: '^(sender|fromUser|author)$'
       # A Laravel broadcast channel for a user's chat, messages or conversation: the Broadcast
       # facade imported, aliased, fully qualified, or the global alias in a file with no namespace.
       - patterns:
