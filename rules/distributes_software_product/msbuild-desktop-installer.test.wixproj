@@ -1,6 +1,7 @@
-<!-- lexcode-expect: 1 -->
-<!-- A WiX Toolset project that builds the Windows installer (.msi) of a desktop app. -->
-<Project Sdk="WixToolset.Sdk/5.0.2">
+﻿<Project Sdk="WixToolset.Sdk/5.0.2">
+  <!-- lexcode-expect: 1 -->
+  <!-- A WiX Toolset project that builds the Windows installer (.msi) of a desktop app, saved by
+       Visual Studio with a UTF-8 byte order mark before the matched element on line 1. -->
   <PropertyGroup>
     <OutputName>ContosoLedgerSetup</OutputName>
   </PropertyGroup>

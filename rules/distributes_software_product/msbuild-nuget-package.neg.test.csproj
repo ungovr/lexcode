@@ -1,8 +1,8 @@
 <!-- lexcode-expect: 0 -->
 <!-- An ASP.NET Core service the operator runs: it is marked not packable, carries only assembly
-     metadata (authors, company, version, description, copyright), consumes NuGet packages, and has a
-     package id only inside a comment on its own line. A service used through a browser or API is not
-     distributed software. -->
+     metadata (authors, company, version, description, copyright), consumes NuGet packages, and has
+     packaging settings only inside comments, on one line and across lines. A service used through a
+     browser or API is not distributed software. -->
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
@@ -17,6 +17,11 @@
     <Copyright>Copyright Contoso Ltd</Copyright>
     <UserSecretsId>7f1c6b8e-2d4a-4a57-9a2e-9c1f0e5b3d21</UserSecretsId>
     <!-- <PackageId>Contoso.Storefront</PackageId> -->
+    <!--
+    <PackageId>Contoso.Storefront</PackageId>
+    <GeneratePackageOnBuild Condition="'$(Configuration)' == 'Release'">true</GeneratePackageOnBuild>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    -->
   </PropertyGroup>
 
   <ItemGroup>

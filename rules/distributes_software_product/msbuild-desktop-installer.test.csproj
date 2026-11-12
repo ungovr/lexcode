@@ -1,6 +1,7 @@
 <!-- lexcode-expect: 4 -->
 <!-- A WinUI desktop app packaged as MSIX in a single project (MSIX tooling on, the package type
-     named, an app package on every build) that also produces ClickOnce manifests. -->
+     named for Release builds by a Condition, an app package on every build) that also produces
+     ClickOnce manifests. -->
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
@@ -8,7 +9,7 @@
     <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
     <UseWinUI>true</UseWinUI>
     <EnableMsixTooling>true</EnableMsixTooling>
-    <WindowsPackageType>MSIX</WindowsPackageType>
+    <WindowsPackageType Condition="'$(Configuration)' == 'Release'">MSIX</WindowsPackageType>
     <GenerateAppxPackageOnBuild>true</GenerateAppxPackageOnBuild>
     <GenerateManifests>true</GenerateManifests>
     <AppxPackageSigningEnabled>true</AppxPackageSigningEnabled>

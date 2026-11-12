@@ -1,7 +1,7 @@
-// lexcode-expect: 4
-// The iOS heads of three apps: a .NET MAUI app's AppDelegate as the template writes it (the base
-// class comes from the MAUI SDK's implicit global usings) and named in full, a .NET for iOS app's
-// delegate on UIKit, and a Xamarin.Forms app's delegate reached through an alias.
+// lexcode-expect: 3
+// The iOS heads of two apps: a .NET MAUI app's AppDelegate as the template writes it (the base
+// class comes from the MAUI SDK's implicit global usings) and named in full, and a Xamarin.Forms
+// app's delegate reached through an alias.
 using Foundation;
 using UIKit;
 using XfIos = Xamarin.Forms.Platform.iOS;
@@ -18,19 +18,6 @@ public class AppDelegate : MauiUIApplicationDelegate
 public sealed class KioskAppDelegate : Microsoft.Maui.MauiUIApplicationDelegate
 {
     protected override MauiApp CreateMauiApp() => MauiProgram.CreateMauiApp();
-}
-
-[Register("NativeAppDelegate")]
-public class NativeAppDelegate : UIApplicationDelegate
-{
-    public override UIWindow? Window { get; set; }
-
-    public override bool FinishedLaunching(UIApplication application, NSDictionary launchOptions)
-    {
-        Window = new UIWindow(UIScreen.MainScreen.Bounds);
-        Window.MakeKeyAndVisible();
-        return true;
-    }
 }
 
 [Register("LegacyAppDelegate")]

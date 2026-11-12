@@ -3,20 +3,23 @@ rules:
     languages: [generic]
     severity: INFO
     message: Packages a Windows desktop app for others to install (an MSIX package, ClickOnce manifests or publishing, a WiX installer or a Windows Application Packaging Project), which is distributing a software product (distributes_software_product).
-    # Each setting is matched at the start of its line and only with the value that turns packaging
-    # on: an unpackaged app (WindowsPackageType None, MSIX tooling off) and a web app's publish profile
-    # (Web Deploy, a folder copy) are not matched.
-    pattern-either:
-      # MSIX in a single project (WinUI, WPF, WinForms, MAUI's Windows head).
-      - pattern-regex: '(?im)^[ \t]*<EnableMsixTooling>[ \t]*true[ \t]*</EnableMsixTooling>'
-      - pattern-regex: '(?im)^[ \t]*<WindowsPackageType>[ \t]*MSIX[ \t]*</WindowsPackageType>'
-      - pattern-regex: '(?im)^[ \t]*<GenerateAppxPackageOnBuild>[ \t]*true[ \t]*</GenerateAppxPackageOnBuild>'
-      # ClickOnce: a publish profile that publishes with it, or a project that makes its manifests.
-      - pattern-regex: '(?im)^[ \t]*<PublishProtocol>[ \t]*ClickOnce[ \t]*</PublishProtocol>'
-      - pattern-regex: '(?im)^[ \t]*<GenerateManifests>[ \t]*true[ \t]*</GenerateManifests>'
-      # A WiX Toolset installer project, and a Windows Application Packaging Project (.wapproj).
-      - pattern-regex: '(?im)^[ \t]*<Project[ \t]+Sdk="WixToolset\.Sdk\b'
-      - pattern-regex: '(?im)^[ \t]*<Import[ \t]+Project="[^"\n]*\bMicrosoft\.DesktopBridge\.targets"'
+    # Each setting is matched only with the value that turns packaging on, with or without attributes
+    # (a Condition): an unpackaged app (WindowsPackageType None, MSIX tooling off) and a web app's
+    # publish profile (Web Deploy, a folder copy) are not matched, and neither is a setting inside an
+    # XML comment, on one line or across lines.
+    patterns:
+      - pattern-either:
+          # MSIX in a single project (WinUI, WPF, WinForms, MAUI's Windows head).
+          - pattern-regex: '(?i)<EnableMsixTooling\b[^>]*>[ \t]*true[ \t]*</EnableMsixTooling>'
+          - pattern-regex: '(?i)<WindowsPackageType\b[^>]*>[ \t]*MSIX[ \t]*</WindowsPackageType>'
+          - pattern-regex: '(?i)<GenerateAppxPackageOnBuild\b[^>]*>[ \t]*true[ \t]*</GenerateAppxPackageOnBuild>'
+          # ClickOnce: a publish profile that publishes with it, or a project that makes its manifests.
+          - pattern-regex: '(?i)<PublishProtocol\b[^>]*>[ \t]*ClickOnce[ \t]*</PublishProtocol>'
+          - pattern-regex: '(?i)<GenerateManifests\b[^>]*>[ \t]*true[ \t]*</GenerateManifests>'
+          # A WiX Toolset installer project, and a Windows Application Packaging Project (.wapproj).
+          - pattern-regex: '(?i)<Project[ \t]+Sdk="WixToolset\.Sdk\b'
+          - pattern-regex: '(?i)<Import[ \t]+Project="[^"\n]*\bMicrosoft\.DesktopBridge\.targets"'
+      - pattern-not-regex: '(?s)<!--.*?-->'
     paths:
       include:
         - "*.csproj"
@@ -27,7 +30,10 @@ rules:
         - "*.wixproj"
         - "*.wapproj"
         - "msbuild-desktop-installer.*"
+      # A legacy packages.config restore folder (packages/<Id>.<version>/) holds installed packages'
+      # build files, not the app's own; msbuild-nuget-package records the scan that checked it.
       exclude:
+        - "**/packages/**"
         - "**/example/**"
         - "**/examples/**"
         - "**/sample/**"

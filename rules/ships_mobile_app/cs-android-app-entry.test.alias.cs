@@ -1,6 +1,7 @@
-// lexcode-expect: 2
-// A .NET for Android app with no MAUI: the launcher activity reaches Android.App through an alias,
-// and a second launcher entry names the attribute in full.
+// lexcode-expect: 3
+// Android.App reached only through an alias: a .NET for Android launcher activity, a second launcher
+// entry that names the attribute with global::, and a MAUI head whose Application attribute is
+// aliased and whose MauiApplication base is named in full.
 using Droid = Android.App;
 using Android.OS;
 
@@ -19,4 +20,15 @@ public class LauncherActivity : Droid.Activity
 [global::Android.App.Activity(MainLauncher = true, Label = "Meter Lite")]
 public class LiteLauncherActivity : Droid.Activity
 {
+}
+
+[Droid.Application(Label = "Meter")]
+public class MeterApplication : Microsoft.Maui.MauiApplication
+{
+    public MeterApplication(IntPtr handle, Android.Runtime.JniHandleOwnership ownership)
+        : base(handle, ownership)
+    {
+    }
+
+    protected override MauiApp CreateMauiApp() => MauiProgram.CreateMauiApp();
 }

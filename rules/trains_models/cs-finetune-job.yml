@@ -6,12 +6,15 @@ rules:
     # Library types are written in full: the engine resolves `using` lines and aliases, so an app's own
     # FineTuningClient or CreateTrainingJobRequest in another namespace is not matched.
     pattern-either:
-      # OpenAI (and Azure.AI.OpenAI, which hands out the same client): a fine-tuning client is only for
-      # fine-tuning jobs, so taking one counts; a client built or injected is matched by its calls.
-      - pattern: (OpenAI.OpenAIClient $C).GetFineTuningClient(...)
-      - pattern: (Azure.AI.OpenAI.AzureOpenAIClient $C).GetFineTuningClient(...)
+      # OpenAI (and Azure.AI.OpenAI, which hands out the same client): the call that creates a job, on
+      # a FineTuningClient that is injected, a field, built, or a local declared with its type, or
+      # chained on GetFineTuningClient(). Listing, reading or cancelling jobs is not matched. A `var`
+      # local assigned from GetFineTuningClient() is not typed by the engine and is missed.
       - patterns:
-          - pattern: (OpenAI.FineTuning.FineTuningClient $C).$M(...)
+          - pattern-either:
+              - pattern: (OpenAI.FineTuning.FineTuningClient $C).$M(...)
+              - pattern: (OpenAI.OpenAIClient $X).GetFineTuningClient().$M(...)
+              - pattern: (Azure.AI.OpenAI.AzureOpenAIClient $X).GetFineTuningClient().$M(...)
           - metavariable-regex:
               metavariable: $M
               regex: ^(FineTune|CreateFineTuningJob)(Async)?$
@@ -23,14 +26,19 @@ rules:
       - pattern: Amazon.Bedrock.Model.CreateModelCustomizationJobRequest $V = new(...) { ... };
       # Vertex AI (Google.Cloud.AIPlatform.V1): a training pipeline is created on the client, or built
       # as the object the create call sends. A client from PipelineServiceClient.Create() is found by
-      # the pipeline object, since the engine does not follow a factory's return type.
+      # the pipeline object, since the engine does not follow a factory's return type; an object built
+      # inside the create call on a typed client is that call's match and is not counted again.
       - patterns:
           - pattern: (Google.Cloud.AIPlatform.V1.PipelineServiceClient $C).$M(...)
           - metavariable-regex:
               metavariable: $M
               regex: ^CreateTrainingPipeline(Async)?$
-      - pattern: new Google.Cloud.AIPlatform.V1.TrainingPipeline(...) { ... }
-      - pattern: Google.Cloud.AIPlatform.V1.TrainingPipeline $V = new(...) { ... };
+      - patterns:
+          - pattern-either:
+              - pattern: new Google.Cloud.AIPlatform.V1.TrainingPipeline(...) { ... }
+              - pattern: Google.Cloud.AIPlatform.V1.TrainingPipeline $V = new(...) { ... };
+          - pattern-not-inside: (Google.Cloud.AIPlatform.V1.PipelineServiceClient $C).CreateTrainingPipeline(...)
+          - pattern-not-inside: (Google.Cloud.AIPlatform.V1.PipelineServiceClient $C).CreateTrainingPipelineAsync(...)
     metadata:
       activity: trains_models
       mentioned: performs

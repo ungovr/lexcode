@@ -2,7 +2,11 @@ rules:
   - id: lexcode.mobile.cs-ios-app-delegate
     languages: [csharp]
     severity: INFO
-    message: Declares the application delegate of a .NET MAUI, .NET for iOS or Xamarin.Forms iOS app, the class an installable iPhone or iPad app starts from, which is shipping a mobile app (ships_mobile_app).
+    message: Declares the application delegate of a .NET MAUI or Xamarin.Forms iOS app, the class an installable iPhone or iPad app starts from, which is shipping a mobile app (ships_mobile_app).
+    # A plain UIKit.UIApplicationDelegate is left out: tvOS and Mac Catalyst apps derive from it too,
+    # and nothing in the C# file tells them from an iOS app (the platform is the project's target
+    # framework). A .NET for iOS app with no MAUI is found by ios-info-plist instead, from the
+    # iPhone-only keys of its Info.plist.
     pattern-either:
       # MAUI's iOS head. The template reaches MauiUIApplicationDelegate through the MAUI SDK's
       # implicit global usings, so its product-named short form is matched too.
@@ -10,13 +14,15 @@ rules:
           class $C : Microsoft.Maui.MauiUIApplicationDelegate { ... }
       - pattern: |
           class $C : MauiUIApplicationDelegate { ... }
-      # A .NET for iOS app with no MAUI, and a Xamarin.Forms iOS head.
-      - pattern: |
-          class $C : UIKit.UIApplicationDelegate { ... }
+      # A Xamarin.Forms iOS head (the namespace is iOS's own).
       - pattern: |
           class $C : Xamarin.Forms.Platform.iOS.FormsApplicationDelegate { ... }
-    # The same delegates serve a MAUI app's Mac Catalyst head, which is a desktop build.
     paths:
+      # MAUI's Mac Catalyst head (a desktop build) uses the same delegate, in Platforms/MacCatalyst.
+      # The fixture runner reads only the files beside this rule, so no fixture can sit under that
+      # path; the exclusion was checked by a scan of eShop (ClientApp and HybridApp each have
+      # Platforms/iOS/AppDelegate.cs and Platforms/MacCatalyst/AppDelegate.cs), which matched the
+      # two iOS files and neither MacCatalyst file on Opengrep 1.33.1.
       exclude:
         - "**/MacCatalyst/**"
     metadata:
