@@ -1,4 +1,4 @@
-// lexcode-expect: 5
+// lexcode-expect: 6
 using Microsoft.AspNetCore.Mvc;
 
 namespace MyShop.Kyc;
@@ -9,6 +9,13 @@ public class KycSubmission
     public IFormFile SelfieImage { get; set; } = null!;                                   // 1
     public IFormFile IdDocumentFront { get; set; } = null!;
     public string? Country { get; set; }
+}
+
+// The ID document first, then the face
+public class PassportCheck
+{
+    public byte[] PassportPhoto { get; set; } = [];
+    internal byte[] FaceCapture = [];                                                     // 6
 }
 
 // A positional record, either order

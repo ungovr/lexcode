@@ -1,4 +1,4 @@
-// lexcode-expect: 7
+// lexcode-expect: 8
 using iText.Kernel.Pdf;
 using iText.Signatures;
 using Syncfusion.Pdf.Security;
@@ -20,6 +20,7 @@ public class ContractSealer
     {
         var signature = new PdfSignature(page, certificate, "Tenant");                    // 3 using
         var aliased = new Sf.PdfSignature(page, certificate, "Landlord");                 // 4 alias
+        var witness = new PdfSignature(page, certificate, "Witness") { Reason = "Lease", ContactInfo = "office" }; // 8 object initializer
     }
 
     public void SealLegacy(iTextSharp.text.pdf.PdfReader reader, Stream output)

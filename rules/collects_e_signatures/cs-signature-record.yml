@@ -3,14 +3,10 @@ rules:
     languages: [csharp]
     severity: INFO
     message: Stores a signature a person drew or captured on the record of an agreement, waiver or consent, which is collecting electronic signatures (collects_e_signatures).
-    # Two whole-file regexes keep the engine's literal pre-filter: a file without the word, or without
-    # a class or record whose name holds an agreement word, is not read. The type-name test below is
-    # the exact one; this anchor is only the coarse version of it.
+    # No whole-file lookahead pre-filter (the C# rules carry none, so a large file is never past a
+    # pre-filter's reach): the member and type-name tests below are exact, and the group's cost run
+    # measures the rule without one.
     patterns:
-      - pattern-regex: '(?is)\A(?=.*signature).*'
-      - pattern-either:
-          - pattern-regex: '(?s)\A(?=.*\bclass\s+\w*(?:Waiver|Agreement|Contract|Consent|Lease|Authori[sz]ation(?:Form|Letter)|Acknowledge?ment|Attestation|Disclosure|Confidentiality|(?:Liability|Medical|Photo)Release|Sign[Oo]ff|E[Ss]ign|Signature|Signing|WorkOrder|PermissionSlip|Enrol+ment|Approval)).*'
-          - pattern-regex: '(?s)\A(?=.*\brecord\s+\w*(?:Waiver|Agreement|Contract|Consent|Lease|Authori[sz]ation(?:Form|Letter)|Acknowledge?ment|Attestation|Disclosure|Confidentiality|(?:Liability|Medical|Photo)Release|Sign[Oo]ff|E[Ss]ign|Signature|Signing|WorkOrder|PermissionSlip|Enrol+ment|Approval)).*'
       - pattern-either:
           # A member of the type: a property or a field. A member carries an access modifier and a local
           # variable never does; the engine matches a declaration with more modifiers (`public required`).
