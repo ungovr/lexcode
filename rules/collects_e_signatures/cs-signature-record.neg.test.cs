@@ -15,11 +15,28 @@ public class CreateWebhookSignatureRequest
 public class ContractorProfile
 {
     public string Signature { get; set; } = "";
+    public string SignatureImage { get; set; } = "";
+    public string TenantSignature { get; set; } = "";
 }
 
 public class ForumAccountInfoModel
 {
     public string Signature { get; set; } = "";
+    public string SignatureImage { get; set; } = "";
+    public string TenantSignature { get; set; } = "";
+}
+
+// An email signature, and a word that only starts with an agreement word: a person's or an image
+// name on a type that is no agreement.
+public class EmailSettings
+{
+    public string SignatureImage { get; set; } = "";
+    public string CustomerSignature { get; set; } = "";
+}
+
+public class Leaseholder
+{
+    public string SignatureImage { get; set; } = "";
 }
 
 public class UserAgreement
