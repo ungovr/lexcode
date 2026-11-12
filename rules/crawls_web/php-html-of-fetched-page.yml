@@ -14,11 +14,16 @@ rules:
                   - pattern-inside: \Dom\HTMLDocument::createFromString(...)
                   # Symfony's DomCrawler, matched three ways because the engine does not resolve
                   # imports: in full, under its own `use` line, and under an alias. A project class
-                  # with the short name `Crawler` in another namespace is not taken for it.
+                  # with the short name `Crawler` in another namespace is not taken for it. The
+                  # engine's `use X;` also matches `use X as Y;`, so the short-name branch steps
+                  # aside where the class is aliased and the short name may be the app's own.
                   - pattern-inside: new \Symfony\Component\DomCrawler\Crawler(...)
                   - patterns:
                       - pattern-inside: |
                           use Symfony\Component\DomCrawler\Crawler;
+                          ...
+                      - pattern-not-inside: |
+                          use Symfony\Component\DomCrawler\Crawler as $AL;
                           ...
                       - pattern-inside: new Crawler(...)
                   - patterns:
@@ -68,6 +73,9 @@ rules:
                   - patterns:
                       - pattern-inside: |
                           use Symfony\Component\DomCrawler\Crawler;
+                          ...
+                      - pattern-not-inside: |
+                          use Symfony\Component\DomCrawler\Crawler as $AL;
                           ...
                       - pattern: new Crawler($HTML, ...)
                   - patterns:

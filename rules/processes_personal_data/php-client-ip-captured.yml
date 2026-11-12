@@ -118,6 +118,8 @@ rules:
       # An address-named attribute set on a stored object: inside an Eloquent model class (as
       # rb-client-ip-captured holds to an ActiveRecord class), or on an object the same block
       # then saves. A plain object or a request-scoped context that carries the address is not.
+      # Under an aliased import of Eloquent's Model, a bare Model is the app's own (the engine's
+      # `use X;` also matches `use X as Y;`).
       - patterns:
           - pattern: $O->$F = $V
           - pattern-either:
@@ -126,6 +128,9 @@ rules:
               - patterns:
                   - pattern-inside: |
                       use Illuminate\Database\Eloquent\Model;
+                      ...
+                  - pattern-not-inside: |
+                      use Illuminate\Database\Eloquent\Model as $AL;
                       ...
                   - pattern-inside: |
                       class $CLS extends Model { ... }

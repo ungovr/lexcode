@@ -16,6 +16,8 @@ rules:
                   metavariable: $R
                   regex: (?i).*response
           # Laravel: the Cookie facade, fully qualified, as the root alias, imported or aliased.
+          # The engine's `use X;` also matches `use X as Y;`, so each short-name branch steps aside
+          # where the class is aliased and the short name may be the app's own.
           - patterns:
               - pattern-either:
                   - pattern: \Illuminate\Support\Facades\Cookie::$M($N, $V, ...)
@@ -24,6 +26,9 @@ rules:
                       - pattern: Cookie::$M($N, $V, ...)
                       - pattern-inside: |
                           use Illuminate\Support\Facades\Cookie;
+                          ...
+                      - pattern-not-inside: |
+                          use Illuminate\Support\Facades\Cookie as $AL;
                           ...
                   - patterns:
                       - pattern: $A::$M($N, $V, ...)
@@ -42,6 +47,9 @@ rules:
                   - pattern: new Cookie($N, $V, ...)
               - pattern-inside: |
                   use Symfony\Component\HttpFoundation\Cookie;
+                  ...
+              - pattern-not-inside: |
+                  use Symfony\Component\HttpFoundation\Cookie as $AL;
                   ...
           - patterns:
               - pattern-either:

@@ -31,6 +31,8 @@ rules:
               regex: (?i)^\$.*(client|openai|open_ai|anthropic|claude|llm)
       # The openai-php/laravel and anthropic-php/laravel facades, fully qualified or imported
       # (under their own name or an alias). An app's own class of the same short name is not one.
+      # The engine's `use X;` also matches `use X as Y;`, so each short-name branch steps aside
+      # where the class is aliased and the short name may be the app's own.
       - patterns:
           - pattern-regex: (?s)\A(?=.*OpenAI).*
           - pattern-either:
@@ -38,6 +40,9 @@ rules:
               - patterns:
                   - pattern-inside: |
                       use OpenAI\Laravel\Facades\OpenAI;
+                      ...
+                  - pattern-not-inside: |
+                      use OpenAI\Laravel\Facades\OpenAI as $AL;
                       ...
                   - pattern: OpenAI::$R()->$M(...)
               - patterns:
@@ -58,6 +63,9 @@ rules:
               - patterns:
                   - pattern-inside: |
                       use Anthropic\Laravel\Facades\Anthropic;
+                      ...
+                  - pattern-not-inside: |
+                      use Anthropic\Laravel\Facades\Anthropic as $AL;
                       ...
                   - pattern: Anthropic::messages()->$M(...)
               - patterns:
@@ -88,6 +96,7 @@ rules:
                       metavariable: $ID
                       regex: (?i)^['"][^'"]*(claude|llama|titan-text|nova-(lite|micro|pro|premier)|mistral|command|jamba|deepseek|qwen)[^'"]*['"]$
       # Prism: a text request, fully qualified or imported (the class or its Laravel facade).
+      # Each short-name branch steps aside under an aliased import, as above.
       - patterns:
           - pattern-regex: (?s)\A(?=.*Prism).*
           - pattern-either:
@@ -95,12 +104,20 @@ rules:
               - pattern: \Prism\Prism\Facades\Prism::text()-> ... ->$M()
               - patterns:
                   - pattern-either:
-                      - pattern-inside: |
-                          use Prism\Prism\Prism;
-                          ...
-                      - pattern-inside: |
-                          use Prism\Prism\Facades\Prism;
-                          ...
+                      - patterns:
+                          - pattern-inside: |
+                              use Prism\Prism\Prism;
+                              ...
+                          - pattern-not-inside: |
+                              use Prism\Prism\Prism as $AL;
+                              ...
+                      - patterns:
+                          - pattern-inside: |
+                              use Prism\Prism\Facades\Prism;
+                              ...
+                          - pattern-not-inside: |
+                              use Prism\Prism\Facades\Prism as $AL;
+                              ...
                   - pattern: Prism::text()-> ... ->$M()
               - patterns:
                   - pattern-either:
@@ -205,6 +222,8 @@ rules:
           - pattern: return $X;
           - focus-metavariable: $X
       # A Livewire component's property is rendered by its view.
+      # Under an aliased import of Livewire's Component, a bare Component is the app's own (the
+      # engine's `use X;` also matches `use X as Y;`).
       - patterns:
           - pattern-either:
               - pattern-inside: |
@@ -214,6 +233,9 @@ rules:
               - patterns:
                   - pattern-inside: |
                       use Livewire\Component;
+                      ...
+                  - pattern-not-inside: |
+                      use Livewire\Component as $AL;
                       ...
                   - pattern-inside: |
                       class $LW extends Component {

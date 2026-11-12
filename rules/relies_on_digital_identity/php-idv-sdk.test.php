@@ -1,13 +1,14 @@
 <?php
-// lexcode-expect: 12
+// lexcode-expect: 11
 // Checking who a person is with an identity-verification service: Stripe Identity (the static
 // resources and the client's services), Onfido's API client and Yoti's clients. Each vendor class
-// is used through its plain import, through an aliased import and fully qualified.
+// is used through its plain import, through an aliased import and fully qualified. Onfido's
+// aliased import is in php-idv-sdk.test.alias.php, because the short-name branch steps aside in a
+// file that also imports the class under an alias.
 
 namespace App\Identity;
 
 use Onfido\Api\DefaultApi;
-use Onfido\Api\DefaultApi as OnfidoApi;
 use Stripe\Identity\VerificationReport as Report;
 use Stripe\Identity\VerificationSession;
 use Stripe\StripeClient;
@@ -39,7 +40,6 @@ class IdentityChecks
     {
         return [
             new DefaultApi($http, $config),
-            new OnfidoApi($http, $config),
             new \Onfido\Api\DefaultApi($http, $config),
         ];
     }

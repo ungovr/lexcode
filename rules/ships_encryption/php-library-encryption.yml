@@ -8,6 +8,8 @@ rules:
     # does not resolve `use` imports, so each library class is read three ways: fully qualified, by
     # its short name under its own import, and by an alias under an aliased import. One branch per
     # library, so one library's import cannot admit another's call.
+    # The engine's `use X;` also matches `use X as Y;`, so each short-name branch steps aside where
+    # the class is aliased and the short name may be the app's own.
     pattern-either:
       # Laravel's encrypter: the Crypt facade (also through Laravel's global alias) and the Encrypter class
       - patterns:
@@ -18,6 +20,9 @@ rules:
                   - pattern: Crypt::$M(...)
                   - pattern-inside: |
                       use Illuminate\Support\Facades\Crypt;
+                      ...
+                  - pattern-not-inside: |
+                      use Illuminate\Support\Facades\Crypt as $AL;
                       ...
               - patterns:
                   - pattern: $A::$M(...)
@@ -33,6 +38,9 @@ rules:
           - pattern-inside: |
               use Illuminate\Encryption\Encrypter;
               ...
+          - pattern-not-inside: |
+              use Illuminate\Encryption\Encrypter as $AL;
+              ...
       - patterns:
           - pattern: new $A(...)
           - pattern-inside: |
@@ -46,6 +54,9 @@ rules:
                   - pattern: $C::$M(...)
                   - pattern-inside: |
                       use Defuse\Crypto\$C;
+                      ...
+                  - pattern-not-inside: |
+                      use Defuse\Crypto\$C as $AL;
                       ...
               - patterns:
                   - pattern: $A::$M(...)
@@ -66,12 +77,20 @@ rules:
               - patterns:
                   - pattern: $C::$M(...)
                   - pattern-either:
-                      - pattern-inside: |
-                          use ParagonIE\Halite\$C;
-                          ...
-                      - pattern-inside: |
-                          use ParagonIE\Halite\$NS\$C;
-                          ...
+                      - patterns:
+                          - pattern-inside: |
+                              use ParagonIE\Halite\$C;
+                              ...
+                          - pattern-not-inside: |
+                              use ParagonIE\Halite\$C as $AL;
+                              ...
+                      - patterns:
+                          - pattern-inside: |
+                              use ParagonIE\Halite\$NS\$C;
+                              ...
+                          - pattern-not-inside: |
+                              use ParagonIE\Halite\$NS\$C as $AL;
+                              ...
               - patterns:
                   - pattern: $A::$M(...)
                   - pattern-either:
@@ -95,12 +114,20 @@ rules:
               - patterns:
                   - pattern: new $C(...)
                   - pattern-either:
-                      - pattern-inside: |
-                          use phpseclib3\$P\$C;
-                          ...
-                      - pattern-inside: |
-                          use phpseclib\$P\$C;
-                          ...
+                      - patterns:
+                          - pattern-inside: |
+                              use phpseclib3\$P\$C;
+                              ...
+                          - pattern-not-inside: |
+                              use phpseclib3\$P\$C as $AL;
+                              ...
+                      - patterns:
+                          - pattern-inside: |
+                              use phpseclib\$P\$C;
+                              ...
+                          - pattern-not-inside: |
+                              use phpseclib\$P\$C as $AL;
+                              ...
               - patterns:
                   - pattern: new $A(...)
                   - pattern-either:
@@ -122,6 +149,9 @@ rules:
           - pattern: new JWEBuilder(...)
           - pattern-inside: |
               use Jose\Component\Encryption\JWEBuilder;
+              ...
+          - pattern-not-inside: |
+              use Jose\Component\Encryption\JWEBuilder as $AL;
               ...
       - patterns:
           - pattern: new $A(...)

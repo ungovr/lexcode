@@ -6,6 +6,8 @@ rules:
     # The engine does not resolve `use` imports, so each vendor class is read three ways: fully
     # qualified, by its short name under the vendor's import, and by an alias under an aliased
     # import. One branch per vendor, so one vendor's import cannot admit another's call.
+    # The engine's `use X;` also matches `use X as Y;`, so each short-name branch steps aside where
+    # the class is aliased and the short name may be the app's own.
     pattern-either:
       # Stripe Identity: the static resources
       - patterns:
@@ -15,6 +17,9 @@ rules:
                   - pattern: $C::$M(...)
                   - pattern-inside: |
                       use Stripe\Identity\$C;
+                      ...
+                  - pattern-not-inside: |
+                      use Stripe\Identity\$C as $AL;
                       ...
               - patterns:
                   - pattern: $A::$M(...)
@@ -42,6 +47,9 @@ rules:
           - pattern-inside: |
               use Onfido\Api\DefaultApi;
               ...
+          - pattern-not-inside: |
+              use Onfido\Api\DefaultApi as $AL;
+              ...
       - patterns:
           - pattern: new $A(...)
           - pattern-inside: |
@@ -55,6 +63,9 @@ rules:
           - pattern-inside: |
               use Yoti\YotiClient;
               ...
+          - pattern-not-inside: |
+              use Yoti\YotiClient as $AL;
+              ...
       - patterns:
           - pattern: new $A(...)
           - pattern-inside: |
@@ -64,6 +75,9 @@ rules:
           - pattern: new DocScanClient(...)
           - pattern-inside: |
               use Yoti\DocScan\DocScanClient;
+              ...
+          - pattern-not-inside: |
+              use Yoti\DocScan\DocScanClient as $AL;
               ...
       - patterns:
           - pattern: new $A(...)

@@ -136,6 +136,8 @@ rules:
           - pattern: return $X;
           - focus-metavariable: $X
       # A Livewire component's property is rendered by its view.
+      # Under an aliased import of Livewire's Component, a bare Component is the app's own (the
+      # engine's `use X;` also matches `use X as Y;`).
       - patterns:
           - pattern-either:
               - pattern-inside: |
@@ -145,6 +147,9 @@ rules:
               - patterns:
                   - pattern-inside: |
                       use Livewire\Component;
+                      ...
+                  - pattern-not-inside: |
+                      use Livewire\Component as $AL;
                       ...
                   - pattern-inside: |
                       class $LW extends Component {

@@ -5,6 +5,8 @@ rules:
     message: Sends visits or events from the server to a third-party analytics or advertising service (Segment, PostHog, Mixpanel, Matomo, Amplitude, the Google Analytics Measurement Protocol or the Meta Conversions API) that follows the visitor with its own id, which is tracking devices (tracks_devices).
     # One branch per vendor, each with its own import guard, so one vendor's import cannot admit
     # another's call and an app's own class of the same short name is not read as the vendor's.
+    # The engine's `use X;` also matches `use X as Y;`, so each short-name branch steps aside where
+    # the class is aliased and the short name may be the app's own.
     pattern-either:
       # Segment (segmentio/analytics-php).
       - patterns:
@@ -14,6 +16,9 @@ rules:
                   - pattern: Segment::$M(...)
                   - pattern-inside: |
                       use Segment\Segment;
+                      ...
+                  - pattern-not-inside: |
+                      use Segment\Segment as $AL;
                       ...
               - patterns:
                   - pattern: $A::$M(...)
@@ -32,6 +37,9 @@ rules:
                   - pattern-inside: |
                       use PostHog\PostHog;
                       ...
+                  - pattern-not-inside: |
+                      use PostHog\PostHog as $AL;
+                      ...
               - patterns:
                   - pattern: $A::$M(...)
                   - pattern-inside: |
@@ -41,17 +49,21 @@ rules:
               metavariable: $M
               regex: ^(init|capture|identify|alias|groupIdentify)$
       # Mixpanel (mixpanel/mixpanel-php), a class in the global namespace: fully qualified,
-      # imported, aliased, or bare in a file with no namespace.
+      # imported, aliased, or bare in a file with no namespace. A one-segment `use Mixpanel;`
+      # pattern also matches `use App\X\Mixpanel;`, so the plain import of the global class is
+      # checked on the file's text, as php-phar-build checks Phar's. (The aliased form does not
+      # match an app's namespace, measured on Opengrep 1.33.1.)
       - pattern: \Mixpanel::getInstance(...)
       - patterns:
           - pattern: Mixpanel::getInstance(...)
-          - pattern-inside: |
-              use Mixpanel;
-              ...
+          - pattern-regex: '(?s)\A(?=.*\buse\s+\\?Mixpanel\s*;).*'
       - patterns:
           - pattern: Mixpanel::getInstance(...)
           - pattern-not-inside: |
               namespace $NS;
+              ...
+          - pattern-not-inside: |
+              use Mixpanel;
               ...
       - patterns:
           - pattern: $A::getInstance(...)
@@ -59,6 +71,7 @@ rules:
               use Mixpanel as $A;
               ...
       # Matomo (matomo/matomo-php-tracker), and its older Piwik name, in the global namespace.
+      # The import is checked on the file's text, as Mixpanel's is.
       - patterns:
           - pattern-either:
               - pattern: new \MatomoTracker(...)
@@ -70,11 +83,15 @@ rules:
                   - pattern-not-inside: |
                       namespace $NS;
                       ...
-              - patterns:
-                  - pattern: new MatomoTracker(...)
-                  - pattern-inside: |
+                  - pattern-not-inside: |
                       use MatomoTracker;
                       ...
+                  - pattern-not-inside: |
+                      use PiwikTracker;
+                      ...
+              - patterns:
+                  - pattern: new MatomoTracker(...)
+                  - pattern-regex: '(?s)\A(?=.*\buse\s+\\?MatomoTracker\s*;).*'
               - patterns:
                   - pattern: new $A(...)
                   - pattern-inside: |
@@ -92,6 +109,9 @@ rules:
                   - pattern-inside: |
                       use Zumba\Amplitude\Amplitude;
                       ...
+                  - pattern-not-inside: |
+                      use Zumba\Amplitude\Amplitude as $AL;
+                      ...
               - patterns:
                   - pattern-either:
                       - pattern: $A::getInstance(...)
@@ -107,6 +127,9 @@ rules:
                   - pattern: new EventRequest(...)
                   - pattern-inside: |
                       use FacebookAds\Object\ServerSide\EventRequest;
+                      ...
+                  - pattern-not-inside: |
+                      use FacebookAds\Object\ServerSide\EventRequest as $AL;
                       ...
               - patterns:
                   - pattern: new $A(...)

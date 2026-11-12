@@ -16,6 +16,8 @@ rules:
                   metavariable: $V
                   regex: ^(['"])encrypted(?::(?:array|collection|object))?\1$
           # The encrypted cast classes, read only under Laravel's own import or fully qualified
+          # The engine's `use X;` also matches `use X as Y;`, so each short-name branch steps aside
+          # where the class is aliased and the short name may be the app's own.
           - patterns:
               - pattern-either:
                   - pattern: \Illuminate\Database\Eloquent\Casts\$X::class
@@ -26,6 +28,9 @@ rules:
                           - pattern: $X::$M(...)
                       - pattern-inside: |
                           use Illuminate\Database\Eloquent\Casts\$X;
+                          ...
+                      - pattern-not-inside: |
+                          use Illuminate\Database\Eloquent\Casts\$X as $AL;
                           ...
                   - patterns:
                       - pattern-either:

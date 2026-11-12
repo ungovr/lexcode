@@ -14,19 +14,28 @@ rules:
           - pattern: fetch_feed($URL)
           # Laminas and Zend Feed Reader. The engine does not resolve imports, so the class is matched
           # in full, by its short name under its own `use` line, and under an alias; a project
-          # `Reader` in another namespace is not taken for it.
+          # `Reader` in another namespace is not taken for it. The engine's `use X;` also matches
+          # `use X as Y;`, so the short-name branch steps aside where the class is aliased.
           - patterns:
               - pattern-either:
                   - pattern: \Laminas\Feed\Reader\Reader::$M($URL, ...)
                   - pattern: \Zend\Feed\Reader\Reader::$M($URL, ...)
                   - patterns:
                       - pattern-either:
-                          - pattern-inside: |
-                              use Laminas\Feed\Reader\Reader;
-                              ...
-                          - pattern-inside: |
-                              use Zend\Feed\Reader\Reader;
-                              ...
+                          - patterns:
+                              - pattern-inside: |
+                                  use Laminas\Feed\Reader\Reader;
+                                  ...
+                              - pattern-not-inside: |
+                                  use Laminas\Feed\Reader\Reader as $AL;
+                                  ...
+                          - patterns:
+                              - pattern-inside: |
+                                  use Zend\Feed\Reader\Reader;
+                                  ...
+                              - pattern-not-inside: |
+                                  use Zend\Feed\Reader\Reader as $AL;
+                                  ...
                       - pattern: Reader::$M($URL, ...)
                   - patterns:
                       - pattern-either:

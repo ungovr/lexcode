@@ -8,9 +8,9 @@ rules:
     # import or an alias, or fully qualified) or an Eloquent model (extending Model under its import,
     # an alias or fully qualified). A plain class of that name stores nothing; a contact message, a
     # ticket and a chat room hold no chat text; an app's own Model or Entity in another namespace is not
-    # Eloquent's or Doctrine's. Known gap: on Opengrep 1.33.1 a plain `use X;` pattern also matches
-    # `use X as Y;`, so a file that imports Eloquent's Model under an alias AND an app's own Model under
-    # the short name passes the plain-import branch.
+    # Eloquent's or Doctrine's. On Opengrep 1.33.1 a plain `use X;` pattern also matches `use X as Y;`,
+    # so each short-name branch steps aside where the class is aliased: there the short name may be the
+    # app's own (a file that imports Eloquent's Model under an alias and its own Model plainly).
     patterns:
       - pattern-either:
           - patterns:
@@ -27,6 +27,9 @@ rules:
               - pattern-inside: |
                   use Doctrine\ORM\Mapping\Entity;
                   ...
+              - pattern-not-inside: |
+                  use Doctrine\ORM\Mapping\Entity as $AL;
+                  ...
               - pattern: |
                   #[Entity($...A)]
                   class $K { ... }
@@ -42,6 +45,9 @@ rules:
           - patterns:
               - pattern-inside: |
                   use Illuminate\Database\Eloquent\Model;
+                  ...
+              - pattern-not-inside: |
+                  use Illuminate\Database\Eloquent\Model as $AL;
                   ...
               - pattern: |
                   class $K extends Model { ... }

@@ -8,6 +8,8 @@ rules:
     # send set is shared with php-send-in-scheduled-job and php-send-in-background-job. Library classes
     # are matched by their fully qualified name or under their import, so an app's own Mail or
     # Notification class in another namespace (Filament's Notification toast among them) is not a send.
+    # The engine's `use X;` also matches `use X as Y;`, so each short-name branch steps aside where the
+    # class is aliased and the short name may be the app's own.
     patterns:
       - pattern-either:
           - patterns:
@@ -42,6 +44,9 @@ rules:
                       - pattern-inside: |
                           use Illuminate\Support\Facades\Mail;
                           ...
+                      - pattern-not-inside: |
+                          use Illuminate\Support\Facades\Mail as $AL;
+                          ...
                       - pattern: Mail::$MM(...)
                   - patterns:
                       - pattern-inside: |
@@ -59,6 +64,9 @@ rules:
                   - patterns:
                       - pattern-inside: |
                           use Illuminate\Support\Facades\Notification;
+                          ...
+                      - pattern-not-inside: |
+                          use Illuminate\Support\Facades\Notification as $AL;
                           ...
                       - pattern: Notification::$NM(...)
                   - patterns:
