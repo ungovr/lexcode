@@ -8,11 +8,11 @@ rules:
     pattern-either:
       # whereIn('user_id', $user->following()->pluck('id')) in Eloquent, and
       # $qb->expr()->in('p.author', ':following') in Doctrine's query builder. The pre-filters keep
-      # the engine to files that name both the method and a follow or friend word ("the following"
+      # the engine to files that name both the method (whereIn, orWhereIn or ->in) and a follow or friend word ("the following"
       # in a comment is in thousands of a large app's files).
       - patterns:
           - pattern-either:
-              - pattern-regex: '(?s)\A(?=.*whereIn).*'
+              - pattern-regex: '(?s)\A(?=.*[wW]hereIn).*'
               - pattern-regex: '(?s)\A(?=.*->in\().*'
           - pattern-either:
               - pattern-regex: '(?is)\A(?=.*follow).*'

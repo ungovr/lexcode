@@ -1,7 +1,7 @@
 <?php
-// lexcode-expect: 5
+// lexcode-expect: 6
 // A home feed of posts by the accounts a user follows or befriends: an Eloquent whereIn on the
-// followed accounts (static and on a builder), a Doctrine query-builder IN on the following list,
+// followed accounts (static, on a builder, and orWhereIn), a Doctrine query-builder IN on the following list,
 // a DQL condition, and raw SQL joining posts to the follows table.
 namespace App\Feed;
 
@@ -16,7 +16,10 @@ class TimelineService
         $more = $this->posts->query()
             ->whereIn('author_id', $user->friends->pluck('id'))
             ->get();
-        return [$ids, $posts, $more];
+        $either = Post::where('pinned', true)
+            ->orWhereIn('user_id', $user->following()->pluck('id'))
+            ->get();
+        return [$ids, $posts, $more, $either];
     }
 
     public function doctrine(EntityManagerInterface $em, Account $me)

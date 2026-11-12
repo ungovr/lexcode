@@ -114,7 +114,7 @@ rules:
             - pattern: $R::group($OPTS, ...)
             - metavariable-regex:
                 metavariable: $OPTS
-                regex: '(?is).*[''"](prefix|middleware|as)[''"]\s*=>\s*[^,\]]*\b(admin|staff|internal|backoffice|manage)'
+                regex: '(?is).*[''"](prefix|middleware|as)[''"]\s*=>\s*(\[[^\]]*|[^,\]]*)\b(admin|staff|internal|backoffice|manage)'
       # A Symfony route that IsGranted restricts, on either side of the Route attribute.
       - pattern-not-regex: '#\[IsGranted\([^\n]*\)\]\s*(#\[[^\n]*\]\s*)*#\[[\\\w]*Route\([^\n]*'
       - pattern-not-regex: '#\[[\\\w]*Route\([^\n]*\)\]\s*(#\[[^\n]*\]\s*)*#\[IsGranted\('

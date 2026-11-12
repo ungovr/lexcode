@@ -1,8 +1,10 @@
 <?php
-// lexcode-expect: 4
+// lexcode-expect: 6
 // A public sign-up controller that fires Laravel's Registered event for the new account through
-// the event helper (aliased import), through dispatch (fully qualified), and in a second form
-// handler, plus a Fortify action that creates the account a visitor registers (aliased contract).
+// the event helper (aliased import), through dispatch (fully qualified), and through new written
+// fully qualified in an API handler, plus a Fortify action that creates the account a
+// visitor registers (aliased contract) and Fortify's registration feature (aliased and fully
+// qualified).
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
@@ -11,6 +13,7 @@ use Illuminate\Auth\Events\Registered as AccountRegistered;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Laravel\Fortify\Contracts\CreatesNewUsers as CreatesUsers;
+use Laravel\Fortify\Features as FortifyFeatures;
 
 class RegisteredUserController extends Controller
 {
@@ -50,7 +53,19 @@ class ApiSignup
     public function __invoke(Request $request)
     {
         $user = User::create($request->all());
-        event(new AccountRegistered($user));
+        event(new \Illuminate\Auth\Events\Registered($user));
         return response()->json($user, 201);
+    }
+}
+
+class FortifyFeatureList
+{
+    public static function features(): array
+    {
+        return [
+            FortifyFeatures::registration(),
+            \Laravel\Fortify\Features::registration(),
+            FortifyFeatures::resetPasswords(),
+        ];
     }
 }

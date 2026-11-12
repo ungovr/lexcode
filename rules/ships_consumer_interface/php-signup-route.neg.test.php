@@ -3,13 +3,15 @@
 // What is not a public sign-up route: a register page under an admin prefix, admin middleware or
 // an admin group (a tool only staff use), a Symfony register route behind IsGranted or on an
 // admin controller, a call to another service's register endpoint over HTTP (an API client, no
-// screen of ours), a path that only starts with "register", and an app's own Route class in
-// another namespace, which is not Laravel's facade.
+// screen of ours), a path that only starts with "register", and an app's own Route and Volt
+// classes in another namespace, which are not Laravel's or Livewire's.
 namespace App\Http\Routes;
 
 use App\Routing\Route;
 use GuzzleHttp\Client;
+use App\Pages\Volt;
 use Illuminate\Support\Facades\Route as LaravelRoute;
+use Livewire\Volt\Volt as LivewireVolt;
 use Symfony\Component\Routing\Attribute\Route as SymfonyRoute;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
@@ -26,6 +28,14 @@ class RouteMap
         LaravelRoute::group(['prefix' => 'staff', 'middleware' => 'auth'], function () {
             LaravelRoute::view('/signup', 'staff.signup');
         });
+        LaravelRoute::group(['middleware' => ['auth', 'admin']], function () {
+            LaravelRoute::get('register', [UserController::class, 'create']);
+        });
+        LaravelRoute::group(['middleware' => ['auth', 'role:staff'], 'as' => 'people.'], function () {
+            LaravelRoute::post('/sign-up', [UserController::class, 'store']);
+        });
+        // The app's own App\Pages\Volt, a page registry, beside an aliased Livewire Volt import.
+        Volt::route('register', 'pages.course-register');
         LaravelRoute::get('/registered-courses', [CourseController::class, 'index']);
         // The app's own App\Routing\Route, a course-enrolment route table, not Laravel's.
         Route::get('register', 'enrolment.register');
