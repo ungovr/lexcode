@@ -35,3 +35,11 @@ class WebPushSubscriptionsController < ApplicationController
     current_user.push_subscriptions.create!(endpoint: params[:endpoint], p256dh: params[:p256dh], auth: params[:auth])
   end
 end
+
+class LoginCodesController < ApplicationController
+  # The one-time code built elsewhere and passed in by name, or through a translation key.
+  def create
+    client.messages.create(from: "+15550100", to: params[:phone], body: verification_message)
+    client.messages.create(from: "+15550100", to: params[:phone], body: I18n.t("sms.otp", code: @code))
+  end
+end

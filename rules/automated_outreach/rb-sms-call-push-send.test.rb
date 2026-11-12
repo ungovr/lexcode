@@ -1,4 +1,4 @@
-# lexcode-expect: 27
+# lexcode-expect: 30
 # Texts, calls and push notifications, where the code does not show whether a person just asked.
 class NotificationsController < ApplicationController
   def reminder
@@ -82,5 +82,24 @@ class ResidualShapesCarriers
       .payload_send(message: payload, endpoint: user.endpoint)
     client.messages \
       .create(from: "+15550100", to: user.phone, body: "Hi")
+  end
+end
+
+# A promo code is marketing, not a one-time code, and a recipient attribute named like
+# verification says nothing about the message.
+class WinBackJob < ApplicationJob
+  def perform(user)
+    client.messages.create(from: "+15550100", to: user.phone, body: "Use promo code SAVE20 for 20% off this weekend")
+  end
+
+  def nudge(user)
+    client.messages.create(from: "+15550100", to: user.verified_phone, body: "We miss you! Come back for 20% off")
+  end
+end
+
+# A Twilio content template has no body: to read, so it counts.
+class TemplateBlastJob < ApplicationJob
+  def perform(user)
+    client.messages.create(from: "+15550100", to: user.phone, content_sid: "HXb5b62575e6e4ff6129ad7c8efe1f983e", content_variables: { "1" => user.first_name }.to_json)
   end
 end

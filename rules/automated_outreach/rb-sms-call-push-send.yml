@@ -5,9 +5,19 @@ rules:
     message: Sends a text, places a call or pushes a notification, where the code does not show whether a person just asked for it, which may be sending automated outreach (automated_outreach).
     patterns:
       - pattern-either:
+          # A text with no body: (a content template) counts; one with a body counts unless the body
+          # is a one-time code, a verification, or a password or PIN message, which a person just
+          # asked for. Only the body is read: a promo code, or a recipient named verified_phone,
+          # says nothing about that.
           - patterns:
               - pattern: '$C.messages.create(..., to: $TO, ...)'
-              - pattern-not-regex: (?is)(code|otp|verif|passcode|password|\bpin\b)
+              - pattern-not: '$C.messages.create(..., body: $B, ...)'
+          - patterns:
+              - pattern: '$C.messages.create(..., to: $TO, ...)'
+              - pattern: '$C.messages.create(..., body: $B, ...)'
+              - metavariable-regex:
+                  metavariable: $B
+                  regex: '(?is)^(?!.*(?:verif|one[- ]?time|\botp\b|passcode|password|\bpin\b|(?<!promo )(?<!discount )(?<!coupon )(?<!referral )(?<!gift )(?<!zip )\bcode\b))'
           - pattern: '$C.calls.create(..., to: $TO, ...)'
           - pattern: Webpush.payload_send(...)
           - pattern: Rpush::$K::Notification.create!(...)
