@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildRecord,
   countRulesRun,
+  enginePlan,
   engineTargets,
   largePrefilteredFiles,
   PREFILTER_REACH_BYTES,
@@ -10,8 +11,9 @@ import {
   unreadLanguages,
 } from '../../src/record/build.js';
 import { loadRuleSet } from '../../src/rules/load.js';
-import type { Sidecar } from '../../src/types.js';
+import type { RuleMeta, Sidecar } from '../../src/types.js';
 import { NOW, SCOPE, match, ruleSetWith } from '../helpers/record.js';
+import { expectNearLinear, measureScaling } from '../helpers/scaling.js';
 
 const base = {
   matches: [],
@@ -361,7 +363,9 @@ describe('countRulesRun', () => {
     const m = countRulesRun(rs, rs.rules, ['src/a.py', 'web/page.vue.lexcode.ts', 'README.md'], new Set());
     expect(m.get('trains_models')).toBe(2);
     expect(m.get('tracks_devices')).toBe(2); // the generic rule, plus the files entry
-    expect(m.get('crawls_web') ?? 0).toBe(0);
+    // The js rule reads the .ts copy as well: the engine takes .ts and .tsx as JavaScript (#12997).
+    expect(m.get('crawls_web')).toBe(1);
+    expect(countRulesRun(rs, rs.rules, ['src/a.py', 'README.md'], new Set()).get('crawls_web')).toBeUndefined();
   });
 
   it('adds the map entries of an ecosystem whose manifests were found', () => {
@@ -378,6 +382,121 @@ describe('countRulesRun', () => {
     const m = countRulesRun(rs, rs.rules, ['a.rb'], new Set());
     expect(m.get('trains_models')).toBeUndefined();
     expect(m.get('tracks_devices')).toBe(2);
+  });
+});
+
+describe('enginePlan (#12997)', () => {
+  /** The rules of the test alone: the helper's rule set carries others as well. */
+  const only = (rs: ReturnType<typeof ruleSetWith>) => rs.rules.filter((r) => r.id.startsWith('lexcode.p.'));
+  const plan = (rules: Partial<RuleMeta>[], files: string[]) => {
+    const p = enginePlan(only(ruleSetWith(rules)), files);
+    return { rules: p.rules.map((r) => r.id), targets: p.targets };
+  };
+  const files = ['src/a.py', 'web/b.ts', 'photos/cat.jpg', 'README.md', 'package.json', 'tools/pyproject.toml', 'sub/x.cfg'];
+
+  it('leaves out a rule whose languages have no file, and hands over only the files a rule reads', () => {
+    expect(plan([{ id: 'lexcode.p.py', languages: ['python'] }, { id: 'lexcode.p.php', languages: ['php'] }], files)).toEqual({
+      rules: ['lexcode.p.py'],
+      targets: ['src/a.py'],
+    });
+  });
+
+  it('a generic rule with no include reads every file; one with an include reads only what the include matches', () => {
+    expect(plan([{ id: 'lexcode.p.g', languages: ['generic'] }], files).targets).toEqual(files);
+    expect(plan([{ id: 'lexcode.p.g', languages: ['generic'], include: ['pyproject.toml'] }], files)).toEqual({
+      rules: ['lexcode.p.g'],
+      targets: ['tools/pyproject.toml'],
+    });
+    expect(plan([{ id: 'lexcode.p.g', languages: ['generic'], include: ['pyproject.toml'] }], ['a.py', 'cat.jpg'])).toEqual({ rules: [], targets: [] });
+  });
+
+  it('a language rule with an include needs a file in its language that the include matches', () => {
+    const composer = { id: 'lexcode.p.composer', languages: ['json'], include: ['composer.json'] };
+    expect(plan([composer], files)).toEqual({ rules: [], targets: [] });
+    expect(plan([composer], [...files, 'lib/composer.json'])).toEqual({ rules: ['lexcode.p.composer'], targets: ['lib/composer.json'] });
+    // A composer.json directory holding no JSON is not enough.
+    expect(plan([composer], ['composer.json/readme.md'])).toEqual({ rules: [], targets: [] });
+  });
+
+  it('matches an include against a directory as well as the file name, at any depth, as the engine does', () => {
+    expect(plan([{ id: 'lexcode.p.g', languages: ['generic'], include: ['sub'] }], files).targets).toEqual(['sub/x.cfg']);
+    expect(plan([{ id: 'lexcode.p.w', languages: ['yaml'], include: ['.github/workflows/*.yml'] }], ['.github/workflows/ci.yml', 'pkg/.github/workflows/r.yml', 'conf/app.yml', 'x.yaml'])).toEqual({
+      rules: ['lexcode.p.w'],
+      targets: ['.github/workflows/ci.yml', 'pkg/.github/workflows/r.yml', 'conf/app.yml'],
+    });
+  });
+
+  it('errs toward reading: ignores case, and reads every file of its languages for an include it cannot test', () => {
+    expect(plan([{ id: 'lexcode.p.g', languages: ['generic'], include: ['PyProject.TOML'] }], files).targets).toEqual(['tools/pyproject.toml']);
+    for (const include of [['*.{toml,cfg}'], ['[pP]yproject.toml'], ['src/**'], ['!x'], ['a\\b'], ['/'], ['scan-*']]) {
+      expect(plan([{ id: 'lexcode.p.g', languages: ['generic'], include }], files).targets).toEqual(files);
+    }
+    expect(plan([{ id: 'lexcode.p.j', languages: ['json'], include: ['src/**'] }], files).targets).toEqual(['package.json']);
+  });
+
+  it('hands over every extension the engine reads for a language, past what lexcode names the language by', () => {
+    // Measured on opengrep 1.33.1: javascript reads .ts and .tsx, php .tpl, kotlin .ktm, json .ipynb, python a file named .py.
+    expect(plan([{ id: 'lexcode.p.js', languages: ['javascript'] }], ['a.ts', 'b.tsx', 'c.md'])).toEqual({ rules: ['lexcode.p.js'], targets: ['a.ts', 'b.tsx'] });
+    expect(plan([{ id: 'lexcode.p.php', languages: ['php'] }], ['themes/page.tpl'])).toEqual({ rules: ['lexcode.p.php'], targets: ['themes/page.tpl'] });
+    expect(plan([{ id: 'lexcode.p.kt', languages: ['kotlin'] }], ['s.ktm']).targets).toEqual(['s.ktm']);
+    expect(plan([{ id: 'lexcode.p.json', languages: ['json'] }], ['n.ipynb']).targets).toEqual(['n.ipynb']);
+    expect(plan([{ id: 'lexcode.p.py', languages: ['python'] }], ['tools/.py', '.pyrc']).targets).toEqual(['tools/.py']);
+  });
+
+  it('matches ? to one character however it is encoded, a name holding a backslash whole, and many stars quickly', () => {
+    expect(plan([{ id: 'lexcode.p.g', languages: ['generic'], include: ['a?b'] }], ['x/a\u{1F600}b', 'x/ab']).targets).toEqual(['x/a\u{1F600}b']);
+    expect(plan([{ id: 'lexcode.p.g', languages: ['generic'], include: ['a?b.txt'] }], ['dir/a\\b.txt']).targets).toEqual(['dir/a\\b.txt']);
+    // A pattern of many stars that never matches costs time near-linear in the name's length (a regular
+    // expression of the same shape backtracks exponentially in the number of stars).
+    const stars = only(ruleSetWith([{ id: 'lexcode.p.g', languages: ['generic'], include: ['*a*a*a*a*a*a*a*a*a*a*b'] }]));
+    const m = measureScaling({ small: 200, large: 2_000, setup: (n) => [`${'a'.repeat(n)}.txt`], run: (list) => enginePlan(stars, list) });
+    expectNearLinear(m, 'enginePlan over a many-star include');
+    expect(m.result.targets).toEqual([]);
+  });
+
+  it('runs a language rule over a copied-whole original only through its copy, and hands the original over once the rule runs', () => {
+    const php = { id: 'lexcode.p.php', languages: ['php'] };
+    expect(plan([php], ['lib/defs.inc', 'README.md'])).toEqual({ rules: [], targets: [] });
+    expect(plan([php], ['m.module', '/tmp/x/scripts/m.module.lexcode.php'])).toEqual({
+      rules: ['lexcode.p.php'],
+      targets: ['m.module', '/tmp/x/scripts/m.module.lexcode.php'],
+    });
+    // A generic rule reads the original as text.
+    expect(plan([{ id: 'lexcode.p.g', languages: ['generic'], include: ['*.inc'] }], ['lib/defs.inc']).rules).toEqual(['lexcode.p.g']);
+  });
+
+  it('keeps the bundled rules that have a file and the files they read, on a Python-only tree', () => {
+    const rs = loadRuleSet();
+    const p = enginePlan(rs.rules, ['app/main.py', 'pyproject.toml', 'img/a.jpg', 'img/b.png', 'docs/x.md']);
+    expect(p.targets).toEqual(['app/main.py', 'pyproject.toml']);
+    // Every rule sent reads Python (some read Go or TypeScript as well) or is a generic rule limited to pyproject.toml.
+    expect(p.rules.every((r) => r.languages.includes('python') || r.include?.includes('pyproject.toml'))).toBe(true);
+    expect(p.rules.length).toBeLessThan(rs.rules.length / 2);
+    expect(p.rules.some((r) => r.languages.includes('python'))).toBe(true);
+    expect(p.rules.some((r) => r.id.startsWith('lexcode.') && r.include?.includes('pyproject.toml'))).toBe(true);
+    expect(p.rules.some((r) => r.include?.includes('composer.json'))).toBe(false);
+  });
+
+  it('plans for the bundled rules in time that grows near-linearly with the file count', () => {
+    const rules = loadRuleSet().rules;
+    const kinds = ['.py', '.ts', '.jpg', '.json', '.md', '.yml', '.html', '.png'];
+    const m = measureScaling({
+      small: 5_000,
+      large: 50_000,
+      setup: (n) => Array.from({ length: n }, (_v, i) => `d${i % 97}/e${i % 13}/f${i}${kinds[i % kinds.length] as string}`).concat('pyproject.toml'),
+      run: (list) => enginePlan(rules, list),
+    });
+    expectNearLinear(m, 'enginePlan');
+    // The photographs, Markdown and PNG files are not handed over; every Python and TypeScript file and pyproject.toml are.
+    expect(m.result.targets.some((t) => /\.(?:jpg|png|md)$/.test(t))).toBe(false);
+    expect(m.result.targets.filter((t) => /\.(?:py|ts)$/.test(t))).toHaveLength((50_000 / 8) * 2);
+    expect(m.result.targets).toContain('pyproject.toml');
+  });
+
+  it('reads paths.include from a rule file, and leaves a list it cannot use unset', () => {
+    const rs = loadRuleSet();
+    expect(rs.rules.find((r) => r.include?.includes('composer.json'))?.languages).toEqual(['json']);
+    expect(rs.rules.find((r) => r.languages.includes('python') && r.include === undefined)).toBeDefined();
   });
 });
 

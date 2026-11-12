@@ -1,5 +1,6 @@
 import { posix } from 'node:path';
 import { classOf } from '../rules/load.js';
+import { ROOT_LINK } from '../engine/run.js';
 import { COPIED_WHOLE_EXTENSIONS } from '../scope/extract.js';
 import type {
   ActivityRow,
@@ -36,19 +37,26 @@ export interface BuildInput {
 
 // ---- which files a rule's languages read ---------------------------------------------------
 
+/**
+ * Per rule language, every extension the engine reads as that language, plus the extensions lexcode
+ * reads through a whole-file copy (`COPIED_WHOLE_EXTENSIONS`). The engine's sets were measured on explicit
+ * targets (opengrep 1.33.1, 2026-11-12): a `javascript` rule reads `.ts` and `.tsx` too, `json` reads
+ * `.ipynb`, `kotlin` reads `.ktm` and `php` reads `.tpl`. Only the files these name are handed to the
+ * engine (`enginePlan`), so an extension missing here is code a rule never sees; one too many costs nothing.
+ */
 const LANGUAGE_EXTENSIONS: Record<string, string[]> = {
   python: ['.py', '.pyi'],
-  javascript: ['.js', '.jsx', '.mjs', '.cjs'],
+  javascript: ['.js', '.jsx', '.mjs', '.cjs', '.ts', '.tsx'],
   typescript: ['.ts', '.tsx', '.mts', '.cts'],
   go: ['.go'],
-  json: ['.json'],
+  json: ['.json', '.ipynb'],
   yaml: ['.yml', '.yaml'],
   xml: ['.xml', '.plist'],
   java: ['.java'],
-  kotlin: ['.kt', '.kts'],
+  kotlin: ['.kt', '.kts', '.ktm'],
   swift: ['.swift'],
   ruby: ['.rb', '.rake', '.ru', '.gemspec'],
-  php: ['.php', '.phtml', '.inc', '.module', '.theme', '.install'],
+  php: ['.php', '.phtml', '.tpl', '.inc', '.module', '.theme', '.install'],
 };
 const LANGUAGE_ALIASES: Record<string, string> = {
   js: 'javascript',
@@ -128,15 +136,169 @@ function readsOnlySettingsFiles(rule: RuleMeta): boolean {
   return rule.languages.length > 0 && rule.languages.every((l) => SETTINGS_LANGUAGES.has(l.toLowerCase()));
 }
 
-/** The files worth handing to the engine: every file when any rule reads any file, else those with a rule's extension. */
-export function engineTargets(rules: RuleMeta[], files: string[]): string[] {
-  const wanted = new Set<string>();
-  for (const r of rules) {
-    const exts = extensionsOf(r);
-    if (exts === 'all') return files;
-    for (const e of exts) wanted.add(e);
+// ---- what the engine is handed ---------------------------------------------------------------
+
+/**
+ * Whether `text` matches a glob of `*` (any run of characters) and `?` (one character), compared by code point.
+ * Greedy with one backtrack point, so it takes time proportional to the two lengths multiplied at worst, never
+ * exponential: a rule author's `a*b*c*d*e*f*g` cannot stall a scan.
+ */
+function wildcardMatch(text: string[], pattern: string[]): boolean {
+  let t = 0;
+  let p = 0;
+  let star = -1;
+  let resume = 0;
+  while (t < text.length) {
+    if (p < pattern.length && (pattern[p] === '?' || pattern[p] === text[t])) {
+      t++;
+      p++;
+    } else if (p < pattern.length && pattern[p] === '*') {
+      star = p++;
+      resume = t;
+    } else if (star >= 0) {
+      p = star + 1;
+      t = ++resume;
+    } else {
+      return false;
+    }
   }
-  return files.filter((f) => wanted.has(posix.extname(f).toLowerCase()));
+  while (pattern[p] === '*') p++;
+  return p === pattern.length;
+}
+
+/**
+ * A test for a single path segment (a directory name or the file name) against the last segment of each
+ * `paths.include` pattern. Undefined when a pattern could match more than that test sees (a bracket, a brace,
+ * a backslash or a `!` anywhere, `**` in its last segment, or a last segment that matches the engine's link to
+ * the repository), and the rule is then taken to read every file of its languages.
+ *
+ * The engine matches an include pattern anywhere in a path and against a directory as well as a file:
+ * `pyproject.toml` takes `a/pyproject.toml`, and `sub` takes `sub/x.cfg` (opengrep 1.33.1, measured 2026-11-12).
+ * Each such match lays the pattern's last segment over one segment of the path, so a path none of whose
+ * segments matches is one the engine would not hand the rule. The test also matches with case folded and
+ * ignores every other segment, so it is looser than the engine's, never tighter: it can keep a file the engine
+ * then skips, never drop one it reads.
+ */
+function includeSegmentTest(patterns: string[]): ((segment: string) => boolean) | undefined {
+  const globs: { exact: string[]; folded: string[] }[] = [];
+  for (const p of patterns) {
+    if (/[[\]{}\\!]/.test(p)) return undefined;
+    const last = p.replace(/\/+$/, '').split('/').pop() ?? '';
+    if (last === '' || last.includes('**')) return undefined;
+    globs.push({ exact: [...last], folded: [...last.toLowerCase()] });
+  }
+  const test = (segment: string): boolean => {
+    const exact = [...segment];
+    const folded = [...segment.toLowerCase()];
+    return globs.some((g) => wildcardMatch(exact, g.exact) || wildcardMatch(folded, g.folded));
+  };
+  return test(ROOT_LINK) ? undefined : test;
+}
+
+/** The extension the engine goes by: a file named only `.py` is Python to it, though `extname` gives ''. */
+function engineExtension(file: string): string {
+  const ext = posix.extname(file);
+  if (ext !== '') return ext.toLowerCase();
+  const base = file.slice(Math.max(file.lastIndexOf('/'), file.lastIndexOf('\\')) + 1);
+  return base.startsWith('.') ? base.toLowerCase() : '';
+}
+
+/** What the engine is handed. */
+export interface EnginePlan {
+  /** The rules with at least one file to read: the engine's config holds these and no others, and these are the rules that ran. */
+  rules: RuleMeta[];
+  /** The files at least one of those rules reads, in the order given. */
+  targets: string[];
+}
+
+/**
+ * The rules worth running and the files worth reading. A rule reads the files with one of its languages'
+ * extensions (every file, for `generic` and `regex`) that its `paths.include`, when it has one, can match; a
+ * rule with no such file is left out of the engine's config, and a file no rule reads is not handed over.
+ *
+ * Both matter for speed (#12997). The engine parses the whole config again for every run of targets, and
+ * parsing the 60 PHP rules alone cost about 2.6 s a run on a repository with no PHP. And a `generic` rule
+ * limited to `pyproject.toml` once put every file in the target list, 53,444 photographs included, so the
+ * UnGovr monorepo took eight engine runs where its 9,488 readable files fit in one.
+ *
+ * A language rule's file counts as read only when it is not an original the engine reads through a whole-file
+ * copy (`COPIED_WHOLE_EXTENSIONS`): such an original alone does not make the rule run. When the rule runs, the
+ * original is still handed over, as before.
+ */
+export function enginePlan(rules: RuleMeta[], files: string[]): EnginePlan {
+  const exts = files.map(engineExtension);
+  const byExt = new Map<string, number[]>();
+  exts.forEach((e, i) => {
+    const list = byExt.get(e);
+    if (list) list.push(i);
+    else byExt.set(e, [i]);
+  });
+  let segments: string[][] | undefined;
+  const segmentsOf = (i: number): string[] => {
+    // A copy's absolute path on Windows has backslashes, and a POSIX file name can hold one: both
+    // the name whole and its pieces are tested, which only adds segments.
+    segments ??= files.map((f) => {
+      const parts = f.split('/');
+      return f.includes('\\') ? [...parts, ...f.split(/[\\/]/)] : parts;
+    });
+    return segments[i] as string[];
+  };
+
+  /** Per distinct (extensions, include) pair: whether a rule with it runs, and which files it reads. */
+  const seen = new Map<string, { runs: boolean; reads: number[] | 'all' }>();
+  const reach = (rule: RuleMeta): { runs: boolean; reads: number[] | 'all' } => {
+    const ruleExts = extensionsOf(rule);
+    const key = `${ruleExts === 'all' ? '*' : [...new Set(ruleExts)].sort().join(',')}\0${(rule.include ?? []).join('\0')}`;
+    const known = seen.get(key);
+    if (known) return known;
+    const test = rule.include ? includeSegmentTest(rule.include) : undefined;
+    let reads: number[] | 'all';
+    if (ruleExts === 'all' && test === undefined) {
+      reads = 'all';
+    } else {
+      const pool = ruleExts === 'all' ? files.map((_, i) => i) : [...new Set(ruleExts)].flatMap((e) => byExt.get(e) ?? []);
+      if (test === undefined) {
+        reads = pool;
+      } else {
+        const verdicts = new Map<string, boolean>();
+        const fits = (segment: string): boolean => {
+          let v = verdicts.get(segment);
+          if (v === undefined) {
+            v = test(segment);
+            verdicts.set(segment, v);
+          }
+          return v;
+        };
+        reads = pool.filter((i) => segmentsOf(i).some(fits));
+      }
+    }
+    const runs =
+      reads === 'all'
+        ? files.length > 0
+        : ruleExts === 'all'
+          ? reads.length > 0
+          : reads.some((i) => !COPIED_WHOLE_EXTENSIONS.has(exts[i] as string));
+    const result = { runs, reads };
+    seen.set(key, result);
+    return result;
+  };
+
+  const sent: RuleMeta[] = [];
+  const take = new Uint8Array(files.length);
+  let takeAll = false;
+  for (const r of rules) {
+    const { runs, reads } = reach(r);
+    if (!runs) continue;
+    sent.push(r);
+    if (reads === 'all') takeAll = true;
+    else for (const i of reads) take[i] = 1;
+  }
+  return { rules: sent, targets: takeAll ? [...files] : files.filter((_, i) => take[i] === 1) };
+}
+
+/** The files handed to the engine for these rules (`enginePlan`). */
+export function engineTargets(rules: RuleMeta[], files: string[]): string[] {
+  return enginePlan(rules, files).targets;
 }
 
 /**
@@ -210,23 +372,18 @@ export class RulesRun extends Map<string, number> {
 }
 
 /**
- * Per activity: the source rules that had at least one in-scope file to read, plus the
- * component-map entries that enable it in an ecosystem whose manifests were found. `files`
- * lists in-scope files including extracted script blocks (`x.vue.lexcode.ts`). A `files`
- * entry reads the file list on every scan, so it always counts.
+ * Per activity: the source rules that had at least one in-scope file to read (`enginePlan`: a
+ * language's extension, and the rule's `paths.include` when it has one), plus the component-map
+ * entries that enable it in an ecosystem whose manifests were found. `files` lists in-scope files
+ * including extracted script blocks (`x.vue.lexcode.ts`). A `files` entry reads the file list on
+ * every scan, so it always counts. `plan` is `enginePlan(rules, files)` when the caller has it.
  */
-export function countRulesRun(rs: RuleSet, rules: RuleMeta[], files: string[], ecosystems: ReadonlySet<string>): RulesRun {
-  // An original the engine reads only through its whole-file copy is present through the copy alone.
-  const present = new Set(files.map((f) => posix.extname(f).toLowerCase()).filter((e) => !COPIED_WHOLE_EXTENSIONS.has(e)));
+export function countRulesRun(rs: RuleSet, rules: RuleMeta[], files: string[], ecosystems: ReadonlySet<string>, plan?: EnginePlan): RulesRun {
   const out = new RulesRun();
   const bump = (id: string): void => void out.set(id, (out.get(id) ?? 0) + 1);
-  for (const r of rules) {
-    const exts = extensionsOf(r);
-    const ran = files.length > 0 && (exts === 'all' || exts.some((e) => present.has(e)));
-    if (ran) {
-      bump(r.activity);
-      if (!readsOnlySettingsFiles(r)) out.codeRulesRan += 1;
-    }
+  for (const r of (plan ?? enginePlan(rules, files)).rules) {
+    bump(r.activity);
+    if (!readsOnlySettingsFiles(r)) out.codeRulesRan += 1;
   }
   for (const c of rs.components) {
     if (c.ecosystem !== 'files' && !ecosystems.has(c.ecosystem)) continue;

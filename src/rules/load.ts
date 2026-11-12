@@ -89,6 +89,8 @@ function toRuleMeta(file: string, body: Obj): RuleMeta {
   if (mentioned !== 'performs' && mentioned !== 'enables') {
     throw new ToolError(`${file}: rule ${id} needs metadata.mentioned of performs or enables`);
   }
+  // The engine refuses a rule with no languages; a scan hands it only rules with a file to read, so say it here.
+  if (strList(body['languages']).length === 0) throw new ToolError(`${file}: rule ${id} names no languages`);
   const strength = meta['strength'] === 'signal' ? 'signal' : 'evidence';
   const hostMetavar = meta['host_metavar'];
   const rule: RuleMeta = {
@@ -104,6 +106,9 @@ function toRuleMeta(file: string, body: Obj): RuleMeta {
   };
   if (typeof hostMetavar === 'string') rule.hostMetavar = hostMetavar;
   if (hasWholeFilePrefilter(body)) rule.wholeFilePrefilter = true;
+  // A list holding anything but strings is left out, and the rule is then taken to read every file of its languages.
+  const include = isObj(body['paths']) ? body['paths']['include'] : undefined;
+  if (Array.isArray(include) && include.length > 0 && include.every((p) => typeof p === 'string')) rule.include = include as string[];
   return rule;
 }
 

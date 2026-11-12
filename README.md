@@ -115,7 +115,10 @@ components: [...]
   not an answer: a package can be installed and never called.
 - `signals`: weak hints shown as "worth a look". They never affect a result.
 - `searched_not_found`: activities lexcode has rules for and found nothing,
-  with how many rules it tried. That is a finding, not an absence of one.
+  with how many rules it tried. That is a finding, not an absence of one. A
+  rule is tried only when the scope holds a file it reads (one of its
+  languages, with a name its `paths.include` matches); the engine is handed
+  those rules and those files, nothing else.
 
 `--sarif out.sarif` also writes SARIF 2.1.0 for GitHub code scanning or any
 SARIF viewer. `--json` prints the record instead of writing a file.
