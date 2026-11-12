@@ -1,0 +1,78 @@
+rules:
+  - id: lexcode.crypto.cs-library-encryption
+    languages: [csharp]
+    severity: INFO
+    message: Encrypts data or agrees keys with a cryptography library the product bundles (Bouncy Castle, NSec, libsodium, PgpCore, JOSE encryption, the Signal protocol or the AWS Encryption SDK), which is shipping encryption (ships_encryption).
+    # The platform's own cryptography (System.Security.Cryptography: Aes, AesGcm, RSA, ECDiffieHellman,
+    # ProtectedData, hashing, HMAC and key derivation; SslStream and HttpClient for TLS) is not evidence;
+    # a library the app bundles is. Each library type is written fully qualified: the engine resolves a
+    # `using` and an alias to it, and never the app's own class of the same short name. A namespace part
+    # cannot be a metavariable (`new Org.BouncyCastle.Crypto.Modes.$C(...)` misses the `using` form), so
+    # each class is written out, with its target-typed `new()` form beside it. Both carry `{ ... }`:
+    # `new T(...)` alone misses a constructor with an object initializer (`new T(k) { Iv = iv }`), and
+    # `new T(...) { ... }` matches it with or without one.
+    pattern-either:
+      # Bouncy Castle: AEAD and block-cipher modes, paddings, RSA-OAEP, key agreement, OpenPGP and CMS
+      - pattern: 'new Org.BouncyCastle.Crypto.Modes.GcmBlockCipher(...) { ... }'
+      - pattern: 'Org.BouncyCastle.Crypto.Modes.GcmBlockCipher $V = new(...) { ... };'
+      - pattern: 'new Org.BouncyCastle.Crypto.Modes.CcmBlockCipher(...) { ... }'
+      - pattern: 'Org.BouncyCastle.Crypto.Modes.CcmBlockCipher $V = new(...) { ... };'
+      - pattern: 'new Org.BouncyCastle.Crypto.Modes.EaxBlockCipher(...) { ... }'
+      - pattern: 'Org.BouncyCastle.Crypto.Modes.EaxBlockCipher $V = new(...) { ... };'
+      - pattern: 'new Org.BouncyCastle.Crypto.Modes.OcbBlockCipher(...) { ... }'
+      - pattern: 'Org.BouncyCastle.Crypto.Modes.OcbBlockCipher $V = new(...) { ... };'
+      - pattern: 'new Org.BouncyCastle.Crypto.Modes.ChaCha20Poly1305(...) { ... }'
+      - pattern: 'Org.BouncyCastle.Crypto.Modes.ChaCha20Poly1305 $V = new(...) { ... };'
+      - pattern: 'new Org.BouncyCastle.Crypto.Paddings.PaddedBufferedBlockCipher(...) { ... }'
+      - pattern: 'Org.BouncyCastle.Crypto.Paddings.PaddedBufferedBlockCipher $V = new(...) { ... };'
+      - pattern: 'new Org.BouncyCastle.Crypto.BufferedBlockCipher(...) { ... }'
+      - pattern: 'Org.BouncyCastle.Crypto.BufferedBlockCipher $V = new(...) { ... };'
+      - pattern: 'new Org.BouncyCastle.Crypto.Encodings.OaepEncoding(...) { ... }'
+      - pattern: 'Org.BouncyCastle.Crypto.Encodings.OaepEncoding $V = new(...) { ... };'
+      - pattern: 'new Org.BouncyCastle.Crypto.Agreement.X25519Agreement(...) { ... }'
+      - pattern: 'Org.BouncyCastle.Crypto.Agreement.X25519Agreement $V = new(...) { ... };'
+      - pattern: 'new Org.BouncyCastle.Crypto.Agreement.ECDHBasicAgreement(...) { ... }'
+      - pattern: 'Org.BouncyCastle.Crypto.Agreement.ECDHBasicAgreement $V = new(...) { ... };'
+      - pattern: 'new Org.BouncyCastle.Bcpg.OpenPgp.PgpEncryptedDataGenerator(...) { ... }'
+      - pattern: 'Org.BouncyCastle.Bcpg.OpenPgp.PgpEncryptedDataGenerator $V = new(...) { ... };'
+      - pattern: 'new Org.BouncyCastle.Cms.CmsEnvelopedDataGenerator(...) { ... }'
+      - pattern: 'Org.BouncyCastle.Cms.CmsEnvelopedDataGenerator $V = new(...) { ... };'
+      - pattern: Org.BouncyCastle.Security.CipherUtilities.GetCipher(...)
+      # NSec: an AEAD or key-agreement algorithm (its signature, MAC and hash algorithms are not encryption)
+      - pattern: NSec.Cryptography.AeadAlgorithm.$X
+      - pattern: NSec.Cryptography.KeyAgreementAlgorithm.$X
+      # libsodium (Sodium.Core): secret-key and public-key boxes and the AEAD constructions
+      - pattern: Sodium.SecretBox.Create(...)
+      - pattern: Sodium.PublicKeyBox.Create(...)
+      - pattern: Sodium.SealedPublicKeyBox.Create(...)
+      - pattern: Sodium.SecretAeadAes.Encrypt(...)
+      - pattern: Sodium.SecretAeadChaCha20Poly1305.Encrypt(...)
+      - pattern: Sodium.SecretAeadXChaCha20Poly1305.Encrypt(...)
+      # PgpCore, an OpenPGP library over Bouncy Castle
+      - pattern: 'new PgpCore.PGP(...) { ... }'
+      - pattern: 'PgpCore.PGP $V = new(...) { ... };'
+      # JOSE encryption (a JWE, not a JWS): jose-jwt, and Microsoft.IdentityModel's encrypting credentials
+      - pattern: Jose.JWT.Encode($P, $K, Jose.JweAlgorithm.$A, ...)
+      - pattern: Jose.JWE.Encrypt(...)
+      - pattern: 'new Microsoft.IdentityModel.Tokens.EncryptingCredentials(...) { ... }'
+      - pattern: 'Microsoft.IdentityModel.Tokens.EncryptingCredentials $V = new(...) { ... };'
+      - pattern: 'new Microsoft.IdentityModel.Tokens.X509EncryptingCredentials(...) { ... }'
+      - pattern: 'Microsoft.IdentityModel.Tokens.X509EncryptingCredentials $V = new(...) { ... };'
+      # End-to-end messaging: the Signal protocol (libsignal-protocol-dotnet)
+      - pattern: 'new libsignal.SessionCipher(...) { ... }'
+      - pattern: 'libsignal.SessionCipher $V = new(...) { ... };'
+      - pattern: 'new libsignal.groups.GroupCipher(...) { ... }'
+      - pattern: 'libsignal.groups.GroupCipher $V = new(...) { ... };'
+      # The AWS Encryption SDK for .NET: its factory (versions 2 and 3) and its client (version 4). The
+      # factory's short name carries AWS's own name, so it is also read where a `global using` in another
+      # file brings it in (Decision 10).
+      - pattern: AWS.EncryptionSDK.AwsEncryptionSdkFactory.$M(...)
+      - pattern: AwsEncryptionSdkFactory.$M(...)
+      - pattern: 'new AWS.Cryptography.EncryptionSDK.ESDK(...) { ... }'
+      - pattern: 'AWS.Cryptography.EncryptionSDK.ESDK $V = new(...) { ... };'
+    metadata:
+      activity: ships_encryption
+      mentioned: performs
+      definition: https://lexlint.io/glossary#ships-encryption
+      provenance: ungovr-original
+      license: MIT

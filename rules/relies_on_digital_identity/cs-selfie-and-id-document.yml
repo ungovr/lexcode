@@ -1,0 +1,87 @@
+rules:
+  - id: lexcode.identity.cs-selfie-and-id-document
+    languages: [csharp]
+    severity: INFO
+    message: 'Holds a face or selfie image beside an image of a photo ID, the shape of document-and-selfie identity verification, whose result the app acts on (relies_on_digital_identity). The verifier usually matches the face to the ID photo, so ask about processes_biometrics too.'
+    # No literal anchor of its own. Two sets of whole-file regexes keep the engine's pre-filter: the
+    # file must hold a face name and an ID-document name, so a file without both is not read at all.
+    # Names are read in any case (SelfieImage, idCard, photo_id_front); an all-capitals constant name
+    # holds no image and is not read.
+    patterns:
+      - pattern-either:
+          - pattern-regex: '(?is)\A(?=.*selfie).*'
+          - pattern-regex: '(?is)\A(?=.*liveness).*'
+          - pattern-regex: '(?is)\A(?=.*face_?(?:image|photo|img|pic|capture|snapshot|scan)).*'
+      - pattern-either:
+          - pattern-regex: '(?is)\A(?=.*photo_?id).*'
+          - pattern-regex: '(?is)\A(?=.*id_?(?:document|doc|card|photo|image|img|scan|front|back)).*'
+          - pattern-regex: '(?is)\A(?=.*identity_?(?:document|doc|card)).*'
+          - pattern-regex: '(?is)\A(?=.*identification_?(?:image|photo|document|doc|card)).*'
+          - pattern-regex: '(?is)\A(?=.*passport_?(?:image|photo|scan|page|front)).*'
+          - pattern-regex: '(?is)\A(?=.*drivers?_?licen[cs]e).*'
+          - pattern-regex: '(?is)\A(?=.*document_?(?:image|photo|front|back|scan)).*'
+      - pattern-either:
+          # A class (an entity, a request model, a DTO) with a face member, in a file that declares an
+          # ID-document member. The engine does not see a property inside a `class { ... }` pattern, so
+          # the second member is read by its declaration (`Name { get`, `Name;`) in the file.
+          - patterns:
+              - pattern-inside: |
+                  class $C {
+                    ...
+                  }
+              # A member carries an access modifier and a local variable never does; the engine
+              # matches a declaration with more modifiers (`public required`, `internal virtual`).
+              - pattern-either:
+                  - pattern: public $T $FACE;
+                  - pattern: public $T $FACE = $X;
+                  - pattern: protected $T $FACE;
+                  - pattern: protected $T $FACE = $X;
+                  - pattern: internal $T $FACE;
+                  - pattern: internal $T $FACE = $X;
+                  - pattern: private $T $FACE;
+                  - pattern: private $T $FACE = $X;
+              # The name alone, as the branch below reports it: a record's positional parameter is
+              # also a member here, and the two branches then give one finding, not two.
+              - focus-metavariable: $FACE
+              - metavariable-regex:
+                  metavariable: $FACE
+                  regex: '(?i)^(?!(?-i:[A-Z][A-Z0-9_]*)$)(?:selfie|liveness|face_?(?:image|photo|img|picture|pic|capture|snapshot|scan))\w*$'
+              # One literal per regex: an alternation before a lookahead's first literal shortens how
+              # far into a file the engine can see (the release test's pre-filter guard).
+              - pattern-either:
+                  - pattern-regex: '(?is)\A(?=.*\bphoto_?id_?(?:image|img|photo|card|doc|document|scan|front|back|upload|file)\w*\s*(?:\{\s*(?:get|set|init)\b|;)).*'
+                  - pattern-regex: '(?is)\A(?=.*\bid_?(?:document|doc|card|photo|image|img|scan|front|back)\w*\s*(?:\{\s*(?:get|set|init)\b|;)).*'
+                  - pattern-regex: '(?is)\A(?=.*\bidentity_?(?:document|doc|card)\w*\s*(?:\{\s*(?:get|set|init)\b|;)).*'
+                  - pattern-regex: '(?is)\A(?=.*\bidentification_?(?:image|photo|document|doc|card)\w*\s*(?:\{\s*(?:get|set|init)\b|;)).*'
+                  - pattern-regex: '(?is)\A(?=.*\bpassport_?(?:image|photo|scan|page|front)\w*\s*(?:\{\s*(?:get|set|init)\b|;)).*'
+                  - pattern-regex: '(?is)\A(?=.*\bdrivers?_?licen[cs]e_?(?:image|photo|scan|front|back)\w*\s*(?:\{\s*(?:get|set|init)\b|;)).*'
+                  - pattern-regex: '(?is)\A(?=.*\bdocument_?(?:image|photo|front|back|scan)\w*\s*(?:\{\s*(?:get|set|init)\b|;)).*'
+          # A positional record, a method (an MVC action) or a lambda (a minimal API endpoint) that takes
+          # both, in either order
+          - patterns:
+              - pattern-either:
+                  - pattern: record $C(..., $T1 $FACE, ..., $T2 $DOC, ...);
+                  - pattern: record $C(..., $T2 $DOC, ..., $T1 $FACE, ...);
+                  - pattern: |
+                      $R $M(..., $T1 $FACE, ..., $T2 $DOC, ...) {
+                        ...
+                      }
+                  - pattern: |
+                      $R $M(..., $T2 $DOC, ..., $T1 $FACE, ...) {
+                        ...
+                      }
+                  - pattern: (..., $T1 $FACE, ..., $T2 $DOC, ...) => $E
+                  - pattern: (..., $T2 $DOC, ..., $T1 $FACE, ...) => $E
+              - focus-metavariable: $FACE
+              - metavariable-regex:
+                  metavariable: $FACE
+                  regex: '(?i)^(?!(?-i:[A-Z][A-Z0-9_]*)$)(?:selfie|liveness|face_?(?:image|photo|img|picture|pic|capture|snapshot|scan))\w*$'
+              - metavariable-regex:
+                  metavariable: $DOC
+                  regex: '(?i)^(?!(?-i:[A-Z][A-Z0-9_]*)$)(?:photo_?id_?(?:image|img|photo|card|doc|document|scan|front|back|upload|file)|id_?(?:document|doc|card|photo|image|img|scan|front|back)|identity_?(?:document|doc|card)|identification_?(?:image|photo|document|doc|card)|passport_?(?:image|photo|scan|page|front)|drivers?_?licen[cs]e_?(?:image|photo|scan|front|back)|document_?(?:image|photo|front|back|scan))\w*$'
+    metadata:
+      activity: relies_on_digital_identity
+      mentioned: performs
+      definition: https://lexlint.io/glossary#relies-on-a-digital-identity
+      provenance: ungovr-original
+      license: MIT

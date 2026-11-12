@@ -1,0 +1,27 @@
+rules:
+  - id: lexcode.esign.cs-pdf-signing
+    languages: [csharp]
+    severity: INFO
+    message: Applies a digital signature or seal to a PDF with a key (iText, iTextSharp, Syncfusion PDF, Aspose.PDF or PDFsharp), which may be collecting electronic signatures and is worth a look (collects_e_signatures).
+    # A key's signature on a PDF may be the app's own seal rather than a person signing, so a match is
+    # a question. Each library type is written fully qualified; an app's own class of the same short
+    # name is not read. Checking the signatures a PDF already holds signs nothing and is not read.
+    pattern-either:
+      # iText (7 and later) and iTextSharp (5)
+      - pattern: 'new iText.Signatures.PdfSigner(...) { ... }'
+      - pattern: 'iText.Signatures.PdfSigner $V = new(...) { ... };'
+      - pattern: iTextSharp.text.pdf.PdfStamper.CreateSignature(...)
+      # Syncfusion PDF
+      - pattern: 'new Syncfusion.Pdf.Security.PdfSignature(...) { ... }'
+      - pattern: 'Syncfusion.Pdf.Security.PdfSignature $V = new(...) { ... };'
+      # Aspose.PDF's signing facade, built or injected
+      - pattern: (Aspose.Pdf.Facades.PdfFileSignature $S).Sign(...)
+      # PDFsharp (6.1 and later)
+      - pattern: PdfSharp.Pdf.Signatures.DigitalSignatureHandler.ForDocument(...)
+    metadata:
+      activity: collects_e_signatures
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/glossary#collects-electronic-signatures
+      provenance: ungovr-original
+      license: MIT
