@@ -11,7 +11,7 @@ rules:
       # written out in full), so a project class with the same short name and method names is not
       # taken for it.
       - patterns:
-          - pattern-regex: '(?s)\A(?=.*\bjcobhams\\NewsApi\b).*'
+          - pattern-regex: '(?s)\A(?=.*(?<![\w\\])\\?jcobhams\\NewsApi\b).*'
           - pattern-either:
               - pattern: $N->getTopHeadlines(...)
               - pattern: $N->getEverything(...)
