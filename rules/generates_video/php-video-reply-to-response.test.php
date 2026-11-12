@@ -1,49 +1,65 @@
 <?php
-// lexcode-expect: 4
-// A clip a video model made, sent back to the person who asked. The facade appears through an
-// aliased import and fully qualified.
+// lexcode-expect: 5
+// A clip a video model made, sent back to the person who asked: OpenAI's Videos API, Google's Veo
+// and Runway, called with Laravel's Http facade, Guzzle and Symfony HttpClient, and Bedrock's
+// Nova Reel through the AWS SDK.
 
 namespace App\Http\Controllers;
 
+use GuzzleHttp\Client;
 use Illuminate\Http\Request;
-use OpenAI\Laravel\Facades\OpenAI as LLM;
+use Illuminate\Support\Facades\Http;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 
 class ClipController extends Controller
 {
-    // openai-php/laravel through an alias: the job the visitor polls is the JSON response.
+    // OpenAI (Sora) through Laravel's Http facade: the job the visitor polls is the JSON response.
     public function create(Request $request)
     {
-        $video = LLM::videos()->create(['model' => 'sora-2', 'prompt' => $request->input('prompt'), 'seconds' => '8']);
-        return response()->json(['id' => $video->id, 'status' => $video->status]);
+        $job = Http::withToken(config('services.openai.key'))
+            ->post('https://api.openai.com/v1/videos', ['model' => 'sora-2', 'prompt' => $request->input('prompt'), 'seconds' => '8']);
+        return response()->json(['id' => $job->json('id'), 'status' => $job->json('status')]);
     }
 
-    // The same facade fully qualified, with the clip shown in a view.
-    public function show(Request $request)
+    // Runway's text_to_video, with the facade called directly; the task is shown in a view.
+    public function runway(Request $request)
     {
-        $video = \OpenAI\Laravel\Facades\OpenAI::videos()->create(['model' => 'sora-2', 'prompt' => $request->input('prompt')]);
-        return view('clips.show', ['clip' => $video]);
+        $task = Http::post('https://api.dev.runwayml.com/v1/text_to_video', ['promptText' => $request->input('prompt'), 'model' => 'gen4_turbo']);
+        return view('clips.task', ['task' => $task->json()]);
+    }
+
+    // Google's Veo on the Gemini API through Guzzle.
+    public function veo(Request $request, Client $http)
+    {
+        $res = $http->request('POST', "https://generativelanguage.googleapis.com/v1beta/models/veo-3.0-generate-001:predictLongRunning", [
+            'json' => ['instances' => [['prompt' => $request->input('prompt')]]],
+        ]);
+        return json_decode((string) $res->getBody(), true);
     }
 }
 
 class TeaserController extends AbstractController
 {
-    public function __construct(private $openai)
+    public function __construct(private $httpClient, private $bedrock)
     {
     }
 
-    // On a client object: the finished clip's bytes are the response body.
-    public function teaser(Request $request, $client): Response
+    // Symfony HttpClient: the finished clip's bytes are the response body.
+    public function teaser(Request $request): Response
     {
-        $video = $client->videos()->create(['model' => 'sora-2', 'prompt' => $request->get('prompt')]);
-        $content = $client->videos()->downloadContent($video->id);
-        return new Response($content, 200, ['Content-Type' => 'video/mp4']);
+        $clip = $this->httpClient->request('GET', "https://api.openai.com/v1/videos/{$request->get('id')}/content");
+        return new Response($clip->getContent(), 200, ['Content-Type' => 'video/mp4']);
     }
 
-    public function status(Request $request)
+    // Bedrock's Nova Reel, started by id.
+    public function reel(Request $request)
     {
-        $video = $this->openai->videos()->create(['model' => 'sora-2-pro', 'prompt' => $request->get('prompt')]);
-        return $this->json(['id' => $video->id]);
+        $job = $this->bedrock->startAsyncInvoke([
+            'modelId' => 'amazon.nova-reel-v1:1',
+            'modelInput' => ['taskType' => 'TEXT_VIDEO', 'textToVideoParams' => ['text' => $request->get('prompt')]],
+            'outputDataConfig' => ['s3OutputDataConfig' => ['s3Uri' => 's3://clips']],
+        ]);
+        return $this->json(['job' => $job['invocationArn']]);
     }
 }

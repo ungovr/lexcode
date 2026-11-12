@@ -67,6 +67,13 @@ class ThreadController extends Controller
         return response()->json(['a' => $a, 'b' => $b, 'c' => $c->text]);
     }
 
+    // A survey's responses relation, whose rows keep a model column: no model is called.
+    public function answer(Request $request, $survey)
+    {
+        $response = $survey->responses()->create(['model' => $request->input('car_model'), 'score' => 3]);
+        return response()->json($response);
+    }
+
     // A chat relation on the app's own model, created without a model name.
     public function open(Request $request)
     {

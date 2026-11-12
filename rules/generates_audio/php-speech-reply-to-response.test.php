@@ -62,7 +62,7 @@ class SpeakController extends AbstractController
     }
 
     // openai-php on a client object, written to a file and sent.
-    public function file(Request $request)
+    public function download(Request $request)
     {
         $audio = $this->client->audio()->speech(['model' => 'tts-1', 'voice' => 'echo', 'input' => $request->get('text')]);
         $path = sys_get_temp_dir() . '/speech.mp3';

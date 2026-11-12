@@ -89,6 +89,10 @@ rules:
         to: $PATH
         by-side-effect: true
     pattern-sinks:
+      # Known residual: view data passed with compact('reply') is not followed. Taint cannot tie
+      # the string 'reply' to the variable $reply, and a shape that joins the assignment and the
+      # compact() call needs a statement sequence across the method body, which costs too much
+      # on a large app. view('x', ['reply' => $reply]) and ->with('reply', $reply) are found.
       # Plain PHP writes the response body with echo, print and printf. A console command's
       # output goes to the terminal of whoever runs it, so it does not count.
       - patterns:

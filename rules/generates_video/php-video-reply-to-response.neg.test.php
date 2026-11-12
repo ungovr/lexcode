@@ -1,15 +1,15 @@
 <?php
 // lexcode-expect: 0
 // A clip a model makes that only the team watches, footage a person shot that the app only trims
-// or lists, a videos relation with a prompt column, and an app class that shares a short name
-// with a model library's facade.
+// or lists, a videos relation with a prompt column, a settings page that shows a video endpoint
+// without calling it, and a call to the same vendor that makes no video.
 
 namespace App\Http\Controllers;
 
 use App\Models\Course;
-use App\Support\OpenAI;
 use Illuminate\Console\Command;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
 use ProtoneMedia\LaravelFFMpeg\Support\FFMpeg;
 
 // php artisan promo:draft: marketing renders a draft clip and reviews it before anything ships.
@@ -19,10 +19,9 @@ class DraftPromo extends Command
 
     public function handle()
     {
-        $client = \OpenAI::client(env('OPENAI_API_KEY'));
-        $video = $client->videos()->create(['model' => 'sora-2', 'prompt' => 'A slow pan over a harbor at dawn']);
-        $this->info('queued ' . $video->id);
-        echo $video->id . PHP_EOL;
+        $job = Http::withToken(env('OPENAI_API_KEY'))->post('https://api.openai.com/v1/videos', ['model' => 'sora-2', 'prompt' => 'A slow pan over a harbor at dawn']);
+        $this->info('queued ' . $job->json('id'));
+        echo $job->json('id') . PHP_EOL;
     }
 }
 
@@ -42,10 +41,16 @@ class LessonController extends Controller
         return response()->json($video);
     }
 
-    // An app's own class named OpenAI, in the app's namespace.
-    public function own(Request $request)
+    // An admin page that shows the default endpoint calls nothing.
+    public function settings()
     {
-        $clip = OpenAI::videos()->create(['prompt' => $request->input('prompt')]);
-        return response()->json($clip);
+        return view('admin.video-settings', ['endpoint' => 'https://api.openai.com/v1/videos']);
+    }
+
+    // The same vendor, a text endpoint: no video is made.
+    public function caption(Request $request)
+    {
+        $res = Http::withToken(config('services.openai.key'))->post('https://api.openai.com/v1/chat/completions', ['model' => 'gpt-4o-mini', 'messages' => []]);
+        return $res->json();
     }
 }
