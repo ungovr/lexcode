@@ -1,0 +1,182 @@
+rules:
+  - id: lexcode.outreach.php-send-in-background-job
+    languages: [php]
+    severity: INFO
+    message: Sends a message from a queued job, a message handler, an event subscriber or a notifier method, where the code does not show whether a person asked for it, which may be sending automated outreach (automated_outreach).
+    # Signal strength, as in the Ruby and Java rules: the mail a person asked for (a welcome message, a
+    # receipt, a password reset) is often sent from a queued job or an event subscriber too. The loop
+    # and scheduler shapes are the evidence rules; this one is the worth-a-look row. The send set is
+    # shared with php-send-in-loop. A console command is not a shape here: an operator runs it by hand
+    # as often as cron does (symfony/demo's app:list-users mails its table to the address typed on the
+    # command line), and the scheduler entry that names a command is in another file. A command that
+    # sends in a loop is still php-send-in-loop's.
+    patterns:
+      - pattern-either:
+          # A Laravel job, queued listener or queued notification.
+          - pattern-inside: |
+              class $K implements \Illuminate\Contracts\Queue\ShouldQueue { ... }
+          - patterns:
+              - pattern-inside: |
+                  use Illuminate\Contracts\Queue\ShouldQueue;
+                  ...
+              - pattern-inside: |
+                  class $K implements ShouldQueue { ... }
+          - patterns:
+              - pattern-inside: |
+                  use Illuminate\Contracts\Queue\ShouldQueue as $QA;
+                  ...
+              - pattern-inside: |
+                  class $K implements $QA { ... }
+          # A Symfony event subscriber.
+          - pattern-inside: |
+              class $K implements \Symfony\Component\EventDispatcher\EventSubscriberInterface { ... }
+          - patterns:
+              - pattern-inside: |
+                  use Symfony\Component\EventDispatcher\EventSubscriberInterface;
+                  ...
+              - pattern-inside: |
+                  class $K implements EventSubscriberInterface { ... }
+          - patterns:
+              - pattern-inside: |
+                  use Symfony\Component\EventDispatcher\EventSubscriberInterface as $EA;
+                  ...
+              - pattern-inside: |
+                  class $K implements $EA { ... }
+          # A Symfony Messenger handler or event listener, by attribute on the class or the method.
+          - patterns:
+              - pattern-either:
+                  - pattern-inside: |
+                      #[\Symfony\Component\Messenger\Attribute\AsMessageHandler($...ARGS)]
+                      class $K { ... }
+                  - pattern-inside: |
+                      #[\Symfony\Component\Messenger\Attribute\AsMessageHandler($...ARGS)]
+                      function $F(...) { ... }
+                  - pattern-inside: |
+                      #[\Symfony\Component\EventDispatcher\Attribute\AsEventListener($...ARGS)]
+                      class $K { ... }
+                  - pattern-inside: |
+                      #[\Symfony\Component\EventDispatcher\Attribute\AsEventListener($...ARGS)]
+                      function $F(...) { ... }
+          - patterns:
+              - pattern-inside: |
+                  use Symfony\Component\Messenger\Attribute\AsMessageHandler;
+                  ...
+              - pattern-either:
+                  - pattern-inside: |
+                      #[AsMessageHandler($...ARGS)]
+                      class $K { ... }
+                  - pattern-inside: |
+                      #[AsMessageHandler($...ARGS)]
+                      function $F(...) { ... }
+          - patterns:
+              - pattern-inside: |
+                  use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
+                  ...
+              - pattern-either:
+                  - pattern-inside: |
+                      #[AsEventListener($...ARGS)]
+                      class $K { ... }
+                  - pattern-inside: |
+                      #[AsEventListener($...ARGS)]
+                      function $F(...) { ... }
+          - patterns:
+              - pattern-either:
+                  - pattern-inside: |
+                      use Symfony\Component\Messenger\Attribute\AsMessageHandler as $HA;
+                      ...
+                  - pattern-inside: |
+                      use Symfony\Component\EventDispatcher\Attribute\AsEventListener as $HA;
+                      ...
+              - pattern-either:
+                  - pattern-inside: |
+                      #[$HA($...ARGS)]
+                      class $K { ... }
+                  - pattern-inside: |
+                      #[$HA($...ARGS)]
+                      function $F(...) { ... }
+          # A method named for notifying, reminding or a campaign. Laravel's password-reset and
+          # email-verification overrides (sendPasswordResetNotification,
+          # sendEmailVerificationNotification) send mail a person asked for, so they are left out, as
+          # the Ruby rule leaves out Devise's.
+          - patterns:
+              - pattern-inside: |
+                  function $NAME(...) { ... }
+              - metavariable-regex:
+                  metavariable: $NAME
+                  regex: '(?i)^(?!.*(password_?reset|reset_?password|email_?verification|verify_?email)).*(notif|alert|digest|remind|newsletter|broadcast|campaign|announce|blast|outreach|weekly|daily|marketing|drip|status_?change|status_?update|on_?status).*$'
+      - pattern-either:
+          # Laravel's Mail facade: to, cc, bcc, send, raw, html, plain, queue and later each send or queue a message.
+          - patterns:
+              - pattern-either:
+                  - pattern: \Illuminate\Support\Facades\Mail::$MM(...)
+                  - pattern: \Mail::$MM(...)
+                  - patterns:
+                      - pattern-inside: |
+                          use Illuminate\Support\Facades\Mail;
+                          ...
+                      - pattern: Mail::$MM(...)
+                  - patterns:
+                      - pattern-inside: |
+                          use Illuminate\Support\Facades\Mail as $MA;
+                          ...
+                      - pattern: $MA::$MM(...)
+              - metavariable-regex:
+                  metavariable: $MM
+                  regex: ^(to|cc|bcc|send|sendNow|raw|html|plain|queue|later)$
+          # Laravel's Notification facade: send and sendNow deliver to the notifiables named, route to an address.
+          - patterns:
+              - pattern-either:
+                  - pattern: \Illuminate\Support\Facades\Notification::$NM(...)
+                  - pattern: \Notification::$NM(...)
+                  - patterns:
+                      - pattern-inside: |
+                          use Illuminate\Support\Facades\Notification;
+                          ...
+                      - pattern: Notification::$NM(...)
+                  - patterns:
+                      - pattern-inside: |
+                          use Illuminate\Support\Facades\Notification as $NA;
+                          ...
+                      - pattern: $NA::$NM(...)
+              - metavariable-regex:
+                  metavariable: $NM
+                  regex: ^(send|sendNow|route)$
+          # A notifiable notified with a new notification (Laravel).
+          - pattern: $NB->notify(new $NC(...))
+          - pattern: $NB->notifyNow(new $NC(...))
+          # A mailer, notifier, texter or mail object's send: Symfony Mailer and Notifier, PHPMailer, SendGrid, Firebase.
+          - patterns:
+              - pattern: $MR->send(...)
+              - metavariable-regex:
+                  metavariable: $MR
+                  regex: '(?i)^(\$this->|\$)\w*(mail|smtp|notifier|texter|sendgrid|firebase|fcm)\w*$'
+          # PHP's own mail() and WordPress's wp_mail().
+          - pattern: mail(...)
+          - pattern: wp_mail(...)
+          # A call named for a send: sendEmail (Amazon SES, Postmark), sendTransacEmail (Brevo), an app's send_reminder_email.
+          - patterns:
+              - pattern-either:
+                  - pattern: $SX->$SN(...)
+                  - pattern: $SX::$SN(...)
+                  - pattern: $SN(...)
+              - metavariable-regex:
+                  metavariable: $SN
+                  regex: '(?i)^send\w*(email|mail|sms|textmessage|push|notification|reminder|digest|newsletter|alert)s?$'
+          # Twilio texts and calls, Vonage SMS, Amazon SNS to a phone number, Resend, Mailgun.
+          - pattern: "$TC->messages->create($TTO, [..., 'from' => $TF, ...])"
+          - pattern: "$TC->messages->create($TTO, [..., 'messagingServiceSid' => $TF, ...])"
+          - pattern: $TC->calls->create(...)
+          - pattern: $VC->sms()->send(...)
+          - pattern: "$SC->publish([..., 'PhoneNumber' => $SP, ...])"
+          - pattern: $RC->emails->send(...)
+          - pattern: $RC->emails()->send(...)
+          - pattern: $MG->messages()->send(...)
+      # Literal anchor inside the match: it lets the engine skip files with no send call.
+      - pattern-regex: '(?i)(::\s*(to|cc|bcc|send|sendNow|raw|html|plain|queue|later|route)\s*\(|->\s*notify(Now)?\s*\(|\bsend\w*\s*\(|\b(wp_)?mail\s*\(|->\s*(messages|calls)\s*->\s*create\s*\(|->\s*publish\s*\()'
+    metadata:
+      activity: automated_outreach
+      mentioned: performs
+      definition: https://lexlint.io/activities/automated-outreach
+      provenance: ungovr-original
+      license: MIT
+      strength: signal

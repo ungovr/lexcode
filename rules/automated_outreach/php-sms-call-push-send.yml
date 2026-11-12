@@ -1,0 +1,51 @@
+rules:
+  - id: lexcode.outreach.php-sms-call-push-send
+    languages: [php]
+    severity: INFO
+    message: Sends a text, places a call or pushes a notification, where the code does not show whether a person just asked for it, which may be sending automated outreach (automated_outreach).
+    # Signal strength, as in the JS, Python, Ruby and Java rules: a text or a push is often the
+    # transactional kind. A one-time code, a verification or a password is left out by the words in
+    # the call, and Twilio Verify is not matched at all. Email is not in this rule: a single email is
+    # mostly the transactional kind, and the loop, scheduler and bulk rules take the mass shapes.
+    patterns:
+      - pattern-either:
+          # Twilio texts, Vonage SMS, Amazon SNS to a phone number, a Symfony Notifier texter, a send_sms helper.
+          - patterns:
+              - pattern-either:
+                  - pattern: "$TC->messages->create($TTO, [..., 'from' => $TF, ...])"
+                  - pattern: "$TC->messages->create($TTO, [..., 'messagingServiceSid' => $TF, ...])"
+                  - pattern: $VC->sms()->send(...)
+                  - pattern: "$SC->publish([..., 'PhoneNumber' => $SP, ...])"
+                  - patterns:
+                      - pattern: $TX->send(...)
+                      - metavariable-regex:
+                          metavariable: $TX
+                          regex: (?i)^(\$this->|\$)\w*texter\w*$
+                  - patterns:
+                      - pattern-either:
+                          - pattern: $SX->$SN(...)
+                          - pattern: $SX::$SN(...)
+                          - pattern: $SN(...)
+                      - metavariable-regex:
+                          metavariable: $SN
+                          regex: (?i)^send_?sms$
+              - pattern-not-regex: (?is)(code|otp|verif|passcode|password|\bpin\b)
+          # A Twilio call.
+          - pattern: $TC->calls->create(...)
+          # A Firebase Cloud Messaging push (kreait/firebase-php) and a Web Push (minishlink/web-push).
+          - patterns:
+              - pattern: $FM->send(...)
+              - metavariable-regex:
+                  metavariable: $FM
+                  regex: (?i)^(\$this->|\$)\w*(firebase|fcm|messaging)\w*$
+          - pattern: $WP->sendOneNotification(...)
+          - pattern: $WP->queueNotification(...)
+      # Literal anchor inside the match: it lets the engine skip files with no send call.
+      - pattern-regex: '(?i)(->\s*(messages|calls)\s*->\s*create\s*\(|->\s*sms\s*\(\s*\)\s*->\s*send\s*\(|->\s*publish\s*\(|->\s*send\s*\(|\bsend_?sms\s*\(|->\s*(sendOneNotification|queueNotification)\s*\()'
+    metadata:
+      activity: automated_outreach
+      mentioned: performs
+      definition: https://lexlint.io/activities/automated-outreach
+      provenance: ungovr-original
+      license: MIT
+      strength: signal

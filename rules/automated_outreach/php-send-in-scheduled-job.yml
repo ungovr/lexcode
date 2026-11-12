@@ -1,0 +1,157 @@
+rules:
+  - id: lexcode.outreach.php-send-in-scheduled-job
+    languages: [php]
+    severity: INFO
+    message: Sends an email, text, call or notification from a scheduler callback or a scheduled task that no user action triggers, which is sending automated outreach (automated_outreach).
+    # The timer shapes are a Laravel scheduler closure ($schedule->call, Schedule::call) and a Symfony
+    # Scheduler task (#[AsCronTask], #[AsPeriodicTask], on a class or a method). A queued job and an
+    # event subscriber are php-send-in-background-job: the code does not show whether a person asked
+    # for it. A console command is neither: an operator runs it by hand as often as cron does, and the
+    # scheduler entry that names it ($schedule->command(...)) is in another file. The send set is
+    # shared with php-send-in-loop.
+    # Unlike the Java rule, a send from a catch block is not left out: the engine cannot take a catch
+    # clause alone as a pattern, and a try block around the send is how PHP code usually sends mail.
+    patterns:
+      - pattern-either:
+          - patterns:
+              - pattern-inside: $S->call(...)
+              - metavariable-regex:
+                  metavariable: $S
+                  regex: (?i)^(\$this->|\$)\w*schedul\w*$
+          - pattern-inside: \Illuminate\Support\Facades\Schedule::call(...)
+          - patterns:
+              - pattern-inside: |
+                  use Illuminate\Support\Facades\Schedule;
+                  ...
+              - pattern-inside: Schedule::call(...)
+          - patterns:
+              - pattern-inside: |
+                  use Illuminate\Support\Facades\Schedule as $SA;
+                  ...
+              - pattern-inside: $SA::call(...)
+          - patterns:
+              - pattern-either:
+                  - pattern-inside: |
+                      #[\Symfony\Component\Scheduler\Attribute\AsCronTask($...ARGS)]
+                      class $K { ... }
+                  - pattern-inside: |
+                      #[\Symfony\Component\Scheduler\Attribute\AsPeriodicTask($...ARGS)]
+                      class $K { ... }
+                  - pattern-inside: |
+                      #[\Symfony\Component\Scheduler\Attribute\AsCronTask($...ARGS)]
+                      function $F(...) { ... }
+                  - pattern-inside: |
+                      #[\Symfony\Component\Scheduler\Attribute\AsPeriodicTask($...ARGS)]
+                      function $F(...) { ... }
+          - patterns:
+              - pattern-inside: |
+                  use Symfony\Component\Scheduler\Attribute\AsCronTask;
+                  ...
+              - pattern-either:
+                  - pattern-inside: |
+                      #[AsCronTask($...ARGS)]
+                      class $K { ... }
+                  - pattern-inside: |
+                      #[AsCronTask($...ARGS)]
+                      function $F(...) { ... }
+          - patterns:
+              - pattern-inside: |
+                  use Symfony\Component\Scheduler\Attribute\AsPeriodicTask;
+                  ...
+              - pattern-either:
+                  - pattern-inside: |
+                      #[AsPeriodicTask($...ARGS)]
+                      class $K { ... }
+                  - pattern-inside: |
+                      #[AsPeriodicTask($...ARGS)]
+                      function $F(...) { ... }
+          - patterns:
+              - pattern-either:
+                  - pattern-inside: |
+                      use Symfony\Component\Scheduler\Attribute\AsCronTask as $TA;
+                      ...
+                  - pattern-inside: |
+                      use Symfony\Component\Scheduler\Attribute\AsPeriodicTask as $TA;
+                      ...
+              - pattern-either:
+                  - pattern-inside: |
+                      #[$TA($...ARGS)]
+                      class $K { ... }
+                  - pattern-inside: |
+                      #[$TA($...ARGS)]
+                      function $F(...) { ... }
+      - pattern-either:
+          # Laravel's Mail facade: to, cc, bcc, send, raw, html, plain, queue and later each send or queue a message.
+          - patterns:
+              - pattern-either:
+                  - pattern: \Illuminate\Support\Facades\Mail::$MM(...)
+                  - pattern: \Mail::$MM(...)
+                  - patterns:
+                      - pattern-inside: |
+                          use Illuminate\Support\Facades\Mail;
+                          ...
+                      - pattern: Mail::$MM(...)
+                  - patterns:
+                      - pattern-inside: |
+                          use Illuminate\Support\Facades\Mail as $MA;
+                          ...
+                      - pattern: $MA::$MM(...)
+              - metavariable-regex:
+                  metavariable: $MM
+                  regex: ^(to|cc|bcc|send|sendNow|raw|html|plain|queue|later)$
+          # Laravel's Notification facade: send and sendNow deliver to the notifiables named, route to an address.
+          - patterns:
+              - pattern-either:
+                  - pattern: \Illuminate\Support\Facades\Notification::$NM(...)
+                  - pattern: \Notification::$NM(...)
+                  - patterns:
+                      - pattern-inside: |
+                          use Illuminate\Support\Facades\Notification;
+                          ...
+                      - pattern: Notification::$NM(...)
+                  - patterns:
+                      - pattern-inside: |
+                          use Illuminate\Support\Facades\Notification as $NA;
+                          ...
+                      - pattern: $NA::$NM(...)
+              - metavariable-regex:
+                  metavariable: $NM
+                  regex: ^(send|sendNow|route)$
+          # A notifiable notified with a new notification (Laravel).
+          - pattern: $NB->notify(new $NC(...))
+          - pattern: $NB->notifyNow(new $NC(...))
+          # A mailer, notifier, texter or mail object's send: Symfony Mailer and Notifier, PHPMailer, SendGrid, Firebase.
+          - patterns:
+              - pattern: $MR->send(...)
+              - metavariable-regex:
+                  metavariable: $MR
+                  regex: '(?i)^(\$this->|\$)\w*(mail|smtp|notifier|texter|sendgrid|firebase|fcm)\w*$'
+          # PHP's own mail() and WordPress's wp_mail().
+          - pattern: mail(...)
+          - pattern: wp_mail(...)
+          # A call named for a send: sendEmail (Amazon SES, Postmark), sendTransacEmail (Brevo), an app's send_reminder_email.
+          - patterns:
+              - pattern-either:
+                  - pattern: $SX->$SN(...)
+                  - pattern: $SX::$SN(...)
+                  - pattern: $SN(...)
+              - metavariable-regex:
+                  metavariable: $SN
+                  regex: '(?i)^send\w*(email|mail|sms|textmessage|push|notification|reminder|digest|newsletter|alert)s?$'
+          # Twilio texts and calls, Vonage SMS, Amazon SNS to a phone number, Resend, Mailgun.
+          - pattern: "$TC->messages->create($TTO, [..., 'from' => $TF, ...])"
+          - pattern: "$TC->messages->create($TTO, [..., 'messagingServiceSid' => $TF, ...])"
+          - pattern: $TC->calls->create(...)
+          - pattern: $VC->sms()->send(...)
+          - pattern: "$SC->publish([..., 'PhoneNumber' => $SP, ...])"
+          - pattern: $RC->emails->send(...)
+          - pattern: $RC->emails()->send(...)
+          - pattern: $MG->messages()->send(...)
+      # Literal anchor inside the match: it lets the engine skip files with no send call.
+      - pattern-regex: '(?i)(::\s*(to|cc|bcc|send|sendNow|raw|html|plain|queue|later|route)\s*\(|->\s*notify(Now)?\s*\(|\bsend\w*\s*\(|\b(wp_)?mail\s*\(|->\s*(messages|calls)\s*->\s*create\s*\(|->\s*publish\s*\()'
+    metadata:
+      activity: automated_outreach
+      mentioned: performs
+      definition: https://lexlint.io/activities/automated-outreach
+      provenance: ungovr-original
+      license: MIT
