@@ -1,0 +1,70 @@
+rules:
+  - id: lexcode.outreach.cs-send-in-loop
+    languages: [csharp]
+    severity: INFO
+    message: Sends an email, text, call or push notification once per recipient in a loop, which is sending automated outreach (automated_outreach).
+    # A loop over relays, hosts or retry attempts sends ONE message to ONE person; the iterable's name
+    # (or a for loop's condition) rules those out, as in the other languages' rules. On Opengrep 1.33.1
+    # `foreach (var $V in $L) $S` also matches a typed loop variable, `await foreach` and a braceless
+    # body; nested loops report a send once.
+    #
+    # The send set, shared with cs-send-in-scheduled-job and cs-send-in-background-job: an SMTP client's
+    # send (System.Net.Mail and MailKit) by a receiver named for mail or SMTP; a call named for a send
+    # (SendEmailAsync covers ASP.NET Core Identity's IEmailSender, SendGrid and Amazon SES; SendAnSmsAsync
+    # is Vonage's); Twilio's MessageResource and CallResource by their fully qualified names, so an app's
+    # own MessageResource does not match; and Firebase Cloud Messaging's SendAsync on the default
+    # instance or a typed client. FirebaseMessaging also has its short form, because the short name is
+    # the vendor's own (Decision 10). A publish to a message bus or a queue is not a send.
+    patterns:
+      - pattern-either:
+          - patterns:
+              - pattern-either:
+                  - pattern-inside: |
+                      foreach (var $V in $L) $S
+                  - pattern-inside: |
+                      foreach ($T $V in $L) $S
+                  - pattern-inside: $L.ForEach(...)
+                  - pattern-inside: Parallel.ForEach($L, ...)
+                  - pattern-inside: Parallel.ForEachAsync($L, ...)
+                  - pattern-inside: System.Threading.Tasks.Parallel.ForEach($L, ...)
+                  - pattern-inside: System.Threading.Tasks.Parallel.ForEachAsync($L, ...)
+              - metavariable-regex:
+                  metavariable: $L
+                  regex: '(?is)^(?!.*(relay|host|server|retr|attempt|backoff|endpoint|smtp|fallback|provider|transport|mirror|failover|\bports?\b)).*$'
+          - patterns:
+              - pattern-inside: |
+                  for (...; $COND; ...) $S
+              - metavariable-regex:
+                  metavariable: $COND
+                  regex: '(?is)^(?!.*(relay|host|server|retr|attempt|backoff|endpoint|smtp|fallback|provider|transport|mirror|failover|\bports?\b)).*$'
+      - pattern-either:
+          - patterns:
+              - pattern: $M.$SM(...)
+              - metavariable-regex:
+                  metavariable: $M
+                  regex: (?i)^(this\.)?_?\w*(mail|smtp)\w*$
+              - metavariable-regex:
+                  metavariable: $SM
+                  regex: ^(Send|SendAsync|SendMailAsync)$
+          - patterns:
+              - pattern-either:
+                  - pattern: $X.$N(...)
+                  - pattern: $N(...)
+              - metavariable-regex:
+                  metavariable: $N
+                  regex: ^Send\w*(Email|Mail|EmailMessage|MailMessage|Sms|SMS|SmsMessage|Text|TextMessage|Push|PushNotification|Notification|Reminder|Digest|Newsletter|Alert)s?(Async)?$
+          - pattern: Twilio.Rest.Api.V2010.Account.MessageResource.Create(...)
+          - pattern: Twilio.Rest.Api.V2010.Account.MessageResource.CreateAsync(...)
+          - pattern: Twilio.Rest.Api.V2010.Account.CallResource.Create(...)
+          - pattern: Twilio.Rest.Api.V2010.Account.CallResource.CreateAsync(...)
+          - pattern: FirebaseAdmin.Messaging.FirebaseMessaging.DefaultInstance.SendAsync(...)
+          - pattern: FirebaseMessaging.DefaultInstance.SendAsync(...)
+          - pattern: (FirebaseAdmin.Messaging.FirebaseMessaging $F).SendAsync(...)
+      # Literal anchor inside the match: it lets the engine skip files with no send call.
+      - pattern-regex: '(\.Send(Async|MailAsync)?\(|\bSend\w*(Email|Mail|Sms|SMS|Text|Push|Notification|Reminder|Digest|Newsletter|Alert)\w*\(|Resource\s*\.\s*Create(Async)?\()'
+    metadata:
+      activity: automated_outreach
+      mentioned: performs
+      definition: https://lexlint.io/activities/automated-outreach
+      provenance: ungovr-original
+      license: MIT

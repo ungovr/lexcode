@@ -1,0 +1,32 @@
+rules:
+  - id: lexcode.chat.cs-bot-transcript-store
+    languages: [csharp]
+    severity: INFO
+    message: Logs a bot's conversations to a transcript store, which is keeping a text chat (records_text_chat).
+    # The Bot Framework's TranscriptLoggerMiddleware writes every activity of every conversation, what
+    # the user typed and what the bot answered, to the store it is given. Over MemoryTranscriptStore the
+    # turns last only until the process ends, so that form is left out, as the Java rule leaves out the
+    # in-memory chat stores. A blob transcript store (or the older AzureBlobTranscriptStore) constructed
+    # on its own is reported too; built inline inside the middleware, it is reported once, on the
+    # middleware. Every type is fully qualified, so an app's own TranscriptLoggerMiddleware does not match.
+    pattern-either:
+      - patterns:
+          - pattern: new Microsoft.Bot.Builder.TranscriptLoggerMiddleware($S)
+          - metavariable-regex:
+              metavariable: $S
+              regex: ^(?!.*\bMemoryTranscriptStore\b)
+          - pattern-regex: 'TranscriptLoggerMiddleware\('
+      - patterns:
+          - pattern-either:
+              - pattern: new Microsoft.Bot.Builder.Azure.Blobs.BlobsTranscriptStore(...)
+              - pattern: Microsoft.Bot.Builder.Azure.Blobs.BlobsTranscriptStore $V = new(...);
+              - pattern: new Microsoft.Bot.Builder.Azure.AzureBlobTranscriptStore(...)
+              - pattern: Microsoft.Bot.Builder.Azure.AzureBlobTranscriptStore $V = new(...);
+          - pattern-not-inside: new Microsoft.Bot.Builder.TranscriptLoggerMiddleware(...)
+          - pattern-regex: 'TranscriptStore\b'
+    metadata:
+      activity: records_text_chat
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-text-chat
+      provenance: ungovr-original
+      license: MIT

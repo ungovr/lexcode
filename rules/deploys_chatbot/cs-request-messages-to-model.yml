@@ -1,0 +1,38 @@
+# Not a taint rule, and no `...` sequence: the cost is that a list copied into a local before the call
+# is not followed; the request's own list read inside the argument (`request.Messages`,
+# `body.Messages.Select(...)`) is. The bar is the other languages' rules: a messages or history LIST
+# from the request reaches the model call. A single question pasted into a fixed prompt is a one-shot
+# tool, not a chatbot, and does not match.
+#
+# The model call is named by its client as a typed metavariable: Microsoft.Extensions.AI's IChatClient
+# and the OpenAI SDK's ChatClient, resolved through a field, a constructor or primary-constructor
+# parameter, or a handler parameter, so an app's own IChatClient in another namespace does not match.
+# The request is a handler parameter by its usual names (request, req, body, payload, input, a name
+# ending in Request, Dto or Command).
+rules:
+  - id: lexcode.chatbot.cs-request-messages-to-model
+    languages: [csharp]
+    severity: INFO
+    message: Passes the conversation a client sent in a request to a language model, which is deploying a chatbot (deploys_chatbot).
+    patterns:
+      - pattern-either:
+          - pattern: (Microsoft.Extensions.AI.IChatClient $C).GetResponseAsync(<... $P.$A ...>, ...)
+          - pattern: (Microsoft.Extensions.AI.IChatClient $C).GetStreamingResponseAsync(<... $P.$A ...>, ...)
+          - pattern: (OpenAI.Chat.ChatClient $C).CompleteChatAsync(<... $P.$A ...>, ...)
+          - pattern: (OpenAI.Chat.ChatClient $C).CompleteChat(<... $P.$A ...>, ...)
+          - pattern: (OpenAI.Chat.ChatClient $C).CompleteChatStreamingAsync(<... $P.$A ...>, ...)
+          - pattern: (OpenAI.Chat.ChatClient $C).CompleteChatStreaming(<... $P.$A ...>, ...)
+      - metavariable-regex:
+          metavariable: $P
+          regex: (?i)^(req|body|payload|input|\w*request|\w*dto|\w*command)$
+      - metavariable-regex:
+          metavariable: $A
+          regex: ^(Messages|History|ChatHistory|ChatMessages|Conversation|ConversationHistory|Turns)$
+      # Literal anchor inside the match (the model call), so the engine skips files with no such call.
+      - pattern-regex: '\.(GetResponseAsync|GetStreamingResponseAsync|CompleteChat\w*)\('
+    metadata:
+      activity: deploys_chatbot
+      mentioned: performs
+      definition: https://lexlint.io/activities/deploys-chatbot
+      provenance: ungovr-original
+      license: MIT

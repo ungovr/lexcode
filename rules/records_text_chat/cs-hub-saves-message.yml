@@ -1,0 +1,58 @@
+rules:
+  - id: lexcode.chat.cs-hub-saves-message
+    languages: [csharp]
+    severity: INFO
+    message: Writes what a person sent to a SignalR hub to a message or chat record, which is keeping a text chat (records_text_chat).
+    # The C# counterpart of java-socket-handler-saves-message. The handler is a method of a class whose
+    # base is SignalR's Hub (or Hub<T>, matched by the bare fully qualified name), so an app's own Hub in
+    # another namespace does not match. The write is to a store named for messages: a DbSet named for
+    # them, a new message handed to a context or repository, a repository or store named for messages,
+    # or a method named for saving a message (SaveMessageAsync, AddChatMessageAsync). A hub that only
+    # relays (Clients.All.SendAsync), one that saves a position or a connection, and a static list in
+    # the hub (kept only until the process ends) do not match.
+    patterns:
+      - pattern-inside: |
+          class $K : Microsoft.AspNetCore.SignalR.Hub { ... }
+      - pattern-either:
+          - patterns:
+              - pattern: $CTX.$SET.$W(...)
+              - metavariable-regex:
+                  metavariable: $SET
+                  regex: (?i)^\w*(message|msg|chat|conversation|transcript)\w*$
+              - metavariable-regex:
+                  metavariable: $W
+                  regex: ^(Add|AddAsync|AddRange|AddRangeAsync|InsertOne|InsertOneAsync)$
+          - patterns:
+              - pattern-either:
+                  - pattern: $R.$W(<... new $T(...) ...>)
+                  - pattern: $R.$W(<... new $T { ... } ...>)
+              - metavariable-regex:
+                  metavariable: $R
+                  regex: (?i)^(this\.)?_?\w*(context|db|repository|repo|store|dao|collection|container|session)$
+              - metavariable-regex:
+                  metavariable: $T
+                  regex: (?i)^(\w+\.)*\w*(message|msg|chat|conversation|transcript|line|turn)s?$
+              - metavariable-regex:
+                  metavariable: $W
+                  regex: ^(Add|AddAsync|Insert|InsertAsync|InsertOne|InsertOneAsync|Save|SaveAsync|Create|CreateAsync|CreateItemAsync|Upsert|UpsertAsync|UpsertItemAsync|Store|StoreAsync)$
+          - patterns:
+              - pattern: $R.$W(...)
+              - metavariable-regex:
+                  metavariable: $R
+                  regex: (?i)^(this\.)?_?\w*(message|msg|chat|conversation|transcript|dialog)\w*(repository|repo|store|dao|collection|container|context|db|table)$
+              - metavariable-regex:
+                  metavariable: $W
+                  regex: ^(Add|AddAsync|Insert|InsertAsync|InsertOne|InsertOneAsync|Save|SaveAsync|Create|CreateAsync|CreateItemAsync|Upsert|UpsertAsync|UpsertItemAsync|Store|StoreAsync|Append|AppendAsync)$
+          - patterns:
+              - pattern: $R.$M(...)
+              - metavariable-regex:
+                  metavariable: $M
+                  regex: ^(Save|Store|Persist|Insert|Add|Create|Log|Record|Append)\w*(Message|Msg|Chat|Transcript|Turn)s?(Async)?$
+      # Literal anchor inside the match (the write), so the engine skips files with no such call.
+      - pattern-regex: '\.(Add|Insert|Save|Create|Upsert|Store|Persist|Log|Record|Append)\w*\('
+    metadata:
+      activity: records_text_chat
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-text-chat
+      provenance: ungovr-original
+      license: MIT
