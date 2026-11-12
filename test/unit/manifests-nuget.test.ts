@@ -279,6 +279,48 @@ describe('readNuget', () => {
     expect(r.devSkipped).toBe(3);
   });
 
+  it('in a Directory.Build file, a condition that is not IsTestProject equal to true leaves a row', () => {
+    const build = [
+      '<Project>',
+      '  <ItemGroup Condition="\'$(IsTestProject)\' != \'true\'">',
+      '    <PackageReference Include="Sentry" Version="4.12.1" />',
+      '  </ItemGroup>',
+      '  <ItemGroup>',
+      '    <PackageReference Include="Serilog" Version="4.0.0" Condition="\'$(IsTestProject)\' == \'false\'" />',
+      '    <PackageReference Include="Twilio" Version="7.4.0" Condition="\'$(IsTestProject)\' == \'true\' or \'$(Configuration)\' == \'Release\'" />',
+      '  </ItemGroup>',
+      '</Project>',
+      '',
+    ].join('\n');
+    const root = tree({ 'Directory.Build.props': build });
+    const r = readNuget(root, ['Directory.Build.props']);
+    expect(r.deps.map((d) => d.name)).toEqual(['Sentry', 'Serilog', 'Twilio']);
+    expect(r.devSkipped).toBe(0);
+  });
+
+  it('in a Directory.Build file, IsTestProject equal to true is read in either order, any case and quoting, and as an and-joined clause', () => {
+    const build = [
+      '<Project>',
+      '  <ItemGroup>',
+      '    <PackageReference Include="Sentry" Version="4.12.1" />',
+      '    <PackageReference Include="xunit" Version="2.9.2" Condition="\'true\' == \'$(IsTestProject)\'" />',
+      '    <PackageReference Include="Moq" Version="4.20.72" Condition=" &quot;$(istestproject)&quot;==&quot;TRUE&quot; " />',
+      '  </ItemGroup>',
+      '  <ItemGroup Condition="\'$(TargetFramework)\' == \'net8.0\' AND \'$(IsTestProject)\' == \'true\'">',
+      '    <PackageReference Include="coverlet.collector" Version="6.0.2" />',
+      '  </ItemGroup>',
+      '  <ItemGroup Condition="(\'$(A)\' == \'x\' or \'$(B)\' == \'y\') and (\'$(IsTestProject)\' == \'true\')">',
+      '    <PackageReference Include="Shouldly" Version="4.2.1" />',
+      '  </ItemGroup>',
+      '</Project>',
+      '',
+    ].join('\n');
+    const root = tree({ 'Directory.Build.props': build });
+    const r = readNuget(root, ['Directory.Build.props']);
+    expect(r.deps.map((d) => d.name)).toEqual(['Sentry']);
+    expect(r.devSkipped).toBe(4);
+  });
+
   it('in a Directory.Build.targets, an unconditional Microsoft.NET.Test.Sdk is counted and the other references stay rows', () => {
     const targets = [
       '<Project>',

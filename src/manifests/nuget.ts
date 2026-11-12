@@ -15,7 +15,8 @@ import { parseXml, XmlError, type XmlElement } from './xml.js';
  * `MSTest.Sdk` project SDK); every `<GlobalPackageReference>` (analyzers and build tools); and a
  * `packages.config` entry marked `developmentDependency="true"`. A Directory.Build file is not a project,
  * so it is judged reference by reference: a reference is development there when it, or its enclosing
- * `<ItemGroup>`, has a `Condition` that names `IsTestProject`, and `Microsoft.NET.Test.Sdk` always is.
+ * `<ItemGroup>`, has a `Condition` that requires `'$(IsTestProject)' == 'true'` (alone or joined by `and`),
+ * and `Microsoft.NET.Test.Sdk` always is.
  *
  * A version comes, in order, from the `packages.lock.json` beside the file (the first framework in file
  * order that lists the Id as a `Direct` dependency), the reference's own `VersionOverride` or `Version`,
@@ -34,7 +35,11 @@ const LOCK = 'packages.lock.json';
 const TEST_SDK = 'microsoft.net.test.sdk';
 /** The MSTest project SDK, which makes a project a test project by itself. */
 const MSTEST_SDK = 'mstest.sdk';
-const NAMES_IS_TEST_PROJECT = /\bIsTestProject\b/i;
+/** `'$(IsTestProject)' == 'true'`, operands in either order, any case, single or double quotes. */
+const IS_TEST_PROJECT_TRUE = [
+  /^(['"])\s*\$\(\s*IsTestProject\s*\)\s*\1\s*==\s*(['"])\s*true\s*\2$/i,
+  /^(['"])\s*true\s*\1\s*==\s*(['"])\s*\$\(\s*IsTestProject\s*\)\s*\2$/i,
+];
 
 /** `1.2.3`, `1.2.3.4`, `1.2.3-beta.1`, with optional build metadata: what NuGet resolves to one version. */
 const PLAIN_VERSION = /^\d+(?:\.\d+){0,3}(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
@@ -78,6 +83,64 @@ function* descendants(el: XmlElement): Generator<XmlElement> {
     yield c;
     yield* descendants(c);
   }
+}
+
+/**
+ * The clauses of an MSBuild condition joined by `and` at the top level, each without its enclosing
+ * parentheses; undefined when the top level holds an `or`, since then the condition does not require
+ * every clause.
+ */
+function andClauses(condition: string): string[] | undefined {
+  const clauses: string[] = [];
+  let depth = 0;
+  let quote = '';
+  let start = 0;
+  for (let i = 0; i < condition.length; i++) {
+    const c = condition[i] as string;
+    if (quote) {
+      if (c === quote) quote = '';
+    } else if (c === "'" || c === '"') quote = c;
+    else if (c === '(') depth++;
+    else if (c === ')') depth--;
+    else if (depth === 0 && /\s/.test(c)) {
+      const word = /^\s+(and|or)\s+/i.exec(condition.slice(i));
+      if (!word) continue;
+      if ((word[1] as string).toLowerCase() === 'or') return undefined;
+      clauses.push(condition.slice(start, i));
+      i += word[0].length - 1;
+      start = i + 1;
+    }
+  }
+  clauses.push(condition.slice(start));
+  return clauses.map(unwrap);
+}
+
+/** A clause without surrounding whitespace and without parentheses that enclose all of it. */
+function unwrap(clause: string): string {
+  let c = clause.trim();
+  while (c.startsWith('(') && c.endsWith(')') && enclosesAll(c)) c = c.slice(1, -1).trim();
+  return c;
+}
+
+/** True when the opening parenthesis of `c` is closed by its last character. */
+function enclosesAll(c: string): boolean {
+  let depth = 0;
+  let quote = '';
+  for (let i = 0; i < c.length; i++) {
+    const ch = c[i] as string;
+    if (quote) {
+      if (ch === quote) quote = '';
+    } else if (ch === "'" || ch === '"') quote = ch;
+    else if (ch === '(') depth++;
+    else if (ch === ')' && --depth === 0 && i < c.length - 1) return false;
+  }
+  return true;
+}
+
+/** A condition that holds only in a test project: `IsTestProject` equal to true, alone or and-joined. */
+function requiresTestProject(condition: string | undefined): boolean {
+  if (condition === undefined) return false;
+  return andClauses(condition)?.some((c) => IS_TEST_PROJECT_TRUE.some((re) => re.test(c))) ?? false;
 }
 
 /** True when an SDK reference (`Name`, `Name/1.2.3`, or a `;`-separated list of them) names `sdk`. */
@@ -243,7 +306,7 @@ class NugetReader {
         const id = same(el.name, 'PackageReference') ? include(el) : undefined;
         if (id) {
           const conditions = [attr(el, 'Condition'), same(parent.name, 'ItemGroup') ? attr(parent, 'Condition') : undefined];
-          refs.push({ el, id, testOnly: conditions.some((c) => c !== undefined && NAMES_IS_TEST_PROJECT.test(c)) });
+          refs.push({ el, id, testOnly: conditions.some(requiresTestProject) });
         }
         walk(el);
       }
