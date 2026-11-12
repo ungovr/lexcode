@@ -15,19 +15,19 @@ rules:
       # wraps Symfony's HttpClient) or for Guzzle is an API call, not a page load by the browser.
       - pattern-either:
           - patterns:
-              - pattern-regex: '(?s)\A(?=.*(?<![\w\\])\\?Goutte\\Client\b).*'
+              - pattern-regex: '(?s)\A(?=.*Goutte\\Client\b(?<!\wGoutte\\Client)(?<![\w\\]\\Goutte\\Client)).*'
               - pattern: $C->request($M, $URL, ...)
               - metavariable-regex:
                   metavariable: $C
                   regex: ^(?!\$(this->)?\w*([hH]ttp_?[cC]lient|[gG]uzzle)\w*$)
           - patterns:
-              - pattern-regex: '(?s)\A(?=.*(?<![\w\\])\\?Symfony\\Component\\BrowserKit\\HttpBrowser\b).*'
+              - pattern-regex: '(?s)\A(?=.*Symfony\\Component\\BrowserKit\\HttpBrowser\b(?<!\wSymfony\\Component\\BrowserKit\\HttpBrowser)(?<![\w\\]\\Symfony\\Component\\BrowserKit\\HttpBrowser)).*'
               - pattern: $C->request($M, $URL, ...)
               - metavariable-regex:
                   metavariable: $C
                   regex: ^(?!\$(this->)?\w*([hH]ttp_?[cC]lient|[gG]uzzle)\w*$)
           - patterns:
-              - pattern-regex: '(?s)\A(?=.*(?<![\w\\])\\?Symfony\\Component\\Panther\\Client\b).*'
+              - pattern-regex: '(?s)\A(?=.*Symfony\\Component\\Panther\\Client\b(?<!\wSymfony\\Component\\Panther\\Client)(?<![\w\\]\\Symfony\\Component\\Panther\\Client)).*'
               - pattern-either:
                   # BrowserKit style.
                   - patterns:
@@ -42,7 +42,7 @@ rules:
                           metavariable: $C
                           regex: ^\$(this->)?\w*([cC]lient|[bB]rowser|[dD]river|[pP]anther)$
           - patterns:
-              - pattern-regex: '(?s)\A(?=.*(?<![\w\\])\\?HeadlessChromium\\BrowserFactory\b).*'
+              - pattern-regex: '(?s)\A(?=.*HeadlessChromium\\BrowserFactory\b(?<!\wHeadlessChromium\\BrowserFactory)(?<![\w\\]\\HeadlessChromium\\BrowserFactory)).*'
               - pattern: $P->navigate($URL)
       # Not a page on another site: loopback hosts; file, data, about and blob addresses (chrome-php
       # rendering the app's own HTML to PDF); a path relative to the app itself; the app's own

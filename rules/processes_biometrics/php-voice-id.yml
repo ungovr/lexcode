@@ -21,7 +21,7 @@ rules:
           - pattern-inside: |
               use Aws\VoiceID\VoiceIDClient;
               ...
-          - pattern-regex: (?s)\A(?=.*(?<![\w\\])\\Aws\\VoiceID\\VoiceIDClient\b).*
+          - pattern-regex: (?s)\A(?=.*\\Aws\\VoiceID\\VoiceIDClient\b(?<![\w\\]\\Aws\\VoiceID\\VoiceIDClient)).*
     metadata:
       activity: processes_biometrics
       mentioned: performs

@@ -8,19 +8,19 @@ rules:
     pattern-either:
       - patterns:
           - pattern: $C->createEnvelope(...)
-          - pattern-regex: '(?s)\A(?=.*(?<![\w\\])\\?DocuSign\\eSign\\Api\\EnvelopesApi\b).*'
+          - pattern-regex: '(?s)\A(?=.*DocuSign\\eSign\\Api\\EnvelopesApi\b(?<!\wDocuSign\\eSign\\Api\\EnvelopesApi)(?<![\w\\]\\DocuSign\\eSign\\Api\\EnvelopesApi)).*'
       - patterns:
           - pattern: $C->$M(...)
           - metavariable-regex:
               metavariable: $M
               regex: ^(?:signatureRequestSend|signatureRequestSendWithTemplate|signatureRequestCreateEmbedded|signatureRequestCreateEmbeddedWithTemplate|signatureRequestBulkSendWithTemplate)$
-          - pattern-regex: '(?s)\A(?=.*(?<![\w\\])\\?Dropbox\\Sign\\Api\\SignatureRequestApi\b).*'
+          - pattern-regex: '(?s)\A(?=.*Dropbox\\Sign\\Api\\SignatureRequestApi\b(?<!\wDropbox\\Sign\\Api\\SignatureRequestApi)(?<![\w\\]\\Dropbox\\Sign\\Api\\SignatureRequestApi)).*'
       - patterns:
           - pattern: $C->$M(...)
           - metavariable-regex:
               metavariable: $M
               regex: ^(?:sendSignatureRequest|sendTemplateSignatureRequest|createEmbeddedSignatureRequest)$
-          - pattern-regex: '(?s)\A(?=.*(?<![\w\\])\\?HelloSign\\Client\b).*'
+          - pattern-regex: '(?s)\A(?=.*HelloSign\\Client\b(?<!\wHelloSign\\Client)(?<![\w\\]\\HelloSign\\Client)).*'
     metadata:
       activity: collects_e_signatures
       mentioned: performs

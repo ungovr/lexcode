@@ -31,7 +31,7 @@ rules:
           - pattern-inside: |
               use Aws\Rekognition\RekognitionClient;
               ...
-          - pattern-regex: (?s)\A(?=.*(?<![\w\\])\\Aws\\Rekognition\\RekognitionClient\b).*
+          - pattern-regex: (?s)\A(?=.*\\Aws\\Rekognition\\RekognitionClient\b(?<![\w\\]\\Aws\\Rekognition\\RekognitionClient)).*
     metadata:
       activity: processes_biometrics
       mentioned: performs

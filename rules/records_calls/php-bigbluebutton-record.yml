@@ -15,7 +15,7 @@ rules:
                   - pattern-inside: |
                       use BigBlueButton\Parameters\CreateMeetingParameters;
                       ...
-                  - pattern-regex: (?s)\A(?=.*(?<![\w\\])\\BigBlueButton\\Parameters\\CreateMeetingParameters\b).*
+                  - pattern-regex: (?s)\A(?=.*\\BigBlueButton\\Parameters\\CreateMeetingParameters\b(?<![\w\\]\\BigBlueButton\\Parameters\\CreateMeetingParameters)).*
           # The HTTP API's create call built by hand: a record parameter, in a file that names the
           # API's meetingID parameter. The file conjunct also lets the engine skip other files.
           - patterns:
