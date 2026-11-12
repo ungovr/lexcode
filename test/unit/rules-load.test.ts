@@ -11,7 +11,7 @@ const rs = loadRuleSet();
 
 describe('bundled rule set', () => {
   it('reads the pinned versions and the registry snapshot', () => {
-    expect(rs.version).toBe('1.0.0');
+    expect(rs.version).toBe('1.1.0');
     expect(rs.registryVersion).toBe('1.15');
     expect(rs.registry.get('crawls_web')?.page).toBe('https://lexlint.io/activities/crawls-web');
     expect(rs.registry.get('records_conversations')?.status).toBe('retired');

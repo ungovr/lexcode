@@ -22,6 +22,11 @@ const engineAvailable = Boolean(process.env.LEXCODE_ENGINE ?? cachedEngine());
 
 const STUB = resolve(dirname(fileURLToPath(import.meta.url)), 'stubs', 'fake-opengrep.mjs');
 const FIXTURE = resolve(dirname(fileURLToPath(import.meta.url)), 'repos', 'drift');
+// The bundled rule set's version, read rather than typed, so a release that bumps it
+// does not have to edit this test.
+const RULESET_VERSION = /^version: (\S+)$/m.exec(
+  readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '..', 'rules', 'ruleset.yml'), 'utf8'),
+)![1];
 
 let work: string;
 let repo: string;
@@ -53,7 +58,7 @@ describe.skipIf(!engineAvailable)('lexcode check over test/repos/drift with the 
     const text = err.join('');
     expect(code).toBe(1);
     expect(text).toContain('lexcode check against ACTIVITIES.md');
-    expect(text).toMatch(/files read; rules 1\.0\.0; engine opengrep 1\.33\.1; registry 1\.15/);
+    expect(text).toContain(`files read; rules ${RULESET_VERSION}; engine opengrep 1.33.1; registry 1.15`);
     expect(text).toContain('FAIL  trains_models  the code performs trains_models and the declaration does not carry it');
     expect(text).toContain('src/app.py:8  lexcode.train.model-fit');
     expect(text).toContain("WARN  generates_text  the declaration says generates_text comes only through a dependency, and the project's own code does it");
