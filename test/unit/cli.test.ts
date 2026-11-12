@@ -30,7 +30,7 @@ afterEach(() => {
 describe('lexcode version', () => {
   it('prints the package, rule set, engine and registry versions', async () => {
     expect(await main(['version'], io())).toBe(0);
-    expect(out.join('')).toBe(`lexcode ${PKG.version}\nrules 1.1.0\nengine opengrep 1.33.1\nregistry 1.15\n`);
+    expect(out.join('')).toBe(`lexcode ${PKG.version}\nrules 1.2.0\nengine opengrep 1.33.1\nregistry 1.15\n`);
   });
 
   it('has no effect on import and answers --version like version', async () => {
