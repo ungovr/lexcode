@@ -3,7 +3,8 @@
 // Not a send from background work: a queued job and a message handler that send nothing, Symfony and
 // Laravel console commands an operator runs to mail one report to the address they name, an app's own
 // ShouldQueue and Command and an app's own AsMessageHandler attribute in other namespaces with a send
-// under them, a request handler that mails the person who asked, and a subscriber that logs.
+// under them, Laravel's password-reset and email-verification overrides on a user model, a request
+// handler that mails the person who asked, and a subscriber that logs.
 namespace App\Jobs;
 
 use App\Contracts\ShouldQueue;
@@ -84,6 +85,19 @@ final class AuditSubscriber implements EventSubscriberInterface
     public function onPaid(OrderPaid $event): void
     {
         $this->logger->info('order paid', ['id' => $event->id()]);
+    }
+}
+
+final class User extends Authenticatable
+{
+    public function sendPasswordResetNotification($token): void
+    {
+        $this->notify(new ResetPassword($token));
+    }
+
+    public function sendEmailVerificationNotification(): void
+    {
+        $this->notify(new VerifyEmail());
     }
 }
 

@@ -1,22 +1,31 @@
 <?php
 // lexcode-expect: 0
 // Not a batch send: Filament's Notification toast, an app's own Notification class in another
-// namespace, the Notification facade to one notifiable, a Mailchimp audience read, a Mailgun send to
+// namespace imported under the short name and sent to many, the Notification facade to one
+// notifiable, to one address and to the administrators, a Mailchimp audience read, a Mailgun send to
 // one person, and a report built from many rows.
 namespace App\Http\Controllers;
 
-use Filament\Notifications\Notification;
-use App\Support\Notification as AppNotification;
-use Illuminate\Support\Facades\Notification as NotificationFacade;
+use Filament\Notifications\Notification as Toast;
+use App\Support\Notification;
 
 final class ProfileController
 {
     public function update(Request $request)
     {
         $request->user()->update($request->validated());
-        Notification::make()->title('Profile saved')->success()->send();
-        AppNotification::send($this->subscribers, 'Profile saved');
-        NotificationFacade::sendNow($request->user(), new ProfileUpdated());
+        Toast::make()->title('Profile saved')->success()->send();
+        Notification::send($this->subscribers, 'Profile saved');
+        \Illuminate\Support\Facades\Notification::sendNow($request->user(), new ProfileUpdated());
+        return back();
+    }
+
+    public function invite(Request $request, array $admins)
+    {
+        $address = $request->input('email');
+        \Illuminate\Support\Facades\Notification::route('mail', $address)->notify(new Invitation());
+        \Illuminate\Support\Facades\Notification::send($address, new Invitation());
+        \Illuminate\Support\Facades\Notification::send($admins, new InvitationSent($address));
         return back();
     }
 

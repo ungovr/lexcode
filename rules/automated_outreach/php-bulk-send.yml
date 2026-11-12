@@ -3,8 +3,9 @@ rules:
     languages: [php]
     severity: INFO
     message: Sends one message to many recipients in a single batch call, push multicast or campaign send, which is sending automated outreach (automated_outreach).
-    # Laravel's Notification facade counts when its first argument reads as many notifiables (a plural
-    # name, all(), get(), cursor()); Laravel documents it for a collection of users, and a single
+    # Laravel's Notification facade counts when its first argument reads as many notifiables (a name
+    # such as users, subscribers or members, or a query's all(), get(), cursor() or lazy()), and not the
+    # administrators; Laravel documents it for a collection of users, and a single
     # notifiable is php-send-in-loop's or nothing. Filament's Notification toast and an app's own
     # Notification class are other classes and do not match.
     pattern-either:
@@ -25,9 +26,11 @@ rules:
           - metavariable-regex:
               metavariable: $NM
               regex: ^(send|sendNow)$
+          # Many notifiables by name or by query; a bare plural is not enough ($address, $status), and the
+          # administrators are the mail-to-administrators class, not outreach.
           - metavariable-regex:
               metavariable: $TO
-              regex: '(?is)^.*(s|s\(\)|::all\(\)|->get\(\)|->cursor\(\)|->lazy\(\)|list|collection)$'
+              regex: '(?is)^(?!.*admin).*(users|subscribers|customers|members|recipients|contacts|followers|students|parents|employees|participants|attendees|patients|clients|leads|audience|notifiables)(\(\))?$|^(?!.*admin).*(::all\(\)|->get\(\)|->cursor\(\)|->lazy\(\)|->lazyById\(\))$'
       # Amazon SES bulk sends.
       - pattern: $S->sendBulkTemplatedEmail(...)
       - pattern: $S->sendBulkEmail(...)

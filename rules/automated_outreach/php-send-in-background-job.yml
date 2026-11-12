@@ -94,13 +94,16 @@ rules:
                   - pattern-inside: |
                       #[$HA($...ARGS)]
                       function $F(...) { ... }
-          # A method named for notifying, reminding or a campaign.
+          # A method named for notifying, reminding or a campaign. Laravel's password-reset and
+          # email-verification overrides (sendPasswordResetNotification,
+          # sendEmailVerificationNotification) send mail a person asked for, so they are left out, as
+          # the Ruby rule leaves out Devise's.
           - patterns:
               - pattern-inside: |
                   function $NAME(...) { ... }
               - metavariable-regex:
                   metavariable: $NAME
-                  regex: '(?i)^.*(notif|alert|digest|remind|newsletter|broadcast|campaign|announce|blast|outreach|weekly|daily|marketing|drip|status_?change|status_?update|on_?status).*$'
+                  regex: '(?i)^(?!.*(password_?reset|reset_?password|email_?verification|verify_?email)).*(notif|alert|digest|remind|newsletter|broadcast|campaign|announce|blast|outreach|weekly|daily|marketing|drip|status_?change|status_?update|on_?status).*$'
       - pattern-either:
           # Laravel's Mail facade: to, cc, bcc, send, raw, html, plain, queue and later each send or queue a message.
           - patterns:

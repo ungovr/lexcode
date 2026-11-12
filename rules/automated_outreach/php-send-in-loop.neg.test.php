@@ -2,12 +2,13 @@
 // lexcode-expect: 0
 // Not outreach: a single email a person writes and sends by hand, one transactional message per
 // request, a loop that builds one message's recipient list and sends once, loops over relays and
-// retry attempts, an app's own Mail class in another namespace, Filament's Notification toast in a
-// loop, and a loop that only dispatches to a bus and logs.
+// retry attempts, an app's own Mail and Notification classes in another namespace imported under the
+// short name, Filament's Notification toast in a loop, and a loop that only dispatches to a bus and logs.
 namespace App\Http\Controllers;
 
 use App\Support\Mail;
-use Filament\Notifications\Notification;
+use App\Support\Notification;
+use Filament\Notifications\Notification as FilamentNotification;
 use Symfony\Component\Mime\Email;
 
 final class AccountController
@@ -49,6 +50,7 @@ final class AccountController
     {
         foreach ($threads as $thread) {
             Mail::to($thread)->archive();
+            Notification::send($thread, 'archived');
         }
     }
 
@@ -56,7 +58,7 @@ final class AccountController
     {
         foreach ($items as $item) {
             $item->save();
-            Notification::make()->title('Saved '.$item->name)->success()->send();
+            FilamentNotification::make()->title('Saved '.$item->name)->success()->send();
         }
     }
 
