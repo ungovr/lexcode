@@ -1,8 +1,9 @@
 # The class, sender and recipient regular expressions repeat across the member arms, and the event
 # name expressions across the SignalR arms. Edit every copy together, or an arm drifts. A C# member
-# is a field, a property (with any of the accessor shapes below) or a record's positional
-# parameter; each member pattern is filtered by its own names before the two are joined, so a
-# large class is not paired member by member.
+# is a field or an auto-property with any of the accessor shapes below; the engine reads a
+# record's positional parameters as members, so the class patterns cover records too. Each member
+# pattern is filtered by its own names before the two are joined, so a large class is not paired
+# member by member.
 rules:
   - id: lexcode.social.cs-direct-message
     languages: [csharp]
@@ -11,54 +12,39 @@ rules:
     pattern-either:
       # A class or record with a sender and a recipient member.
       - patterns:
-          - pattern-either:
-              - patterns:
-                  - patterns:
-                      - pattern-either:
-                          - pattern: class $C { ... $T $F; ... }
-                          - pattern: class $C { ... $T $F = $V; ... }
-                          - pattern: class $C { ... $T $F { get; set; } ... }
-                          - pattern: class $C { ... $T $F { get; init; } ... }
-                          - pattern: class $C { ... $T $F { get; } ... }
-                          - pattern: class $C { ... $T $F { get; set; } = $V; ... }
-                          - pattern: class $C { ... $T $F { get; init; } = $V; ... }
-                      - metavariable-regex:
-                          metavariable: $C
-                          regex: '^(?!.*(Email|Mail|Sms|Notification|Log|Event|Contact|Audit|Queue|Kafka)).*(DirectMessage|PrivateMessage|ChatMessage|UserMessage|InboxMessage|Dm|DM)$'
-                      - metavariable-regex:
-                          metavariable: $F
-                          regex: '(?i)^_?(recipient|receiver|recipientId|receiverId|to(User|Customer|Member|Account|Profile)(Id)?)$'
-                  - patterns:
-                      - pattern-either:
-                          - pattern: class $C { ... $T2 $G; ... }
-                          - pattern: class $C { ... $T2 $G = $W; ... }
-                          - pattern: class $C { ... $T2 $G { get; set; } ... }
-                          - pattern: class $C { ... $T2 $G { get; init; } ... }
-                          - pattern: class $C { ... $T2 $G { get; } ... }
-                          - pattern: class $C { ... $T2 $G { get; set; } = $W; ... }
-                          - pattern: class $C { ... $T2 $G { get; init; } = $W; ... }
-                      - metavariable-regex:
-                          metavariable: $C
-                          regex: '^(?!.*(Email|Mail|Sms|Notification|Log|Event|Contact|Audit|Queue|Kafka)).*(DirectMessage|PrivateMessage|ChatMessage|UserMessage|InboxMessage|Dm|DM)$'
-                      - metavariable-regex:
-                          metavariable: $G
-                          regex: '(?i)^_?(sender|senderId|author|authorId|from(User|Customer|Member|Account|Profile)(Id)?)$'
-                  - focus-metavariable: $F
-              - patterns:
-                  - patterns:
-                      - pattern: record $C(..., $T $F, ...);
-                      - metavariable-regex:
-                          metavariable: $C
-                          regex: '^(?!.*(Email|Mail|Sms|Notification|Log|Event|Contact|Audit|Queue|Kafka)).*(DirectMessage|PrivateMessage|ChatMessage|UserMessage|InboxMessage|Dm|DM)$'
-                      - metavariable-regex:
-                          metavariable: $F
-                          regex: '(?i)^_?(recipient|receiver|recipientId|receiverId|to(User|Customer|Member|Account|Profile)(Id)?)$'
-                  - patterns:
-                      - pattern: record $C(..., $T2 $G, ...);
-                      - metavariable-regex:
-                          metavariable: $G
-                          regex: '(?i)^_?(sender|senderId|author|authorId|from(User|Customer|Member|Account|Profile)(Id)?)$'
-                  - focus-metavariable: $F
+          - patterns:
+              - pattern-either:
+                  - pattern: class $C { ... $T $F; ... }
+                  - pattern: class $C { ... $T $F = $V; ... }
+                  - pattern: class $C { ... $T $F { get; set; } ... }
+                  - pattern: class $C { ... $T $F { get; init; } ... }
+                  - pattern: class $C { ... $T $F { get; } ... }
+                  - pattern: class $C { ... $T $F { get; set; } = $V; ... }
+                  - pattern: class $C { ... $T $F { get; init; } = $V; ... }
+                  - pattern: class $C { ... $T $F { get; } = $V; ... }
+              - metavariable-regex:
+                  metavariable: $C
+                  regex: '^(?!.*(Email|Mail|Sms|Notification|Log|Event|Contact|Audit|Queue|Kafka)).*(DirectMessage|PrivateMessage|ChatMessage|UserMessage|InboxMessage|Dm|DM)$'
+              - metavariable-regex:
+                  metavariable: $F
+                  regex: '(?i)^_?(recipient|receiver|recipientId|receiverId|to(User|Customer|Member|Account|Profile)(Id)?)$'
+          - patterns:
+              - pattern-either:
+                  - pattern: class $C { ... $T2 $G; ... }
+                  - pattern: class $C { ... $T2 $G = $W; ... }
+                  - pattern: class $C { ... $T2 $G { get; set; } ... }
+                  - pattern: class $C { ... $T2 $G { get; init; } ... }
+                  - pattern: class $C { ... $T2 $G { get; } ... }
+                  - pattern: class $C { ... $T2 $G { get; set; } = $W; ... }
+                  - pattern: class $C { ... $T2 $G { get; init; } = $W; ... }
+                  - pattern: class $C { ... $T2 $G { get; } = $W; ... }
+              - metavariable-regex:
+                  metavariable: $C
+                  regex: '^(?!.*(Email|Mail|Sms|Notification|Log|Event|Contact|Audit|Queue|Kafka)).*(DirectMessage|PrivateMessage|ChatMessage|UserMessage|InboxMessage|Dm|DM)$'
+              - metavariable-regex:
+                  metavariable: $G
+                  regex: '(?i)^_?(sender|senderId|author|authorId|from(User|Customer|Member|Account|Profile)(Id)?)$'
+          - focus-metavariable: $F
       # SignalR: a hub, or an injected hub context, sending a chat or direct message to one user,
       # one connection or one conversation group. The engine resolves `using` and aliases for the
       # qualified Hub and IHubContext, so an app's own Hub class in another namespace is not read.

@@ -26,12 +26,13 @@ rules:
               - metavariable-regex:
                   metavariable: $C
                   regex: '^(User|Account|Customer|Member|New|Self)?(SignUp|Signup|Register|Registration|CreateAccount)(Model|PageModel|Page|View|Window|Form|Component|Dialog|Screen|Control|Controller)?$'
-          # An MVC action named for sign-up that returns its view to the browser.
+          # An MVC action named for sign-up that returns its view to the browser: one match per
+          # action, however many of its branches return the view.
           - patterns:
-              - pattern: View(...)
               - pattern-either:
-                  - pattern-inside: $RET $M(...) { ... }
-                  - pattern-inside: $RET $M(...) => $E;
+                  - pattern: |
+                      $RET $M(...) { ... return View(...); ... }
+                  - pattern: $RET $M(...) => View(...);
               - metavariable-regex:
                   metavariable: $M
                   regex: '^(Register|Registration|SignUp|Signup|CreateAccount)(User|Account|Customer|Member)?$'
@@ -43,9 +44,6 @@ rules:
       - pattern-not-inside: |
           [Microsoft.AspNetCore.Authorization.Authorize(...)]
           $RET2 $M2(...) { ... }
-      - pattern-not-inside: |
-          [Microsoft.AspNetCore.Authorization.Authorize(...)]
-          $RET2 $M2(...) => $E2;
       # A staff screen: an admin area, an admin or staff role or policy, an attribute named for
       # admins, a staff namespace or a staff class name.
       - pattern-not-inside:

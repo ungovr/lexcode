@@ -1,9 +1,10 @@
 // lexcode-expect: 0
-// Not a public sign-up route: staff account tools (a staff namespace, an admin area, an admin-only
-// controller, an admin attribute, a back-office controller, an admin route group, an endpoint
-// that requires sign-in), sign-in, a device or webhook registration, a route whose name (not its
-// path) is Register, and the app's own Route and HttpPost attributes in another namespace, which
-// share ASP.NET Core's short names.
+// Not a public sign-up route: staff account tools (a staff namespace, an admin area, controllers
+// behind an admin role, an admin policy given by position and a back-office policy, an admin
+// attribute, a back-office controller, an admin route group, an endpoint that requires sign-in),
+// sign-in, a device or webhook registration, a route whose name (not its path) is Register, and
+// the app's own Route, HttpGet, HttpPost and HttpPut attributes in another namespace, which share
+// ASP.NET Core's short names. The file-scoped staff namespace is in the .admin negative.
 using System;
 using Demo.Routing;
 using Microsoft.AspNetCore.Builder;
@@ -32,6 +33,20 @@ namespace Demo.Web
     {
         [Microsoft.AspNetCore.Mvc.HttpGet("signup")]
         public Microsoft.AspNetCore.Mvc.IActionResult Start() { return View(); }
+    }
+
+    [Microsoft.AspNetCore.Authorization.Authorize("AdminOnly")]
+    public class EnrollmentController : Microsoft.AspNetCore.Mvc.Controller
+    {
+        [Microsoft.AspNetCore.Mvc.HttpPost("register")]
+        public Microsoft.AspNetCore.Mvc.IActionResult Enroll(string email) => Ok();
+    }
+
+    [Microsoft.AspNetCore.Authorization.Authorize(Policy = "Backoffice")]
+    public class SeatsController : Microsoft.AspNetCore.Mvc.Controller
+    {
+        [Microsoft.AspNetCore.Mvc.HttpPut("registration")]
+        public Microsoft.AspNetCore.Mvc.IActionResult Assign(string email) => Ok();
     }
 
     [AuthorizeAdmin]
@@ -65,6 +80,12 @@ namespace Demo.Web
     {
         [HttpPost("signup")]
         public void Submit() { }
+
+        [HttpGet("register")]
+        public void Show() { }
+
+        [HttpPut("registration")]
+        public void Replace() { }
     }
 
     public static class Endpoints

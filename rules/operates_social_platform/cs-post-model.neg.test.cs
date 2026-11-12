@@ -2,7 +2,8 @@
 // Not a user post other users react to: a staff-written blog post with comments switched on, a
 // comment left for staff to read, an order with notes, a post-office address with a likes field,
 // a plain post with no reactions or replies, a news post with comments but no author, a review
-// post with an author but no comments, and a job posting with a vote count.
+// post with an author but no comments, a support ticket's reply whose Comments is one text field
+// (staff notes, not replies from other users), and a job posting with a vote count.
 using System;
 using System.Collections.Generic;
 
@@ -50,6 +51,12 @@ public class ReviewPost
 {
     public string AuthorId { get; set; }
     public string Body { get; set; }
+}
+
+public class TicketReply
+{
+    public string UserId { get; set; }
+    public string Comments { get; set; }
 }
 
 public class JobPosting

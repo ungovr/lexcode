@@ -1,6 +1,9 @@
-// lexcode-expect: 7
-// A follow or friendship between user accounts: an entity holding a follower and the account it
-// follows, a friendship or follow entity, and an EF Core query keyed on the follower.
+// lexcode-expect: 13
+// A follow or friendship between user accounts: a class holding a follower and the account it
+// follows (each member shape C# offers once: a field with and without an initializer, an
+// auto-property with get and set, get and init, or get alone, each with and without an
+// initializer, and a record's positional parameters), a friendship or follow entity as a class and
+// as a record, and EF Core queries over the follow set keyed on the follower.
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -8,31 +11,70 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Demo.Social;
 
-public class UserFollow
+public class Account
+{
+    private List<Account> _followers;
+    private List<Account> _following;
+}
+
+public class Profile
+{
+    private List<Profile> _followers = new();
+    private List<Profile> _followings = new();
+}
+
+public class Member
 {
     public Guid FollowerId { get; set; }
     public Guid FolloweeId { get; set; }
     public DateTime CreatedAt { get; set; }
 }
 
-public class Account
+public class Creator
 {
-    public ICollection<Account> Followers { get; set; } = new List<Account>();
-    public ICollection<Account> Following { get; set; } = new List<Account>();
+    public Guid FollowerUserId { get; init; }
+    public Guid FollowedUserId { get; init; }
 }
 
-public record Friendship(Guid RequesterId, Guid AddresseeId, bool Accepted);
-
-public class FriendRequest
+public class Artist
 {
-    public Guid FromUserId { get; init; }
-    public Guid ToUserId { get; init; }
+    public Guid Follower { get; }
+    public Guid Followee { get; }
 }
+
+public class Channel
+{
+    public List<Guid> Followers { get; set; } = new();
+    public List<Guid> FollowingIds { get; set; } = new();
+}
+
+public class Musician
+{
+    public List<Guid> Followers { get; init; } = new();
+    public List<Guid> Followees { get; init; } = new();
+}
+
+public class Writer
+{
+    public List<Writer> Followers { get; } = new();
+    public List<Writer> Following { get; } = new();
+}
+
+public record FollowEdge(Guid FollowerId, Guid FollowedId, DateTime Since);
+
+public class Friendship
+{
+    public Guid RequesterId { get; set; }
+    public Guid AddresseeId { get; set; }
+    public bool Accepted { get; set; }
+}
+
+public record FriendRequest(Guid FromUserId, Guid ToUserId);
 
 public class FollowService(AppDbContext db)
 {
     public Task<bool> IsFollowing(Guid me, Guid them) =>
         db.Follows.AnyAsync(f => f.FollowerId == me && f.FolloweeId == them);
 
-    public int CountFollowing(Guid me) => db.Follows.Count(x => x.FollowerId == me);
+    public int CountFollowing(Guid me) => db.UserFollows.Count(x => x.FollowerId == me);
 }

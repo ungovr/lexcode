@@ -1,7 +1,9 @@
 # The follower and followed regular expressions repeat between the member arms and the query arm.
-# Edit every copy together, or an arm drifts from the others. A C# member is a field or a property
-# with any of the accessor shapes below; each member pattern is filtered by its own names before
-# the two are joined, so a large class is not paired member by member.
+# Edit every copy together, or an arm drifts from the others. A C# member is a field or an
+# auto-property with any of the accessor shapes below; the engine reads a record (with or without
+# a body) as a class and its positional parameters as members, so the class patterns cover
+# records too. Each member pattern is filtered by its own names before the two are joined, so a
+# large class is not paired member by member.
 rules:
   - id: lexcode.social.cs-follow-relation
     languages: [csharp]
@@ -20,7 +22,7 @@ rules:
                   - pattern: class $C { ... $T $F { get; } ... }
                   - pattern: class $C { ... $T $F { get; set; } = $V; ... }
                   - pattern: class $C { ... $T $F { get; init; } = $V; ... }
-                  - pattern: record $C(..., $T $F, ...);
+                  - pattern: class $C { ... $T $F { get; } = $V; ... }
               - metavariable-regex:
                   metavariable: $F
                   regex: '(?i)^_?(followed|followee|followees|following|followings)(User|Users|Account|Accounts|Member|Members|Profile|Profiles)?(Id|Ids)?$'
@@ -33,21 +35,21 @@ rules:
                   - pattern: class $C { ... $T2 $G { get; } ... }
                   - pattern: class $C { ... $T2 $G { get; set; } = $W; ... }
                   - pattern: class $C { ... $T2 $G { get; init; } = $W; ... }
-                  - pattern: record $C(..., $T2 $G, ...);
+                  - pattern: class $C { ... $T2 $G { get; } = $W; ... }
               - metavariable-regex:
                   metavariable: $G
                   regex: '(?i)^_?followers?(User|Account|Member|Profile)?(Id)?$'
           - focus-metavariable: $F
       # A class or record that is the friendship or the follow itself.
       - patterns:
-          - pattern-either:
-              - pattern: class $C { ... }
-              - pattern: record $C(...);
+          - pattern: class $C { ... }
           - metavariable-regex:
               metavariable: $C
               regex: '^(Friendship|FriendRequest|FriendConnection|UserFriend|Follow|UserFollow|Follower|Followership)$'
-      # A LINQ or EF Core query keyed on the follower (f => f.FollowerId == id).
-      - pattern-regex: '\b(\w+)\s*=>\s*\1\.[Ff]ollower(User|Account|Member|Profile)?(Id)?\s*(==|\.Equals\()'
+      # A LINQ or EF Core query over the follow or friendship set keyed on the follower
+      # (db.Follows.Where(f => f.FollowerId == id)). A query keyed on a follower over some other
+      # set (a topic's watchers) is a notice subscription, not a link between accounts.
+      - pattern-regex: '(?i)\b\w*(follows|followers|followings|followships|friendships)\s*\.\s*(Where|Any|AnyAsync|All|AllAsync|Count|CountAsync|First|FirstOrDefault|FirstOrDefaultAsync|Single|SingleOrDefault|SingleOrDefaultAsync)\s*\(\s*\(?\s*(\w+)\s*\)?\s*=>\s*\3\.follower(User|Account|Member|Profile)?(Id)?\s*(==|\.Equals\()'
     metadata:
       activity: operates_social_platform
       mentioned: performs
