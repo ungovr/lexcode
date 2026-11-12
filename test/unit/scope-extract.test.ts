@@ -685,7 +685,7 @@ describe('PHP, Blade and Twig views', () => {
       expect(blankPhpTags('plain();')).toBe('plain();');
     });
 
-    it('blanks a <?php echo or print tag as the output tag it is (Controller Ruling 19)', () => {
+    it('blanks a <?php echo or print tag as the output tag it is', () => {
       for (const t of ['<?php echo $gaId; ?>', '<?php print($x) ?>', '<? echo $x ?>', '<?PHP\n  ECHO $x;\n?>', '<?print($x)?>']) {
         expect(blankPhpTags(`a = ${t};`), t).toBe(`a = ${pad(t).replace(/ /g, (s, i: number) => (t[i] === '\n' ? '\n' : s))};`);
       }
@@ -812,7 +812,7 @@ describe('PHP, Blade and Twig views', () => {
       expect(blankBladeTags('a(); @php $b = 1;')).toBe(`a(); ${sp('@php $b = 1;')}`);
     });
 
-    it('blanks only the name of a directive whose "(" never closes, as Blade does (Controller Ruling 25)', () => {
+    it('blanks only the name of a directive whose "(" never closes, as Blade does', () => {
       expect(blankBladeTags('a(); @if($b')).toBe(`a(); ${sp('@if')}($b`);
       // An "@" in a JavaScript string that reads as a directive must not swallow the code after it.
       expect(blankBladeTags("s = 'call @support (24/7'; f(); g();")).toBe(`s = 'call ${sp('@support')} (24/7'; f(); g();`);

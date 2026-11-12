@@ -6,8 +6,8 @@ rules:
     patterns:
       # The text test first lets the engine skip (and not parse) a file that cannot match: the
       # AST patterns below are what confirm the match, the regex is what makes the rule cheap.
-      # Without it the engine parsed 40,979 of Moodle's 52,442 in-scope PHP files for this rule.
-      # It admits the table variable, the column method and, for a named column, the name, with
+      # Without it the engine parsed most of the PHP files of a large PHP codebase (tens of
+      # thousands of files) for this rule. It admits the table variable, the column method and, for a named column, the name, with
       # white space or a comment between any two tokens.
       - pattern-regex: (?i)\$(?:table|t|tbl|blueprint)\b(?:\s|#[^\n]*+|//[^\n]*+)*+->(?:\s|#[^\n]*+|//[^\n]*+)*+(?:(?:string|char|text|tinyText|mediumText|longText|date|dateTime|dateTimeTz|integer|bigInteger|unsignedBigInteger|binary|ipAddress|addColumn)(?:\s|#[^\n]*+|//[^\n]*+)*+\((?:\s|#[^\n]*+|//[^\n]*+)*+['"](?:e_?mail|email_?(?:address|addr)?|(?:user|contact|work|primary|customer|unconfirmed|billing)_?e_?mail|phone(?:_?(?:number|no|num))?|mobile(?:_?(?:number|phone|no))?|telephone|date_?of_?birth|dob|birth_?(?:date|day)|birthday|ssn|social_?security(?:_?(?:number|no))?|national_?(?:id|insurance)(?:_?number)?|passport(?:_?(?:number|no))?|tax_?(?:id|number)|drivers?_?licen[sc]e(?:_?(?:number|no))?|ip_?(?:address|addr)?|last_?(?:sign_?in_?|login_?)?ip(?:_?address)?|current_?sign_?in_?ip|client_?ip|remote_?(?:addr|ip|address))['"]|ipAddress\b|macAddress\b)
       - pattern-either:

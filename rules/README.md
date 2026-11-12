@@ -187,10 +187,12 @@ by an agent that had not seen the PHP rules, checked row by row by a second
 reader who had not seen them either, kept unchanged. The reading includes 15
 activities from code, marks 9 as absent and leaves 2 unsure. Every figure below
 is from one run, `lexcode check --declaration` with that build, unless it names
-another: lexcode read 60,335 files (52,544 of them PHP) and 2 script copies
-drawn from PHP views, in 6 minutes 7 seconds and 3.7 GB on a shared machine
-(load average 6 to 8), and the check reports 0 FAIL. Before lexcode read PHP, a
-scan of the same commit took 4 minutes 4 seconds and 3.2 GB.
+another: lexcode read 60,335 files and 2 script copies drawn from PHP views, in
+6 minutes 7 seconds and 3.7 GB on a shared machine (load average 6 to 8), and
+the check reports 0 FAIL. Before lexcode read PHP, a scan of the same commit
+took 4 minutes 4 seconds and 3.2 GB, and its notice named 52,544 of the same
+60,335 files as PHP it did not read (the check record does not count files by
+language).
 
 **Score: 6 of 15 found at evidence strength, one of them on the Composer
 manifest only (`aggregates_content`), 2 signal only, 7 missed. No evidence
@@ -261,7 +263,8 @@ the engine could not read) covers the files its rules opened, in every language.
 The check run's notices, as printed: 40 minified files skipped, 1 file over 5 MB
 skipped, 64 Composer dependencies recorded without a version, 124 files with a
 line over 100,000 characters skipped, and the engine could not read 31 files.
-The notice naming unread PHP files is gone.<!-- moodle:end -->
+The notice naming unread PHP files is gone.
+<!-- moodle:end -->
 
 ## Ruby, ERB views and gems
 
@@ -704,6 +707,13 @@ ruled before it is added.
 - Some PHP anchors lead with `->`, which cuts the whole-file reach (see the
   next section) to roughly 700 to 950 KB in arrow-dense files, below the
   1,000,000-byte notice.
+- PHP has no result-returned signal rule, as Python, JavaScript, Ruby, Java and
+  Kotlin have: a service class that calls a model and returns its output gives
+  no signal when the response is built in another file.
+- No rule reads a NativePHP Mobile app as `ships_mobile_app` (the PHP rule reads
+  a Google Play upload), or a PHAR built by Box from a `box.json` as
+  `distributes_software_product` (the PHAR rule reads code that builds one with
+  the `Phar` class).
 
 ## A known gap: a file over 1 MB
 

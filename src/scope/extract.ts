@@ -417,7 +417,7 @@ interface PhpRegion {
 
 /**
  * After `<?`: the code of a `<?php` or `<?` tag that begins with `echo` or `print` (PHP keywords, any case). Such a
- * tag is the long form of `<?=`: it puts a value in the same place (Controller Ruling 19, #12987).
+ * tag is the long form of `<?=`: it puts a value in the same place (#12987).
  */
 const PHP_PRINTS = /(?:php(?=\s))?\s*(?:echo|print)(?![\w\x80-\uFFFF])/iy;
 
@@ -509,7 +509,7 @@ const BLADE_OPENER = /\{\{--|\{!!|@?\{\{|(?<![\p{L}\p{N}_@])@[A-Za-z_]\w*/gu;
  * follows (after optional spaces or tabs), become spaces. A directive is an `@` and a name not preceded by a
  * letter, digit, `_` or `@`, so the `@` of an email address in a JavaScript string is left. An argument list
  * runs to its closing `)`, past nested parentheses and quoted strings; one with no closing `)` is not an argument
- * list, as Blade's argument group is optional, so only the directive's name is blanked (Controller Ruling 25).
+ * list, as Blade's argument group is optional, so only the directive's name is blanked.
  * An echo ends at the first `}}` (`!!}`, `--}}`), as Blade ends it. `@{{ ... }}` is Blade's escaped echo,
  * printed as `{{ ... }}`: its `@` becomes a space and the rest is left. Line breaks stay. An echo, comment or
  * `@php` span that never ends is blanked to the end of the body.
