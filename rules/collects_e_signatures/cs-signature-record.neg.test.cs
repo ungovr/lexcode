@@ -45,6 +45,8 @@ public class ContractOrderRequest
 {
     public string Symbol { get; set; } = "";
     public string Signature { get; set; } = "";
+    public string SignatureData { get; set; } = "";
+    public string ClientSignature { get; set; } = "";
 }
 
 public class ContractMethodInfo
@@ -60,6 +62,7 @@ public class DeviceEnrollmentRequest
 public class AttestationResponse
 {
     public byte[] Signature { get; set; } = [];
+    public byte[] SignatureData { get; set; } = [];
 }
 
 public record WebAuthnAttestation(byte[] AuthData, byte[] Signature);
@@ -77,6 +80,7 @@ public class LeaseLockInfo
 public class AgreementWebhookEvent
 {
     public string Signature { get; set; } = "";
+    public string SignatureFile { get; set; } = "";
 }
 
 public class ConsentWebhookPayload

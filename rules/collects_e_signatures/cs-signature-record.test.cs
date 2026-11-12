@@ -1,4 +1,4 @@
-// lexcode-expect: 7
+// lexcode-expect: 9
 using System.ComponentModel.DataAnnotations;
 
 namespace MyShop.Leases;
@@ -36,3 +36,14 @@ public class RentalAgreement
 }
 
 public record GuardianConsent(string ChildName, byte[] Signature);                       // 7
+
+public class RaceEventWaiver
+{
+    public string Signature { get; set; } = "";                                          // 8
+}
+
+// A model of the agreement (a view model, a DTO, a command)
+public class LeaseAgreementViewModel
+{
+    public string Signature { get; set; } = "";                                          // 9
+}

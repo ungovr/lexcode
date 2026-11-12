@@ -11,8 +11,10 @@ rules:
       # engine does not see a property inside a `class { ... }` pattern, so the second member is read
       # by a region regex: from a class, record or struct header to its first ID-document member (the face
       # member comes first), or from an ID-document member to the next type header (the face member comes
-      # after). The ID-document member is a property (`Name { get`), a field (`Name;`) or either with an
-      # initializer (`Name = `), never an all-capitals constant (`ID_CARD = "id_card"`).
+      # after). The ID-document member carries an access modifier, as the face member does, so a local
+      # (`var documentScan = ...`, `string idImage = ...`), a default parameter (`string idCard = "x"`)
+      # or a statement (`return idCard;`) is not one. It is a property (`Name { get`), a field (`Name;`)
+      # or either with an initializer (`Name = `), never an all-capitals constant (`ID_CARD = "id_card"`).
       # The face member must lie inside one of the two regions.
       - patterns:
           - pattern-inside: |
@@ -37,8 +39,8 @@ rules:
               metavariable: $FACE
               regex: '(?i)^(?!(?-i:[A-Z][A-Z0-9_]*)$)(?:selfie|liveness|face_?(?:image|photo|img|picture|pic|capture|snapshot|scan))\w*$'
           - pattern-either:
-              - pattern-regex: '(?s)\b(?:class|record|struct)\s+\w+(?:(?!\b(?:class|record|struct|interface)\s).)*?\b(?![A-Z][A-Z0-9_]*\b)(?i:photo_?id_?(?:image|img|photo|card|doc|document|scan|front|back|upload|file)|id_?(?:document|doc|card|photo|image|img|scan|front|back)|identity_?(?:document|doc|card)|identification_?(?:image|photo|document|doc|card)|passport_?(?:image|photo|scan|page|front)|drivers?_?licen[cs]e_?(?:image|photo|scan|front|back)|document_?(?:image|photo|front|back|scan))\w*\s*(?:\{\s*(?:get|set|init)\b|;|=(?![=>]))'
-              - pattern-regex: '(?s)\b(?![A-Z][A-Z0-9_]*\b)(?i:photo_?id_?(?:image|img|photo|card|doc|document|scan|front|back|upload|file)|id_?(?:document|doc|card|photo|image|img|scan|front|back)|identity_?(?:document|doc|card)|identification_?(?:image|photo|document|doc|card)|passport_?(?:image|photo|scan|page|front)|drivers?_?licen[cs]e_?(?:image|photo|scan|front|back)|document_?(?:image|photo|front|back|scan))\w*\s*(?:\{\s*(?:get|set|init)\b|;|=(?![=>]))(?:(?!\b(?:class|record|struct|interface)\s).)*'
+              - pattern-regex: '(?s)\b(?:class|record|struct)\s+\w+(?:(?!\b(?:class|record|struct|interface)\s).)*?\b(?:public|protected|internal|private)\b[^;{}()=]*?\s(?![A-Z][A-Z0-9_]*\b)(?i:photo_?id_?(?:image|img|photo|card|doc|document|scan|front|back|upload|file)|id_?(?:document|doc|card|photo|image|img|scan|front|back)|identity_?(?:document|doc|card)|identification_?(?:image|photo|document|doc|card)|passport_?(?:image|photo|scan|page|front)|drivers?_?licen[cs]e_?(?:image|photo|scan|front|back)|document_?(?:image|photo|front|back|scan))\w*\s*(?:\{\s*(?:get|set|init)\b|;|=(?![=>]))'
+              - pattern-regex: '(?s)\b(?:public|protected|internal|private)\b[^;{}()=]*?\s(?![A-Z][A-Z0-9_]*\b)(?i:photo_?id_?(?:image|img|photo|card|doc|document|scan|front|back|upload|file)|id_?(?:document|doc|card|photo|image|img|scan|front|back)|identity_?(?:document|doc|card)|identification_?(?:image|photo|document|doc|card)|passport_?(?:image|photo|scan|page|front)|drivers?_?licen[cs]e_?(?:image|photo|scan|front|back)|document_?(?:image|photo|front|back|scan))\w*\s*(?:\{\s*(?:get|set|init)\b|;|=(?![=>]))(?:(?!\b(?:class|record|struct|interface)\s).)*'
       # A positional record, a method (an MVC action) or a lambda (a minimal API endpoint) that takes
       # both, in either order. One record pattern reads both orders: the engine matched
       # `record C(IFormFile PassportScan, string Name, IFormFile Selfie)` with either order written, so

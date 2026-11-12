@@ -24,30 +24,26 @@ rules:
           - pattern: private $T $SIG;
           - pattern: private $T $SIG = $V;
       - focus-metavariable: $SIG
-      # The record the signature hangs on must be an agreement of some kind: an agreement word as a
-      # CamelCase segment of the type name, never as the start of a longer word (ContractorProfile,
-      # Leaseholder). Authorization and Approval also name HTTP and cloud-signing models that carry a
-      # key's signature, so each counts only in a person's form.
       # A person's signature or an image of one (TenantSignature, SignatureImage, signature_base64), or
       # the bare name
       - metavariable-regex:
           metavariable: $SIG
           regex: '(?i)^(?:(?:customer|client|guest|patient|participant|signee|signer|tenant|guarantor|applicant|borrower|buyer|seller|witness|guardian|parent|drawn|handwritten|electronic|e)_?)?signature(?:_?(?:image|img|png|svg|data|file|photo|scan|drawing|base64))?$'
-      # The agreement word may sit anywhere in the type name (EventWaiver, PhotoReleaseConsent). A
-      # webhook's signature request (PayPal's CreateWebhookSignatureRequest) is held out by name, as a
-      # signed attestation is.
+      # The type the signature hangs on must be the agreement itself: its name ends in an agreement word
+      # (LeaseAgreement, EventWaiver, PhotoReleaseConsent, WorkOrderSignOff), optionally followed by up
+      # to two model trailers and a plural (ParentalConsentForm, WaiverDto, LeaseAgreementViewModel,
+      # CreateWaiverCommand, ConsentSubmission, WaiverFormModel, ConsentForms), and never as the start of
+      # a longer word (ContractorProfile, Leaseholder).
+      # Every name form gets this one test: a key's signature, bare or not (`Signature`,
+      # `SignatureData`, `ClientSignature`), sits on an exchange order, a contract ABI, a device
+      # enrollment, a WebAuthn or software attestation, a lock or a webhook payload whose name holds an
+      # agreement word too. So the name may not end in Request (DeviceEnrollmentRequest,
+      # ContractOrderRequest), holds no technical segment (Webhook, Callback, Payload, Method,
+      # Response, Header, Token), and Attestation, nearly always a key's, does not count. Authorization
+      # and Approval also name HTTP and cloud-signing models, so each counts only in a person's form.
       - metavariable-regex:
           metavariable: $C
-          regex: '(?s).*(?-i:(?:Waiver|Agreement|Contract|Consent|Lease|Authori[sz]ation(?:Form|Letter)|Acknowledg(?:e)?ment|(?<!Signed)Attestation|Disclosure|Confidentiality|(?:Liability|Medical|Photo)Release|Sign[Oo]ff|E[Ss]ign|(?<!Webhook)Signature(?:Request|Form|Pad)|WorkOrder|PermissionSlip|Enrol+ment|(?:Parental|Parent|Guardian|Customer|Client|Patient)Approval|ApprovalForm)s?(?![a-z]))'
-      # A bare `Signature` is also what an exchange order, a contract ABI, a device enrollment, a
-      # WebAuthn or software attestation, a lock or a webhook payload carries for a key's signature. It
-      # counts only where the type is the agreement itself: the name ends in the agreement word
-      # (LeaseAgreement, EventWaiver, ParentalConsentForm), with no technical segment anywhere in it
-      # (Webhook, Callback, Event, Payload, Method, Response, Header, Token), and Attestation, nearly
-      # always a key's, does not count. One comparison reads both names, since a condition in a nested
-      # branch cannot see the member's name.
-      - metavariable-comparison:
-          comparison: not re.match("^[Ss][Ii][Gg][Nn][Aa][Tt][Uu][Rr][Ee]$", str($SIG)) or re.match("^(?!.*(?:Webhook|Callback|Event|Payload|Method|Response|Header|Token)).*(?:Waiver|Agreement|Contract|Consent|Lease|Authori[sz]ation(?:Form|Letter)|Acknowledge?ment|Disclosure|Confidentiality|(?:Liability|Medical|Photo)Release|Sign[Oo]ff|E[Ss]ign|SignatureForm|WorkOrder|PermissionSlip|Enrol+ment|(?:Parental|Parent|Guardian|Customer|Client|Patient)Approval|ApprovalForm)s?(?:Form|Record|Document)?$", str($C))
+          regex: '^(?!.*(?:Webhook|Callback|Payload|Method|Response|Header|Token)).*(?:Waiver|Agreement|Contract|Consent|Lease|Authori[sz]ation(?:Form|Letter)|Acknowledge?ment|Disclosure|Confidentiality|(?:Liability|Medical|Photo)Release|Sign[Oo]ff|E[Ss]ign|SignatureForm|WorkOrder|PermissionSlip|Enrol+ment|(?:Parental|Parent|Guardian|Customer|Client|Patient)Approval|ApprovalForm)s?(?:Form|Record|Document|Dto|Model|ViewModel|Entity|Input|Command|Data|Submission){0,2}s?$'
     metadata:
       activity: collects_e_signatures
       mentioned: performs
