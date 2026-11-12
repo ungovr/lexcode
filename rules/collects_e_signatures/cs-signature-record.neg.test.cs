@@ -38,3 +38,53 @@ public class LeaseAgreementService
 }
 
 public record TokenSigningOptions(string SignatureAlgorithm, string KeyId);
+
+// A key's signature on a model whose name holds an agreement word: an exchange order, a contract ABI,
+// a device enrollment, WebAuthn and software attestations, a lock and webhook payloads.
+public class ContractOrderRequest
+{
+    public string Symbol { get; set; } = "";
+    public string Signature { get; set; } = "";
+}
+
+public class ContractMethodInfo
+{
+    public string Signature { get; set; } = "";
+}
+
+public class DeviceEnrollmentRequest
+{
+    public string Signature { get; set; } = "";
+}
+
+public class AttestationResponse
+{
+    public byte[] Signature { get; set; } = [];
+}
+
+public record WebAuthnAttestation(byte[] AuthData, byte[] Signature);
+
+public class SoftwareReleaseAttestation
+{
+    public string Signature { get; set; } = "";
+}
+
+public class LeaseLockInfo
+{
+    public string Signature { get; set; } = "";
+}
+
+public class AgreementWebhookEvent
+{
+    public string Signature { get; set; } = "";
+}
+
+public class ConsentWebhookPayload
+{
+    public string Signature { get; set; } = "";
+}
+
+public class ConsentCallbackToken
+{
+    public string Signature { get; set; } = "";
+}

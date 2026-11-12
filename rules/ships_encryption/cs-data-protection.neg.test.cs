@@ -2,7 +2,9 @@
 namespace MyShop.Infrastructure;
 
 // Turning on the framework's key ring (for its own cookies and antiforgery tokens) is not the app
-// encrypting anything, and the app's own provider type of the same name is not the framework's.
+// encrypting anything, and the app's own types of the framework's names (a provider, a protector and a
+// standalone factory, in this namespace, with no `using Microsoft.AspNetCore.DataProtection;`) are not
+// the framework's.
 public static class DataProtectionSetup
 {
     public static void Configure(IServiceCollection services)
@@ -11,9 +13,15 @@ public static class DataProtectionSetup
     }
 }
 
-public interface ISettingsProtectionProvider
+public interface IDataProtectionProvider
 {
-    string CreateProtector(string purpose);
+    IDataProtector CreateProtector(string purpose);
+}
+
+public interface IDataProtector
+{
+    IDataProtector CreateProtector(string purpose);
+    string Protect(string value);
 }
 
 public class DataProtectionProvider
@@ -21,7 +29,14 @@ public class DataProtectionProvider
     public static DataProtectionProvider Create(string name) => new();
 }
 
-public class SettingsReader(ISettingsProtectionProvider settings)
+public class Sealer(IDataProtectionProvider provider)
 {
-    public string Read() => settings.CreateProtector("settings") + DataProtectionProvider.Create("x");
+    public IDataProtector Make() => provider.CreateProtector("settings");
+}
+
+public class Nest(IDataProtector protector)
+{
+    public IDataProtector Make() => protector.CreateProtector("nested");
+
+    public DataProtectionProvider Standalone() => DataProtectionProvider.Create("x");
 }

@@ -9,8 +9,9 @@ using Org.BouncyCastle.Crypto.Digests;
 
 namespace MyShop.Services;
 
-// The platform's own cryptography and TLS, a JWS (signed, not encrypted), a signature and a hash
-// from a bundled library, and the app's own classes named like library ones.
+// The platform's own cryptography and TLS (System.Security.Cryptography's ChaCha20Poly1305 shares its
+// short name with Bouncy Castle's), a JWS (signed, not encrypted), a signature and a hash from a bundled
+// library, and the app's own classes named like library ones.
 public class TokenService(HttpClient http)
 {
     public async Task<string> RunAsync(byte[] key, byte[] data, string payload)
@@ -20,6 +21,9 @@ public class TokenService(HttpClient http)
         var encrypted = aes.EncryptCbc(data, aes.IV);
 
         using var gcm = new AesGcm(key, 16);
+        using var chacha = new ChaCha20Poly1305(key);
+        ChaCha20Poly1305 chachaToo = new(key);
+        using var ecdh = ECDiffieHellman.Create();
         using var rsa = RSA.Create();
         var wrapped = rsa.Encrypt(key, RSAEncryptionPadding.OaepSHA256);
         var stored = ProtectedData.Protect(data, null, DataProtectionScope.CurrentUser);

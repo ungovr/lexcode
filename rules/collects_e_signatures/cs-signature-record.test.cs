@@ -1,4 +1,4 @@
-// lexcode-expect: 5
+// lexcode-expect: 7
 using System.ComponentModel.DataAnnotations;
 
 namespace MyShop.Leases;
@@ -28,3 +28,11 @@ public record WorkOrderSignOff(int OrderId, string CustomerSignature)           
 {
     public bool Complete => CustomerSignature.Length > 0;
 }
+
+// A bare Signature on a type that is the agreement itself
+public class RentalAgreement
+{
+    public string Signature { get; set; } = "";                                          // 6
+}
+
+public record GuardianConsent(string ChildName, byte[] Signature);                       // 7
