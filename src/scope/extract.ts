@@ -8,8 +8,8 @@ import { ToolError } from '../errors.js';
 // lexcode copies each qualifying <script> body into a temporary file in which
 // every other character is a space (line breaks kept), so a finding's line
 // number is the line in the original file, and scans that.
-// Ruby files the engine will not take by name are copied whole instead: see
-// RUBY_BASENAMES and RUBY_COPY_EXTENSIONS below.
+// Ruby and PHP files the engine will not take by name are copied whole instead:
+// see RUBY_BASENAMES, RUBY_COPY_EXTENSIONS and PHP_COPY_EXTENSIONS below.
 
 const JSP_EXTENSIONS = new Set(['.jsp', '.jspf', '.tag']);
 const EXTRACT_EXTENSIONS = new Set([
@@ -30,6 +30,13 @@ const EXTRACT_EXTENSIONS = new Set([
 // copied whole to `<path>.lexcode.rb`, and a finding in the copy is reported against the original.
 const RUBY_BASENAMES = new Set(['Rakefile', 'Fastfile', 'Appfile', 'Capfile']);
 const RUBY_COPY_EXTENSIONS = new Set(['.rake', '.ru', '.gemspec']);
+
+// The engine reads `.php`, `.phtml` and `.tpl` as PHP; given as explicit targets, an `.inc`, `.module`, `.theme`
+// or `.install` file reads 0 files (opengrep 1.33.1, measured 2026-11-12). So these are copied whole to
+// `<path>.lexcode.php`, as the Ruby files above are, but only when the text begins with `<?php` after an optional
+// BOM and whitespace: `.inc` is a C, Pascal and assembler extension as well.
+const PHP_COPY_EXTENSIONS = new Set(['.inc', '.module', '.theme', '.install']);
+const PHP_OPENING = /^\uFEFF?\s*<\?php(?:\s|$)/i;
 
 /** `type` values of a script that holds code; an absent or empty `type` qualifies as well. */
 const CODE_TYPES = new Set([
@@ -343,7 +350,9 @@ export function blankOutsideScripts(
  * Writes `<tmpDir>/<originalPath>.lexcode.<ts|js>` for each file with an
  * extractable extension that holds at least one script block, and
  * `<tmpDir>/<originalPath>.lexcode.rb` (the whole file) for a Rakefile,
- * Fastfile, Appfile or Capfile, and for a `.rake`, `.ru` or `.gemspec` file. `files` are POSIX paths relative to `root`.
+ * Fastfile, Appfile or Capfile, and for a `.rake`, `.ru` or `.gemspec` file, and
+ * `<tmpDir>/<originalPath>.lexcode.php` (the whole file) for an `.inc`, `.module`, `.theme` or `.install` file
+ * whose text begins with `<?php`. `files` are POSIX paths relative to `root`.
  */
 export function extractScripts(
   root: string,
@@ -355,7 +364,8 @@ export function extractScripts(
   for (const originalPath of files) {
     const ext = path.posix.extname(originalPath).toLowerCase();
     const wholeRuby = RUBY_BASENAMES.has(path.posix.basename(originalPath)) || RUBY_COPY_EXTENSIONS.has(ext);
-    if (!wholeRuby && !EXTRACT_EXTENSIONS.has(ext)) continue;
+    const wholePhp = PHP_COPY_EXTENSIONS.has(ext);
+    if (!wholeRuby && !wholePhp && !EXTRACT_EXTENSIONS.has(ext)) continue;
     const segments = originalPath.split('/');
     if (segments.includes('..') || path.isAbsolute(originalPath)) {
       throw new ToolError(`refusing to extract "${originalPath}": it is outside the repository.`);
@@ -371,6 +381,10 @@ export function extractScripts(
     if (wholeRuby) {
       kept = text;
       suffix = 'rb';
+    } else if (wholePhp) {
+      if (!PHP_OPENING.test(text)) continue; // an `.inc` in C, Pascal or assembler
+      kept = text;
+      suffix = 'php';
     } else {
       const blanked = blankOutsideScripts(text, { erb: ext === '.erb', jsp: JSP_EXTENSIONS.has(ext) });
       if (blanked === null) continue;

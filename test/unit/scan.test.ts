@@ -14,12 +14,12 @@ const STUB = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'stubs', 'fa
 const VUE = ['<template>', '  <p>hi</p>', '</template>', '<script setup lang="ts">', 'const a = 1;', '</script>', ''].join('\n');
 
 /** A rule set with exactly one real rule file on disk, whose id the stub engine echoes back. */
-function stubRuleSet(): RuleSet {
+function stubRuleSet(languages = 'python, typescript'): RuleSet {
   const dir = tree({
     'processes_voice/stub.yml': [
       'rules:',
       '  - id: lexcode.test.rule',
-      '    languages: [python, typescript]',
+      `    languages: [${languages}]`,
       '    severity: INFO',
       '    message: stub',
       '    pattern: f(...)',
@@ -163,6 +163,25 @@ describe('scan with a stand-in engine', () => {
       await expect(scan({ root, rulesDirs: [], rs: stubRuleSet(), enginePath: STUB, includeTests: false, snippets: false })).rejects.toThrow(/last stderr line/);
     } finally {
       delete process.env.FAKE_OPENGREP_MODE;
+    }
+  });
+
+  it('maps a match in a whole-file .lexcode.php copy back to the original, also when the engine names the copy by another path', async () => {
+    const root = tree({ 'modules/m/m.module': '<?php\n\nf();\n', 'lib/x.inc': '<?php\n\nf();\n' });
+    // The engine may report a copy under a path that is not the one lexcode passed (a temp directory
+    // behind a symbolic link): the tail after the temp directory still names the original.
+    const result = (p: string) => ({ check_id: 'lexcode.test.rule', path: p, start: { line: 3, col: 1 }, end: { line: 3, col: 4 }, extra: { message: 'm', metadata: {}, lines: 'f();' } });
+    process.env.FAKE_OPENGREP_RESULTS = JSON.stringify([
+      result('/elsewhere/lexcode-scan-x/scripts/modules/m/m.module.lexcode.php'),
+      result('/elsewhere/lexcode-scan-x/scripts/lib/x.inc.lexcode.php'),
+    ]);
+    try {
+      const rec = await scan({ root, rulesDirs: [], rs: stubRuleSet('php'), enginePath: STUB, includeTests: false, snippets: false });
+      const wheres = rec.activities.flatMap((a) => a.evidence.map((e) => e.where)).sort();
+      expect(wheres).toEqual(['lib/x.inc:3', 'modules/m/m.module:3']);
+      expect(rec.scope.extracted).toBe(2);
+    } finally {
+      delete process.env.FAKE_OPENGREP_RESULTS;
     }
   });
 });

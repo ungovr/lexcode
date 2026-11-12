@@ -535,3 +535,90 @@ describe('extension-less Ruby files', () => {
     expect(extractScripts(tmp(), ['Fastfile'], tmp())).toEqual([]);
   });
 });
+
+describe('PHP files the engine will not take', () => {
+  function write(root: string, rel: string, body: string): void {
+    const full = path.join(root, ...rel.split('/'));
+    mkdirSync(path.dirname(full), { recursive: true });
+    writeFileSync(full, body);
+  }
+
+  it('copies a Drupal .module file whole', () => {
+    const root = tmp();
+    const out = tmp();
+    const module = [
+      '<?php',
+      '',
+      '/**',
+      ' * @file',
+      ' * Hooks for my_module.',
+      ' */',
+      '',
+      'function my_module_cron() {',
+      "  \\Drupal::httpClient()->get('https://example.org/feed');",
+      '}',
+      '',
+    ].join('\n');
+    write(root, 'modules/custom/my_module/my_module.module', module);
+    const pairs = extractScripts(root, ['modules/custom/my_module/my_module.module'], out);
+    expect(pairs).toEqual([
+      {
+        originalPath: 'modules/custom/my_module/my_module.module',
+        tempPath: path.join(path.resolve(out), 'modules', 'custom', 'my_module', 'my_module.module.lexcode.php'),
+      },
+    ]);
+    const copy = readFileSync(pairs[0]!.tempPath, 'utf8');
+    expect(copy).toBe(module);
+    // The copy is the file itself, so a finding at line 9 of the copy is line 9 of my_module.module
+    // (the path is mapped back in scan; test/scan.e2e.test.ts runs it through the engine).
+    expect(lines(copy)[8]).toBe(lines(module)[8]);
+    expect(lines(copy)[8]).toContain('httpClient()');
+  });
+
+  it('copies .inc, .theme and .install that start with <?php, after a BOM or leading blank lines', () => {
+    const root = tmp();
+    const out = tmp();
+    const bodies: Record<string, string> = {
+      'includes/common.inc': '<?php\nfunction f() {}\n',
+      'themes/olivero/olivero.theme': '\uFEFF<?php\nfunction olivero_preprocess_html(&$v) {}\n',
+      'modules/m/m.install': '\n\n  <?php\nfunction m_install() {}\n',
+      'includes/crlf.inc': '\uFEFF\t\r\n<?php\r\nfunction g() {}\r\n',
+      'includes/UPPER.INC': '<?PHP function h() {}\n',
+    };
+    for (const [rel, body] of Object.entries(bodies)) write(root, rel, body);
+    const pairs = extractScripts(root, Object.keys(bodies), out);
+    expect(pairs.map((p) => p.originalPath).sort()).toEqual(Object.keys(bodies).sort());
+    for (const p of pairs) {
+      expect(p.tempPath).toBe(path.join(path.resolve(out), ...p.originalPath.split('/')) + '.lexcode.php');
+      expect(readFileSync(p.tempPath, 'utf8')).toBe(bodies[p.originalPath]);
+    }
+  });
+
+  it('does not copy an .inc that is not PHP', () => {
+    const root = tmp();
+    const out = tmp();
+    const bodies: Record<string, string> = {
+      'src/defines.inc': '{ Pascal include }\nconst\n  MaxItems = 100;\n',
+      'asm/macros.inc': '; nasm macros\n%define PHP 1\n',
+      'c/table.inc': '/* <?php in a C comment */\n{ 1, 2, 3 },\n',
+      'tpl/short.inc': '<? echo 1; ?>\n',
+      'tpl/near.inc': '<?phpx\n',
+      'tpl/empty.module': '',
+    };
+    for (const [rel, body] of Object.entries(bodies)) write(root, rel, body);
+    expect(extractScripts(root, Object.keys(bodies), out)).toEqual([]);
+    expect(existsSync(path.join(out, 'src', 'defines.inc.lexcode.php'))).toBe(false);
+  });
+
+  it('leaves a .php, .phtml or .tpl file to the engine, which reads them as PHP', () => {
+    const root = tmp();
+    const out = tmp();
+    const names = ['src/a.php', 'views/b.phtml', 'views/c.tpl'];
+    for (const n of names) write(root, n, '<?php\n$x = 1;\n');
+    expect(extractScripts(root, names, out).filter((p) => p.tempPath.endsWith('.lexcode.php'))).toEqual([]);
+  });
+
+  it('skips a .module file that has gone since it was listed', () => {
+    expect(extractScripts(tmp(), ['gone.module'], tmp())).toEqual([]);
+  });
+});

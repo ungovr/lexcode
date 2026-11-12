@@ -408,6 +408,27 @@ describe('unreadLanguages for Ruby', () => {
   });
 });
 
+describe('unreadLanguages for PHP', () => {
+  /** The rules of the test alone: the helper's rule set carries the bundled ones as well. */
+  const only = (rs: ReturnType<typeof ruleSetWith>) => rs.rules.filter((r) => r.id.startsWith('lexcode.a.'));
+
+  it('unreadLanguages counts .phtml and .module as PHP', () => {
+    const rs = ruleSetWith([{ id: 'lexcode.a.py', activity: 'trains_models', languages: ['python'] }]);
+    expect(unreadLanguages(only(rs), ['index.php', 'views/page.phtml', 'my_module.module'])).toEqual([
+      { language: 'PHP', files: 3 },
+    ]);
+  });
+
+  it('counts .inc, .theme and .install as PHP too, and hands all six extensions to a PHP rule', () => {
+    const all = ['a.php', 'b.phtml', 'c.inc', 'd.module', 'e.theme', 'f.install'];
+    const py = ruleSetWith([{ id: 'lexcode.a.py', activity: 'trains_models', languages: ['python'] }]);
+    expect(unreadLanguages(only(py), all)).toEqual([{ language: 'PHP', files: 6 }]);
+    const php = ruleSetWith([{ id: 'lexcode.a.php', activity: 'trains_models', languages: ['php'] }]);
+    expect(unreadLanguages(only(php), all)).toEqual([]);
+    expect(engineTargets(only(php), [...all, 'z.py'])).toEqual(all);
+  });
+});
+
 describe('the notice for files past a whole-file pre-filter\'s reach', () => {
   /** The rules of the test alone: the helper's rule set carries others as well. */
   const only = (rs: ReturnType<typeof ruleSetWith>) => rs.rules.filter((r) => r.id.startsWith('lexcode.a.'));

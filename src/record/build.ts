@@ -47,7 +47,7 @@ const LANGUAGE_EXTENSIONS: Record<string, string[]> = {
   kotlin: ['.kt', '.kts'],
   swift: ['.swift'],
   ruby: ['.rb', '.rake', '.ru', '.gemspec'],
-  php: ['.php'],
+  php: ['.php', '.phtml', '.inc', '.module', '.theme', '.install'],
 };
 const LANGUAGE_ALIASES: Record<string, string> = {
   js: 'javascript',
@@ -85,7 +85,7 @@ const CODE_LANGUAGES: [string, string[]][] = [
   ['TypeScript', ['.ts', '.tsx', '.mts', '.cts']],
   ['Go', ['.go']],
   ['Ruby', ['.rb', '.rake', '.ru', '.gemspec']],
-  ['PHP', ['.php']],
+  ['PHP', ['.php', '.phtml', '.inc', '.module', '.theme', '.install']],
   ['Java', ['.java']],
   ['Kotlin', ['.kt', '.kts']],
   ['Swift', ['.swift']],
