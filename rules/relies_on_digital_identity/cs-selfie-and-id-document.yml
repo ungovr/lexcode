@@ -1,0 +1,73 @@
+rules:
+  - id: lexcode.identity.cs-selfie-and-id-document
+    languages: [csharp]
+    severity: INFO
+    message: 'Holds a face or selfie image beside an image of a photo ID, the shape of document-and-selfie identity verification, whose result the app acts on (relies_on_digital_identity). The verifier usually matches the face to the ID photo, so ask about processes_biometrics too.'
+    # Names are read in any case (SelfieImage, idCard, photo_id_front); an all-capitals constant name
+    # holds no image and is not read. No whole-file lookahead: the C# rules carry none, so a large file
+    # is never past a pre-filter's reach.
+    pattern-either:
+      # A class (an entity, a request model, a DTO) with a face member and an ID-document member. The
+      # engine does not see a property inside a `class { ... }` pattern, so the second member is read
+      # by a region regex: from a class, record or struct header to its first ID-document member (the face
+      # member comes first), or from an ID-document member to the next type header (the face member comes
+      # after). The ID-document member carries an access modifier, as the face member does, so a local
+      # (`var documentScan = ...`, `string idImage = ...`), a default parameter (`string idCard = "x"`)
+      # or a statement (`return idCard;`) is not one. It is a property (`Name { get`), a field (`Name;`)
+      # or either with an initializer (`Name = `), never an all-capitals constant (`ID_CARD = "id_card"`).
+      # The face member must lie inside one of the two regions.
+      - patterns:
+          - pattern-inside: |
+              class $C {
+                ...
+              }
+          # A member carries an access modifier and a local variable never does; the engine matches a
+          # declaration with more modifiers (`public required`, `internal virtual`).
+          - pattern-either:
+              - pattern: public $T $FACE;
+              - pattern: public $T $FACE = $X;
+              - pattern: protected $T $FACE;
+              - pattern: protected $T $FACE = $X;
+              - pattern: internal $T $FACE;
+              - pattern: internal $T $FACE = $X;
+              - pattern: private $T $FACE;
+              - pattern: private $T $FACE = $X;
+          # The name alone, as the branch below reports it: a record's positional parameter is also a
+          # member here, and the two branches then give one finding, not two.
+          - focus-metavariable: $FACE
+          - metavariable-regex:
+              metavariable: $FACE
+              regex: '(?i)^(?!(?-i:[A-Z][A-Z0-9_]*)$)(?:selfie|liveness|face_?(?:image|photo|img|picture|pic|capture|snapshot|scan))\w*$'
+          - pattern-either:
+              - pattern-regex: '(?s)\b(?:class|record|struct)\s+\w+(?:(?!\b(?:class|record|struct|interface)\s).)*?\b(?:public|protected|internal|private)\b[^;{}()=]*?\s(?![A-Z][A-Z0-9_]*\b)(?i:photo_?id_?(?:image|img|photo|card|doc|document|scan|front|back|upload|file)|id_?(?:document|doc|card|photo|image|img|scan|front|back)|identity_?(?:document|doc|card)|identification_?(?:image|photo|document|doc|card)|passport_?(?:image|photo|scan|page|front)|drivers?_?licen[cs]e_?(?:image|photo|scan|front|back)|document_?(?:image|photo|front|back|scan))\w*\s*(?:\{\s*(?:get|set|init)\b|;|=(?![=>]))'
+              - pattern-regex: '(?s)\b(?:public|protected|internal|private)\b[^;{}()=]*?\s(?![A-Z][A-Z0-9_]*\b)(?i:photo_?id_?(?:image|img|photo|card|doc|document|scan|front|back|upload|file)|id_?(?:document|doc|card|photo|image|img|scan|front|back)|identity_?(?:document|doc|card)|identification_?(?:image|photo|document|doc|card)|passport_?(?:image|photo|scan|page|front)|drivers?_?licen[cs]e_?(?:image|photo|scan|front|back)|document_?(?:image|photo|front|back|scan))\w*\s*(?:\{\s*(?:get|set|init)\b|;|=(?![=>]))(?:(?!\b(?:class|record|struct|interface)\s).)*'
+      # A positional record, a method (an MVC action) or a lambda (a minimal API endpoint) that takes
+      # both, in either order. One record pattern reads both orders: the engine matched
+      # `record C(IFormFile PassportScan, string Name, IFormFile Selfie)` with either order written, so
+      # a second record pattern adds nothing.
+      - patterns:
+          - pattern-either:
+              - pattern: record $C(..., $T1 $FACE, ..., $T2 $DOC, ...);
+              - pattern: |
+                  $R $M(..., $T1 $FACE, ..., $T2 $DOC, ...) {
+                    ...
+                  }
+              - pattern: |
+                  $R $M(..., $T2 $DOC, ..., $T1 $FACE, ...) {
+                    ...
+                  }
+              - pattern: (..., $T1 $FACE, ..., $T2 $DOC, ...) => $E
+              - pattern: (..., $T2 $DOC, ..., $T1 $FACE, ...) => $E
+          - focus-metavariable: $FACE
+          - metavariable-regex:
+              metavariable: $FACE
+              regex: '(?i)^(?!(?-i:[A-Z][A-Z0-9_]*)$)(?:selfie|liveness|face_?(?:image|photo|img|picture|pic|capture|snapshot|scan))\w*$'
+          - metavariable-regex:
+              metavariable: $DOC
+              regex: '(?i)^(?!(?-i:[A-Z][A-Z0-9_]*)$)(?:photo_?id_?(?:image|img|photo|card|doc|document|scan|front|back|upload|file)|id_?(?:document|doc|card|photo|image|img|scan|front|back)|identity_?(?:document|doc|card)|identification_?(?:image|photo|document|doc|card)|passport_?(?:image|photo|scan|page|front)|drivers?_?licen[cs]e_?(?:image|photo|scan|front|back)|document_?(?:image|photo|front|back|scan))\w*$'
+    metadata:
+      activity: relies_on_digital_identity
+      mentioned: performs
+      definition: https://lexlint.io/glossary#relies-on-a-digital-identity
+      provenance: ungovr-original
+      license: MIT
