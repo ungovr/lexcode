@@ -2,7 +2,16 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, existsSync, writeFileSync
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { blankErbTags, blankJspTags, blankOutsideScripts, extractScripts } from '../../src/scope/extract.js';
+import {
+  blankBladeTags,
+  blankErbTags,
+  blankJspTags,
+  blankOutsideScripts,
+  blankPhpRegions,
+  blankPhpTags,
+  blankTwigTags,
+  extractScripts,
+} from '../../src/scope/extract.js';
 import { expectNearLinear, measureScaling } from '../helpers/scaling.js';
 
 const made: string[] = [];
@@ -620,5 +629,447 @@ describe('PHP files the engine will not take', () => {
 
   it('skips a .module file that has gone since it was listed', () => {
     expect(extractScripts(tmp(), ['gone.module'], tmp())).toEqual([]);
+  });
+});
+
+describe('PHP, Blade and Twig views', () => {
+  function write(root: string, rel: string, body: string): void {
+    const full = path.join(root, ...rel.split('/'));
+    mkdirSync(path.dirname(full), { recursive: true });
+    writeFileSync(full, body);
+  }
+  /** What an output tag becomes: `_` padded with spaces to its length. */
+  const pad = (tag: string): string => '_' + ' '.repeat(tag.length - 1);
+  /** What any other tag becomes: spaces of its length. */
+  const sp = (tag: string): string => ' '.repeat(tag.length);
+  function extractOne(rel: string, body: string): { originalPath: string; tempPath: string; text: string }[] {
+    const root = tmp();
+    const out = tmp();
+    write(root, rel, body);
+    return extractScripts(root, [rel], out).map((p) => ({ ...p, text: readFileSync(p.tempPath, 'utf8') }));
+  }
+
+  describe('PHP views', () => {
+    it('no block from a script inside a PHP string', () => {
+      const src = `<?php echo "<script>gtag('config','x');</script>";`;
+      expect(extractOne('lib/output.php', src)).toEqual([]);
+      expect(blankOutsideScripts(src, { php: true })).toBeNull();
+      // Without the PHP regions blanked, the string's <script> would be a block.
+      expect(blankOutsideScripts(src)).not.toBeNull();
+    });
+
+    it('extracts an inline script from a PHP view', () => {
+      const src = "<html><script>gtag('config', '<?= $gaId ?>');</script></html>";
+      const pairs = extractOne('views/head.php', src);
+      expect(pairs).toHaveLength(1);
+      expect(pairs[0]!.originalPath).toBe('views/head.php');
+      expect(pairs[0]!.tempPath.endsWith('head.php.lexcode.js')).toBe(true);
+      expect('<?= $gaId ?>'.length).toBe(12);
+      expect(pairs[0]!.text).toBe(sp('<html><script>') + "gtag('config', '" + pad('<?= $gaId ?>') + "');" + sp('</script></html>'));
+      expect(pairs[0]!.text).toContain('gtag(');
+    });
+
+    it("extracts from a .phtml view the same way, and leaves an .html file's PHP-looking text alone", () => {
+      const src = '<script>var u = "<?= $u ?>";</script>';
+      expect(extractOne('views/a.phtml', src)[0]!.text).toBe(sp('<script>') + `var u = "${pad('<?= $u ?>')}";` + sp('</script>'));
+      expect(extractOne('views/a.html', src)[0]!.text).toContain('<?= $u ?>');
+    });
+
+    it('blanks a PHP statement tag inside a script', () => {
+      const tag = '<?php if ($x): ?>';
+      expect(blankPhpTags(`a(); ${tag} b();`)).toBe(`a(); ${sp(tag)} b();`);
+      for (const t of ['<?php endif; ?>', '<? foreach ($rows as $r): ?>', '<?PHP } ?>']) {
+        expect(blankPhpTags(`a(); ${t} b();`)).toBe(`a(); ${sp(t)} b();`);
+      }
+      expect(blankPhpTags('s = "<?= $name ?>";')).toBe(`s = "${pad('<?= $name ?>')}";`);
+      expect(blankPhpTags('plain();')).toBe('plain();');
+    });
+
+    it('blanks a <?php echo or print tag as the output tag it is (Controller Ruling 19)', () => {
+      for (const t of ['<?php echo $gaId; ?>', '<?php print($x) ?>', '<? echo $x ?>', '<?PHP\n  ECHO $x;\n?>', '<?print($x)?>']) {
+        expect(blankPhpTags(`a = ${t};`), t).toBe(`a = ${pad(t).replace(/ /g, (s, i: number) => (t[i] === '\n' ? '\n' : s))};`);
+      }
+      // A statement tag still becomes spaces, and so does a name that only starts with echo or print.
+      for (const t of ['<?php if ($x): ?>', '<?php echo_all(); ?>', '<?php printf("%d", $n); ?>', '<?phpecho $x ?>', '<?php $echo = 1; ?>']) {
+        expect(blankPhpTags(`a(); ${t} b();`), t).toBe(`a(); ${sp(t)} b();`);
+      }
+      // Moodle's mod/scorm/loadSCO.php: the hole a spaced-out echo left was `win. == null`.
+      const view = ['<script>', '  while (win.<?php echo $lmsapi; ?> == null) { win = win.parent; }', '</script>', ''].join('\n');
+      const r = blankOutsideScripts(view, { php: true })!;
+      expect(lines(r.text)[1]).toBe(`  while (win.${pad('<?php echo $lmsapi; ?>')} == null) { win = win.parent; }`);
+    });
+
+    it('an unclosed PHP region runs to the end of the file', () => {
+      const classFile = [
+        '<?php',
+        'namespace App\\Output;',
+        '',
+        '// Writes <script>track()</script> into the page.',
+        'final class Head',
+        '{',
+        '    public function html(): string',
+        '    {',
+        '        return <<<HTML',
+        '<script>gtag("config", "x");</script>',
+        'HTML;',
+        '    }',
+        '}',
+        '',
+      ].join('\n');
+      expect(extractOne('src/Output/Head.php', classFile)).toEqual([]);
+      const blanked = blankPhpRegions(classFile);
+      sameShape(classFile, blanked);
+      expect(blanked.trim()).toBe('');
+      expect(blankPhpRegions('<p>a</p><?php $x = 1;')).toBe('<p>a</p>' + sp('<?php $x = 1;'));
+    });
+
+    it('blanks every PHP region, keeps the inline HTML, and keeps lengths and line breaks', () => {
+      const src = '<p><?= $a ?></p>\r\n<? if ($b): ?>\n<i>x</i>\n<?php endif ?>\n';
+      const out = blankPhpRegions(src);
+      sameShape(src, out);
+      expect(out).toBe(`<p>${sp('<?= $a ?>')}</p>\r\n${sp('<? if ($b): ?>')}\n<i>x</i>\n${sp('<?php endif ?>')}\n`);
+    });
+
+    it('a ?> inside a quoted string, a heredoc or a nowdoc does not end the region; one in a line comment does', () => {
+      const quoted = `<?php $a = "?>"; $b = '?>'; $c = "\\"?>"; echo "<script>x()</script>"; ?>`;
+      expect(blankPhpRegions(quoted).trim()).toBe('');
+      expect(blankOutsideScripts(quoted, { php: true })).toBeNull();
+      const heredoc = "<?php $h = <<<EOT\nIt's ?> <script>x()</script>\nEOT;\n$n = <<<'NOW'\n?>\n  NOW;\n?><script>y()</script>";
+      const r = blankOutsideScripts(heredoc, { php: true })!;
+      expect(r.text).toContain('y()');
+      expect(r.text).not.toContain('x()');
+      // In PHP a ?> ends a line comment and the PHP mode with it; an apostrophe in a comment opens no string.
+      const comment = "<?php // don't ?><script>a()</script><?php /* it's */ ?><script>b()</script>";
+      const c = blankOutsideScripts(comment, { php: true })!;
+      expect(c.text.replace(/ /g, '')).toBe('a()b()');
+      // A PHP 8 attribute is code, not a # comment.
+      expect(blankPhpRegions("<?php #[Attr('?>')] ?>x")).toBe(sp("<?php #[Attr('?>')] ?>") + 'x');
+    });
+
+    it('takes the block body from the original text, so a tag inside it is blanked by blankPhpTags', () => {
+      const view = [
+        '<?php require "config.php"; ?>',
+        '<script nonce="<?= $nonce ?>">',
+        '  <?php if ($tracking): ?>',
+        '  gtag("config", "<?= $ga ?>");',
+        '  <?php endif; ?>',
+        '</script>',
+        '',
+      ].join('\n');
+      const r = blankOutsideScripts(view, { php: true })!;
+      sameShape(view, r.text);
+      expect(lines(r.text)[2]).toBe(sp('  <?php if ($tracking): ?>'));
+      expect(lines(r.text)[3]).toBe(`  gtag("config", "${pad('<?= $ga ?>')}");`);
+      expect(lines(r.text)[4]).toBe(sp('  <?php endif; ?>'));
+      expect(lines(r.text)[0]).toBe(sp(lines(view)[0]!));
+    });
+
+    it('a block whose only content is a PHP region is not a block', () => {
+      expect(blankOutsideScripts('<script><?php echo $inline_js; ?></script>', { php: true })).toBeNull();
+    });
+  });
+
+  describe('Blade views', () => {
+    it('Blade: output tags, json and directives', () => {
+      expect(blankBladeTags('var d = @json($data);')).toBe(`var d = ${pad('@json($data)')};`);
+      expect(blankBladeTags('var d = @js($data);')).toBe(`var d = ${pad('@js($data)')};`);
+      expect(blankBladeTags("var p = '{{ $pixel }}';")).toBe(`var p = '${pad('{{ $pixel }}')}';`);
+      expect(blankBladeTags('var x = {!! $x !!};')).toBe(`var x = ${pad('{!! $x !!}')};`);
+      expect(blankBladeTags('a(); {{-- note --}} b();')).toBe(`a(); ${sp('{{-- note --}}')} b();`);
+      expect(blankBladeTags('@if($x) a(); @endif')).toBe(`${sp('@if($x)')} a(); ${sp('@endif')}`);
+      expect(blankBladeTags('@php $a = 1; @endphp a();')).toBe(`${sp('@php $a = 1; @endphp')} a();`);
+      expect(blankBladeTags('@php($a = 1) a();')).toBe(`${sp('@php($a = 1)')} a();`);
+      expect(blankBladeTags('@if ($user) a(); @endif')).toBe(`${sp('@if ($user)')} a(); ${sp('@endif')}`);
+      expect(blankBladeTags('@auth a(); @endauth')).toBe(`${sp('@auth')} a(); ${sp('@endauth')}`);
+      expect(blankBladeTags('plain();')).toBe('plain();');
+    });
+
+    it('a ) inside a quoted string does not end a directive argument list; nested parentheses do not either', () => {
+      const d = "@if(str_contains($x, ')') && f($y))";
+      expect(blankBladeTags(`${d} a();`)).toBe(`${sp(d)} a();`);
+      const j = '@json(["a" => "(", \'b\' => \'\\\')\'])';
+      expect(blankBladeTags(`v = ${j};`)).toBe(`v = ${pad(j)};`);
+    });
+
+    it('Blade: an email address is not a directive', () => {
+      expect(blankBladeTags("const to = 'support@example.com';")).toBe("const to = 'support@example.com';");
+      const view = ['<script>', "  const to = 'support@example.com';", '  const d = @json($data);', '</script>', ''].join('\n');
+      const r = blankOutsideScripts(view, { blade: true })!;
+      sameShape(view, r.text);
+      expect(lines(r.text)[1]).toBe("  const to = 'support@example.com';");
+      expect(lines(r.text)[2]).toBe(`  const d = ${pad('@json($data)')};`);
+    });
+
+    it('leaves an escaped directive and an escaped echo as Blade prints them', () => {
+      // `@@if` prints `@if`; `@{{ x }}` prints `{{ x }}` for a client-side template.
+      expect(blankBladeTags("s = '@@if';")).toBe("s = '@@if';");
+      expect(blankBladeTags("t = '@{{ name }}';")).toBe("t = ' {{ name }}';");
+    });
+
+    it('blanks an unterminated echo, comment or @php to the end of the block', () => {
+      expect(blankBladeTags('a(); {{ $b')).toBe(`a(); ${pad('{{ $b')}`);
+      expect(blankBladeTags('a(); {{-- b')).toBe(`a(); ${sp('{{-- b')}`);
+      expect(blankBladeTags('a(); @php $b = 1;')).toBe(`a(); ${sp('@php $b = 1;')}`);
+    });
+
+    it('blanks only the name of a directive whose "(" never closes, as Blade does (Controller Ruling 25)', () => {
+      expect(blankBladeTags('a(); @if($b')).toBe(`a(); ${sp('@if')}($b`);
+      // An "@" in a JavaScript string that reads as a directive must not swallow the code after it.
+      expect(blankBladeTags("s = 'call @support (24/7'; f(); g();")).toBe(`s = 'call ${sp('@support')} (24/7'; f(); g();`);
+      expect(blankBladeTags('v = @json($a; f();')).toBe(`v = ${sp('@json')}($a; f();`);
+      // An argument list that does not close within 10,000 characters is not one.
+      const long = `@json([${"'x', ".repeat(2_100)}])`;
+      expect(blankBladeTags(`v = ${long};`)).toBe(`v = ${sp('@json')}${long.slice('@json'.length)};`);
+      const fits = `@json([${"'x', ".repeat(1_900)}])`;
+      expect(blankBladeTags(`v = ${fits};`)).toBe(`v = ${pad(fits)};`);
+    });
+
+    it('Blade is matched before PHP', () => {
+      const src = '<script>var d = @json($data); var u = "<?= $u ?>"; var p = "{{ $p }}";</script>';
+      const blade = extractOne('resources/views/layouts/head.blade.php', src);
+      expect(blade).toHaveLength(1);
+      expect(blade[0]!.tempPath.endsWith('head.blade.php.lexcode.js')).toBe(true);
+      expect(blade[0]!.text).toBe(
+        sp('<script>') + `var d = ${pad('@json($data)')}; var u = "${pad('<?= $u ?>')}"; var p = "${pad('{{ $p }}')}";` + sp('</script>'),
+      );
+      // A plain .php view gets the PHP blanking only.
+      const php = extractOne('views/head.php', src);
+      expect(php[0]!.text).toContain('@json($data)');
+      expect(php[0]!.text).toContain('{{ $p }}');
+      expect(php[0]!.text).not.toContain('<?=');
+      // Upper case is the same file type.
+      expect(extractOne('views/HEAD.BLADE.PHP', src)[0]!.text).not.toContain('@json');
+    });
+  });
+
+  describe('Twig templates', () => {
+    it('Twig: output, statements and comments', () => {
+      expect(blankTwigTags("fbq('init', '{{ pixel_id }}');")).toBe(`fbq('init', '${pad('{{ pixel_id }}')}');`);
+      for (const tag of ['{% if x %}', '{%- endif -%}', '{# c #}', '{%~ set a = 1 ~%}']) {
+        expect(blankTwigTags(`a(); ${tag} b();`)).toBe(`a(); ${sp(tag)} b();`);
+      }
+      expect(blankTwigTags('v = {{- x|json_encode|raw -}};')).toBe(`v = ${pad('{{- x|json_encode|raw -}}')};`);
+      expect(blankTwigTags('plain();')).toBe('plain();');
+    });
+
+    it('a }} inside a quoted string or a hash literal does not end a Twig tag', () => {
+      const hash = "{{ {'a': {'b': '}}'}}|json_encode|raw }}";
+      expect(blankTwigTags(`v = ${hash}; w();`)).toBe(`v = ${pad(hash)}; w();`);
+      const stmt = "{% set s = '%}' %}";
+      expect(blankTwigTags(`${stmt} w();`)).toBe(`${sp(stmt)} w();`);
+    });
+
+    it('extracts a script from a .html.twig template', () => {
+      const view = [
+        '{% extends "base.html.twig" %}',
+        '{% block javascripts %}',
+        '<script>',
+        "  fbq('init', '{{ pixel_id }}');",
+        '  {# a comment #}',
+        '</script>',
+        '{% endblock %}',
+        '',
+      ].join('\n');
+      const pairs = extractOne('templates/blog/show.html.twig', view);
+      expect(pairs).toHaveLength(1);
+      expect(pairs[0]!.tempPath.endsWith('show.html.twig.lexcode.js')).toBe(true);
+      sameShape(view, pairs[0]!.text);
+      expect(lines(pairs[0]!.text)[3]).toBe(`  fbq('init', '${pad('{{ pixel_id }}')}');`);
+      expect(lines(pairs[0]!.text)[4]).toBe(sp('  {# a comment #}'));
+    });
+
+    it('blanks an unterminated tag or comment to the end of the block', () => {
+      expect(blankTwigTags('a(); {{ b')).toBe(`a(); ${pad('{{ b')}`);
+      expect(blankTwigTags('a(); {% if b')).toBe(`a(); ${sp('{% if b')}`);
+      expect(blankTwigTags('a(); {# b')).toBe(`a(); ${sp('{# b')}`);
+    });
+  });
+
+  it('keeps line numbers across a multi-line Blade directive and a multi-line Twig tag', () => {
+    const blade = [
+      '<script>',
+      '  const cfg = @json([',
+      "    'key' => $key,",
+      '  ]);',
+      '  {{-- a note',
+      '  over lines --}}',
+      '  @if (',
+      '    $on',
+      '  )',
+      '  track("after");',
+      '  @endif',
+      '</script>',
+      '',
+    ].join('\n');
+    const b = blankOutsideScripts(blade, { blade: true })!;
+    sameShape(blade, b.text);
+    expect(lines(b.text)[1]).toBe('  const cfg = ' + pad('@json(['));
+    expect(lines(b.text)[2]).toBe(sp("    'key' => $key,"));
+    expect(lines(b.text)[3]).toBe(sp('  ])') + ';');
+    expect(lines(b.text)[4]).toBe(sp('  {{-- a note'));
+    expect(lines(b.text)[5]).toBe(sp('  over lines --}}'));
+    expect(lines(b.text)[6]).toBe(sp('  @if ('));
+    expect(lines(b.text)[8]).toBe(sp('  )'));
+    expect(lines(b.text)[9]).toBe('  track("after");');
+    expect(lines(b.text)[10]).toBe(sp('  @endif'));
+
+    const twig = [
+      '<script>',
+      '  const cfg = {{ {',
+      "    'key': key",
+      '  }|json_encode|raw }};',
+      '  {% if on',
+      '  %}',
+      '  track("after");',
+      '  {% endif %}',
+      '</script>',
+      '',
+    ].join('\n');
+    const t = blankOutsideScripts(twig, { twig: true })!;
+    sameShape(twig, t.text);
+    expect(lines(t.text)[1]).toBe('  const cfg = ' + pad('{{ {'));
+    expect(lines(t.text)[2]).toBe(sp("    'key': key"));
+    expect(lines(t.text)[3]).toBe(sp('  }|json_encode|raw }}') + ';');
+    expect(lines(t.text)[4]).toBe(sp('  {% if on'));
+    expect(lines(t.text)[5]).toBe(sp('  %}'));
+    expect(lines(t.text)[6]).toBe('  track("after");');
+  });
+
+  it('Jinja handling is unchanged: a .jinja, .j2 or .njk copy keeps its tags, and no Twig blanking reaches it', () => {
+    const src = '<script>gtag("config", "{{ gid }}"); {% if x %}a();{% endif %} {# c #}</script>';
+    for (const rel of ['t/a.jinja', 't/b.jinja2', 't/c.j2', 't/d.njk']) {
+      expect(extractOne(rel, src)[0]!.text, rel).toBe(sp('<script>') + 'gtag("config", "{{ gid }}"); {% if x %}a();{% endif %} {# c #}' + sp('</script>'));
+    }
+    expect(extractOne('t/e.twig', src)[0]!.text).not.toContain('{{');
+  });
+
+  describe('characters outside the Basic Multilingual Plane (an emoji is two UTF-16 units)', () => {
+    it('an emoji in a PHP region before a block does not move the block', () => {
+      const src = '<?php $s = "😀"; ?>\n<script>gtag("config", "x");</script>\n';
+      const r = blankOutsideScripts(src, { php: true })!;
+      sameShape(src, r.text);
+      expect(r.text).toBe(sp('<?php $s = "😀"; ?>') + '\n' + sp('<script>') + 'gtag("config", "x");' + sp('</script>') + '\n');
+      expect(extractOne('views/a.php', src)[0]!.text).toBe(r.text);
+    });
+
+    it('an emoji blanked in a tag inside a block, or in markup around it, keeps every later column', () => {
+      const cases: [string, Parameters<typeof blankOutsideScripts>[1], string][] = [
+        ['<script>var a = "<?= "😀" ?>"; gtag("c");</script>', { php: true }, ' gtag("c");'],
+        ['<script>var a = @json("😀"); @if("😀") b(); @endif</script>', { blade: true }, ' b(); '],
+        ['<script>var a = {{ "😀" }}; {# 😀 #} b();</script>', { twig: true }, ' b();'],
+        ['<script>var a = "<%= "😀" %>"; b();</script>', { erb: true }, ' b();'],
+        ['<script>var a = "${"😀"}"; b();</script>', { jsp: true }, ' b();'],
+        ['<p>😀</p><script>b();</script><p>😀</p>', {}, 'b();'],
+      ];
+      for (const [src, opts, tail] of cases) {
+        const r = blankOutsideScripts(src, opts)!;
+        sameShape(src, r.text);
+        const at = src.indexOf(tail.trim());
+        expect(r.text.slice(at, at + tail.trim().length), src).toBe(tail.trim());
+      }
+    });
+
+    it('every blanker keeps length and line breaks on generated input, astral characters included', () => {
+      // A fixed-seed generator, so a failure names an input that can be run again.
+      let seed = 12_987;
+      const rnd = (): number => (seed = (seed * 1_103_515_245 + 12_345) & 0x7fffffff) / 0x7fffffff;
+      const tokens = [
+        '<?php ', '<?=', '<?', '?>', "'", '"', '\\', '\n', '\r\n', '<<<EOT\n', "<<<'N'\n", 'EOT;', '  N', '/*', '*/', '//',
+        '#', '#[', '`', '@if(', ')', '(', '{', '}', '{{', '}}', '{!!', '!!}', '{{--', '--}}', '@php', '@endphp', '@json(',
+        '@@', '@{{', '@', '{%', '%}', '{#', '#}', '<%=', '<%', '%>', '${', '<c:out', '>', 'echo ', 'print ', ';',
+        'é', '日', '😀', '𝒳', '\u{1F468}‍\u{1F469}', 'a', ' ', '\t', '<script>', '</script>', '<!--', '-->',
+      ];
+      const blankers: [string, (s: string) => string][] = [
+        ['blankPhpRegions', blankPhpRegions],
+        ['blankPhpTags', blankPhpTags],
+        ['blankBladeTags', blankBladeTags],
+        ['blankTwigTags', blankTwigTags],
+        ['blankErbTags', blankErbTags],
+        ['blankJspTags', blankJspTags],
+      ];
+      const variants: Parameters<typeof blankOutsideScripts>[1][] = [{}, { php: true }, { blade: true }, { twig: true }, { erb: true }, { jsp: true }];
+      for (let n = 0; n < 2_000; n++) {
+        let src = '';
+        const count = 1 + Math.floor(rnd() * 30);
+        for (let i = 0; i < count; i++) src += tokens[Math.floor(rnd() * tokens.length)];
+        for (const [name, fn] of blankers) {
+          const out = fn(src);
+          expect(out.length, `${name} ${JSON.stringify(src)}`).toBe(src.length);
+          for (let i = 0; i < src.length; i++) {
+            if (src[i] === '\n' || src[i] === '\r' || out[i] === '\n' || out[i] === '\r') expect(out[i], `${name} ${JSON.stringify(src)}`).toBe(src[i]);
+          }
+        }
+        for (const opts of variants) {
+          const r = blankOutsideScripts(src, opts);
+          if (r !== null) expect(r.text.length, `${JSON.stringify(opts)} ${JSON.stringify(src)}`).toBe(src.length);
+        }
+      }
+    });
+  });
+
+  describe('on hostile input', () => {
+    it('blankPhpRegions grows near-linearly over unterminated openers and quotes', () => {
+      const m = measureScaling({
+        small: 25_000,
+        large: 250_000,
+        setup: (n) => '<?php "?>'.repeat(n / 2) + "<? '".repeat(n / 2),
+        run: (text) => blankPhpRegions(text),
+      });
+      expectNearLinear(m, 'blankPhpRegions');
+    });
+
+    it('blankBladeTags grows near-linearly over directives whose argument list never closes', () => {
+      // Each opener's search for ")" is bounded at 10,000 characters, so a body of unclosed openers is not
+      // quadratic. Both sizes are well past that bound (40,000 and 400,000 characters), so the cost grows with
+      // the number of openers alone; openers sit 50 characters apart to keep each call short.
+      const m = measureScaling({
+        small: 400,
+        large: 4_000,
+        setup: (n) => ('@if((' + ' '.repeat(45) + "@a('(" + ' '.repeat(45)).repeat(n),
+        run: (text) => blankBladeTags(text),
+      });
+      expectNearLinear(m, 'blankBladeTags');
+    });
+
+    it('blankBladeTags grows near-linearly over unterminated echoes and @php', () => {
+      const m = measureScaling({
+        small: 20_000,
+        large: 200_000,
+        setup: (n) => '@php '.repeat(n / 2) + '{{ '.repeat(n / 2),
+        run: (text) => blankBladeTags(text),
+      });
+      expectNearLinear(m, 'blankBladeTags');
+    });
+
+    it('blankBladeTags grows near-linearly over directives whose argument list closes', () => {
+      const m = measureScaling({
+        small: 20_000,
+        large: 200_000,
+        setup: (n) => '@if($a) x(); @endif '.repeat(n / 4),
+        run: (text) => blankBladeTags(text),
+      });
+      expectNearLinear(m, 'blankBladeTags');
+    });
+
+    it('blankTwigTags grows near-linearly over unbalanced openers', () => {
+      const m = measureScaling({
+        small: 20_000,
+        large: 200_000,
+        setup: (n) => '{{ ('.repeat(n / 2) + "{% '".repeat(n / 2),
+        run: (text) => blankTwigTags(text),
+      });
+      expectNearLinear(m, 'blankTwigTags');
+    });
+
+    it('a PHP class file with no script costs one search and gives no copy', () => {
+      const m = measureScaling({
+        small: 20_000,
+        large: 200_000,
+        setup: (n) => '<?php\nnamespace A;\nclass B {\n' + "  public function f() { return 'x'; }\n".repeat(n) + '}\n',
+        run: (text) => blankOutsideScripts(text, { php: true }),
+      });
+      expectNearLinear(m, 'blankOutsideScripts on a PHP class file');
+      expect(m.result).toBeNull();
+    });
   });
 });
