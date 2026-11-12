@@ -109,6 +109,19 @@ Java, Kotlin and the JVM build files carry a prefix too:
 | Gradle (Groovy) | `gradle-<what>` | `gradle-<what>.yml`, `.test.gradle`, `.neg.test.gradle`; `languages: [generic]` over `*.gradle` |
 | Gradle (Kotlin DSL) | `gradle-kts-<what>` | `gradle-kts-<what>.yml`, `.test.gradle.kts`, `.neg.test.gradle.kts`; `languages: [kotlin]` over `*.gradle.kts` |
 
+PHP and Composer carry a prefix as well:
+
+| Kind | Rule `<what>` part | File and fixtures |
+|---|---|---|
+| PHP | `php-<what>` | `php-<what>.yml`, `.test.php`, `.neg.test.php`; `languages: [php]` |
+| Composer | `composer-<what>` | `composer-<what>.yml`, fixtures `composer-<what>.test.json` and `.neg.test.json`; `languages: [json]` |
+
+A PHP rule is `lexcode.<activity-short>.php-<what>`, and a Composer rule is
+`lexcode.<activity-short>.composer-<what>`. A PHP fixture opens with `<?php`.
+A second positive fixture for the same rule takes a middle word
+(`php-<what>.test.qualified.php`), which is how a fully qualified form with no
+import is pinned beside the imported one.
+
 A Java or Kotlin fixture is a whole compilation unit: a `package` line,
 imports and a class, so it parses as a real file does.
 
@@ -158,6 +171,16 @@ only where the literal matched. What the test passes still has the reach, so a
 scan says in a notice how many files it handed the engine are over 1,000,000
 bytes in a language with such a rule.
 
+A PHP taint rule keeps its pre-filter only when each source has a whole-file
+`pattern-regex` anchor and the rule has about six sources or fewer; beyond that
+the engine parses every file, so split a rule that grows past it. Two free
+metavariables bound per array element and joined (`[..., $A => $X, ...]` with a
+`pattern-inside` of `[..., $B => $Y, ...]`) cost time quadratic in the array's
+size: put the names in string-literal regexes instead.
+
+A whole-file guard on a fully qualified PHP name takes a left boundary,
+`(?<![\w\\])`, so the name is not found as the tail of a longer name.
+
 ### Kotlin pattern notes
 
 Measured on Opengrep 1.33.1:
@@ -186,6 +209,41 @@ Measured on Opengrep 1.33.1:
   `example` or `demo` path. Build-file rules (`maven-`, `gradle-`,
   `gradle-kts-`) are not source rules and keep their sample and example
   excludes.
+
+### PHP pattern notes
+
+Measured on Opengrep 1.33.1:
+
+- A metavariable is uppercase (`$X`, `$CLIENT`). A lowercase `$name` in a
+  pattern is the literal PHP variable `$name`.
+- The engine does not resolve `use` imports. `new \Aws\Rekognition\RekognitionClient(...)`
+  does not match `new RekognitionClient(...)` under
+  `use Aws\Rekognition\RekognitionClient;`, and the short form does not match
+  the fully qualified one. A library class is matched by a twin: a
+  `pattern-either` of the fully qualified form and the short form, the short
+  form inside a `pattern-inside` of `use <FQN>;` followed by `...`.
+- An alias binds. A `pattern-inside` of `use Twilio\Rest\Client as $A;` followed
+  by `...`, with `new $A(...)`, matches `new TwilioClient(...)`.
+- A `use X;` pattern also matches `use X as Y;`, so every short-name branch of a
+  twin carries a `pattern-not-inside` of `use X as $A;` followed by `...`.
+- A grouped use (`use Aws\{S3\S3Client, ...};`) does not parse as a pattern, so
+  it cannot be a guard. In a target file it is matched by a `use A\$C;` pattern.
+- `new $C(...)` with a `metavariable-regex` on the class name also matches an
+  app's own class of that short name in another namespace. Use the twin instead.
+- These all match: static facade chains (`OpenAI::chat()->create(...)`),
+  property chains (`$C->messages->create(...)`), array-literal keys
+  (`[..., 'model' => $M, ...]`) with `metavariable-regex` (anchored at the
+  start, so write `.*gpt-`), `class $K extends $P { ... }` in `pattern-inside`,
+  promoted constructor parameters, and plain function calls (`curl_init(...)`,
+  `mail(...)`).
+- PHP constants are case-insensitive, so an exclusion that names one (`true`,
+  `null`) must match in any case.
+- A `.blade.php` view parses as PHP without error, because its markup is inline
+  HTML. PHP rules run over it harmlessly, and Blade's `{{ }}` contents are not
+  PHP to the engine.
+- A build-file rule (`composer-`) with a path exclusion cannot have it pinned by
+  a fixture, because the runner reads only the files beside the rule. State the
+  exclusion in the rule's comment.
 
 ## Performance tests
 
