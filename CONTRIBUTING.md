@@ -55,8 +55,9 @@ would end that for the whole set. Every rule says so in its metadata:
 ## Adding a package to the component map
 
 The component map (`rules/components/npm.yml`, `pypi.yml`, `go.yml`,
-`gem.yml`, `maven.yml`) says which activities a well-known package enables. It is
-written by hand, one entry per package, and nothing adds to it on its own:
+`gem.yml`, `maven.yml`, `composer.yml`) says which activities a well-known
+package enables. It is written by hand, one entry per package, and nothing adds
+to it on its own:
 
 1. Find candidates with `lexcode deps <repo>... --unmapped`, run over several
    repositories: it lists every package the map does not know, the ones most
@@ -108,6 +109,21 @@ Java, Kotlin and the JVM build files carry a prefix too:
 | Gradle (Groovy) | `gradle-<what>` | `gradle-<what>.yml`, `.test.gradle`, `.neg.test.gradle`; `languages: [generic]` over `*.gradle` |
 | Gradle (Kotlin DSL) | `gradle-kts-<what>` | `gradle-kts-<what>.yml`, `.test.gradle.kts`, `.neg.test.gradle.kts`; `languages: [kotlin]` over `*.gradle.kts` |
 
+PHP and Composer carry a prefix as well:
+
+| Kind | Rule `<what>` part | File and fixtures |
+|---|---|---|
+| PHP | `php-<what>` | `php-<what>.yml`, `.test.php`, `.neg.test.php`; `languages: [php]` |
+| Composer | `composer-<what>` | `composer-<what>.yml`, fixtures `composer-<what>.test.json` and `.neg.test.json`; `languages: [json]` |
+
+A PHP rule is `lexcode.<activity-short>.php-<what>`, and a Composer rule is
+`lexcode.<activity-short>.composer-<what>`. A PHP fixture opens with `<?php`. A JSON fixture cannot hold an expect comment,
+so each Composer fixture has a `.expect` file beside it (for example
+`composer-<what>.test.json.expect`) holding its match count as one integer.
+A second positive fixture for the same rule takes a middle word
+(`php-<what>.test.qualified.php`), which is how a fully qualified form with no
+import is pinned beside the imported one.
+
 A Java or Kotlin fixture is a whole compilation unit: a `package` line,
 imports and a class, so it parses as a real file does.
 
@@ -156,6 +172,33 @@ the first literal (`(?=.*Mechanize\s*\.(?:new|start))`) passes, since it is trie
 only where the literal matched. What the test passes still has the reach, so a
 scan says in a notice how many files it handed the engine are over 1,000,000
 bytes in a language with such a rule.
+
+A scan hands the engine only the rules that have a file to read and only the
+files those rules read (#12997): every config parse costs time, about 2.6 s
+for the PHP rules alone, and a `generic` rule with no limit makes every file in
+the repository a target, photographs and all. So give a `generic`, `regex` or
+build-file rule a `paths.include`. lexcode tests each include's last segment
+(`*`, `?` and literal characters) against a path's file and directory names; an
+include with a bracket, a brace, a backslash, a `!` or `**` in its last segment
+cannot be tested that way, and the rule then reads every file of its languages.
+A rule's languages reach only the extensions `LANGUAGE_EXTENSIONS` in
+`src/record/build.ts` lists, so a new language lists every extension the engine
+reads for it, measured on explicit targets (a `javascript` rule also reads
+`.ts`); a rule naming a language lexcode does not map reads every file.
+
+A PHP taint rule keeps its pre-filter only when each source has a whole-file
+`pattern-regex` anchor and the rule has about six sources or fewer; beyond that
+the engine parses every file, so split a rule that grows past it. Two free
+metavariables bound per array element and joined (`[..., $A => $X, ...]` with a
+`pattern-inside` of `[..., $B => $Y, ...]`) cost time quadratic in the array's
+size: put the names in string-literal regexes instead.
+
+A whole-file guard on a fully qualified PHP name checks its left boundary after
+the name, not before it: `NAME\b(?<!\wNAME)(?<![\w\\]\\NAME)`, and for a name
+written with a leading backslash `\\NAME\b(?<![\w\\]\\NAME)`. A lookbehind written
+before the name (`(?<![\w\\])\\?NAME`) costs steps at every position and lost the
+only match at the top of a file over about 600 KB. After the name it is tried
+only where the name matched.
 
 A rule's cost inside one file matters as well: a scan gives each rule 30 s per
 file (`--timeout 30`), and a file the rule does not finish is a file error with
@@ -224,6 +267,45 @@ Measured on Opengrep 1.33.1:
   `example` or `demo` path. Build-file rules (`maven-`, `gradle-`,
   `gradle-kts-`) are not source rules and keep their sample and example
   excludes.
+
+### PHP pattern notes
+
+Measured on Opengrep 1.33.1:
+
+- A metavariable is uppercase (`$X`, `$CLIENT`). A lowercase `$name` in a
+  pattern is the literal PHP variable `$name`.
+- The engine does not resolve `use` imports. `new \Aws\Rekognition\RekognitionClient(...)`
+  does not match `new RekognitionClient(...)` under
+  `use Aws\Rekognition\RekognitionClient;`, and the short form does not match
+  the fully qualified one. A library class is matched by a twin: a
+  `pattern-either` of the fully qualified form and the short form, the short
+  form inside a `pattern-inside` of `use <FQN>;` followed by `...`.
+- An alias binds. A `pattern-inside` of `use Twilio\Rest\Client as $A;` followed
+  by `...`, with `new $A(...)`, matches `new TwilioClient(...)`.
+- A `use X;` pattern also matches `use X as Y;`, so every branch of a
+  twin that matches a class, facade or trait by its short name carries a
+  `pattern-not-inside` of `use X as $A;` followed by `...`. A rule that uses
+  `use X;` only as a file-level signal that the library is present, and matches
+  a method call on a variable, leaves the guard off so that an aliased import
+  counts too.
+- A grouped use (`use Aws\{S3\S3Client, ...};`) does not parse as a pattern, so
+  it cannot be a guard. In a target file it is matched by a `use A\$C;` pattern.
+- `new $C(...)` with a `metavariable-regex` on the class name also matches an
+  app's own class of that short name in another namespace. Use the twin instead.
+- These all match: static facade chains (`OpenAI::chat()->create(...)`),
+  property chains (`$C->messages->create(...)`), array-literal keys
+  (`[..., 'model' => $M, ...]`) with `metavariable-regex` (anchored at the
+  start, so write `.*gpt-`), `class $K extends $P { ... }` in `pattern-inside`,
+  promoted constructor parameters, and plain function calls (`curl_init(...)`,
+  `mail(...)`).
+- PHP constants are case-insensitive, so an exclusion that names one (`true`,
+  `null`) must match in any case.
+- A `.blade.php` view parses as PHP without error, because its markup is inline
+  HTML. PHP rules run over it harmlessly, and Blade's `{{ }}` contents are not
+  PHP to the engine.
+- A build-file rule (`composer-`) with a path exclusion cannot have it pinned by
+  a fixture, because the runner reads only the files beside the rule. State the
+  exclusion in the rule's comment.
 
 ## Performance tests
 

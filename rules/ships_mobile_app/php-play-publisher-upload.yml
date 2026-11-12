@@ -1,0 +1,35 @@
+rules:
+  - id: lexcode.mobile.php-play-publisher-upload
+    languages: [php]
+    severity: INFO
+    message: Uploads an Android bundle or APK, or moves a release track, through the Google Play Developer API, which is distributing a mobile app through Google's store (ships_mobile_app).
+    patterns:
+      - pattern-either:
+          - pattern: $S->edits_bundles->upload(...)
+          - pattern: $S->edits_apks->upload(...)
+          - pattern: $S->edits_tracks->update(...)
+          - pattern: $S->edits_tracks->patch(...)
+      - pattern-either:
+          # google/apiclient-services. A `use` pattern binds its alias form too.
+          - pattern-inside: |
+              use Google\Service\AndroidPublisher;
+              ...
+          - pattern-inside: |
+              use Google\Service\AndroidPublisher\$M;
+              ...
+          - pattern-inside: |
+              $S = new \Google\Service\AndroidPublisher(...);
+              ...
+          # The client's older global class name, before namespaces.
+          - pattern-inside: |
+              $S = new \Google_Service_AndroidPublisher(...);
+              ...
+          - pattern-inside: |
+              $S = new Google_Service_AndroidPublisher(...);
+              ...
+    metadata:
+      activity: ships_mobile_app
+      mentioned: performs
+      definition: https://lexlint.io/activities/ships-mobile-app
+      provenance: ungovr-original
+      license: MIT

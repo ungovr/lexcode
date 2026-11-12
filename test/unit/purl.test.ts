@@ -39,6 +39,15 @@ describe('purlOf', () => {
     );
     expect(purlOf({ ecosystem: 'maven', name: 'com.twilio.sdk:twilio', manifest: 'pom.xml:9' })).toBe('pkg:maven/com.twilio.sdk/twilio');
   });
+  it('writes a Composer package as vendor, name and version', () => {
+    expect(purlOf({ ecosystem: 'composer', name: 'aws/aws-sdk-php', version: '3.300.0', manifest: 'composer.json:9' })).toBe(
+      'pkg:composer/aws/aws-sdk-php@3.300.0',
+    );
+    expect(purlOf({ ecosystem: 'composer', name: 'symfony/http-kernel', version: 'v7.1.0', manifest: 'composer.json:9' })).toBe(
+      'pkg:composer/symfony/http-kernel@v7.1.0',
+    );
+    expect(purlOf({ ecosystem: 'composer', name: 'twilio/sdk', manifest: 'composer.json:9' })).toBe('pkg:composer/twilio/sdk');
+  });
   it('percent-encodes a plus sign in a version', () => {
     expect(
       purlOf({ ecosystem: 'golang', name: 'github.com/a/b', version: 'v2.0.0+incompatible', manifest: 'go.mod:5' }),

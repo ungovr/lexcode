@@ -104,6 +104,48 @@ export class LineIndex {
 }
 
 /**
+ * Where `"key"` is written inside the object value of `"section"`, answered from one pass over the
+ * text per section. The block of a section runs to the first `}` after its `{`; when the section name
+ * appears more than once, the first block that holds the key wins. A key that cannot be located is
+ * line 1.
+ */
+export class KeyLocator {
+  private readonly lines: LineIndex;
+  private readonly sections = new Map<string, Map<string, number>>();
+
+  constructor(private readonly text: string) {
+    this.lines = new LineIndex(text);
+  }
+
+  private keysOf(section: string): Map<string, number> {
+    const hit = this.sections.get(section);
+    if (hit) return hit;
+    const keys = new Map<string, number>();
+    const sectionRe = new RegExp(`"${section}"\\s*:\\s*\\{`, 'g');
+    const keyRe = /"((?:[^"\\]|\\.)*)"\s*:/g;
+    let m: RegExpExecArray | null;
+    while ((m = sectionRe.exec(this.text))) {
+      const start = m.index + m[0].length;
+      const close = this.text.indexOf('}', start);
+      const end = close < 0 ? this.text.length : close;
+      keyRe.lastIndex = start;
+      let k: RegExpExecArray | null;
+      while ((k = keyRe.exec(this.text)) && k.index < end) {
+        const quoted = `"${k[1] as string}"`;
+        if (!keys.has(quoted)) keys.set(quoted, k.index);
+      }
+    }
+    this.sections.set(section, keys);
+    return keys;
+  }
+
+  line(section: string, key: string): number {
+    const at = this.keysOf(section).get(JSON.stringify(key));
+    return at === undefined ? 1 : this.lines.lineAt(at);
+  }
+}
+
+/**
  * Where a manifest failed to parse, and nothing else. A parser's own message can quote the text it
  * choked on (V8 prints an excerpt of the JSON around the fault), and a manifest may hold a token that
  * must not be copied into the evidence record, so the message is never used: only a line and column

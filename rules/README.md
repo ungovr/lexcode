@@ -2,7 +2,7 @@
 
 This directory is the rule set lexcode runs: one YAML rule per file, one
 directory per LexLint activity, positive and negative fixtures beside each rule,
-component maps for npm, PyPI, Go, gem and Maven packages under `components/`, and
+component maps for npm, PyPI, Go, gem, Maven and Composer packages under `components/`, and
 `classes.yml`, which gives every activity id in the pinned registry snapshot
 (`registry.snapshot.json`, CC BY 4.0, credit "LexLint (UnGovr)") one detection
 class. Every rule is original to UnGovr and MIT licensed. The recall table below
@@ -177,6 +177,94 @@ computed value), 18 Gradle dependencies named by a constant or variable that
 lexcode does not evaluate and so does not record, 1 file with a line over
 100,000 characters skipped, and the engine could not read 9 files.
 <!-- canvas-android:end -->
+
+<!-- moodle:start -->
+### Moodle, read with PHP and the Composer manifest
+
+Measured 2026-11-12 over `moodle/moodle` at commit `afbcc55`, with lexcode
+`v1.3` (branch build at commit `5f2d303`), against a reading of the same commit
+by an agent that had not seen the PHP rules, checked row by row by a second
+reader who had not seen them either, kept unchanged. The reading includes 15
+activities from code, marks 9 as absent and leaves 2 unsure. Every figure below
+is from one run, `lexcode check --declaration` with that build, unless it names
+another: lexcode read 60,335 files and 2 script copies drawn from PHP views, in
+6 minutes 7 seconds and 3.7 GB on a shared machine (load average 6 to 8), and
+the check reports 0 FAIL. Before lexcode read PHP, a scan of the same commit
+took 4 minutes 4 seconds and 3.2 GB, and its notice named 52,544 of the same
+60,335 files as PHP it did not read (the check record does not count files by
+language).
+
+**Score: 6 of 15 found at evidence strength, one of them on the Composer
+manifest only (`aggregates_content`), 2 signal only, 7 missed. No evidence
+contradicts a row the reading marks absent, and the 2 unsure rows
+(`tracks_devices`, `relies_on_digital_identity`) drew nothing, so they are
+neither found nor missed.** Before lexcode read PHP it found none of the 15,
+showed 1 as a signal (`processes_voice`) and gave 1 false positive (an emoji
+table read as document-and-selfie verification, fixed in `5f2d303`). Of the 6
+found, 3 are on a line the reading cites (`records_calls`,
+`distributes_software_product`, and `automated_outreach` through its PHPMailer
+dependency), 1 on other code in a file the reading cites (`ships_encryption`),
+1 on the Composer manifest only (`aggregates_content`: SimplePie, the feed
+library behind the RSS block the reading cites) and 1 on other code
+(`processes_personal_data`). The 7 misses are Moodle's own idioms: the AI
+providers send a PSR-7 request through Moodle's HTTP client with the endpoint
+read from settings, messages and posts are written with `$DB->insert_record` to
+tables named in XML schema, training is handed to a separate Python package, and
+sign-up is a plain script behind an authentication plugin. Recall is printed,
+never gated. Paths below are under `public/` unless they start with
+`composer.json`, `README.md` or `.github/`.
+
+| Activity | The reading | lexcode | Verdict |
+|---|---|---|---|
+| `processes_personal_data` | include: `lib/db/install.xml:870`, `:884`, `:857` (the user table), `admin/tool/log/store/standard/db/install.xml:28`, `auth/email/auth.php:75` | found, performs, 3 matches; `lexcode.personal.php-third-party-person` at `lib/classes/output/user_picture.php:373` and `:375`, and at `enrol/lti/ims-blti/blti.php:190` (vendored) | Found, on other code: the Gravatar address built from the MD5 of a user's email. The schema files and the sign-up page the reading cites are not matched |
+| `ships_consumer_interface` | include: `auth/email/auth.php:75`, `login/signup.php`, `login/index.php:52` and `:146`, `index.php` | missed (nothing in the record) | Missed. The PHP sign-up rules name a Laravel route, a Livewire Volt page, a Symfony route attribute or Fortify's registration; Moodle's sign-up is a plain script behind an authentication plugin's `can_signup()` |
+| `automated_outreach` | include: `mod/assign/db/tasks.php:35`, `mod/forum/classes/task/send_user_digests.php:39`, `message/output/email/message_output_email.php:104`, `sms/gateway/aws/classes/local/service/aws_sns.php:62`, `composer.json:86` and `:88` | found, performs 2 and enables 1; `lexcode.outreach.php-send-in-loop` at `mod/assign/locallib.php:3128` (the assignment cron's loop over graded submissions) and `:7481` (the loop over graders when a student submits); `pkg:composer/phpmailer/phpmailer@v6.9.3` at `composer.json:86`; 7 signals, among them `lexcode.outreach.php-sms-call-push-send` at `sms/gateway/aws/classes/local/service/aws_sns.php:62` | Found. The PHPMailer row is the reading's `composer.json:86`, and the SNS signal is on the reading's own line. The send-in-loop matches are the assignment notifications the reading describes, in the cron rather than the task registration it cites |
+| `records_text_chat` | include: `lib/db/install.xml:649`, `:672`, `lib/classes/message/manager.php:67`, `lib/db/install.xml:4998` | missed (searched, not found) | Missed. A message is stored with `$DB->insert_record($table, $tabledata)` (`lib/messagelib.php:209`), the table name in a variable; the PHP rule reads a literal table named for chat or conversation messages. The schema is XML, which no rule reads |
+| `processes_voice` | include: `lib/editor/tiny/plugins/recordrtc/amd/src/base_recorder.js:215`, `:584`, `:1001`, `audio_recorder.js:30` | signal only, 1 match; `lexcode.voice.getusermedia-audio` at `lib/editor/tiny/plugins/recordrtc/amd/src/screen_recorder.js:114` | Signal only, unchanged from before PHP: a sibling file in the same recorder plugin. JavaScript evidence; no PHP rule bears on it |
+| `records_calls` | include: `mod/bigbluebuttonbn/classes/meeting.php:392`, `:394`, `classes/instance.php:860`, `classes/local/proxy/recording_proxy.php:178` | found, performs, 1 match; `lexcode.calls.php-bigbluebutton-record` at `mod/bigbluebuttonbn/classes/meeting.php:392` | Found, on the line the reading cites first (`$data['record'] = ...`) |
+| `crawls_web` | include: `blocks/rss_client/classes/task/refreshfeeds.php:122` and `:132`, `blog/lib.php:148`, `calendar/lib.php:2468`, `repository/url/lib.php:153` and `:170`, `composer.json:87` | signal only, 1 match; `lexcode.crawl.php-html-of-fetched-page` at `repository/url/lib.php:172` | Signal only, on the URL repository, which the reading calls the weakest of its four. The RSS task loops over the feed records but fetches each in a method of its own (`fetch_feed()`, through `moodle_simplepie`), which the loop rule does not follow into. The blog sync fetches through `moodle_simplepie` too (`blog/lib.php:152`, `set_feed_url()` at `:165`). The calendar cron loops over subscriptions (`lib/classes/task/calendar_cron_task.php:59`) and fetches two calls down, with Moodle's own `curl` class (`$curl->get($url)` at `calendar/lib.php:2476`), which no rule names |
+| `aggregates_content` | include: `blocks/rss_client/block_rss_client.php:183` and `:193`, `blog/lib.php:148`, `blog/external_blog_edit.php:76` | found, enables 1; `pkg:composer/simplepie/simplepie@1.9.0` at `composer.json:87`; 10 signals `lexcode.aggregate.php-feed-read` (6 in Moodle's own RSS block and blog code, 4 in vendored SimplePie) | Found by dependency: the feed library behind the RSS block the reading cites. The feed-read signals sit in that block (`blocks/rss_client/classes/task/refreshfeeds.php:131`) and in `blog/lib.php:165` |
+| `ships_encryption` | include: `lib/classes/authentication/password.php:153`, `lib/classes/encryption.php:184`, `mnet/lib.php:219`, `lib/classes/oauth2/setup.php:51`, `composer.json:57`, `:42`, `:82`, `:101` | found, performs 1 and enables 1; `lexcode.crypto.php-library-encryption` at `lib/classes/oauth2/setup.php:101` (`\Defuse\Crypto\Key::createNewRandomKey()`); `pkg:composer/phpseclib/phpseclib` at `lib/lti1p3/composer.json:27` (vendored, no version) | Found, in a file the reading cites, on the key for stored OAuth secrets rather than the RSA key pair at `:51`. `ext-openssl` and `ext-sodium` (`composer.json:42`, `:57`) are platform names, which the Composer reader does not record, and the component map gives `firebase/php-jwt` and `league/oauth2-server` no activity |
+| `distributes_software_product` | include: `composer.json:2`, `:5`, `:7`, `README.md:29` | found, performs, 44 matches; `lexcode.distribute.composer-package` at `composer.json:5`, and 43 in vendored libraries (38 `composer-package`, 3 `composer-bin`, 2 `php-phar-build`) | Found, on a line the reading cites (the package type). 43 of the 44 matches are vendored |
+| `operates_social_platform` | include: `mod/forum/db/install.xml:74`, `blog/locallib.php:566`, `lib/db/install.xml:768`, `:784`, `:1149`, `:2845` | missed (nothing in the record) | Missed. The PHP social rules read an Eloquent or Doctrine post, follow or message model, or a feed query keyed on followed accounts; Moodle's forums, blogs, comments and contacts are XML schema and `$DB` calls |
+| `generates_content` | include: `ai/placement/editor/classes/placement.php:33`, `ai/placement/courseassist/classes/placement.php:32`, `ai/provider/openai/classes/abstract_processor.php:118` | missed (searched, not found) | Missed. Each provider builds a PSR-7 request and sends it with `\core\di::get(http_client::class)->send($request, ['base_uri' => $this->get_endpoint()])`, the endpoint read from settings; the vendor's address is only a settings form's default. No SDK class, facade or literal endpoint sits at the call for a rule to name |
+| `generates_text` | include: `ai/classes/aiactions/generate_text.php:28`, `ai/provider/openai/classes/form/action_generate_text_form.php:45`, `ai/provider/anthropic/classes/abstract_processor.php:37`, `lib/db/install.xml:4995` | missed (searched, not found) | Missed, for the same reason as `generates_content` |
+| `generates_images` | include: `ai/classes/aiactions/generate_image.php`, `ai/provider/openai/classes/process_generate_image.php:32`, `ai/provider/gemini/classes/process_generate_image.php:57`, `lib/db/install.xml:4952` | missed (searched, not found) | Missed, for the same reason |
+| `trains_models` | include: `analytics/classes/model.php:690`, `lib/mlbackend/python/classes/processor.php:238` and `:480` | missed (searched, not found) | Missed. Training is handed to the separate `moodle-mlbackend-python` package, run with `exec()` or reached through Moodle's `curl` class (`lib/mlbackend/python/classes/processor.php:160`, `:182`); the PHP rules name Rubix ML, PHP-ML and hosted fine-tuning services |
+
+Unsure in the reading, and not scored: `tracks_devices` and
+`relies_on_digital_identity`. lexcode reported nothing for either.
+
+**Vendored code outside `vendor/` (known gap).** lexcode reads it as Moodle's
+own code in this phase. Moodle's 18 `thirdpartylibs.xml` files list 127 library
+locations; 49 of the check record's 73 evidence rows lie under one of them: 43
+of the 44 `distributes_software_product` matches, 1 of the 3
+`processes_personal_data` matches (`enrol/lti/ims-blti/blti.php:190`), the
+`ships_encryption` dependency row (`lib/lti1p3/composer.json:27`) and 4 of the
+10 `aggregates_content` signals (SimplePie). No found row rests on vendored
+evidence alone. Of the 109 Composer dependency rows (`lexcode deps` on the same
+commit), 60 come from vendored libraries' `composer.json` files; 64 carry no
+version, 60 of those vendored and 4 from the CI-only
+`.github/workflows/composed/composer.json`.
+
+**PHP the engine could not parse.** In a separate run with a rule that holds no
+fixed text, so that every file is parsed, the engine read 52,442 PHP files and
+both script copies (102 PHP files have a line over 100,000 characters and are
+not handed over) and partially parsed 17 PHP files (0.03 percent), with no error
+in a copy. The rest of each file is still matched. The causes: 13 a trailing
+comma in `unset(...)`, 1 a capitalized cast (`(String)`), 2 a list assignment
+that skips its first element (`[, $x] = ...`) and 1 a trailing comma in a
+grouped `use` (`use A\{B, C,};`). In the last 3, the fallback parser then also
+drops the file's `readonly` property declarations. Attributes (in 2,511 files),
+enums, `match`, first-class callables and `readonly` elsewhere (the word is in
+580 files) parse in every file handed over. The check run's own count (31 files
+the engine could not read) covers the files its rules opened, in every language.
+
+The check run's notices, as printed: 40 minified files skipped, 1 file over 5 MB
+skipped, 64 Composer dependencies recorded without a version, 124 files with a
+line over 100,000 characters skipped, and the engine could not read 31 files.
+The notice naming unread PHP files is gone.
+<!-- moodle:end -->
 
 ## Ruby, ERB views and gems
 
@@ -494,6 +582,139 @@ still read, because extraction finds the element before the comment is blanked.
 Thymeleaf templates are `.html` and already read; FreeMarker and Velocity
 templates are not read.
 
+## PHP, Blade, Twig and the Composer ecosystem
+
+How lexcode reads PHP and its views, where the engine cannot, and what a
+Composer manifest counts. Composer is one ecosystem, `composer`: a dependency is
+named `<vendor>/<package>`, its package URL is `pkg:composer/<vendor>/<package>@<version>`,
+its evidence rule id is `lexcode.manifest.composer`, and the component map is
+`components/composer.yml`.
+
+### Composer
+
+Every in-scope `composer.json` is read. Its direct dependencies are the keys of
+`require`. The keys of `require-dev` are skipped and counted. Platform names are
+neither recorded nor counted: `php`, `php-64bit`, `php-ipv6`, `php-zts`,
+`php-debug`, `hhvm`, `composer`, `composer-plugin-api`, `composer-runtime-api`,
+`ext-*` and `lib-*`. A `composer.json` under a `vendor-bin/` directory holds the
+development tools of `bamarni/composer-bin-plugin`, so its `require` is skipped
+and counted too.
+
+A dependency's version comes only from the `composer.lock` beside its
+`composer.json`: the `packages[]` entry of the same name (compared without
+regard to case), with `version` recorded as written, so `v7.1.0` stays `v7.1.0`.
+A constraint in `composer.json` is never a version. With no lock beside the
+file, or with a name the lock does not list, the row is recorded without a
+version, and the scan gives one notice for all of them, not one per dependency:
+`N Composer dependencies have no locked version (no composer.lock beside
+composer.json, or a name it does not list); recorded without a version`. A lock
+that does not parse gets a notice naming it, and its rows carry no version. The
+row's manifest line is the line of the package's key inside `"require"`.
+
+### PHP files
+
+The engine reads `.php`, `.phtml` and `.tpl` as PHP. Given as explicit targets,
+`.inc`, `.module`, `.theme` and `.install` files each scanned 0 files (measured
+2026-11-12). So those four are copied whole to `<path>.lexcode.php` in
+lexcode's temporary directory and scanned there; a finding in the copy is
+reported against the original path and line. A file is copied only when its text
+begins with `<?php`, after an optional byte order mark and white space, because
+`.inc` is also a C, Pascal and assembler extension.
+
+### PHP, Blade and Twig views
+
+A `.php` or `.phtml` file joins the `<script>` block extraction used for Vue,
+Svelte, HTML, Jinja, ERB and JSP, and the block is read as JavaScript. A block
+is looked for only in inline HTML: every PHP region (from `<?php`, `<?=` or
+`<?` to `?>`, or to the end of the file) is blanked before the search, so a
+`<script>` written inside a PHP string is not a block. Inside a block, an output
+tag becomes `_` padded with spaces to its length, so the JavaScript around it
+still parses: `<?= ... ?>`, and a `<?php` or `<?` tag whose code begins with
+`echo` or `print` (in any case). Every other PHP tag becomes spaces. Line breaks are kept, so line numbers hold. The scan of a PHP
+region honors quotes, heredocs and comments.
+
+A `.blade.php` view (matched before `.php`) is read that way first. Then, inside
+a block, `{{ ... }}`, `{!! ... !!}`, `@json(...)` and `@js(...)` become `_`
+padded, and `{{-- ... --}}` becomes spaces. Any other directive becomes spaces,
+together with its argument list when one follows: an `@` plus an identifier, not
+preceded by a word character or `@`. An `@php ... @endphp` span becomes spaces
+too. An `@` inside a word, such as an email address in a JavaScript string, is
+left alone.
+
+A `.twig` file (so `.html.twig`) is read the same way. Inside a block, `{{ ... }}`
+becomes `_` padded, and `{% ... %}` and `{# ... #}` become spaces, including the
+forms with a `-` for white-space control. Jinja files (`.jinja`, `.j2`, `.njk`)
+keep their earlier handling and do not get this blanking, because giving it to
+them would change a language that was already read. Mustache is not read: its
+sections are a convention of one app, and that app's JavaScript lives in plain
+`.js` files that lexcode already reads.
+
+A `.blade.php` view also parses as PHP without error, because its markup is
+inline HTML, so the PHP rules run over it harmlessly. Blade's `{{ }}` contents
+are not PHP to the engine.
+
+### The PHP gate
+
+The release test requires every evidence-class activity to have a rule whose
+`languages` include `php`. One exemption stands: `distributes_software_product`,
+whose PHP evidence lives in `composer.json`, is met by a `composer-` rule, as
+Java's is met by a build-file rule. Any other exemption must be argued and
+ruled before it is added.
+
+### What the PHP rules decide
+
+- A library class is matched by a twin: the fully qualified name, or the short
+  name inside a `use <FQN>;` import. An alias binds: after
+  `use Twilio\Rest\Client as TwilioClient;`, `new TwilioClient(...)` is found.
+  The engine does not resolve imports, so no rule relies on it to join the two
+  forms.
+- An app's own class of the same short name in another namespace is not matched
+  as the library's.
+- Model output sent back in a response is followed when it leaves as an array
+  value (`['reply' => $reply]`) or through `->with('reply', $reply)`.
+
+### Known PHP gaps
+
+- On Opengrep 1.33.1 a `use X;` pattern also matches `use X as Y;`. Every PHP
+  branch that matches a class, facade or trait by its short name carries a
+  `pattern-not-inside: use X as $A; ...` for it, so a file that imports the same
+  class both plainly and aliased loses its plain-name matches. A rule that uses
+  `use X;` only as a file-level signal that the library is present (it then
+  matches a method call on a variable) has no such guard and counts an aliased
+  import too, on purpose.
+- A grouped `use A\{B, C};` cannot be written as a pattern. In a target file it
+  is matched by a `use A\$C;` pattern, so only the patterns are affected.
+- Scanning a PHP region honors quotes, heredocs and comments. What remains is a
+  `?>` inside a `{$...}` interpolation: `"{$b["?>"]}"` ends the region early.
+- `compact('reply')` passed to a view or a response is not followed, because
+  taint cannot link a string to a variable. `['reply' => $reply]` and
+  `->with('reply', $reply)` are followed.
+- Laravel's `Http::` facade is matched by name, because Laravel aliases it
+  globally and routes files use it with no `use`. An app class named `Http`
+  with a static `get($url)` would also match, and that call is itself a fetch.
+- Mail to administrators sent from a loop, a scheduled job or a background job
+  is a known false-match class, as in Ruby and Java. Console commands are left
+  out of the background-job rule on purpose.
+- Vendored code outside `vendor/` is read as the app's own code, including those
+  libraries' `composer.json` files. An app can list such directories in a file
+  of its own (Moodle does, in `thirdpartylibs.xml`), but lexcode does not read
+  that list in this release.
+- A commented-out script in Blade (`{{-- --}}`) or Twig (`{# #}`) is extracted
+  as live, as in Jinja and ERB, and so is a `@verbatim` or `{% raw %}` span.
+- An Artisan command that extends an app's own base command class is not
+  excluded from the signature rule, because the engine cannot follow
+  inheritance.
+- Some PHP anchors lead with `->`, which cuts the whole-file reach (see the
+  next section) to roughly 700 to 950 KB in arrow-dense files, below the
+  1,000,000-byte notice.
+- PHP has no result-returned signal rule, as Python, JavaScript, Ruby, Java and
+  Kotlin have: a service class that calls a model and returns its output gives
+  no signal when the response is built in another file.
+- No rule reads a NativePHP Mobile app as `ships_mobile_app` (the PHP rule reads
+  a Google Play upload), or a PHAR built by Box from a `box.json` as
+  `distributes_software_product` (the PHAR rule reads code that builds one with
+  the `Phar` class).
+
 ## A known gap: a file over 1 MB
 
 Some rules first check the whole file for a name, with a `pattern-regex` of the
@@ -506,7 +727,7 @@ file. A lazy `.*?` counts from the start and misses a name used only at the end
 from about 1,000 KB, and an alternation tried at every step shortens the reach
 further. lexcode cannot lift the engine's limit, so a scan counts the files it
 hands the engine that are over 1,000,000 bytes and in a language with at least
-one such rule (in this rule set, Java, Kotlin and Ruby), and says so: `N files
+one such rule (in this rule set, Java, Kotlin, PHP and Ruby), and says so: `N files
 handed to the engine are over 1,000,000 bytes (Java); rules that first check a
 whole file for a name can miss matches in a file that large, so evidence in them
 may be missing from this record`. With files in more than one language, the

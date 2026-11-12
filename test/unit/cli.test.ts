@@ -156,6 +156,21 @@ describe('lexcode explain', () => {
       expect(JSON.parse(out.join('')).enables).toEqual([]);
     });
 
+    it('reads a Composer purl as <vendor>/<name>, matched case-insensitively', async () => {
+      const composer = makeRuleSet();
+      composer.components = [{ ecosystem: 'composer', match: 'twilio/sdk', enables: ['automated_outreach'], says: 'a', source: 'https://example.org' }];
+      const purl = 'pkg:composer/twilio/sdk@8.3.1';
+      expect(await runExplainCommand([purl, '--json'], io(), { rs: composer })).toBe(0);
+      expect(JSON.parse(out.join(''))).toEqual({ purl, enables: ['automated_outreach'] });
+      out.length = 0;
+      expect(await runExplainCommand(['pkg:composer/Twilio/SDK', '--json'], io(), { rs: composer })).toBe(0);
+      expect(JSON.parse(out.join('')).enables).toEqual(['automated_outreach']);
+      out.length = 0;
+      // The vendor alone is not the package.
+      expect(await runExplainCommand(['pkg:composer/twilio', '--json'], io(), { rs: composer })).toBe(0);
+      expect(JSON.parse(out.join('')).enables).toEqual([]);
+    });
+
     it('answers a Maven purl from the bundled map through main', async () => {
       vi.unstubAllEnvs(); // the bundled rules home, not the minimal one, holds the Maven map
       expect(await main(['explain', 'pkg:maven/com.twilio.sdk/twilio@10.1.0', '--json'], io())).toBe(0);

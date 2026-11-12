@@ -1,0 +1,32 @@
+rules:
+  - id: lexcode.personal.php-entity-field
+    languages: [php]
+    severity: INFO
+    message: Declares a stored field for an email, phone number, date of birth, government identifier or IP address on a Doctrine ORM entity, which is processing personal data (processes_personal_data).
+    # The engine does not parse a PHP attribute with arguments in a pattern, so the matcher is a
+    # regex: a Doctrine Column attribute or annotation, then (within the same declaration, before
+    # any other variable) the property's name, which is where the match starts (\K). The import
+    # guards keep an app's own Column attribute, or an ORM alias for another library, out. The
+    # engine's `use X;` also matches `use X as Y;`, so the short-name branch steps aside where
+    # Doctrine's Column is aliased and a bare Column may be the app's own.
+    pattern-either:
+      - patterns:
+          - pattern-regex: '(?:#\[ORM\\Column\b(?:\((?:[^()]|\([^()]*\))*\))?\]|@ORM\\Column\b(?:\([^()]*\))?)[^;{}$]*+\$\K(?i:e_?mail|email_?(?:address|addr)?|(?:user|contact|work|primary|customer|billing)_?e_?mail|phone(?:_?(?:number|no|num))?|mobile(?:_?(?:number|phone|no))?|telephone|date_?of_?birth|dob|birth_?(?:date|day)|birthday|ssn|social_?security(?:_?(?:number|no))?|national_?(?:id|insurance)(?:_?number)?|passport(?:_?(?:number|no))?|tax_?(?:id|number)|drivers?_?licen[sc]e(?:_?(?:number|no))?|ip_?(?:address|addr)?|last_?(?:login_?)?ip(?:_?address)?|client_?ip|remote_?(?:addr|ip|address))\b'
+          - pattern-inside: |
+              use Doctrine\ORM\Mapping as ORM;
+              ...
+      - patterns:
+          - pattern-regex: '#\[Column\b(?:\((?:[^()]|\([^()]*\))*\))?\][^;{}$]*+\$\K(?i:e_?mail|email_?(?:address|addr)?|(?:user|contact|work|primary|customer|billing)_?e_?mail|phone(?:_?(?:number|no|num))?|mobile(?:_?(?:number|phone|no))?|telephone|date_?of_?birth|dob|birth_?(?:date|day)|birthday|ssn|social_?security(?:_?(?:number|no))?|national_?(?:id|insurance)(?:_?number)?|passport(?:_?(?:number|no))?|tax_?(?:id|number)|drivers?_?licen[sc]e(?:_?(?:number|no))?|ip_?(?:address|addr)?|last_?(?:login_?)?ip(?:_?address)?|client_?ip|remote_?(?:addr|ip|address))\b'
+          - pattern-inside: |
+              use Doctrine\ORM\Mapping\Column;
+              ...
+          - pattern-not-inside: |
+              use Doctrine\ORM\Mapping\Column as $AL;
+              ...
+      - pattern-regex: '#\[\\Doctrine\\ORM\\Mapping\\Column\b(?:\((?:[^()]|\([^()]*\))*\))?\][^;{}$]*+\$\K(?i:e_?mail|email_?(?:address|addr)?|(?:user|contact|work|primary|customer|billing)_?e_?mail|phone(?:_?(?:number|no|num))?|mobile(?:_?(?:number|phone|no))?|telephone|date_?of_?birth|dob|birth_?(?:date|day)|birthday|ssn|social_?security(?:_?(?:number|no))?|national_?(?:id|insurance)(?:_?number)?|passport(?:_?(?:number|no))?|tax_?(?:id|number)|drivers?_?licen[sc]e(?:_?(?:number|no))?|ip_?(?:address|addr)?|last_?(?:login_?)?ip(?:_?address)?|client_?ip|remote_?(?:addr|ip|address))\b'
+    metadata:
+      activity: processes_personal_data
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-personal-data
+      provenance: ungovr-original
+      license: MIT

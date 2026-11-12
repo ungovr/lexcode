@@ -37,6 +37,32 @@ describe('LEXCODE_RULES_HOME', () => {
     expect(bundledRulesDir()).toBe(resolve('test/repos/rules-home'));
   });
 
+  it('takes a composer component map, and still refuses an ecosystem it does not know', () => {
+    const copy = (f: string): string => readFileSync(resolve(RULES_HOME, f), 'utf8');
+    const base = { 'classes.yml': copy('classes.yml'), 'registry.snapshot.json': copy('registry.snapshot.json'), 'ruleset.yml': copy('ruleset.yml') };
+    const composer = [
+      'ecosystem: composer',
+      'entries:',
+      '  - match: "twilio/sdk"',
+      '    enables: [automated_outreach]',
+      '    says: "A Twilio PHP library for communicating with the Twilio REST API and generating TwiML."',
+      '    source: https://packagist.org/packages/twilio/sdk',
+      '',
+    ].join('\n');
+    vi.stubEnv('LEXCODE_RULES_HOME', tree({ ...base, 'components/composer.yml': composer }));
+    expect(loadRuleSet().components).toEqual([
+      {
+        ecosystem: 'composer',
+        match: 'twilio/sdk',
+        enables: ['automated_outreach'],
+        says: 'A Twilio PHP library for communicating with the Twilio REST API and generating TwiML.',
+        source: 'https://packagist.org/packages/twilio/sdk',
+      },
+    ]);
+    vi.stubEnv('LEXCODE_RULES_HOME', tree({ ...base, 'components/cargo.yml': composer.replace('ecosystem: composer', 'ecosystem: cargo') }));
+    expect(() => loadRuleSet()).toThrow(/ecosystem must be one of npm, pypi, golang, gem, maven, composer, files/);
+  });
+
   it('is an error that names the missing file when the directory is not a rules home', () => {
     vi.stubEnv('LEXCODE_RULES_HOME', tree({ 'readme.txt': 'nothing here' }));
     expect(() => loadRuleSet()).toThrow(/ruleset\.yml/);

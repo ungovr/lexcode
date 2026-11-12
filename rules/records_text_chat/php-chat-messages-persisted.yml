@@ -1,0 +1,56 @@
+rules:
+  - id: lexcode.chat.php-chat-messages-persisted
+    languages: [php]
+    severity: INFO
+    message: Writes the text of a chat to a chat message, conversation or transcript record or table, which is keeping a text chat (records_text_chat).
+    # A form the app only saves is not a chat, so the record is named for a chat, as in the Java rule:
+    # an Eloquent model or Doctrine entity named for a chat message (ChatMessage, ConversationTurn,
+    # ChatTranscript), or a table named for one (chat_messages, conversation_turns) written with any
+    # insert call. A conversation's messages relation counts when the record holds what a person typed:
+    # the request, $_POST, validated input, or a Livewire component's message property. A contact,
+    # feedback or ticket record, a chat ROOM that holds no text, and a bare Message or Conversation
+    # model written outside a chat do not match.
+    patterns:
+      - pattern-either:
+          - patterns:
+              - pattern-either:
+                  - pattern: $K::create(...)
+                  - pattern: $K::forceCreate(...)
+                  - pattern: $K::insert(...)
+                  - pattern: $K::query()->create(...)
+                  - pattern: $EM->persist(new $K(...))
+              - metavariable-regex:
+                  metavariable: $K
+                  regex: ^\\?(\w+\\)*(Chat(Message|Msg|History|Log|Turn|Entry|Transcript)|Conversation(Message|Turn|Entry|Transcript)|Dialog(Message|Turn)|LiveChatMessage)s?$
+          - patterns:
+              - pattern-either:
+                  - pattern: $CHAT->messages()->create($...ARGS)
+                  - pattern: $CHAT->messages()->createMany($...ARGS)
+                  - pattern: $CHAT->messages()->save($...ARGS)
+              - metavariable-regex:
+                  metavariable: $CHAT
+                  regex: (?i)^.*(chat|conversation|room|thread|channel|transcript|dialog|inbox).*$
+              - metavariable-regex:
+                  metavariable: $...ARGS
+                  regex: (?is)^.*(\$request\b|\brequest\(|\$_POST|\$_REQUEST|\$validated\b|\$this->\w*(message|body|text|input|content|prompt)\w*\b).*$
+          - patterns:
+              - pattern-either:
+                  - pattern: $Q->$I($T, ...)
+                  - pattern: $DB::table($T)->$I(...)
+                  - pattern: $DB->table($T)->$I(...)
+              - metavariable-regex:
+                  metavariable: $I
+                  regex: ^insert\w*$
+              - metavariable-regex:
+                  metavariable: $T
+                  regex: ^["'](\w+_)?(chat_?(messages?|msgs?|history|logs?|turns?|entries|transcripts?)|conversation_?(messages?|turns?|entries|transcripts?)|dialog_?(messages?|turns?))["']$
+      # Literal anchor inside the match (the write), so the engine skips files with no such call. One
+      # token per shape: two alternatives that both match inside one call report the call twice, so the
+      # query builder's table() is not an alternative beside its insert.
+      - pattern-regex: (?i)(::\s*(create|forceCreate|insert|query)\s*\(|->\s*persist\s*\(|->\s*messages\s*\(\s*\)\s*->\s*(create|createMany|save)\s*\(|->\s*insert\w*\s*\()
+    metadata:
+      activity: records_text_chat
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-text-chat
+      provenance: ungovr-original
+      license: MIT

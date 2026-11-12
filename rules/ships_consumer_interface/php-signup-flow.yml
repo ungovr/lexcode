@@ -1,0 +1,87 @@
+# Each library class is matched by a twin (Decision 9): imported by name, aliased, or fully
+# qualified. The engine reads `use X;` as also matching `use X as Y;`, so each imported-by-name arm
+# refuses an aliased import of the same class, where the short name is some other class. The staff
+# words repeat across the two exclusions at the end; edit both together.
+rules:
+  - id: lexcode.consumer.php-signup-flow
+    languages: [php]
+    severity: INFO
+    message: Registers a new account from a public sign-up flow (Laravel's Registered event, a Fortify CreatesNewUsers action, or Fortify's registration feature turned on), a screen that members of the public use to reach a service (ships_consumer_interface).
+    patterns:
+      - pattern-either:
+          # Laravel's Registered event, which the sign-up flow fires for the new account.
+          - patterns:
+              - pattern-inside: |
+                  use Illuminate\Auth\Events\Registered;
+                  ...
+              - pattern-not-inside: |
+                  use Illuminate\Auth\Events\Registered as $B;
+                  ...
+              - pattern-either:
+                  - pattern: new Registered(...)
+                  - pattern: Registered::dispatch(...)
+          - patterns:
+              - pattern-inside: |
+                  use Illuminate\Auth\Events\Registered as $A;
+                  ...
+              - pattern-either:
+                  - pattern: new $A(...)
+                  - pattern: $A::dispatch(...)
+          - pattern: new \Illuminate\Auth\Events\Registered(...)
+          - pattern: \Illuminate\Auth\Events\Registered::dispatch(...)
+          # Laravel Fortify's action that creates the account a visitor registers.
+          - patterns:
+              - pattern-inside: |
+                  use Laravel\Fortify\Contracts\CreatesNewUsers;
+                  ...
+              - pattern-not-inside: |
+                  use Laravel\Fortify\Contracts\CreatesNewUsers as $B;
+                  ...
+              - pattern: class $C implements CreatesNewUsers { ... }
+          - patterns:
+              - pattern-inside: |
+                  use Laravel\Fortify\Contracts\CreatesNewUsers as $A;
+                  ...
+              - pattern: class $C implements $A { ... }
+          - pattern: class $C implements \Laravel\Fortify\Contracts\CreatesNewUsers { ... }
+          # Fortify's registration feature, listed in config/fortify.php when sign-up is on.
+          - patterns:
+              - pattern-inside: |
+                  use Laravel\Fortify\Features;
+                  ...
+              - pattern-not-inside: |
+                  use Laravel\Fortify\Features as $B;
+                  ...
+              - pattern: Features::registration(...)
+          - patterns:
+              - pattern-inside: |
+                  use Laravel\Fortify\Features as $A;
+                  ...
+              - pattern: $A::registration(...)
+          - pattern: \Laravel\Fortify\Features::registration(...)
+      # Staff create accounts for others in an admin, staff or internal namespace or class, and in
+      # a console command, a seeder or a factory.
+      - pattern-not-inside:
+          patterns:
+            - pattern: |
+                namespace $NS;
+                ...
+            - metavariable-regex:
+                metavariable: $NS
+                regex: '(?i)^.*\\(admin|staff|internal|backoffice)(\\.*)?$'
+      - pattern-not-inside:
+          patterns:
+            - pattern-either:
+                - pattern: class $K { ... }
+                - pattern: class $K extends $PARENT { ... }
+                - pattern: class $K implements $IFACE { ... }
+            - metavariable-regex:
+                metavariable: $K
+                regex: '(?i)^(.*(admin|staff|internal|backoffice).*|.*(Command|Seeder|Factory))$'
+    metadata:
+      activity: ships_consumer_interface
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/ships-consumer-interface
+      provenance: ungovr-original
+      license: MIT
