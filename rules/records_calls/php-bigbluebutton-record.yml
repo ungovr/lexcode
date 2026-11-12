@@ -1,0 +1,35 @@
+rules:
+  - id: lexcode.calls.php-bigbluebutton-record
+    languages: [php]
+    severity: INFO
+    message: Creates a BigBlueButton web conference with recording turned on, which is recording a call (records_calls).
+    patterns:
+      - pattern-either:
+          # bigbluebutton/bigbluebutton-api-php and its littleredbutton fork: setRecord on the
+          # create parameters. The class's import, or its full name anywhere in the file, keeps
+          # an app's own CreateMeetingParameters in another namespace out. The engine's `use X;`
+          # also matches an aliased import.
+          - patterns:
+              - pattern: $P->setRecord($V)
+              - pattern-either:
+                  - pattern-inside: |
+                      use BigBlueButton\Parameters\CreateMeetingParameters;
+                      ...
+                  - pattern-regex: (?s)\A(?=.*(?<![\w\\])\\BigBlueButton\\Parameters\\CreateMeetingParameters\b).*
+          # The HTTP API's create call built by hand: a record parameter, in a file that names the
+          # API's meetingID parameter. The file conjunct also lets the engine skip other files.
+          - patterns:
+              - pattern-regex: (?s)\A(?=.*\bmeetingID\b).*
+              - pattern-either:
+                  - pattern: "$D['record'] = $V"
+                  - pattern: "[..., 'record' => $V, ...]"
+      - metavariable-regex:
+          metavariable: $V
+          # PHP's false and null are case-insensitive.
+          regex: (?i)^(?!\s*(false|null|0|['"](false|0)?['"])\s*$)
+    metadata:
+      activity: records_calls
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-calls
+      provenance: ungovr-original
+      license: MIT

@@ -1,0 +1,15 @@
+rules:
+  - id: lexcode.voice.php-transcription-http
+    languages: [php]
+    severity: INFO
+    message: Posts recorded speech to a speech-to-text endpoint over HTTP from PHP, which is transcribing human voices (processes_voice).
+    # The endpoint in a string literal, whichever client sends it (Laravel's Http, Guzzle, Symfony
+    # HttpClient, curl). Text-to-speech endpoints are not in the list.
+    pattern-regex: |-
+      ["'][^"'\n]*\b(api\.deepgram\.com/v1/listen|api\.assemblyai\.com/v2/(transcript|upload)|api\.openai\.com/v1/audio/(transcriptions|translations)|api\.elevenlabs\.io/v1/speech-to-text|speech\.googleapis\.com/v1[a-z0-9]*/speech:(recognize|longrunningrecognize))
+    metadata:
+      activity: processes_voice
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-voice
+      provenance: ungovr-original
+      license: MIT

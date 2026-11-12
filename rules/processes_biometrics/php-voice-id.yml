@@ -1,0 +1,30 @@
+rules:
+  - id: lexcode.biometric.php-voice-id
+    languages: [php]
+    severity: INFO
+    message: Enrolls or matches a speaker with Amazon Connect Voice ID, which is processing a voiceprint (processes_biometrics).
+    patterns:
+      # aws/aws-sdk-php's magic methods for Voice ID enrollment and scoring, and their Async forms.
+      - pattern-either:
+          - pattern: $C->startSpeakerEnrollmentJob(...)
+          - pattern: $C->startSpeakerEnrollmentJobAsync(...)
+          - pattern: $C->startFraudsterRegistrationJob(...)
+          - pattern: $C->startFraudsterRegistrationJobAsync(...)
+          - pattern: $C->evaluateSession(...)
+          - pattern: $C->evaluateSessionAsync(...)
+      # Voice ID's DomainId request key keeps a local method of the same name out, wherever the
+      # client came from. So does the client's import (the engine's `use X;` also matches an
+      # aliased import), or its full name in the file, which an app's own VoiceIDClient in
+      # another namespace does not have.
+      - pattern-either:
+          - pattern: "$X->$M([..., 'DomainId' => $V, ...])"
+          - pattern-inside: |
+              use Aws\VoiceID\VoiceIDClient;
+              ...
+          - pattern-regex: (?s)\A(?=.*(?<![\w\\])\\Aws\\VoiceID\\VoiceIDClient\b).*
+    metadata:
+      activity: processes_biometrics
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-biometrics
+      provenance: ungovr-original
+      license: MIT
