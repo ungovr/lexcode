@@ -21,6 +21,18 @@ rules:
       include:
         - "composer.json"
         - "composer-package.*"
+      # A WordPress site that commits the plugins and themes it runs holds them here (Bedrock's
+      # layout under web/app); they are installed, not shipped. The fixture runner reads only the
+      # files beside this rule, so no fixture can sit under these paths; the exclusion was checked
+      # by a scan of a wordpress-plugin manifest under wp-content/plugins and a wordpress-theme
+      # manifest under web/app/themes (0 matches), recorded in the #12987 P7 report.
+      exclude:
+        - "**/wp-content/plugins/**"
+        - "**/wp-content/mu-plugins/**"
+        - "**/wp-content/themes/**"
+        - "**/web/app/plugins/**"
+        - "**/web/app/mu-plugins/**"
+        - "**/web/app/themes/**"
     metadata:
       activity: distributes_software_product
       mentioned: performs

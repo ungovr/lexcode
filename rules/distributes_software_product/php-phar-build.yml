@@ -33,7 +33,9 @@ rules:
               ...
           - pattern-regex: '(?s)\A(?=.*\buse\s+\\?Phar\s+as\s).*'
       # A file with no namespace, where Phar needs no import. In a namespaced file an
-      # unqualified Phar is the class of the file's own namespace.
+      # unqualified Phar is the class of the file's own namespace, and in any file an import
+      # (`use App\X\Phar;`) rebinds the name. The one-segment `use Phar;` pattern matches such an
+      # import too; a real `use Phar;` is already read by the second branch.
       - patterns:
           - pattern-either: *build
           - pattern-inside: |
@@ -41,6 +43,9 @@ rules:
               ...
           - pattern-not-inside: |
               namespace $N;
+              ...
+          - pattern-not-inside: |
+              use Phar;
               ...
     metadata:
       activity: distributes_software_product

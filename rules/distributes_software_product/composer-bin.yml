@@ -19,6 +19,14 @@ rules:
       include:
         - "composer.json"
         - "composer-bin.*"
+      # A WordPress site's installed plugins and themes, as in composer-package.yml.
+      exclude:
+        - "**/wp-content/plugins/**"
+        - "**/wp-content/mu-plugins/**"
+        - "**/wp-content/themes/**"
+        - "**/web/app/plugins/**"
+        - "**/web/app/mu-plugins/**"
+        - "**/web/app/themes/**"
     metadata:
       activity: distributes_software_product
       mentioned: performs
