@@ -1,0 +1,69 @@
+rules:
+  - id: lexcode.personal.cs-validated-email
+    languages: [csharp]
+    severity: INFO
+    message: Validates an email address or phone number a person supplies in a form, request or stored object (the data-annotations EmailAddress or Phone attribute, or a FluentValidation EmailAddress rule), which is processing personal data (processes_personal_data).
+    pattern-either:
+      # Data annotations on a member or a record's parameter. The engine resolves `using` and
+      # aliases for a fully qualified attribute, so the app's own attribute of the same short name
+      # in another namespace is not read as the library's. (The engine parses a member with its
+      # attributes only inside a class.)
+      - patterns:
+          - pattern-either:
+              - pattern: |
+                  class $C {
+                    ...
+                    [System.ComponentModel.DataAnnotations.EmailAddress(...)]
+                    $T $P { get; set; }
+                    ...
+                  }
+              - pattern: |
+                  class $C {
+                    ...
+                    [System.ComponentModel.DataAnnotations.EmailAddress(...)]
+                    $T $P { get; set; } = $X;
+                    ...
+                  }
+              - pattern: |
+                  class $C {
+                    ...
+                    [System.ComponentModel.DataAnnotations.EmailAddress(...)]
+                    $T $P { get; init; }
+                    ...
+                  }
+              - pattern: |
+                  class $C {
+                    ...
+                    [System.ComponentModel.DataAnnotations.Phone(...)]
+                    $T $P { get; set; }
+                    ...
+                  }
+              - pattern: |
+                  class $C {
+                    ...
+                    [System.ComponentModel.DataAnnotations.Phone(...)]
+                    $T $P { get; set; } = $X;
+                    ...
+                  }
+              - pattern: |
+                  class $C {
+                    ...
+                    [System.ComponentModel.DataAnnotations.Phone(...)]
+                    $T $P { get; init; }
+                    ...
+                  }
+              - pattern: record $R(..., [System.ComponentModel.DataAnnotations.EmailAddress(...)] $T $P, ...);
+              - pattern: record $R(..., [System.ComponentModel.DataAnnotations.Phone(...)] $T $P, ...);
+          - focus-metavariable: $P
+      # FluentValidation: an EmailAddress rule chained on a RuleFor.
+      - patterns:
+          - pattern: $X.EmailAddress(...)
+          - metavariable-pattern:
+              metavariable: $X
+              pattern: RuleFor(...)
+    metadata:
+      activity: processes_personal_data
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-personal-data
+      provenance: ungovr-original
+      license: MIT

@@ -1,0 +1,75 @@
+rules:
+  - id: lexcode.tracking.cs-analytics-calls
+    languages: [csharp]
+    severity: INFO
+    message: Sends visits or events to a third-party analytics service that follows the visitor or device with its own id (Application Insights given a user or device id, Segment, Mixpanel, PostHog, Firebase Analytics or the Google Analytics Measurement Protocol), which is tracking devices (tracks_devices).
+    pattern-either:
+      # Application Insights: a user or device id set on the telemetry context (a telemetry
+      # initializer, or a client's own context). Telemetry with no such id is not following one
+      # visitor. The context chain carries no type, so the file must name Application Insights.
+      - patterns:
+          - pattern-regex: '(?s)\A(?=.*\bApplicationInsights\b).*'
+          - pattern-either:
+              - pattern: $X.Context.User.Id = $V
+              - pattern: $X.Context.User.AuthenticatedUserId = $V
+              - pattern: $X.Context.User.AccountId = $V
+              - pattern: $X.Context.Device.Id = $V
+      # Segment: Analytics.NET (the static Analytics in namespace Segment) and Analytics-CSharp
+      # (Segment.Analytics.Analytics). The short name Analytics carries no vendor name, so these
+      # are written fully qualified: the engine resolves `using` and aliases, and the app's own
+      # Analytics class is not read as Segment's.
+      - pattern: Segment.Analytics.Initialize(...)
+      - patterns:
+          - pattern: Segment.Analytics.Client.$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(Track|Identify|Page|Screen|Group|Alias)$
+      - pattern: new Segment.Analytics.Analytics(...)
+      - patterns:
+          - pattern: (Segment.Analytics.Analytics $A).$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(Track|Identify|Page|Screen|Group|Alias)$
+      # Mixpanel (mixpanel-csharp): the client constructed, and its tracking calls. The short name
+      # MixpanelClient carries the vendor's name, so it is matched beside the fully qualified one
+      # (a file reached through a global using elsewhere still matches).
+      - pattern: new Mixpanel.MixpanelClient(...)
+      - pattern: Mixpanel.MixpanelClient $C = new(...);
+      - pattern: new MixpanelClient(...)
+      - pattern: MixpanelClient $C = new(...);
+      - patterns:
+          - pattern-either:
+              - pattern: (Mixpanel.IMixpanelClient $C).$M(...)
+              - pattern: (Mixpanel.MixpanelClient $C).$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(Track|TrackAsync|Alias|AliasAsync|PeopleSet|PeopleSetAsync|PeopleSetOnce|PeopleSetOnceAsync)$
+      # PostHog (.NET SDK): the client constructed or registered, and its capture and identify
+      # calls. PostHogClient and AddPostHog carry the vendor's name.
+      - pattern: new PostHog.PostHogClient(...)
+      - pattern: new PostHogClient(...)
+      - pattern: $B.AddPostHog(...)
+      - patterns:
+          - pattern: (PostHog.IPostHogClient $C).$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(Capture|CaptureEvent|Identify|IdentifyAsync|Alias|AliasAsync|GroupIdentify|GroupIdentifyAsync)$
+      # Firebase Analytics on .NET MAUI (Plugin.Firebase). CrossFirebaseAnalytics carries the
+      # vendor's name.
+      - patterns:
+          - pattern-either:
+              - pattern: Plugin.Firebase.Analytics.CrossFirebaseAnalytics.Current.$M(...)
+              - pattern: CrossFirebaseAnalytics.Current.$M(...)
+              - pattern: (Plugin.Firebase.Analytics.IFirebaseAnalytics $A).$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(LogEvent|SetUserId|SetUserProperty)$
+      # Google Analytics Measurement Protocol: a hit sent to the collect endpoint, matched on the
+      # string's text.
+      - pattern-regex: '"(?:https?:)?(?://)?(?:www\.|ssl\.|region1\.)?google-analytics\.com/(?:mp/|g/|debug/mp/)?collect\b'
+    metadata:
+      activity: tracks_devices
+      mentioned: performs
+      definition: https://lexlint.io/activities/tracks-devices
+      provenance: ungovr-original
+      license: MIT

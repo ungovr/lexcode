@@ -1,0 +1,31 @@
+rules:
+  - id: lexcode.tracking.cs-tracking-cookie
+    languages: [csharp]
+    severity: INFO
+    message: Writes a cookie whose name marks it as an analytics, advertising or visitor-identifier cookie, which is tracking devices (tracks_devices).
+    patterns:
+      - pattern-either:
+          # ASP.NET Core: a cookie appended to the response (HttpResponse.Cookies).
+          - pattern: $R.Cookies.Append($N, $V, ...)
+          # System.Net and ASP.NET (System.Web) cookies, constructed or target-typed. Neither
+          # namespace is imported implicitly, so these are written fully qualified: the engine
+          # resolves `using` and aliases, and the app's own Cookie class is not read as theirs.
+          - pattern: new System.Net.Cookie($N, $V, ...)
+          - pattern: System.Net.Cookie $C = new($N, $V, ...);
+          - pattern: new System.Web.HttpCookie($N, $V, ...)
+          - pattern: System.Web.HttpCookie $C = new($N, $V, ...);
+      - metavariable-regex:
+          metavariable: $N
+          regex: (?i)^@?"(_ga(_.*)?|_gid|_gat(_.*)?|_gcl_.*|_fbp|_fbc|_hjid|_hjSessionUser.*|ajs_(anonymous|user)_id|mp_.*_mixpanel|ph_.*_posthog|amplitude_id.*|_uetvid|_uetsid|_clck|_clsk|__utm.|ai_user|ai_session|(visitor|tracking|anonymous|device|browser)_?(id|token|uuid)|fingerprint)"$
+      # A cookie written with an empty or null value is being removed (the standard way to
+      # withdraw a tracking cookie on a consent change), not set.
+      - metavariable-regex:
+          metavariable: $V
+          regex: ^(?!(?:""|@""|null|string\.Empty|String\.Empty)$)
+      - focus-metavariable: $N
+    metadata:
+      activity: tracks_devices
+      mentioned: performs
+      definition: https://lexlint.io/activities/tracks-devices
+      provenance: ungovr-original
+      license: MIT

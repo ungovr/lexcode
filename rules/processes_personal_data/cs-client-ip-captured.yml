@@ -1,0 +1,94 @@
+rules:
+  - id: lexcode.personal.cs-client-ip-captured
+    languages: [csharp]
+    severity: INFO
+    message: Writes the visitor's IP address into a log, a logging scope or a database row, which is processing personal data (processes_personal_data).
+    mode: taint
+    pattern-sources:
+      - patterns:
+          # A whole-file pre-filter lets the engine skip a file that cannot match: every source
+          # below holds one of these words.
+          - pattern-either:
+              - pattern-regex: '(?is)\A(?=.*RemoteIpAddress).*'
+              - pattern-regex: '(?is)\A(?=.*forwarded).*'
+              - pattern-regex: '(?is)\A(?=.*real-ip).*'
+              - pattern-regex: '(?is)\A(?=.*connecting-ip).*'
+              - pattern-regex: '(?is)\A(?=.*client-ip).*'
+              - pattern-regex: '(?is)\A(?=.*UserHostAddress).*'
+              - pattern-regex: '(?is)\A(?=.*REMOTE_ADDR).*'
+          - pattern-either:
+              # ASP.NET Core: the connection's remote address (HttpContext.Connection, or the
+              # connection feature).
+              - pattern: $X.RemoteIpAddress
+              # A forwarded-address header set by a proxy.
+              - patterns:
+                  - pattern: $R.Headers[$H]
+                  - metavariable-regex:
+                      metavariable: $H
+                      regex: (?i)^@?"(x-forwarded-for|x-real-ip|forwarded|cf-connecting-ip|true-client-ip|x-client-ip)"$
+              # ASP.NET (System.Web): the request's host address and server variables.
+              - pattern: $R.UserHostAddress
+              - patterns:
+                  - pattern: $R.ServerVariables[$H]
+                  - metavariable-regex:
+                      metavariable: $H
+                      regex: (?i)^@?"(remote_addr|http_x_forwarded_for)"$
+    # The address is not what is kept when it only feeds a membership test or a check whose
+    # answer is logged (an allow list, a loopback test, a verification call).
+    pattern-sanitizers:
+      - pattern: $X.Contains(...)
+      - pattern: $X.Equals(...)
+      - patterns:
+          - pattern-either:
+              - pattern: $F(...)
+              - pattern: $C.$F(...)
+          - metavariable-regex:
+              metavariable: $F
+              regex: ^(Check|Verify|Validate|Is|Has|Can|Allow|Matches)([A-Z]\w*)?$
+    options:
+      taint_assume_safe_comparisons: true
+      taint_assume_safe_booleans: true
+    pattern-sinks:
+      # A log line or logging scope: the Microsoft.Extensions.Logging extension methods (on any
+      # ILogger, whose type an injected logger rarely carries in a form the engine resolves), and
+      # Serilog's static logger, fully qualified (an app's own Log class is not Serilog's).
+      - patterns:
+          - pattern: $L.$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(LogTrace|LogDebug|LogInformation|LogWarning|LogError|LogCritical|BeginScope)$
+      - patterns:
+          - pattern: Serilog.Log.$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(Verbose|Debug|Information|Warning|Error|Fatal|Write)$
+      # A database row: an address-named property set on an object, or in an object initializer,
+      # in a block that then writes (EF Core, the MongoDB driver, Dapper).
+      - patterns:
+          - pattern-either:
+              - pattern: $O.$F = $V
+              - pattern: 'new $T { ..., $F = $V, ... }'
+          - pattern-either:
+              - pattern-inside: |
+                  $O.$F = $V;
+                  ...
+                  $DB.$SAVE(...);
+              - pattern-inside: |
+                  $DB0.$ADD(new $T { ..., $F = $V, ... });
+                  ...
+                  $DB.$SAVE(...);
+              - pattern-inside: |
+                  $DB.$SAVE(new $T { ..., $F = $V, ... }, ...);
+          - metavariable-regex:
+              metavariable: $SAVE
+              regex: ^(SaveChanges|SaveChangesAsync|InsertOne|InsertOneAsync|ReplaceOne|ReplaceOneAsync|Execute|ExecuteAsync|Insert|InsertAsync)$
+          - metavariable-regex:
+              metavariable: $F
+              regex: ^(Ip|IP|IpAddress|IPAddress|IpAddr|ClientIp|ClientIP|ClientIpAddress|RemoteIp|RemoteIP|RemoteAddress|RemoteIpAddress|LastIp|LastIpAddress|LastLoginIp|LastLoginIpAddress|UserIp|UserIpAddress|ForwardedFor)$
+          - focus-metavariable: $V
+    metadata:
+      activity: processes_personal_data
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-personal-data
+      provenance: ungovr-original
+      license: MIT
