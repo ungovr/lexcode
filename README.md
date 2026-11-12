@@ -63,22 +63,27 @@ lint reads it.
 
 Languages: TypeScript, JavaScript (with JSX and TSX), Python, Go, Ruby
 (`.rb`, `.rake`, `.ru` and `.gemspec` files, and a `Rakefile`, `Fastfile`,
-`Appfile` or `Capfile`), Java (`.java`) and Kotlin (`.kt`, `.kts`), plus the
-`<script>` blocks of Vue, Svelte, HTML, Jinja, ERB (`.erb`, so `.html.erb`) and
-JSP (`.jsp`, `.jspf`, `.tag`) files. In an ERB or JSP view only the `<script>`
-blocks are read, as JavaScript; the Ruby or Java inside the template tags is not
-(the tags are blanked, so line numbers hold). Code in any other language (PHP,
-Swift, C#, Rust and the like) is not read, and the scan names each such
-language with its file count in a notice, so a missing activity there reads as
-"not checked", never as "not there". Manifests: npm
+`Appfile` or `Capfile`), Java (`.java`), Kotlin (`.kt`, `.kts`) and PHP (`.php`,
+`.phtml`, and `.inc`, `.module`, `.theme` and `.install` files that open with
+`<?php`), plus the `<script>` blocks of Vue, Svelte, HTML, Jinja, ERB (`.erb`,
+so `.html.erb`), JSP (`.jsp`, `.jspf`, `.tag`), PHP (`.php`, `.phtml`), Blade
+(`.blade.php`) and Twig (`.twig`, so `.html.twig`) files. In an ERB, JSP or Twig
+view only the `<script>` blocks are read, as JavaScript; the Ruby, Java or
+template code inside the tags is not (the tags are blanked, so line numbers
+hold). A PHP, Blade or `.phtml` view is PHP source, so the whole file is also
+scanned as PHP, and its `<script>` blocks are read as JavaScript as well. Code in any other language (Swift, C#, Rust and the like) is not
+read, and the scan names each such language with its file count in a notice, so
+a missing activity there reads as "not checked", never as "not there".
+Manifests: npm
 (`package.json` with `package-lock.json`, `pnpm-lock.yaml` or `yarn.lock`),
 PyPI (`pyproject.toml`, `requirements*.txt`, `uv.lock`, `poetry.lock`), Go
 (`go.mod`), RubyGems (`Gemfile` or `gems.rb`, with `Gemfile.lock` or
-`gems.locked`, and `*.gemspec`) and Maven (`pom.xml`, and Gradle's `build.gradle`
+`gems.locked`, and `*.gemspec`), Maven (`pom.xml`, and Gradle's `build.gradle`
 and `build.gradle.kts` with their version catalogs, `gradle/*.versions.toml`,
-and the constants and `findLibrary` lookups in `buildSrc` and `build-logic`).
-How Ruby, gems, Java, Kotlin, Maven and Gradle are read, in detail, is in
-[rules/README.md](rules/README.md).
+and the constants and `findLibrary` lookups in `buildSrc` and `build-logic`) and
+Composer (`composer.json`, with the `composer.lock` beside it).
+How Ruby, gems, Java, Kotlin, Maven, Gradle, PHP and Composer are read, in
+detail, is in [rules/README.md](rules/README.md).
 
 ## What it writes
 

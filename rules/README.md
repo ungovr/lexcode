@@ -2,7 +2,7 @@
 
 This directory is the rule set lexcode runs: one YAML rule per file, one
 directory per LexLint activity, positive and negative fixtures beside each rule,
-component maps for npm, PyPI, Go, gem and Maven packages under `components/`, and
+component maps for npm, PyPI, Go, gem, Maven and Composer packages under `components/`, and
 `classes.yml`, which gives every activity id in the pinned registry snapshot
 (`registry.snapshot.json`, CC BY 4.0, credit "LexLint (UnGovr)") one detection
 class. Every rule is original to UnGovr and MIT licensed. The recall table below
@@ -576,6 +576,132 @@ still read, because extraction finds the element before the comment is blanked.
 Thymeleaf templates are `.html` and already read; FreeMarker and Velocity
 templates are not read.
 
+## PHP, Blade, Twig and the Composer ecosystem
+
+How lexcode reads PHP and its views, where the engine cannot, and what a
+Composer manifest counts. Composer is one ecosystem, `composer`: a dependency is
+named `<vendor>/<package>`, its package URL is `pkg:composer/<vendor>/<package>@<version>`,
+its evidence rule id is `lexcode.manifest.composer`, and the component map is
+`components/composer.yml`.
+
+### Composer
+
+Every in-scope `composer.json` is read. Its direct dependencies are the keys of
+`require`. The keys of `require-dev` are skipped and counted. Platform names are
+neither recorded nor counted: `php`, `php-64bit`, `php-ipv6`, `php-zts`,
+`php-debug`, `hhvm`, `composer`, `composer-plugin-api`, `composer-runtime-api`,
+`ext-*` and `lib-*`. A `composer.json` under a `vendor-bin/` directory holds the
+development tools of `bamarni/composer-bin-plugin`, so its `require` is skipped
+and counted too.
+
+A dependency's version comes only from the `composer.lock` beside its
+`composer.json`: the `packages[]` entry of the same name (compared without
+regard to case), with `version` recorded as written, so `v7.1.0` stays `v7.1.0`.
+A constraint in `composer.json` is never a version. With no lock beside the
+file, or with a name the lock does not list, the row is recorded without a
+version, and the scan gives one notice for all of them, not one per dependency:
+`N Composer dependencies have no locked version (no composer.lock beside
+composer.json, or a name it does not list); recorded without a version`. A lock
+that does not parse gets a notice naming it, and its rows carry no version. The
+row's manifest line is the line of the package's key inside `"require"`.
+
+### PHP files
+
+The engine reads `.php`, `.phtml` and `.tpl` as PHP. Given as explicit targets,
+`.inc`, `.module`, `.theme` and `.install` files each scanned 0 files (measured
+2026-11-12). So those four are copied whole to `<path>.lexcode.php` in
+lexcode's temporary directory and scanned there; a finding in the copy is
+reported against the original path and line. A file is copied only when its text
+begins with `<?php`, after an optional byte order mark and white space, because
+`.inc` is also a C, Pascal and assembler extension.
+
+### PHP, Blade and Twig views
+
+A `.php` or `.phtml` file joins the `<script>` block extraction used for Vue,
+Svelte, HTML, Jinja, ERB and JSP, and the block is read as JavaScript. A block
+is looked for only in inline HTML: every PHP region (from `<?php`, `<?=` or
+`<?` to `?>`, or to the end of the file) is blanked before the search, so a
+`<script>` written inside a PHP string is not a block. Inside a block, an output
+tag becomes `_` padded with spaces to its length, so the JavaScript around it
+still parses: `<?= ... ?>`, and a `<?php` or `<?` tag whose code begins with
+`echo` or `print` (in any case). Every other PHP tag becomes spaces. Line breaks are kept, so line numbers hold. The scan of a PHP
+region honors quotes, heredocs and comments.
+
+A `.blade.php` view (matched before `.php`) is read that way first. Then, inside
+a block, `{{ ... }}`, `{!! ... !!}`, `@json(...)` and `@js(...)` become `_`
+padded, and `{{-- ... --}}` becomes spaces. Any other directive becomes spaces,
+together with its argument list when one follows: an `@` plus an identifier, not
+preceded by a word character or `@`. An `@php ... @endphp` span becomes spaces
+too. An `@` inside a word, such as an email address in a JavaScript string, is
+left alone.
+
+A `.twig` file (so `.html.twig`) is read the same way. Inside a block, `{{ ... }}`
+becomes `_` padded, and `{% ... %}` and `{# ... #}` become spaces, including the
+forms with a `-` for white-space control. Jinja files (`.jinja`, `.j2`, `.njk`)
+keep their earlier handling and do not get this blanking, because giving it to
+them would change a language that was already read. Mustache is not read: its
+sections are a convention of one app, and that app's JavaScript lives in plain
+`.js` files that lexcode already reads.
+
+A `.blade.php` view also parses as PHP without error, because its markup is
+inline HTML, so the PHP rules run over it harmlessly. Blade's `{{ }}` contents
+are not PHP to the engine.
+
+### The PHP gate
+
+The release test requires every evidence-class activity to have a rule whose
+`languages` include `php`. One exemption stands: `distributes_software_product`,
+whose PHP evidence lives in `composer.json`, is met by a `composer-` rule, as
+Java's is met by a build-file rule. Any other exemption must be argued and
+ruled before it is added.
+
+### What the PHP rules decide
+
+- A library class is matched by a twin: the fully qualified name, or the short
+  name inside a `use <FQN>;` import. An alias binds: after
+  `use Twilio\Rest\Client as TwilioClient;`, `new TwilioClient(...)` is found.
+  The engine does not resolve imports, so no rule relies on it to join the two
+  forms.
+- An app's own class of the same short name in another namespace is not matched
+  as the library's.
+- Model output sent back in a response is followed when it leaves as an array
+  value (`['reply' => $reply]`) or through `->with('reply', $reply)`.
+
+### Known PHP gaps
+
+- On Opengrep 1.33.1 a `use X;` pattern also matches `use X as Y;`. Every PHP
+  branch that matches a class, facade or trait by its short name carries a
+  `pattern-not-inside: use X as $A; ...` for it, so a file that imports the same
+  class both plainly and aliased loses its plain-name matches. A rule that uses
+  `use X;` only as a file-level signal that the library is present (it then
+  matches a method call on a variable) has no such guard and counts an aliased
+  import too, on purpose.
+- A grouped `use A\{B, C};` cannot be written as a pattern. In a target file it
+  is matched by a `use A\$C;` pattern, so only the patterns are affected.
+- Scanning a PHP region honors quotes, heredocs and comments. What remains is a
+  `?>` inside a `{$...}` interpolation: `"{$b["?>"]}"` ends the region early.
+- `compact('reply')` passed to a view or a response is not followed, because
+  taint cannot link a string to a variable. `['reply' => $reply]` and
+  `->with('reply', $reply)` are followed.
+- Laravel's `Http::` facade is matched by name, because Laravel aliases it
+  globally and routes files use it with no `use`. An app class named `Http`
+  with a static `get($url)` would also match, and that call is itself a fetch.
+- Mail to administrators sent from a loop, a scheduled job or a background job
+  is a known false-match class, as in Ruby and Java. Console commands are left
+  out of the background-job rule on purpose.
+- Vendored code outside `vendor/` is read as the app's own code, including those
+  libraries' `composer.json` files. An app can list such directories in a file
+  of its own (Moodle does, in `thirdpartylibs.xml`), but lexcode does not read
+  that list in this release.
+- A commented-out script in Blade (`{{-- --}}`) or Twig (`{# #}`) is extracted
+  as live, as in Jinja and ERB, and so is a `@verbatim` or `{% raw %}` span.
+- An Artisan command that extends an app's own base command class is not
+  excluded from the signature rule, because the engine cannot follow
+  inheritance.
+- Some PHP anchors lead with `->`, which cuts the whole-file reach (see the
+  next section) to roughly 700 to 950 KB in arrow-dense files, below the
+  1,000,000-byte notice.
+
 ## A known gap: a file over 1 MB
 
 Some rules first check the whole file for a name, with a `pattern-regex` of the
@@ -588,7 +714,7 @@ file. A lazy `.*?` counts from the start and misses a name used only at the end
 from about 1,000 KB, and an alternation tried at every step shortens the reach
 further. lexcode cannot lift the engine's limit, so a scan counts the files it
 hands the engine that are over 1,000,000 bytes and in a language with at least
-one such rule (in this rule set, Java, Kotlin and Ruby), and says so: `N files
+one such rule (in this rule set, Java, Kotlin, PHP and Ruby), and says so: `N files
 handed to the engine are over 1,000,000 bytes (Java); rules that first check a
 whole file for a name can miss matches in a file that large, so evidence in them
 may be missing from this record`. With files in more than one language, the
