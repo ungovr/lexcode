@@ -1,0 +1,37 @@
+rules:
+  - id: lexcode.crawl.php-browser-fetch
+    languages: [php]
+    severity: INFO
+    message: Fetches a web page from a site the operator may not run with a scraping browser (Goutte, Symfony BrowserKit's HttpBrowser, Symfony Panther, chrome-php), which is crawling the web (crawls_web).
+    patterns:
+      # Scoped to a file that names one of the browsers by its namespace: in a `use` line, aliased
+      # or not, or written out in full where the client is made. The engine does not resolve imports,
+      # so a project class with the same short name in another namespace (an app's own `Client`)
+      # does not admit the file. The regular expressions are also the pre-filter: a file without one
+      # of the names is not parsed.
+      - pattern-either:
+          - pattern-regex: '(?s)\A(?=.*\bGoutte\\Client\b).*'
+          - pattern-regex: '(?s)\A(?=.*\bBrowserKit\\HttpBrowser\b).*'
+          - pattern-regex: '(?s)\A(?=.*\bPanther\\Client\b).*'
+          - pattern-regex: '(?s)\A(?=.*\bHeadlessChromium\\BrowserFactory\b).*'
+      - pattern-either:
+          # BrowserKit's request, which Goutte, HttpBrowser and Panther all share.
+          - pattern: $C->request($M, $URL, ...)
+          # Panther's WebDriver-style get, on a receiver named for a browser client.
+          - patterns:
+              - pattern: $C->get($URL)
+              - metavariable-regex:
+                  metavariable: $C
+                  regex: ^\$(this->)?\w*([cC]lient|[bB]rowser|[dD]river|[pP]anther)$
+          # chrome-php's page.
+          - pattern: $P->navigate($URL)
+      - metavariable-regex:
+          metavariable: $URL
+          regex: (?s)^(?!["']https?://(localhost|127\.|0\.0\.0\.0|\[::1\])).*$
+    metadata:
+      activity: crawls_web
+      mentioned: performs
+      definition: https://lexlint.io/activities/crawls-web
+      provenance: ungovr-original
+      license: MIT
+      host_metavar: $URL
