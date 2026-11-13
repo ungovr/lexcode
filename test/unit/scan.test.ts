@@ -193,6 +193,25 @@ describe('scan with a stand-in engine', () => {
     }
   });
 
+  it('maps a match in a Razor file\'s .lexcode.cs copy back to the .razor file, beside its script copy', async () => {
+    const root = tree({
+      'Pages/Chat.razor': ['@using A', '<script>f();</script>', '@code {', '  void G() { f(); }', '}', ''].join('\n'),
+    });
+    const result = (p: string, line: number) => ({ check_id: 'lexcode.test.rule', path: p, start: { line, col: 1 }, end: { line, col: 4 }, extra: { message: 'm', metadata: {}, lines: 'f();' } });
+    process.env.FAKE_OPENGREP_RESULTS = JSON.stringify([
+      result('/elsewhere/lexcode-scan-x/scripts/Pages/Chat.razor.lexcode.cs', 4),
+      result('/elsewhere/lexcode-scan-x/scripts/Pages/Chat.razor.lexcode.js', 2),
+    ]);
+    try {
+      const rec = await scan({ root, rulesDirs: [], rs: stubRuleSet('csharp, javascript'), enginePath: STUB, includeTests: false, snippets: false });
+      const wheres = rec.activities.flatMap((a) => a.evidence.map((e) => e.where)).sort();
+      expect(wheres).toEqual(['Pages/Chat.razor:2', 'Pages/Chat.razor:4']);
+      expect(rec.scope.extracted).toBe(2);
+    } finally {
+      delete process.env.FAKE_OPENGREP_RESULTS;
+    }
+  });
+
   describe('hands the engine only the rules with a file to read, and only the files they read (#12997)', () => {
     /** Four real rules: Python, PHP, a JSON rule limited to composer.json, a generic rule limited to pyproject.toml. */
     function fourRules(): RuleSet {

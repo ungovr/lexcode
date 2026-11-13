@@ -1422,11 +1422,83 @@ describe('Razor views and components', () => {
       expect(out[3]!.trim()).toBe('');
       expect(out[4]).toBe('        int A;  ');
       expect(out).toHaveLength(6);
-      // A commented-out @using in the leading block is not read, and the comment takes the header.
-      const commented = lines(razorCSharp(['@* @using Commented.Out *@', '@using Kept', '@code { }'].join('\n'))!);
-      expect(commented[0]!.startsWith('class __RazorCode {')).toBe(true);
-      expect(commented[0]).not.toContain('using');
-      expect(commented[1]!.trim()).toBe('');
+      // A line that is only a Razor comment (a licence header, a commented-out @using) counts as blank: it is not
+      // read and does not take the header, so the usings after it are kept.
+      const commented = lines(razorCSharp(['@* licence *@', '@* @using Commented.Out *@', '@using Kept', '@*', '  multi-line', '*@', '@code { }'].join('\n'))!);
+      for (const i of [0, 1, 3, 4, 5]) expect(commented[i]!.trim()).toBe('');
+      expect(commented[2]).toBe('using Kept;');
+      expect(commented[6]!.startsWith('class __RazorCode {')).toBe(true);
+      // A comment followed by code on its line is not only a comment: it takes the header.
+      const mixed = lines(razorCSharp(['@* c *@ <p>x</p>', '@using Late', '@code { }'].join('\n'))!);
+      expect(mixed[0]!.startsWith('class __RazorCode {')).toBe(true);
+      expect(mixed[1]!.trim()).toBe('');
+    });
+
+    it('an HTML comment line before the code counts as blank, and a directive after a comment on its line is read', () => {
+      const src = [
+        '<!-- Copyright (c) Example. Licensed under MIT. -->', // 0: an HTML comment line
+        '<!--',
+        '  @using Commented.Html',
+        '-->',
+        '@* a *@ @using After.Comment', // 4: a Razor comment, then a using
+        '@*', // 5
+        '*@ @page "/x"', // 6: a multi-line comment closes, then a leading directive
+        '<!-- x --> @inject IChatClient Chat', // 7: an HTML comment, then the first code-bearing directive
+        '@code { int A; }',
+      ].join('\n');
+      const out = lines(razorCSharp(src)!);
+      for (const i of [0, 1, 2, 3, 5, 6]) expect(out[i]!.trim()).toBe('');
+      expect(out[4]).toBe('        using After.Comment;');
+      expect(out[7]).toBe(`class __RazorCode {${' '.repeat('<!-- x --> @inject'.length)} IChatClient Chat;`);
+      expect(out[8]).toBe('        int A;  ');
+      expect(out[9]).toBe('}');
+      expect(out.join('\n')).not.toContain('Commented');
+    });
+
+    it('an unclosed HTML comment before the code block runs to the block, whose line takes the header', () => {
+      const out = lines(razorCSharp(['<!-- licence', '@using Hidden', '@code { int A; }'].join('\n'))!);
+      expect(out[0]!.trim()).toBe('');
+      expect(out[1]!.trim()).toBe('');
+      expect(out[2]!.startsWith('class __RazorCode {')).toBe(true);
+      expect(out[2]).toContain(' int A; ');
+      expect(out[3]).toBe('}');
+      // A Razor comment that never closes swallows the block as well: no code is left, so there is no copy.
+      expect(razorCSharp(['@* licence', '@using Hidden', '@code { int A; }'].join('\n'))).toBeNull();
+    });
+
+    it('a file of only directives and blank lines around its code block gets one well-formed class', () => {
+      for (const src of [
+        ['@page "/"', '', '@using A', '@rendermode InteractiveServer @code {', '  int B;', '}', ''].join('\n'),
+        ['', '@using A', '', '@code {', '  int B;', '}'].join('\n'),
+        '@code{int B;}',
+      ]) {
+        const out = razorCSharp(src)!;
+        expect(out.match(/class __RazorCode \{/g), src).toHaveLength(1);
+        expect(out.endsWith('}'), src).toBe(true);
+        expect(out).toContain('int B;');
+        expect(lines(out)).toHaveLength(lines(src).length + (src.endsWith('\n') ? 0 : 1));
+        // The class opens before the body: the header's line is at or before the line holding `int B;`.
+        const ls = lines(out);
+        expect(ls.findIndex((l) => l.includes('class __RazorCode {'))).toBeLessThanOrEqual(ls.findIndex((l) => l.includes('int B;')));
+      }
+    });
+
+    it('a code block on a leading directive line still gets the class header', () => {
+      // Every non-blank line is a leading directive, and the block starts on one of them.
+      const out = lines(razorCSharp(['@using A', '@layout MainLayout @code { int A; }', ''].join('\n'))!);
+      expect(out[0]).toBe('using A;');
+      expect(out[1]!.startsWith('class __RazorCode {')).toBe(true);
+      expect(out[1]).toContain(' int A; ');
+      expect(out.join('\n').endsWith('}')).toBe(true);
+      // The block opens on a using line itself.
+      const own = lines(razorCSharp('@using A @code {\n  int B;\n}')!);
+      expect(own.some((l) => l.includes('class __RazorCode {'))).toBe(true);
+      expect(own[1]).toBe('  int B;');
+    });
+
+    it('@inject takes a space before its semicolon', () => {
+      const out = lines(razorCSharp(['@inject ILogger<Foo> Logger ;', '@code { }'].join('\n'))!);
+      expect(out[0]).toBe(`class __RazorCode {${' '.repeat('@inject'.length)} ILogger<Foo> Logger;`);
     });
 
     it('a Razor file can give both copies', () => {
@@ -1460,6 +1532,66 @@ describe('Razor views and components', () => {
         run: (text) => blankRazorTags(text),
       });
       expectNearLinear(m, 'blankRazorTags');
+    });
+
+    it('razorCSharp grows near-linearly over a long run of white space in an @using or @inject line', () => {
+      // A using or inject pattern ending in two adjacent white-space quantifiers backtracks cubically or
+      // quadratically over a run of spaces that ends in a character it rejects. The sizes are small because a
+      // cubic regression takes minutes at 20,000 spaces; 10x the input still shows it as 1,000x the time.
+      for (const [name, line] of [
+        ['@using', (n: number) => `@using x${' '.repeat(n)}(`],
+        ['@using, tabs then a semicolon', (n: number) => `@using x${' \t'.repeat(n / 2)};!`],
+        ['@inject', (n: number) => `@inject a b${' '.repeat(n)}!`],
+        ['@inject, spaces around a semicolon', (n: number) => `@inject a b${' '.repeat(n / 2)};${' '.repeat(n / 2)}!`],
+      ] as const) {
+        const m = measureScaling({
+          small: 500,
+          large: 5_000,
+          setup: (n) => `${line(n)}\n@inject I X\n@code { }\n`,
+          run: (text) => razorCSharp(text),
+        });
+        expectNearLinear(m, `razorCSharp over ${name}`);
+      }
+    });
+
+    it('razorCSharp and blankRazorTags read a 100,000-character worst-case line well inside a second', () => {
+      // FIX_BASE took 6 s on a using line of 4,000 spaces then `(` (cubic), so a cubic or quadratic pattern
+      // cannot finish these in time. Linear code reads each in a few milliseconds.
+      const n = 100_000;
+      const shapes: [string, string][] = [
+        ['@using, spaces then (', `@using x${' '.repeat(n)}(\n@code { }\n`],
+        ['@using, tabs then ;!', `@using x${' \t'.repeat(n / 2)};!\n@code { }\n`],
+        ['@inject, spaces then !', `@inject I X\n@inject a b${' '.repeat(n)}!\n@code { }\n`],
+        ['@inject, many words then !', `@inject I X\n@inject${' a'.repeat(n / 2)}!\n@code { }\n`],
+        ['@code, spaces then no brace', `@code${' '.repeat(n)}x\n@code { }\n`],
+        ['leading directive, spaces', `@page${' '.repeat(n)}\n@code { }\n`],
+        ['a run of $ in a code block', `@code { ${'$'.repeat(n)} }\n`],
+        ['a run of $@ in a code block', `@code { ${'$@'.repeat(n / 2)} }\n`],
+        ['markup comments that open', `${'<!--'.repeat(n / 4)}\n@code { }\n`],
+      ];
+      for (const [name, text] of shapes) {
+        const start = performance.now();
+        expect(razorCSharp(text), name).not.toBeNull();
+        expect(performance.now() - start, `razorCSharp over ${name}`).toBeLessThan(1_000);
+      }
+      for (const [name, body] of [
+        ['a run of $ in a code block', `@{ ${'$'.repeat(n)} }`],
+        ['a run of $ in an expression', `@( ${'$'.repeat(n)} )`],
+        ['await then spaces', `@await${' '.repeat(n)}!`],
+        ['else then spaces', `@if (a) { } else${' '.repeat(n)}!`],
+      ] as const) {
+        const start = performance.now();
+        expect(blankRazorTags(body)).toHaveLength(body.length);
+        expect(performance.now() - start, `blankRazorTags over ${name}`).toBeLessThan(1_000);
+      }
+    });
+
+    it('razorCSharp and blankRazorTags grow near-linearly over a run of $ in code', () => {
+      // Each `$` used to look for a string over the whole run that follows it, quadratic over a long run.
+      const csharp = measureScaling({ small: 20_000, large: 200_000, setup: (n) => `@code { ${'$'.repeat(n)} }`, run: (t) => razorCSharp(t) });
+      expectNearLinear(csharp, 'razorCSharp over a run of $');
+      const tags = measureScaling({ small: 20_000, large: 200_000, setup: (n) => `@{ ${'$'.repeat(n)} }`, run: (t) => blankRazorTags(t) });
+      expectNearLinear(tags, 'blankRazorTags over a run of $');
     });
 
     it('razorCSharp grows near-linearly over code blocks and over an unclosed one', () => {

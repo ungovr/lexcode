@@ -796,6 +796,12 @@ function csBracketEnd(text: string, open: number, razor: boolean, keeps?: [numbe
         i = s.next;
         continue;
       }
+      // No string opens anywhere in a run of `$`: step past the whole run, or each `$` in it would read the run
+      // again (quadratic over a long one).
+      if (ch === '$') {
+        while (text[i] === '$') i++;
+        continue;
+      }
     }
     if (ch === top.open) {
       top.depth++;
@@ -986,16 +992,46 @@ export function blankRazorTags(body: string): string {
 
 /** A Razor comment, or an `@code` or `@functions` directive up to its `{`. */
 const RAZOR_CODE_DIRECTIVE = /@\*|(?<![\p{L}\p{N}])@(?:code|functions)(?![\p{L}\p{N}_])\s*\{/gu;
-/** `@using <namespace>` on a line of its own (`static` and alias forms too; not the `@using (...)` control block). */
-const RAZOR_USING_LINE = /^([ \t﻿]*)@using[ \t]+([\p{L}_][^{}()\r\n;]*?)[ \t]*;?[ \t]*$/u;
+/**
+ * `@using <namespace>` on a line of its own (`static` and alias forms too; not the `@using (...)` control block),
+ * matched against `directiveLine`'s text, which has no trailing white space or semicolon. No two white-space
+ * quantifiers stand side by side here or in the inject pattern: that shape backtracks cubically over a long run of
+ * spaces (92 s for 10,000 of them), and a scan reaches it before any engine-side limit.
+ */
+const RAZOR_USING_LINE = /^([ \t\uFEFF]*)@using[ \t]+([\p{L}_][^{}()\r\n;]*)$/u;
 /**
  * The other directive lines a file may open with before its usings (a routable component starts with `@page`, and
  * often `@rendermode`): they do not take the class header. A byte order mark may come first.
  */
-const RAZOR_LEADING_DIRECTIVE = /^[ \t﻿]*@(?:page|rendermode|layout|attribute|implements|inherits|namespace|model|typeparam|preservewhitespace)(?![\p{L}\p{N}_])/u;
-/** `@inject <Type> <Name>` on a line of its own. */
-const RAZOR_INJECT_LINE = /^([ \t]*)@inject([ \t]+\S.*?\s[\p{L}_][\p{L}\p{N}_]*)[ \t]*;?[ \t]*$/u;
+const RAZOR_LEADING_DIRECTIVE = /^[ \t\uFEFF]*@(?:page|rendermode|layout|attribute|implements|inherits|namespace|model|typeparam|preservewhitespace)(?![\p{L}\p{N}_])/u;
+/** `@inject <Type> <Name>` on a line of its own, matched against `directiveLine`'s text as the using pattern is. */
+const RAZOR_INJECT_LINE = /^([ \t]*)@inject([ \t]+\S.*\s[\p{L}_][\p{L}\p{N}_]*)$/u;
 const RAZOR_CLASS_HEADER = 'class __RazorCode {';
+
+/** A directive line's text without its trailing white space and one trailing semicolon (`@inject T X ;`). */
+function directiveLine(content: string): string {
+  const trimmed = content.trimEnd();
+  return trimmed.endsWith(';') ? trimmed.slice(0, -1).trimEnd() : trimmed;
+}
+
+/** A Razor comment or an HTML comment opening in markup. */
+const MARKUP_COMMENT = /@\*|<!--/g;
+
+/** `markup` with its `@* ... *@` and `<!-- ... -->` comments blanked; one that never closes is blanked to the end. */
+function blankMarkupComments(markup: string): string {
+  let out = '';
+  let cursor = 0;
+  const opener = new RegExp(MARKUP_COMMENT.source, MARKUP_COMMENT.flags);
+  for (let m = opener.exec(markup); m !== null; m = opener.exec(markup)) {
+    const closer = m[0] === '@*' ? '*@' : '-->';
+    const close = markup.indexOf(closer, m.index + m[0].length);
+    const end = close === -1 ? markup.length : close + closer.length;
+    out += markup.slice(cursor, m.index) + blank(markup.slice(m.index, end));
+    cursor = end;
+    opener.lastIndex = end;
+  }
+  return out + markup.slice(cursor);
+}
 
 /**
  * The C# copy of a Razor file (Decision 9 of #13012), or null when it has no `@code { ... }` or
@@ -1012,11 +1048,14 @@ const RAZOR_CLASS_HEADER = 'class __RazorCode {';
  * - Each code block keeps its body as written, and its own braces become spaces. A block that never closes runs
  *   to the end of the file.
  * - Everything else becomes spaces, and `}` is appended after the last line.
- * Line numbers hold; columns hold everywhere except on the header line. A directive inside a `@* ... *@` comment
- * is not read.
+ * - A line that is only a markup comment (`@* ... *@`, `<!-- ... -->`, a licence header) counts as blank, and a
+ *   directive inside one is not read.
+ * - The header goes no later than the line where the first code block's body starts, so a file whose other lines
+ *   are all blank or directives (`@layout MainLayout @code { ... }`) still gets one.
+ * Line numbers hold; columns hold everywhere except on the header line.
  */
 export function razorCSharp(text: string): string | null {
-  /** `[start, end)` of each code block's body, and of each span (a whole block or a comment) no line directive is read in. */
+  /** `[start, end)` of each code block's body, and of each whole block (`@code` to its `}`), where no line directive is read. */
   const bodies: [number, number][] = [];
   const spans: [number, number][] = [];
   const directive = new RegExp(RAZOR_CODE_DIRECTIVE.source, RAZOR_CODE_DIRECTIVE.flags);
@@ -1031,8 +1070,8 @@ export function razorCSharp(text: string): string | null {
       const close = csBracketEnd(text, brace, true);
       end = close === -1 ? text.length : close;
       bodies.push([brace + 1, close === -1 ? text.length : close - 1]);
+      spans.push([m.index, end]);
     }
-    spans.push([m.index, end]);
     directive.lastIndex = end;
   }
   if (bodies.length === 0) return null;
@@ -1045,24 +1084,38 @@ export function razorCSharp(text: string): string | null {
   }
   kept += blank(text.slice(cursor));
 
-  const source = text.split('\n');
+  // The text with the comments of its markup (`@* *@`, `<!-- -->`) blanked, which the line directives are read
+  // from: a line that is only a comment (a licence header) counts as blank, and a commented-out directive is not read.
+  let uncommented = '';
+  cursor = 0;
+  for (const [s, e] of spans) {
+    uncommented += blankMarkupComments(text.slice(cursor, s)) + text.slice(s, e);
+    cursor = e;
+  }
+  uncommented += blankMarkupComments(text.slice(cursor));
+
+  const plain = uncommented.split('\n');
   const out = kept.split('\n');
+  // The class must open no later than the line where the first code block's body starts, even when every line
+  // before it is a leading directive (`@layout MainLayout @code { ... }`).
+  const firstBodyLine = text.slice(0, (bodies[0] as [number, number])[0]).split('\n').length - 1;
   let header = -1;
   let lineStart = 0;
   let span = 0;
-  for (let n = 0; n < source.length; n++) {
-    const line = source[n] as string;
+  for (let n = 0; n < plain.length; n++) {
+    const line = plain[n] as string;
     while (span < spans.length && (spans[span] as [number, number])[1] <= lineStart) span++;
     const inside = span < spans.length && (spans[span] as [number, number])[0] < lineStart;
     const cr = line.endsWith('\r') ? '\r' : '';
     const content = cr === '' ? line : line.slice(0, -1);
     if (header === -1) {
-      const using = inside ? null : RAZOR_USING_LINE.exec(content);
+      const using = inside ? null : RAZOR_USING_LINE.exec(directiveLine(content));
       if (using !== null) out[n] = `${using[1] as string}using ${using[2] as string};${cr}`;
       else if (content.trim() !== '' && (inside || !RAZOR_LEADING_DIRECTIVE.test(content))) header = n;
+      if (n === firstBodyLine) header = n;
     }
     if (header !== -1 && !inside) {
-      const inject = RAZOR_INJECT_LINE.exec(content);
+      const inject = RAZOR_INJECT_LINE.exec(directiveLine(content));
       if (inject !== null) out[n] = `${inject[1] as string}${' '.repeat('@inject'.length)}${inject[2] as string};${cr}`;
     }
     lineStart += line.length + 1;
