@@ -124,6 +124,23 @@ A second positive fixture for the same rule takes a middle word
 (`php-<what>.test.qualified.php`), which is how a fully qualified form with no
 import is pinned beside the imported one.
 
+C# and the MSBuild files carry a prefix as well:
+
+| Kind | Rule `<what>` part | File and fixtures |
+|---|---|---|
+| C# | `cs-<what>` | `cs-<what>.yml`, `.test.cs`, `.neg.test.cs`; `languages: [csharp]` |
+| MSBuild | `msbuild-<what>` | `msbuild-<what>.yml`, fixtures `msbuild-<what>.test.csproj` and `.neg.test.csproj`; `languages: [generic]`, and `paths.include` lists the MSBuild names the rule reads (`*.csproj`, `*.props`, `*.nuspec`) and `msbuild-<what>.*` so the fixture is scanned |
+
+A C# rule is `lexcode.<activity-short>.cs-<what>` and an MSBuild rule is
+`lexcode.<activity-short>.msbuild-<what>`. A C# rule names a library API or a
+language construct any .NET app may use, never a class that exists in one app. A
+C# fixture is a whole file: `using` lines, a file-scoped `namespace` and a class.
+A negative fixture holds the nearest lookalike the exclusion names, and for a
+library type that is an app class of the same short name in another namespace
+(see the C# pattern notes). A second fixture takes a middle word
+(`cs-<what>.test.global.cs`), as PHP's does, to pin a short form that has no
+`using` or an initializer form.
+
 A Java or Kotlin fixture is a whole compilation unit: a `package` line,
 imports and a class, so it parses as a real file does.
 
@@ -321,6 +338,98 @@ Measured on Opengrep 1.33.1:
 - A build-file rule (`composer-`) with a path exclusion cannot have it pinned by
   a fixture, because the runner reads only the files beside the rule. State the
   exclusion in the rule's comment.
+
+### C# pattern notes
+
+Measured on Opengrep 1.33.1:
+
+- The engine resolves `using` for C#. A pattern with the fully qualified name
+  (`new OpenAI.Chat.ChatClient(...)`, `Twilio.TwilioClient.Init(...)`) matches the
+  fully qualified form, the short form under `using <namespace>;`, under a
+  `global using` in the same file and under `using static`, and an alias
+  (`using Oai = OpenAI.Chat;` with `new Oai.ChatClient(...)`). It does not match
+  an app's own `ChatClient` in another namespace. So write a library type fully
+  qualified, once; PHP's twin is not needed. In a file that holds both the
+  library's `using` and an app class of that name, the engine picks the
+  library's, where C# binds the app's, so keep that lookalike in a file without
+  the library's `using`.
+- A short-form pattern (`new ChatClient(...)`) matches every class of that name,
+  the app's own included, and does not match the fully qualified form.
+- The engine does not see the SDK's implicit usings, or a `global using` in
+  another file: `new System.Net.Http.HttpClient(...)` misses `new HttpClient()`
+  in a file with no `using System.Net.Http;`. A type from a namespace the .NET
+  SDK imports implicitly (`System`, `System.IO`, `System.Linq`, `System.Net.Http`,
+  `System.Threading`, `System.Threading.Tasks`, `System.Collections.Generic`; the
+  Web SDK adds `Microsoft.AspNetCore.Http` and the other ASP.NET Core and
+  `Microsoft.Extensions` namespaces; MAUI adds the `Microsoft.Maui` namespaces) is matched by
+  a `pattern-either` of its fully qualified and short forms, and a short form of
+  a generic name pins its method names. A third-party type may add a short form
+  only when the short name carries the vendor's or product's own name
+  (`AmazonRekognitionClient`, `TwilioClient`, `SendGridClient`); otherwise the
+  global-using gap stands and is recorded in `rules/README.md`.
+- A typed metavariable follows a field, a constructor parameter, a
+  primary-constructor parameter, a lambda parameter and a local built with `new`
+  (`var c = new T();`, `T c = new();`). It does not follow a value returned by a
+  static factory, or a `var` assigned from a method call, and it knows no
+  subtypes. `(Microsoft.Extensions.AI.IChatClient $C).GetResponseAsync(...)`
+  matches `_chat.GetResponseAsync(...)` for a field `IChatClient _chat`, and not
+  the same call on another type. Inside a `metavariable-pattern` a typed
+  metavariable does not see the file's `using` lines, and a string comes back
+  without its quotes.
+- `new T(...)` does not match `new T { ... }` or `new T(...) { ... }`, the usual
+  shape of a .NET request or options object. Write `new T(...) { ... }`, which
+  matches with and without an initializer (and `T $V = new(...) { ... };` for a
+  target-typed `new()`; `new T(...)` alone misses that too). A rule keyed on a
+  constructed request or options type needs a fixture with an initializer.
+- A positional `$M` does not match a named argument: `new ChatClient($M, ...)`
+  misses `new ChatClient(model: "gpt-4o", ...)`, which `new ChatClient(model: $M, ...)`
+  matches. Carry both forms.
+- A generic type resolves through a `using` or the full name only when the
+  pattern omits its type arguments (`(Ns.IPasswordHasher $H)`,
+  `class $K : Ns.Hub { ... }`); written with arguments (`Ns.Hub<$T>`) it matches
+  only the fully qualified generic. Carry both arms where both occur. A
+  namespace alias combined with generic arguments (`Mt.IConsumer<A>`,
+  `AspId.IdentityUser<Guid>`) is not resolved by either.
+- `$O.$M(...)` does not match a generic call (`http.GetFromJsonAsync<T>(url)`);
+  add `$O.$M<$T>(...)`. A namespace or class part of a qualified name cannot be a
+  metavariable (`new Org.BouncyCastle.Crypto.Modes.$C(...)` matched nothing); list
+  the classes.
+- A property declaration is not a pattern (`DbSet<$K> $P { get; set; }` is a
+  parse error), and a member with attributes parses only inside a class pattern
+  (`class $C { ... [Attr(...)] $T $P { get; set; } ... }` with
+  `focus-metavariable`). `[X(...)]` matches `[X]`, `[X()]` and `[X(args)]`; an
+  attribute-only pattern returns nothing, so give it its class or method, and
+  `[global::X]` needs its own pattern.
+- A `catch` clause cannot be a pattern on its own, and `try { ... } catch ($T $E)
+  { ... }` in a `pattern-not-inside` also drops the try body.
+- An interpolated string prints as `$"` followed by its text with the braces
+  dropped and no closing quote (`$"{appUrl}/login"` reads `$"appUrl/login`), but a
+  `metavariable-regex` sees the source text. `metavariable-regex` is anchored at
+  the start, so write `.*gpt-` to find a model name inside a string.
+- `pattern-not-regex` removes a match only when its regex covers the whole match,
+  and a `pattern-not` beside a `pattern-regex` in the same `patterns` block is
+  ignored (`pattern-not-inside` works). A branch of a `pattern-either` with no
+  binding for a metavariable that a later `metavariable-regex` names is dropped
+  without an error; split the branches.
+- `pattern-inside: using X; ...` is met by `using X;` and by any longer namespace
+  beneath it (`using OpenAI.Audio;` meets `using OpenAI;`), and not by an alias
+  directive, so a guard like that is a file signal at namespace-family level.
+- A line-start gate (`(?m)^`) fails on a UTF-8 byte order mark when its target
+  is line 1, and a Visual Studio file often starts with one. Write it as
+  `^\x{FEFF}?[ \t]*...` and pin it with a fixture whose BOM sits before the gated
+  line.
+- A whole-file lookahead (`(?s)\A(?=.*NAME).*`) in a `cs-` rule has the reach
+  limit above and puts C# among the languages the large-file notice counts. No C#
+  rule has one, and the test that checks the notice reads its language set from
+  the rule files.
+- All of these parse and match: top-level statements and minimal APIs
+  (`$APP.MapPost($R, ...)`), `builder.Services.AddChatClient(...)`, generic calls
+  (`$S.AddHttpClient<$T>(...)`), records, primary constructors, collection
+  expressions, list patterns, raw string literals, `await foreach`, LINQ query
+  syntax, file-scoped namespaces, and `required` and `init` members.
+- An MSBuild file is not XML to the engine: `languages: [xml]` reads only `.xml`,
+  so a `.csproj`, `.fsproj`, `.props` or `.nuspec` rule is `generic`, with
+  `paths.include` and a `pattern-regex`, as the Gradle rules are.
 
 ## Performance tests
 
