@@ -1,9 +1,10 @@
-# The sink is a return in a function that builds a chat model or calls one, not every return in the
-# file: that made the taint pass grow several times faster than the file, 15 to 25 s on a 900 KB
-# file where a scan gives one rule 30 s per file (#13034). A model built at module level reaches a
-# function through a call on it (invoke, stream and the others below), and a factory returns the
-# model it builds, so the narrower sink keeps those matches. How the scope is written, and why, is
-# in CONTRIBUTING.md, Cost.
+# The sink is not every return in the file: that made the taint pass grow several times faster than
+# the file, 15 to 25 s on a 900 KB file where a scan gives one rule 30 s per file (#13034). It is a
+# return in a function that builds a chat model or calls one by one of the method names below, or a
+# return that names a variable an earlier statement in an enclosing block, the module included, set
+# from one of those calls. A chain built at module level from a model (prompt.pipe(llm)) and called
+# by a method not listed, or a result one function stores and another returns, is no longer
+# followed. How the scope is written, and why, is in CONTRIBUTING.md, Cost.
 rules:
   - id: lexcode.generate.js-model-result-returned
     languages: [javascript, typescript]
@@ -327,6 +328,18 @@ rules:
               - pattern-inside: |
                   function $SINKFN(...) {
                     ...
+                    <... $SINKR.streamLog(...) ...>;
+                    ...
+                  }
+              - pattern-inside: |
+                  function (...) {
+                    ...
+                    <... $SINKR.streamLog(...) ...>;
+                    ...
+                  }
+              - pattern-inside: |
+                  function $SINKFN(...) {
+                    ...
                     <... $SINKR.batch(...) ...>;
                     ...
                   }
@@ -351,6 +364,18 @@ rules:
               - pattern-inside: |
                   function $SINKFN(...) {
                     ...
+                    <... $SINKR.predictMessages(...) ...>;
+                    ...
+                  }
+              - pattern-inside: |
+                  function (...) {
+                    ...
+                    <... $SINKR.predictMessages(...) ...>;
+                    ...
+                  }
+              - pattern-inside: |
+                  function $SINKFN(...) {
+                    ...
                     <... $SINKR.generate(...) ...>;
                     ...
                   }
@@ -358,6 +383,18 @@ rules:
                   function (...) {
                     ...
                     <... $SINKR.generate(...) ...>;
+                    ...
+                  }
+              - pattern-inside: |
+                  function $SINKFN(...) {
+                    ...
+                    <... $SINKR.generatePrompt(...) ...>;
+                    ...
+                  }
+              - pattern-inside: |
+                  function (...) {
+                    ...
+                    <... $SINKR.generatePrompt(...) ...>;
                     ...
                   }
               - pattern-inside: |
@@ -372,6 +409,150 @@ rules:
                     <... $SINKR.call(...) ...>;
                     ...
                   }
+              - pattern-inside: |
+                  function $SINKFN(...) {
+                    ...
+                    <... $SINKR.run(...) ...>;
+                    ...
+                  }
+              - pattern-inside: |
+                  function (...) {
+                    ...
+                    <... $SINKR.run(...) ...>;
+                    ...
+                  }
+              - pattern-inside: |
+                  function $SINKFN(...) {
+                    ...
+                    <... $SINKR.apply(...) ...>;
+                    ...
+                  }
+              - pattern-inside: |
+                  function (...) {
+                    ...
+                    <... $SINKR.apply(...) ...>;
+                    ...
+                  }
+              - pattern-inside: |
+                  function $SINKFN(...) {
+                    ...
+                    <... $SINKR.transform(...) ...>;
+                    ...
+                  }
+              - pattern-inside: |
+                  function (...) {
+                    ...
+                    <... $SINKR.transform(...) ...>;
+                    ...
+                  }
+      - patterns:
+          - pattern: return $X
+          - pattern-either:
+              - pattern-inside: |
+                  $SINKV = <... new ChatOpenAI(...) ...>;
+                  ...
+              - pattern-inside: |
+                  $SINKV = <... new AzureChatOpenAI(...) ...>;
+                  ...
+              - pattern-inside: |
+                  $SINKV = <... new ChatAnthropic(...) ...>;
+                  ...
+              - pattern-inside: |
+                  $SINKV = <... new ChatGoogleGenerativeAI(...) ...>;
+                  ...
+              - pattern-inside: |
+                  $SINKV = <... new ChatVertexAI(...) ...>;
+                  ...
+              - pattern-inside: |
+                  $SINKV = <... new ChatGroq(...) ...>;
+                  ...
+              - pattern-inside: |
+                  $SINKV = <... new ChatMistralAI(...) ...>;
+                  ...
+              - pattern-inside: |
+                  $SINKV = <... new ChatOllama(...) ...>;
+                  ...
+              - pattern-inside: |
+                  $SINKV = <... new ChatBedrockConverse(...) ...>;
+                  ...
+              - pattern-inside: |
+                  $SINKV = <... new ChatBedrock(...) ...>;
+                  ...
+              - pattern-inside: |
+                  $SINKV = <... new ChatCohere(...) ...>;
+                  ...
+              - pattern-inside: |
+                  $SINKV = <... new ChatTogetherAI(...) ...>;
+                  ...
+              - pattern-inside: |
+                  $SINKV = <... new ChatFireworks(...) ...>;
+                  ...
+              - pattern-inside: |
+                  $SINKV = <... new ChatDeepSeek(...) ...>;
+                  ...
+              - pattern-inside: |
+                  $SINKV = <... new ChatXAI(...) ...>;
+                  ...
+              - pattern-inside: |
+                  $SINKV = <... new ChatPerplexity(...) ...>;
+                  ...
+              - pattern-inside: |
+                  $SINKV = <... new ChatNVIDIA(...) ...>;
+                  ...
+              - pattern-inside: |
+                  $SINKV = <... new ChatHuggingFace(...) ...>;
+                  ...
+              - pattern-inside: |
+                  $SINKV = <... initChatModel(...) ...>;
+                  ...
+              - pattern-inside: |
+                  $SINKV = <... $SINKM.generateContent(...) ...>;
+                  ...
+              - pattern-inside: |
+                  $SINKV = <... $SINKM.generateContentStream(...) ...>;
+                  ...
+              - pattern-inside: |
+                  $SINKV = <... $SINKR.invoke(...) ...>;
+                  ...
+              - pattern-inside: |
+                  $SINKV = <... $SINKR.stream(...) ...>;
+                  ...
+              - pattern-inside: |
+                  $SINKV = <... $SINKR.streamEvents(...) ...>;
+                  ...
+              - pattern-inside: |
+                  $SINKV = <... $SINKR.streamLog(...) ...>;
+                  ...
+              - pattern-inside: |
+                  $SINKV = <... $SINKR.batch(...) ...>;
+                  ...
+              - pattern-inside: |
+                  $SINKV = <... $SINKR.predict(...) ...>;
+                  ...
+              - pattern-inside: |
+                  $SINKV = <... $SINKR.predictMessages(...) ...>;
+                  ...
+              - pattern-inside: |
+                  $SINKV = <... $SINKR.generate(...) ...>;
+                  ...
+              - pattern-inside: |
+                  $SINKV = <... $SINKR.generatePrompt(...) ...>;
+                  ...
+              - pattern-inside: |
+                  $SINKV = <... $SINKR.call(...) ...>;
+                  ...
+              - pattern-inside: |
+                  $SINKV = <... $SINKR.run(...) ...>;
+                  ...
+              - pattern-inside: |
+                  $SINKV = <... $SINKR.apply(...) ...>;
+                  ...
+              - pattern-inside: |
+                  $SINKV = <... $SINKR.transform(...) ...>;
+                  ...
+          - metavariable-pattern:
+              metavariable: $X
+              pattern: $SINKV
     pattern-sanitizers:
       - patterns:
           - pattern: $RES.$M(...)

@@ -253,9 +253,10 @@ finds every sink match in the file before its taint pass, and the pass then
 takes time that grows with the number of sink matches times the size of the
 file. With every `return` in the file as the sink, the Python and JavaScript
 `*-result-returned` rules took 15 to 25 s on a 900 KB file of small functions;
-the same Python rule with a sink that matched nothing took 0.7 s (#13034). The
-flow those rules follow starts at a call in the same function, so the sink is a
-return inside a function that makes the call:
+the same Python rule with a sink that matched nothing took 0.7 s (#13034). Those
+rules now have two sinks: a return inside a function that makes the call, and a
+return that names a variable an earlier statement in an enclosing block (the
+module included) set from the call:
 
 ```yaml
 - patterns:
@@ -273,7 +274,28 @@ return inside a function that makes the call:
               <... $SINKC.chat.completions.$SINKM(...) ...>;
               ...
             }
+- patterns:
+    - pattern: return $X
+    - pattern-either:
+        - pattern-inside: |
+            $SINKV = <... $SINKC.chat.completions.$SINKM(...) ...>;
+            ...
+    - metavariable-pattern:
+        metavariable: $X
+        pattern: $SINKV
 ```
+
+The `metavariable-pattern` sees `$SINKV` already bound and searches `$X` for
+it, so `return reply.choices[0]` names `reply`, and a return that does not name
+the variable never becomes a sink. Neither sink follows a result that one
+function stores (in a global, or on `self` or `this`) and another returns, or a
+chain built at module level from a model (`prompt.pipe(llm)`) and called by a
+method the rule does not list; the old sink did. `py-model-result-returned` has
+only the first sink: with its 63 call shapes the second cost 10 to 18 times the
+parse on 900 KB, so there a module-level model called directly (`llm(q)`) or by
+a method the rule does not list, and an answer made at module level and
+returned by a function, are lost too. Each rule's header comment says what it
+misses.
 
 In JavaScript and TypeScript, `function $SINKFN(...)` matches a declaration, a
 method, and a function or arrow given a name, and `function (...)` matches a
@@ -283,14 +305,18 @@ loop and a `try`, but a sequence does not reach inside `async with` or
 `async for`. The Python rules add `async def $SINKFN(...):` over `$...SINKBODY`
 with a `metavariable-pattern` that searches the body, and the same for a
 lambda. Spell each call out with its names, and leave off the sources' argument
-checks so the scope is never narrower than the sources. A call pattern with no
+checks so every call a source matches is in the scope. A call pattern with no
 name in it (`<... $SINKCALL(...) ...>` checked by a `metavariable-regex`) pairs
 every call with every function around it: it ran 28 s on a 2.4 MB JavaScript
 bundle and stopped with "Too many matches" on a 19 KB Python file, and a regex
 on the call's text misses a call imported under a bare name
 (`from litellm import completion`), which a pattern finds.
 `test/unit/taint-sinks.test.ts` runs every taint rule's sinks over filler that
-calls nothing a rule looks for and fails on any match.
+calls nothing a rule looks for and fails on any match. The filler has no
+controller classes, route decorators or calls, so a sink scoped by one of those
+matches nothing there whatever it costs; `scripts/rule-cost.mjs` is the check
+for those. The `*.test.shapes.*` fixtures of the six rules hold the shapes each
+sink form exists for, so a form that stops matching fails a fixture.
 
 Before a release, `node scripts/rule-cost.mjs` times each rule with a positive
 fixture in Java, Kotlin, PHP, Ruby, Python, JavaScript, TypeScript or Go on that

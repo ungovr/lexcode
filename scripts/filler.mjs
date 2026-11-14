@@ -1,8 +1,9 @@
-// Filler code per fixture extension, shared by scripts/rule-cost.mjs, which times each rule on it, and
-// test/unit/taint-sinks.test.ts, which counts each taint rule's sinks in it. Each unit is dense in
-// classes, fields, functions and returns and names nothing a rule looks for. Every unit returns a plain
-// variable, so a sink written as every return in the file matches each unit (#13034); the Java, Kotlin
-// and Ruby units held no return before, and the script could not see that cost in those languages.
+// Filler code per fixture extension, shared by scripts/rule-cost.mjs, which times each rule on it,
+// and test/unit/taint-sinks.test.ts, which counts each taint rule's sinks in it. Each unit is dense
+// in classes, fields, functions and returns and names nothing a rule looks for. Every unit returns
+// a local variable (PHP's returns an expression of one), so a sink written as every return in the
+// file matches each unit (#13034); the Java, Kotlin and Ruby units held no return before, and the
+// script could not see that cost in those languages.
 
 const JAVA = { language: 'java', bare: 'C0', unit: 'class C%N { private int a; private int b; int m() { int x = 1; return x; } }\n' };
 const KOTLIN = { language: 'kotlin', bare: 'C0', unit: 'class C%N { private val a: Int = 1; private val b: Int = 2; fun m(): Int { val x = 1; return x } }\n' };
