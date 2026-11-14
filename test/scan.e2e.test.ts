@@ -300,6 +300,45 @@ describe.skipIf(!engineAvailable)('lexcode scan over Razor files, with the real 
   });
 });
 
+describe.skipIf(!engineAvailable)('lexcode scan over a C# crawl, with the real engine', () => {
+  // The engine prints an interpolated string without its closing quote and with its braces dropped,
+  // so even a hole-free one names no host: it stays a signal with no host, while a plain literal keeps
+  // its host as evidence (#13012).
+  it('keeps the host of a plain C# literal and names none for an interpolated one', async () => {
+    rmSync(join(repo, 'app.py'));
+    rmSync(join(repo, 'src'), { recursive: true });
+    rmSync(join(repo, 'web'), { recursive: true });
+    const bundled = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'rules', 'crawls_web', 'cs-html-of-fetched-page.yml');
+    mkdirSync(join(repo, '.rules', 'crawls_web'), { recursive: true });
+    cpSync(bundled, join(repo, '.rules', 'crawls_web', 'cs-html-of-fetched-page.yml'));
+    writeFileSync(
+      join(repo, 'Scraper.cs'),
+      [
+        'using HtmlAgilityPack;',
+        '',
+        'public class Scraper',
+        '{',
+        '    public void Run()',
+        '    {',
+        '        var web = new HtmlWeb();',
+        '        web.Load($"https://interp.example.com/deals");',
+        '        web.Load("https://plain.example.com/deals");',
+        '    }',
+        '}',
+        '',
+      ].join('\n'),
+    );
+    const code = await main(['scan', repo, '--rules', join(repo, '.rules'), '--json'], io());
+    expect(code).toBe(0);
+    const rec = JSON.parse(out.join('')) as EvidenceRecord;
+    const crawl = rec.activities.find((a) => a.id === 'crawls_web' && a.mentioned === 'performs');
+    expect(crawl?.evidence).toEqual([{ rule: 'lexcode.crawl.cs-html-of-fetched-page', where: 'Scraper.cs:9', host: 'plain.example.com' }]);
+    const signal = rec.signals.find((s) => s.id === 'crawls_web');
+    expect(signal?.evidence).toEqual([{ rule: 'lexcode.crawl.cs-html-of-fetched-page', where: 'Scraper.cs:8' }]);
+    expect(JSON.stringify(rec)).not.toContain('interp.example.com');
+  });
+});
+
 describe.skipIf(!engineAvailable)('lexcode scan over a Gemfile with the real engine', () => {
   it('counts the gem component map toward the rules that ran, only when a Gemfile is in scope', async () => {
     const scan = async (): Promise<EvidenceRecord> => {

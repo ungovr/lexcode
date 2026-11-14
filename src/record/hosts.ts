@@ -47,39 +47,34 @@ export function isOwnHost(host: string, ownHosts: string[]): boolean {
 
 /**
  * The text of a string literal in one of C#'s own forms, null when that form is code, or undefined when
- * `t` is in none of them: a verbatim string (`@"..."`, where `""` is a quote), an interpolated string
- * with no hole (`$"..."`, `$@"..."` or `@$"..."`, where `{{` is a brace), and a raw string literal
- * (`"""..."""`, three or more quotes, with one `$` or more in front when it interpolates). A raw literal
- * with no `$` in front and a `$` inside is read as code: Kotlin writes a template the same way.
+ * `t` is in none of them: a verbatim string (`@"..."`, where `""` is a quote) and a raw string literal
+ * (`"""..."""`, three or more quotes). A `$` in front always means code, with or without a closing
+ * quote: the engine prints an interpolated string without its closing quote and with its braces
+ * dropped (`$"https://c.example/n/y` for `$"https://c.example/{n}/y"`, `$"https://b.example/x` for a
+ * string with no hole), so a hole-free interpolation cannot be told from one with a hole (#13012). A
+ * raw literal with no `$` in front and a `$` inside is read as code too: Kotlin writes a template the
+ * same way.
  */
 function csharpLiteralText(t: string): string | null | undefined {
+  // An interpolated string (`$"`, `$@"`, `@$"`, and `$"""` too), closed or not.
+  if (/^(\$@|@\$|\$)"/.test(t)) return null;
   const raw = /^(\$*)("{3,})/.exec(t);
   if (raw) {
-    const dollars = (raw[1] as string).length;
+    if ((raw[1] as string).length > 0) return null; // `$$"""...`: an interpolated raw string
     const fence = raw[2] as string;
     const body = t.slice(raw[0].length);
     if (body.length < fence.length || !body.endsWith(fence)) return null;
     const inner = body.slice(0, body.length - fence.length);
     // A longer closing run, or the fence inside, means this was not one raw literal.
     if (inner.endsWith('"') || inner.includes(fence)) return null;
-    if (dollars === 0 ? inner.includes('$') : inner.includes('{'.repeat(dollars))) return null;
+    if (inner.includes('$')) return null; // a Kotlin template
     return inner;
   }
-  const m = /^(\$@|@\$|@|\$)"([\s\S]*)"$/.exec(t);
+  const m = /^@"([\s\S]*)"$/.exec(t);
   if (!m) return undefined;
-  const prefix = m[1] as string;
-  let inner = m[2] as string;
-  if (prefix.includes('@')) {
-    if (inner.replace(/""/g, '').includes('"')) return null; // two literals joined
-    inner = inner.replace(/""/g, '"');
-  } else if (/(^|[^\\])"/.test(inner)) {
-    return null;
-  }
-  if (prefix.includes('$')) {
-    if (inner.replace(/\{\{/g, '').includes('{')) return null; // a hole interpolates
-    inner = inner.replace(/\{\{/g, '{').replace(/\}\}/g, '}');
-  }
-  return inner;
+  const inner = m[1] as string;
+  if (inner.replace(/""/g, '').includes('"')) return null; // two literals joined
+  return inner.replace(/""/g, '"');
 }
 
 /** The text of a plain string literal, or null when the argument is code (a name, a concatenation, an interpolation). */
