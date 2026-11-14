@@ -237,6 +237,12 @@ or everyone can write to, since it runs a program from there.
 take (900, 15 minutes, by default); past it the engine is stopped and the scan
 fails with exit 2.
 
+A large scan runs the engine as several processes at once, one per 4 MB of
+files it reads, at most 8, and no more than the cores and one per 3 GB of
+memory allow. Each process holds its own copy of the rules, so memory rises
+with them. `LEXCODE_ENGINE_LANES=<n>` sets the number; `1` runs the engine as
+one process, for a machine that runs short of memory.
+
 `LEXCODE_RULES_HOME=<dir>` replaces the bundled `rules/` directory (it needs `ruleset.yml`, `classes.yml`, `registry.snapshot.json` and `components/`), for a vendored rule set or a test.
 
 CI: see [docs/ci.md](docs/ci.md).
