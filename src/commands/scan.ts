@@ -133,7 +133,7 @@ export async function scan(o: ScanOptions): Promise<EvidenceRecord> {
   }
   if (listed.skippedBundled > 0) {
     notices.push(
-      `skipped ${listed.skippedBundled} bundled, minified or generated ${listed.skippedBundled === 1 ? 'file' : 'files'} (named *.min.js, *.bundle.js, vendor.*.js, *.vendor.js, *.g.cs or *.g.i.cs)`,
+      `skipped ${listed.skippedBundled} bundled, minified or generated ${listed.skippedBundled === 1 ? 'file' : 'files'} (named *.min.js, *.bundle.js, vendor.*.js, *.vendor.js, *.g.cs, *.g.i.cs, *.generated.swift, *+Generated.swift, *.pb.swift or *.grpc.swift)`,
     );
   }
   if (listed.skippedLarge > 0) {

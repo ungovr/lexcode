@@ -289,7 +289,7 @@ describe('buildRecord', () => {
 
   describe('a repository lexcode cannot read (S4)', () => {
     const rs = ruleSetWith([{ id: 'lexcode.voice.whisper', activity: 'processes_voice' }]);
-    const noRead = /no file in scope is in a language lexcode reads \(TypeScript, JavaScript, Python, Go, Ruby, Java, Kotlin, PHP and C#, and script blocks in HTML, Vue, Svelte, Jinja, ERB, JSP, PHP, Blade, Twig and Razor views\); nothing was looked at/;
+    const noRead = /no file in scope is in a language lexcode reads \(TypeScript, JavaScript, Python, Go, Ruby, Java, Kotlin, PHP and C#, and script blocks in HTML, Vue, Svelte, Jinja, ERB, JSP, PHP, Blade, Twig, Tera and Razor views\); nothing was looked at/;
 
     it('adds a notice when no code rule had a file to read', () => {
       const rulesRun = countRulesRun(rs, rs.rules, ['app.rb', 'README.md'], new Set());
@@ -308,10 +308,10 @@ describe('buildRecord', () => {
       expect(buildRecord({ ...base, rs: withJson, rulesRun }).notices.join('\n')).toMatch(noRead);
     });
 
-    it('the notice names every language and view type lexcode reads, Ruby, Java, Kotlin, PHP, C#, ERB, JSP, Blade, Twig and Razor included', () => {
+    it('the notice names every language and view type lexcode reads, Ruby, Java, Kotlin, PHP, C#, ERB, JSP, Blade, Twig, Tera and Razor included', () => {
       const rulesRun = countRulesRun(rs, rs.rules, ['app.rb', 'README.md'], new Set());
       const text = buildRecord({ ...base, rs, rulesRun }).notices.find((n) => noRead.test(n)) ?? '';
-      for (const name of ['TypeScript', 'JavaScript', 'Python', 'Go', 'Ruby', 'Java', 'Kotlin', 'PHP', 'C#', 'HTML', 'Vue', 'Svelte', 'Jinja', 'ERB', 'JSP', 'Blade', 'Twig', 'Razor']) {
+      for (const name of ['TypeScript', 'JavaScript', 'Python', 'Go', 'Ruby', 'Java', 'Kotlin', 'PHP', 'C#', 'HTML', 'Vue', 'Svelte', 'Jinja', 'ERB', 'JSP', 'Blade', 'Twig', 'Tera', 'Razor']) {
         expect(text).toMatch(namedIn(name));
       }
     });
@@ -627,6 +627,79 @@ describe('C# and the other .NET languages (#13012)', () => {
     expect(unreadLanguages(cs(), ['a.cs', 'b.vb', 'c.fsx'])).toEqual([
       { language: 'F#', files: 1 },
       { language: 'Visual Basic', files: 1 },
+    ]);
+  });
+});
+
+describe('Swift, Rust and Objective-C (#13199)', () => {
+  /** The rules of the test alone: the helper's rule set carries the bundled ones as well. */
+  const only = (rs: ReturnType<typeof ruleSetWith>) => rs.rules.filter((r) => r.id.startsWith('lexcode.a.'));
+  const lang = (language: string) => only(ruleSetWith([{ id: `lexcode.a.${language}`, activity: 'trains_models', languages: [language] }]));
+  const py = lang('python');
+  const files = ['a.rs', 'b.swift', 'c.js'];
+
+  it('a rust rule reads .rs files only', () => {
+    const p = enginePlan(lang('rust'), files);
+    expect(p.rules.map((r) => r.id)).toEqual(['lexcode.a.rust']);
+    expect(p.targets).toEqual(['a.rs']);
+    // Never 'all': a rust rule with no .rs file in scope is left out.
+    expect(enginePlan(lang('rust'), ['b.swift', 'c.js', 'Cargo.toml']).rules).toEqual([]);
+  });
+
+  it('a swift rule reads .swift files only', () => {
+    const p = enginePlan(lang('swift'), files);
+    expect(p.rules.map((r) => r.id)).toEqual(['lexcode.a.swift']);
+    expect(p.targets).toEqual(['b.swift']);
+    expect(enginePlan(lang('swift'), ['a.rs', 'c.js', 'Package.swift.md', 'x.m']).rules).toEqual([]);
+  });
+
+  it('the rs alias maps to rust', () => {
+    for (const alias of ['rs', 'RS', 'Rust']) {
+      expect(enginePlan(lang(alias), files).targets).toEqual(['a.rs']);
+      expect(unreadLanguages(lang(alias), ['a.rs'])).toEqual([]);
+    }
+  });
+
+  it('unreadLanguages names Objective-C', () => {
+    expect(unreadLanguages(py, ['x.mm'])).toEqual([{ language: 'Objective-C', files: 1 }]);
+    // .m is also MATLAB's extension: Objective-C only beside an Xcode project, a Podfile or a Package.swift.
+    expect(unreadLanguages(py, ['y.m'])).toEqual([]);
+    expect(unreadLanguages(py, ['y.m', 'App.xcodeproj/project.pbxproj'])).toEqual([{ language: 'Objective-C', files: 1 }]);
+    expect(unreadLanguages(py, ['ios/y.m', 'ios/Podfile'])).toEqual([{ language: 'Objective-C', files: 1 }]);
+    // Package.swift is a Swift file itself, so a scope with no swift rule names Swift as well.
+    expect(unreadLanguages(py, ['Sources/Shim/y.m', 'Package.swift'])).toEqual([
+      { language: 'Objective-C', files: 1 },
+      { language: 'Swift', files: 1 },
+    ]);
+    expect(unreadLanguages(lang('swift'), ['Sources/Shim/y.m', 'Package.swift'])).toEqual([{ language: 'Objective-C', files: 1 }]);
+    // A name that only holds one of them is not one of them.
+    expect(unreadLanguages(py, ['y.m', 'docs/Podfile.md', 'notes/project.pbxproj.txt'])).toEqual([]);
+    expect(unreadLanguages(py, ['y.m', 'MyPackage.swift'])).toEqual([{ language: 'Swift', files: 1 }]);
+    // .h stays with C and C++.
+    expect(unreadLanguages(py, ['A.h', 'A.m', 'B.mm', 'Podfile'])).toEqual([
+      { language: 'Objective-C', files: 2 },
+      { language: 'C and C++', files: 1 },
+    ]);
+  });
+
+  it('Swift and Rust leave the notice when their rules are loaded', () => {
+    const all = ['App/ContentView.swift', 'App/Model.swift', 'src/main.rs', 'tools/x.py'];
+    expect(unreadLanguages(py, all)).toEqual([
+      { language: 'Swift', files: 2 },
+      { language: 'Rust', files: 1 },
+    ]);
+    expect(unreadLanguages(lang('swift'), all)).toEqual([
+      { language: 'Python', files: 1 },
+      { language: 'Rust', files: 1 },
+    ]);
+    expect(unreadLanguages(lang('rust'), all)).toEqual([
+      { language: 'Swift', files: 2 },
+      { language: 'Python', files: 1 },
+    ]);
+    expect(unreadLanguages([...lang('swift'), ...lang('rust'), ...py], all)).toEqual([]);
+    // A swift rule does not read Objective-C.
+    expect(unreadLanguages(lang('swift'), ['a.swift', 'b.m', 'c.mm', 'App.xcodeproj/project.pbxproj'])).toEqual([
+      { language: 'Objective-C', files: 2 },
     ]);
   });
 });
