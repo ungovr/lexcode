@@ -9,7 +9,7 @@ class. Every rule is original to UnGovr and MIT licensed. The recall table below
 is measured against the truth sets, per activity.
 
 <!-- recall:start -->
-Measured 2026-11-12 over the UnGovr monorepo, 9 pinned starter templates and 3 real apps,
+Measured 2026-11-14 over the UnGovr monorepo, 9 pinned starter templates and 3 real apps,
 against answer keys, each read by an agent that had not seen the rules.
 Found counts evidence of either kind for the activity or its family; signal
 only counts the misses where lexcode showed a worth-a-look row and nothing
