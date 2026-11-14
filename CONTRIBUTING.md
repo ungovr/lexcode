@@ -323,7 +323,7 @@ for those. Each of the six rules has two more positive fixtures:
 lambda, callbacks, a result set at module level), and `*.test.calls.*` holds
 one function per call the sinks list, in each form that reaches it. The Java,
 Kotlin and Ruby ones have a `*.test.calls.*` too. Deleting any one sink entry
-or form drops a match in them (362 checked for Python and JS/TS, 345 for Java,
+or form drops a match in them (362 checked for Python and JS/TS, 389 for Java,
 Kotlin and Ruby, #13034), so a call added to a rule's list needs its function
 in `*.test.calls.*`. That check also found entries another entry already
 covers, and they were dropped: a call is left out of a list when a shorter
@@ -347,7 +347,8 @@ does not reach inside `if`, `try` or `when`, so the scope is a search of the
 body (`fun $SINKFN(...) { $...SINKBODY }` with a `metavariable-pattern`, which
 matches a function with a return type too) and of an expression body, and the
 second sink is a `val` set from a call at the top level, in a class or in a
-function. There, write the expression-bodied function as
+function, named by a return or an expression body after it: a member declared
+before the `val`, or a `val` derived from it, is not followed. There, write the expression-bodied function as
 `pattern: fun $F(...) = $X`, not `pattern-inside`: with `pattern-inside`, a
 `val` declared inside the body made the `val`'s own statement the sink, which
 holds the source call, and 15 false matches appeared in four codebases. In
@@ -355,10 +356,15 @@ Ruby a statement sequence under `def` reaches blocks, `if` and `begin`, but not
 a call used as the receiver of `[...]` (`client.chat(...)["choices"]`, the usual
 ruby-openai shape) or one in a ternary, an `if` or `case` expression, a
 condition or parentheses, so the scope is a body search under `def` and
-`def self.`, as in Kotlin. Ruby has no second sink: the old every-return sink
-followed neither a constant nor an instance variable into a method. None of the
-three searches the parameter list, so a source call in a default parameter is
-not followed.
+`def self.`, as in Kotlin. A `def` with a method-level `rescue` or `ensure` is a
+try node to the engine, which neither form reaches, so each call also scopes
+the statements from the one that holds it (`<... CALL ...>` then `...`) to the
+end of its block, inside a `def`. Without the `def`, the last expression of an
+RSpec block after a call counted as a return: 88 false matches in the specs of
+two gems. Ruby has no second sink: the old every-return sink followed
+neither a constant nor an instance variable into a method. The Kotlin body
+search does not reach the parameter list, so a source call in a Kotlin default
+parameter is not followed; in Ruby the statement form reaches it.
 
 `scripts/rule-cost.mjs` times a rule on its plain positive fixture
 (`<stem>.test.<ext>`), where the source call is inside a function, not on a

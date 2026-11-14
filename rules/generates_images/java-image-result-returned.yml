@@ -3,9 +3,9 @@
 # (#13034). It is a return in a method or block lambda that also makes one of the calls below (in a
 # statement, a for-each header or an if header), or a return that names a field the class sets from
 # one of them. Not followed: a result one method stores at run time and another returns, a field
-# derived from such a field, a call in a while header or a for initializer, and a return in a lambda
-# nested in a streaming callback. The calls are the sources without their argument and name checks.
-# How the scope is written, and why, is in CONTRIBUTING.md, Cost.
+# derived from such a field, a call in a while header or a for initializer, and a call in a for-each
+# or if header inside a lambda held by a field. The calls are the sources without their argument and
+# name checks. How the scope is written, and why, is in CONTRIBUTING.md, Cost.
 rules:
   - id: lexcode.image.java-image-result-returned
     languages: [java]
