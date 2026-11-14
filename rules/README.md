@@ -266,6 +266,86 @@ line over 100,000 characters skipped, and the engine could not read 31 files.
 The notice naming unread PHP files is gone.
 <!-- moodle:end -->
 
+<!-- nopcommerce:start -->
+### nopCommerce, read with C#, Razor and the MSBuild manifests
+
+Measured 2026-11-14 over `nopSolutions/nopCommerce` at commit `aeb6862`
+(https://github.com/nopSolutions/nopCommerce/tree/aeb686282007ed774b362e3cdff34b7c233f8933,
+license NPL-4.0, AGPL-3.0 with an attribution term), with lexcode `v1.4` (branch
+build at commit `524e554`), against a reading of the same commit by an agent
+that had not seen the C# rules, checked row by row by a second reader who had
+not seen them either, kept unchanged. The reading includes 10 activities from
+code, marks 12 as absent and leaves 4 unsure. Every figure below is from one
+run, `lexcode scan` and `lexcode check --declaration` with that build, unless it
+names another: lexcode read 6,413 files and 391 script copies drawn from Razor
+views, in 1 minute 20 seconds (scan) and 1 minute 49 seconds (check), 0.9 GB at
+most, on a shared machine (load average about 35). The check reports 0 FAIL and
+0 WARN.
+
+**Score: 6 of 10 found at evidence strength, 2 signal only, 2 missed. No evidence
+contradicts a row the reading marks absent. Of the 4 unsure rows, one drew a
+signal (`aggregates_content`) and three drew nothing, so none is found or
+missed.** Of the 6 found, 5 have evidence under the activity's own id:
+`processes_personal_data`, `automated_outreach`, `tracks_devices` and
+`distributes_software_product` on C# or MSBuild evidence, and `generates_text` on
+the DeepL package alone. The sixth, `generates_content`, has no evidence under
+its own id. It counts as found because the registry makes `generates_text` a
+child of `generates_content`, so the check and the truth-set script read them as
+one family, and the DeepL package is the only evidence for either. That package
+sits on the translation path, which the reading calls the weaker case for
+`generates_text` and does not cite for `generates_content` at all. Read plainly,
+the built-in AI service (OpenAI, Gemini or DeepSeek writing product descriptions)
+was not seen. The 2 misses are `deploys_chatbot`, where nopCommerce inserts an
+operator-pasted embed code for a chatbot that runs on the vendor's servers, and
+`ships_encryption`, which rests on .NET's own `System.Security.Cryptography`
+classes, ASP.NET Core Data Protection configuration and the GoogleAuthenticator
+package, none of which a C# rule or the NuGet component map names. The 2 signals
+are `ships_consumer_interface` and `operates_social_platform`, the two activities
+whose rules are signal class by design. Recall is printed, never gated. Paths
+below are relative to the repository root.
+
+| Activity | The reading | lexcode | Verdict |
+|---|---|---|---|
+| `processes_personal_data` | include: `src/Libraries/Nop.Core/Domain/Customers/Customer.cs:24`, `:29`, `:94`, `:214`, `src/Libraries/Nop.Core/Domain/Common/Address.cs:11`, `:21`, `:66`, `src/Libraries/Nop.Core/Domain/Orders/Order.cs:189`, `src/Libraries/Nop.Core/Domain/Logging/ActivityLog.cs:41`, `src/Presentation/Nop.Web/Controllers/CustomerController.cs:468` and `:1018`, `src/Plugins/Nop.Plugin.Widgets.FacebookPixel/Domain/ConversionsEventUserData.cs:29` | found, performs, 10 matches of `lexcode.personal.cs-schema-field`, among them `src/Libraries/Nop.Data/Mapping/Builders/Customers/CustomerBuilder.cs:26` (`Customer.Email`), `:37` (`Phone`), `:42` (`DateOfBirth`), `:44` (`LastIpAddress`) and `src/Libraries/Nop.Data/Mapping/Builders/Logging/ActivityLogBuilder.cs:23` (`IpAddress`); and enables 1, `pkg:nuget/Microsoft.AspNetCore.Authentication.Facebook@10.0.11` at `src/Plugins/Nop.Plugin.ExternalAuth.Facebook/Nop.Plugin.ExternalAuth.Facebook.csproj:61` | Found, on other code: the database column mappings for the same `Customer` and `ActivityLog` entities the reading cites. The entity files themselves, the sign-in pages and the Facebook Pixel payload are not matched |
+| `ships_consumer_interface` | include: `src/Presentation/Nop.Web/Controllers/HomeController.cs:9`, `CatalogController.cs:117` and `:364`, `ShoppingCartController.cs:593` and `:791`, `CheckoutController.cs:342`, `CustomerController.cs:1018`, and the views `Views/Home/Index.cshtml` and `Views/Checkout/OnePageCheckout.cshtml` | signal only, 3 matches; `lexcode.consumer.cs-signup-screen` at `src/Presentation/Nop.Web/Controllers/CustomerController.cs:1000` and `:1013`, and `lexcode.consumer.cs-signup-route` at `src/Presentation/Nop.Web/Infrastructure/RouteProvider.cs:45` | Signal only, by design: the sign-up rules are signal class. The two controller matches are the attribute lines of the two `Register` actions, the second five lines above the reading's `:1018`, and the route match is the one that serves `/register/`. The storefront controllers and views are not matched |
+| `automated_outreach` | include: `src/Libraries/Nop.Services/Messages/QueuedMessagesSendTask.cs:62`, `src/Libraries/Nop.Services/Reminders/ProcessAbandonedCartsTask.cs:48`, `ProcessPendingOrdersTask.cs:54`, `ProcessIncompleteRegistrationsTask.cs:56`, `src/Plugins/Nop.Plugin.Sms.Twilio/Services/TwilioService.cs:47`, `src/Plugins/Nop.Plugin.Sms.Twilio/Nop.Plugin.Sms.Twilio.csproj:49`, `src/Plugins/Nop.Plugin.Misc.Brevo/Services/BrevoManager.cs:1429` and `:1462`, 23 lines in all | found, performs 9 and enables 1; `lexcode.outreach.cs-send-in-loop` at `src/Libraries/Nop.Services/Messages/QueuedMessagesSendTask.cs:62`, `src/Libraries/Nop.Services/Reminders/ProcessAbandonedCartsTask.cs:135` and `ProcessPendingOrdersTask.cs:143`, `src/Libraries/Nop.Services/Catalog/BackInStockSubscriptionService.cs:155` and 4 more in `OrderProcessingService.cs`; `lexcode.outreach.cs-bulk-send` at `src/Plugins/Nop.Plugin.Misc.Brevo/Services/BrevoManager.cs:1462`; `pkg:nuget/Twilio@8.0.1` at `src/Plugins/Nop.Plugin.Sms.Twilio/Nop.Plugin.Sms.Twilio.csproj:49`; 1 signal, `lexcode.outreach.cs-sms-call-push-send` at `src/Plugins/Nop.Plugin.Sms.Twilio/Services/TwilioService.cs:47` | Found, on 4 of the reading's own lines (`QueuedMessagesSendTask.cs:62`, `BrevoManager.cs:1462`, the Twilio csproj `:49` and, as a signal, `TwilioService.cs:47`) and in 2 more of its files (the abandoned-cart and pending-order tasks). `ProcessIncompleteRegistrationsTask.cs`, the campaign service and the Omnisend plugin are not matched |
+| `tracks_devices` | include: `src/Plugins/Nop.Plugin.Widgets.GoogleAnalytics/GoogleAnalyticsPlugin.cs:98` and `:99`, `Components/WidgetsGoogleAnalyticsViewComponent.cs:123`, `GoogleAnalyticsDefaults.cs:21`, `src/Plugins/Nop.Plugin.Widgets.FacebookPixel/Services/FacebookPixelService.cs:248`, `:294`, `:1073`, `FacebookConversionsHttpClient.cs:51`, `src/Plugins/Nop.Plugin.Misc.Brevo/BrevoPlugin.cs:103` and `:108`, `src/Plugins/Nop.Plugin.Misc.Omnisend/OmnisendPlugin.cs:94` and `:97`, 18 lines in all | found, performs, 2 matches; `lexcode.tracking.cs-analytics-calls` at `src/Plugins/Nop.Plugin.Widgets.GoogleAnalytics/GoogleAnalyticsDefaults.cs:21` (the Measurement Protocol endpoint) and `:26` (its debug twin) | Found, on a line the reading cites (`:21`). The tracking scripts of Google Analytics, Facebook Pixel, Brevo and Omnisend are C# string literals handed to the page by a view component or the plugin's install code, and none is matched; the only matches are the server-side endpoint constants |
+| `deploys_chatbot` | include: `src/Plugins/Nop.Plugin.Widgets.Jotform/JotformPlugin.cs:52`, `:94`, `:96`, `Components/WidgetJotformViewComponent.cs:9` and `:41` | missed (searched, not found; 7 rules tried) | Missed. The plugin registers a widget zone and returns the operator's pasted embed code as `new HtmlString(_jotformSettings.EmbedCode)` (`WidgetJotformViewComponent.cs:41`). There is no model SDK, conversation service or turn history in nopCommerce's code for a rule to name; the chatbot runs on Jotform's servers. The reading itself calls this row a close call |
+| `generates_content` | include: `src/Libraries/Nop.Services/ArtificialIntelligence/ArtificialIntelligenceDefaults.cs:13`, `:18`, `:27`, `:46`, `ArtificialIntelligenceHttpClient.cs:64`, `ArtificialIntelligenceService.cs:302`, `src/Presentation/Nop.Web/Areas/Admin/Controllers/ProductController.cs:1628`, `ArtificialIntelligenceController.cs:73` | no evidence under its own id; counted as found through the family, on `pkg:nuget/DeepL.net@1.22.1` at `src/Presentation/Nop.Web.Framework/Nop.Web.Framework.csproj:15` (see `generates_text`) | Found by family only, and not on the reading's lines. The reading rests this row on the built-in OpenAI, Gemini and DeepSeek service, which lexcode did not see: it builds a request in a helper object and sends it with `_httpClient.SendAsync(request)`, the endpoint a string property on a static class (`ArtificialIntelligenceDefaults.cs:13`, `:27`, `:46`). The C# rules name SDK classes and chat-completion calls, and none reads a hosted model's address |
+| `generates_text` | include: `src/Libraries/Nop.Services/ArtificialIntelligence/ArtificialIntelligenceDefaults.cs:58`, `:63`, `:68`, `:73`, `ArtificialIntelligenceHttpClient.cs:64`, `ArtificialIntelligenceService.cs:302` and `:364`, `src/Presentation/Nop.Web.Framework/Factories/TranslationModelFactory.cs:131`, `Nop.Web.Framework.csproj:15` and `:18` | found, enables 1; `pkg:nuget/DeepL.net@1.22.1` at `src/Presentation/Nop.Web.Framework/Nop.Web.Framework.csproj:15` | Found by dependency, on a line the reading cites, and on the path the reading calls the weaker case (the admin translate button). The language-model path the reading rests the row on is missed, for the reason given under `generates_content` |
+| `ships_encryption` | include: `src/Libraries/Nop.Services/Security/EncryptionService.cs:73`, `:110`, `:121`, `:141`, `src/Libraries/Nop.Services/Customers/CustomerRegistrationService.cs:115` and `:320`, `NopCustomerServiceDefaults.cs:23`, `src/Presentation/Nop.Web.Framework/Infrastructure/Extensions/ServiceCollectionExtensions.cs:263`, `src/Plugins/Nop.Plugin.MultiFactorAuth.GoogleAuthenticator/Services/GoogleAuthenticatorService.cs:181` and `:195`, and its csproj `:52` | missed (searched, not found; 21 rules tried) | Missed. `EncryptionService.cs:73` calls `Aes.Create()` or `TripleDES.Create()` from .NET's own `System.Security.Cryptography`, which the C# rules leave to the framework; they name bundled libraries (Bouncy Castle, NSec, libsodium, PgpCore, JOSE). Data protection is configured with `services.AddDataProtection().PersistKeysToFileSystem(...)` (`ServiceCollectionExtensions.cs:263`), while the data-protection rule reads `CreateProtector(...)` and `DataProtectionProvider.Create(...)`. The `GoogleAuthenticator` package (`csproj:52`) has no entry in the NuGet component map |
+| `distributes_software_product` | include: `LICENSE.md:1`, `README.md:1` and `:56`, `Dockerfile:1`, `src/Presentation/Nop.Web/Nop.Web.csproj:7`, `src/Libraries/Nop.Core/NopVersion.cs:11` | found, performs, 5 matches of `lexcode.distribute.msbuild-nuget-package`, all on the `<PackageLicenseUrl>` line: `src/Libraries/Nop.Core/Nop.Core.csproj:9`, `src/Libraries/Nop.Data/Nop.Data.csproj:9`, `src/Libraries/Nop.Services/Nop.Services.csproj:9`, `src/Presentation/Nop.Web.Framework/Nop.Web.Framework.csproj:9` and `src/Presentation/Nop.Web/Nop.Web.csproj:9` | Found, in a file the reading cites (`Nop.Web.csproj`, two lines below its version at `:7`). The matches are the NuGet package metadata of 5 projects, not the Dockerfile, the license or the version constant |
+| `operates_social_platform` | include: `src/Plugins/Nop.Plugin.Misc.Forums/Domain/ForumTopic.cs:8`, `ForumPost.cs:8`, `Public/Controllers/BoardsController.cs:425` and `:726`, `Services/ForumInstallService.cs:74`, `src/Libraries/Nop.Core/Domain/Catalog/ProductReview.cs:36`, `src/Presentation/Nop.Web/Controllers/ProductController.cs:309`, `BlogController.cs:174`, `ProfileController.cs:29`, `src/Libraries/Nop.Core/Domain/Customers/CustomerSettings.cs:148`, 12 lines in all | signal only, 2 matches; `lexcode.social.cs-post-model` at `src/Plugins/Nop.Plugin.Misc.Forums/Domain/ForumPost.cs:43` and `lexcode.social.cs-direct-message` at `src/Libraries/Nop.Core/Domain/Customers/PrivateMessage.cs:21` | Signal only, by design: the social rules are signal class. One match is in a file the reading cites (`ForumPost.cs`), on its vote-count property; the other is the customer-to-customer private message, which the reading discusses under `records_text_chat` and does not cite for this row. Reviews, blog and news comments and profile pages are not matched |
+
+Unsure in the reading, and not scored: `crawls_web`, `aggregates_content`,
+`records_text_chat` and `relies_on_digital_identity`. lexcode reported nothing
+for `crawls_web`, `records_text_chat` or `relies_on_digital_identity`. For
+`aggregates_content` it gave one signal, `lexcode.aggregate.cs-feed-read` at
+`src/Libraries/Nop.Services/Common/NopHttpClient.cs:174` (`RssFeed.LoadAsync`),
+in the method that fetches the vendor news feed the reading discusses at
+`NopHttpClient.cs:161`.
+
+**Absent rows.** The reading marks 12 activities absent: `trains_models`,
+`generates_images`, `generates_video`, `generates_audio`, `processes_voice`,
+`processes_biometrics`, `records_calls`, `collects_e_signatures`,
+`ships_mobile_app`, `operates_app_store`, `statutory_requests` and
+`publishes_adult_content`. lexcode reported no evidence and no signal for any of
+them, so the check has 0 FAIL.
+
+**Client libraries (known gap, Decision 14).** lexcode reads files under
+`wwwroot/lib/` as the app's own JavaScript in this phase. nopCommerce's
+`src/Presentation/Nop.Web/wwwroot/lib/` holds adminLTE and summernote, with 2
+JavaScript files; `wwwroot/lib_npm/` holds 426 JavaScript files, 263 of them not
+minified or bundled. Of the record's 36 rows (29 evidence rows and 7 signal
+rows), 0 lie under `wwwroot/lib/` and 0 under `wwwroot/lib_npm/`, so the count is
+0 for every activity and no row rests on vendored code. The reading found the
+same: no row rests on a client library.
+
+The scan's notices, as printed: 172 bundled, minified or generated files
+skipped (named `*.min.js`, `*.bundle.js`, `vendor.*.js`, `*.vendor.js`, `*.g.cs`
+or `*.g.i.cs`), 1 file over 5 MB skipped, and the engine could not read 14 files.
+<!-- nopcommerce:end -->
+
 ## Ruby, ERB views and gems
 
 How lexcode reads Ruby, where the engine cannot, and what a gem manifest counts.
