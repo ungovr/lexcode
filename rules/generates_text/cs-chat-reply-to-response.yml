@@ -8,36 +8,31 @@ rules:
     # alias too), so the pattern also matches the short form under using, and never an app's own
     # class of the same short name. A type reached only through a global using in another file
     # is missed (rules/README.md).
+    # Only a call that generates is a source here: a typed client calling its generating method,
+    # or the call that sends a request built for a named generation model. A client or request
+    # object is not output, and a client obtained from a factory or the service container into a
+    # local is the companion signal rule's (the engine cannot type it).
     # A short name that carries the vendor's own name is also read in its short form, so a file
     # that reaches it through a global using elsewhere is still read (Decision 10): a class named
-    # after the vendor is that vendor's client either way. Here: OpenAIClient,
-    # AzureOpenAIClient, AnthropicClient, IAnthropicClient, AmazonBedrockRuntimeClient,
-    # IAmazonBedrockRuntime and OllamaApiClient.
+    # after the vendor is that vendor's client either way. Here: AnthropicClient,
+    # IAnthropicClient, AmazonBedrockRuntimeClient, IAmazonBedrockRuntime and OllamaApiClient, and
+    # IOllamaApiClient.
     pattern-sources:
       # Microsoft.Extensions.AI: an IChatClient injected, or held in a field, a property or a
       # parameter. Structured output (GetResponseAsync<T>) is the same call.
       - pattern: (Microsoft.Extensions.AI.IChatClient $C).GetResponseAsync(...)
       - pattern: (Microsoft.Extensions.AI.IChatClient $C).GetResponseAsync<$T>(...)
       - pattern: (Microsoft.Extensions.AI.IChatClient $C).GetStreamingResponseAsync(...)
-      # An IChatClient taken from the container, or adapted from a vendor client, into a local:
-      # what it writes carries on from the client.
-      - pattern: $SP.GetRequiredService<Microsoft.Extensions.AI.IChatClient>(...)
-      - pattern: $SP.GetService<Microsoft.Extensions.AI.IChatClient>(...)
-      - pattern: $V.AsIChatClient(...)
-      # Semantic Kernel: a chat or text completion service, injected or taken from the kernel, and
-      # a prompt run on a kernel.
-      - pattern: (Microsoft.SemanticKernel.ChatCompletion.IChatCompletionService $S).GetChatMessageContentAsync(...)
-      - pattern: (Microsoft.SemanticKernel.ChatCompletion.IChatCompletionService $S).GetChatMessageContentsAsync(...)
-      - pattern: (Microsoft.SemanticKernel.ChatCompletion.IChatCompletionService $S).GetStreamingChatMessageContentsAsync(...)
-      - pattern: (Microsoft.SemanticKernel.TextGeneration.ITextGenerationService $S).GetTextContentAsync(...)
-      - pattern: (Microsoft.SemanticKernel.TextGeneration.ITextGenerationService $S).GetTextContentsAsync(...)
-      - pattern: (Microsoft.SemanticKernel.TextGeneration.ITextGenerationService $S).GetStreamingTextContentsAsync(...)
-      - pattern: $K.GetRequiredService<Microsoft.SemanticKernel.ChatCompletion.IChatCompletionService>(...)
-      - pattern: $K.GetRequiredService<Microsoft.SemanticKernel.TextGeneration.ITextGenerationService>(...)
-      - pattern: (Microsoft.SemanticKernel.Kernel $K).InvokePromptAsync(...)
-      - pattern: (Microsoft.SemanticKernel.Kernel $K).InvokePromptStreamingAsync(...)
-      # The OpenAI .NET SDK: a chat or responses client, typed, or taken from the OpenAI or Azure
-      # OpenAI client into a local.
+      # Semantic Kernel: a chat or text completion service, and a prompt run on a kernel.
+      - pattern: (Microsoft.SemanticKernel.ChatCompletion.IChatCompletionService $C).GetChatMessageContentAsync(...)
+      - pattern: (Microsoft.SemanticKernel.ChatCompletion.IChatCompletionService $C).GetChatMessageContentsAsync(...)
+      - pattern: (Microsoft.SemanticKernel.ChatCompletion.IChatCompletionService $C).GetStreamingChatMessageContentsAsync(...)
+      - pattern: (Microsoft.SemanticKernel.TextGeneration.ITextGenerationService $C).GetTextContentAsync(...)
+      - pattern: (Microsoft.SemanticKernel.TextGeneration.ITextGenerationService $C).GetTextContentsAsync(...)
+      - pattern: (Microsoft.SemanticKernel.TextGeneration.ITextGenerationService $C).GetStreamingTextContentsAsync(...)
+      - pattern: (Microsoft.SemanticKernel.Kernel $C).InvokePromptAsync(...)
+      - pattern: (Microsoft.SemanticKernel.Kernel $C).InvokePromptStreamingAsync(...)
+      # The OpenAI .NET SDK: a chat or responses client.
       - pattern: (OpenAI.Chat.ChatClient $C).CompleteChat(...)
       - pattern: (OpenAI.Chat.ChatClient $C).CompleteChatAsync(...)
       - pattern: (OpenAI.Chat.ChatClient $C).CompleteChatStreaming(...)
@@ -46,14 +41,6 @@ rules:
       - pattern: (OpenAI.Responses.OpenAIResponseClient $C).CreateResponseAsync(...)
       - pattern: (OpenAI.Responses.OpenAIResponseClient $C).CreateResponseStreaming(...)
       - pattern: (OpenAI.Responses.OpenAIResponseClient $C).CreateResponseStreamingAsync(...)
-      - pattern: (OpenAI.OpenAIClient $O).GetChatClient(...)
-      - pattern: (OpenAI.OpenAIClient $O).GetOpenAIResponseClient(...)
-      - pattern: (Azure.AI.OpenAI.AzureOpenAIClient $O).GetChatClient(...)
-      - pattern: (Azure.AI.OpenAI.AzureOpenAIClient $O).GetOpenAIResponseClient(...)
-      - pattern: (OpenAIClient $O).GetChatClient(...)
-      - pattern: (OpenAIClient $O).GetOpenAIResponseClient(...)
-      - pattern: (AzureOpenAIClient $O).GetChatClient(...)
-      - pattern: (AzureOpenAIClient $O).GetOpenAIResponseClient(...)
       # Azure AI Inference (models deployed in Azure AI Foundry).
       - pattern: (Azure.AI.Inference.ChatCompletionsClient $C).Complete(...)
       - pattern: (Azure.AI.Inference.ChatCompletionsClient $C).CompleteAsync(...)
@@ -61,38 +48,54 @@ rules:
       # Anthropic: the official SDK's Messages.Create, and the community Anthropic.SDK, whose
       # method names carry the model's own name.
       - pattern: (Anthropic.AnthropicClient $C).Messages.Create(...)
-      - pattern: (Anthropic.AnthropicClient $C).Messages.CreateStreaming(...)
-      - pattern: (Anthropic.IAnthropicClient $C).Messages.Create(...)
-      - pattern: (Anthropic.IAnthropicClient $C).Messages.CreateStreaming(...)
       - pattern: (AnthropicClient $C).Messages.Create(...)
+      - pattern: (Anthropic.AnthropicClient $C).Messages.CreateStreaming(...)
       - pattern: (AnthropicClient $C).Messages.CreateStreaming(...)
+      - pattern: (Anthropic.IAnthropicClient $C).Messages.Create(...)
       - pattern: (IAnthropicClient $C).Messages.Create(...)
+      - pattern: (Anthropic.IAnthropicClient $C).Messages.CreateStreaming(...)
       - pattern: (IAnthropicClient $C).Messages.CreateStreaming(...)
-      - pattern: $C.Messages.GetClaudeMessageAsync(...)
-      - pattern: $C.Messages.StreamClaudeMessageAsync(...)
-      # AWS Bedrock Runtime: the Converse API, which answers in text.
+      - pattern: $V.Messages.GetClaudeMessageAsync(...)
+      - pattern: $V.Messages.StreamClaudeMessageAsync(...)
+      # AWS Bedrock Runtime: the Converse API, which answers in text, and InvokeModel with a text
+      # model's id.
+      # A request object only names the model: it carries the label REQUEST, which no
+      # sink accepts, and the source is the result of the call it is sent with. Echoing the
+      # request, or the model id it names, generates nothing.
       - pattern: (Amazon.BedrockRuntime.IAmazonBedrockRuntime $C).ConverseAsync(...)
-      - pattern: (Amazon.BedrockRuntime.IAmazonBedrockRuntime $C).ConverseStreamAsync(...)
-      - pattern: (Amazon.BedrockRuntime.AmazonBedrockRuntimeClient $C).ConverseAsync(...)
-      - pattern: (Amazon.BedrockRuntime.AmazonBedrockRuntimeClient $C).ConverseStreamAsync(...)
       - pattern: (IAmazonBedrockRuntime $C).ConverseAsync(...)
+      - pattern: (Amazon.BedrockRuntime.IAmazonBedrockRuntime $C).ConverseStreamAsync(...)
       - pattern: (IAmazonBedrockRuntime $C).ConverseStreamAsync(...)
+      - pattern: (Amazon.BedrockRuntime.AmazonBedrockRuntimeClient $C).ConverseAsync(...)
       - pattern: (AmazonBedrockRuntimeClient $C).ConverseAsync(...)
+      - pattern: (Amazon.BedrockRuntime.AmazonBedrockRuntimeClient $C).ConverseStreamAsync(...)
       - pattern: (AmazonBedrockRuntimeClient $C).ConverseStreamAsync(...)
-      # InvokeModel with a text model's id: the request carries it to the call's result.
-      - patterns:
-          - pattern-either:
-              - pattern: new Amazon.BedrockRuntime.Model.InvokeModelRequest { ..., ModelId = $ID, ... }
-              - pattern: new Amazon.BedrockRuntime.Model.InvokeModelWithResponseStreamRequest { ..., ModelId = $ID, ... }
+      - label: REQUEST
+        patterns:
+          - pattern: new Amazon.BedrockRuntime.Model.InvokeModelRequest { ..., ModelId = $ID, ... }
           - metavariable-regex:
               metavariable: $ID
               regex: (?i)^"[^"]*(claude|llama|titan-text|nova-(lite|micro|pro|premier)|mistral|command|jamba|deepseek|qwen)[^"]*"$
+      - label: REQUEST
+        patterns:
+          - pattern: new Amazon.BedrockRuntime.Model.InvokeModelWithResponseStreamRequest { ..., ModelId = $ID, ... }
+          - metavariable-regex:
+              metavariable: $ID
+              regex: (?i)^"[^"]*(claude|llama|titan-text|nova-(lite|micro|pro|premier)|mistral|command|jamba|deepseek|qwen)[^"]*"$
+      - requires: REQUEST
+        patterns:
+          - pattern: $CLIENT.$SEND(...)
+          - metavariable-regex:
+              metavariable: $SEND
+              regex: ^(InvokeModel|InvokeModelWithResponseStream)(Async)?$
       # OllamaSharp: a local or remote model served by Ollama.
       - pattern: (OllamaSharp.IOllamaApiClient $C).GenerateAsync(...)
+      - pattern: (IOllamaApiClient $C).GenerateAsync(...)
       - pattern: (OllamaSharp.IOllamaApiClient $C).ChatAsync(...)
+      - pattern: (IOllamaApiClient $C).ChatAsync(...)
       - pattern: (OllamaSharp.OllamaApiClient $C).GenerateAsync(...)
-      - pattern: (OllamaSharp.OllamaApiClient $C).ChatAsync(...)
       - pattern: (OllamaApiClient $C).GenerateAsync(...)
+      - pattern: (OllamaSharp.OllamaApiClient $C).ChatAsync(...)
       - pattern: (OllamaApiClient $C).ChatAsync(...)
       - pattern: (OllamaSharp.Chat $C).SendAsync(...)
       - pattern: (OllamaSharp.Chat $C).SendAsAsync(...)
@@ -150,16 +153,33 @@ rules:
         to: $L
         by-side-effect: true
     pattern-sinks:
-      # ASP.NET Core MVC and Web API: a public action of a class named like a controller (the
-      # framework's own convention) or a view component is the response, whether it returns,
-      # streams with yield return, or is written as an expression body. A private helper's value
-      # is not.
+      # ASP.NET Core MVC and Web API: a public action of a controller or a view component is the
+      # response, whether it returns, streams with yield return, or is written as an expression
+      # body. A controller is a class named like one (the framework's own convention, any base),
+      # or one marked [ApiController] or [Controller], whatever its name and base. The attribute
+      # is read qualified (which also matches it under a using or an alias) and short (a file
+      # whose Microsoft.AspNetCore.Mvc using is a global one elsewhere). A private helper's value
+      # is not the response.
       - patterns:
-          - pattern-inside: |
-              class $CTRL : $BASE { ... }
-          - metavariable-regex:
-              metavariable: $CTRL
-              regex: ^\w*(Controller|ViewComponent)$
+          - pattern-either:
+              - patterns:
+                  - pattern-inside: |
+                      class $CTRL : $BASE { ... }
+                  - metavariable-regex:
+                      metavariable: $CTRL
+                      regex: ^\w*(Controller|ViewComponent)$
+              - pattern-inside: |
+                  [Microsoft.AspNetCore.Mvc.ApiController]
+                  class $CTRL { ... }
+              - pattern-inside: |
+                  [ApiController]
+                  class $CTRL { ... }
+              - pattern-inside: |
+                  [Microsoft.AspNetCore.Mvc.Controller]
+                  class $CTRL { ... }
+              - pattern-inside: |
+                  [Controller]
+                  class $CTRL { ... }
           - pattern-either:
               - patterns:
                   - pattern-inside: |
@@ -173,6 +193,11 @@ rules:
                   - metavariable-regex:
                       metavariable: $X
                       regex: ^[^{]
+                  # It binds a one-statement block too ({ Log(x); } as => Log(x)), so the action
+                  # must return a value.
+                  - metavariable-regex:
+                      metavariable: $R
+                      regex: ^(?!(void|Task|ValueTask)$)
           - focus-metavariable: $X
       # Minimal APIs: a route handler's value is the response.
       - patterns:
@@ -180,11 +205,9 @@ rules:
               - patterns:
                   - pattern-inside: $APP.$MAP($ROUTE, ...)
                   - pattern: return $X;
-              - patterns:
-                  - pattern: $APP.$MAP($ROUTE, (...) => $X)
-                  - metavariable-regex:
-                      metavariable: $X
-                      regex: ^[^{]
+              # The engine binds only an expression lambda here, never a block one, which the
+              # return branch above reads.
+              - pattern: $APP.$MAP($ROUTE, (...) => $X)
           - metavariable-regex:
               metavariable: $MAP
               regex: ^Map(Get|Post|Put|Patch|Delete|Methods)?$
@@ -249,7 +272,8 @@ rules:
               - pattern: $F = $X
               - pattern: $F.Add($X)
           - focus-metavariable: $X
-      # SignalR: a message to connected clients, from a hub or through a hub context.
+      # SignalR: a message to connected clients, from a hub (its base may be the app's own) or
+      # through a hub context.
       - pattern: Clients.$WHO.SendAsync(...)
       - pattern: Clients.$WHO(...).SendAsync(...)
       - pattern: $HUB.Clients.$WHO.SendAsync(...)

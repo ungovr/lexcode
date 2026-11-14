@@ -1,8 +1,7 @@
-// lexcode-expect: 8
+// lexcode-expect: 7
 // Speech a text-to-speech model made, sent back to the person who asked: OpenAI through its using
-// line, an alias, target-typed new and the client's factory; Semantic Kernel injected; Azure AI
-// Speech; Amazon Polly copied to the response; Google Cloud Text-to-Speech in a minimal API; and
-// a hub.
+// line, an alias and target-typed new; Semantic Kernel injected; Azure AI Speech; Amazon Polly
+// copied to the response; Google Cloud Text-to-Speech injected into a minimal API; and a hub.
 using Amazon.Polly;
 using Amazon.Polly.Model;
 using Google.Cloud.TextToSpeech.V1;
@@ -10,7 +9,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.CognitiveServices.Speech;
 using Microsoft.SemanticKernel.TextToAudio;
-using OpenAI;
 using OpenAI.Audio;
 using Snd = OpenAI.Audio;
 
@@ -32,14 +30,6 @@ public class NarratorController(ITextToAudioService textToAudio, AmazonPollyClie
         Snd.AudioClient audio = new("tts-1", "key");
         var speech = await audio.GenerateSpeechAsync(text, GeneratedSpeechVoice.Nova);
         return File(speech.Value.ToArray(), "audio/mpeg");
-    }
-
-    [HttpPost("factory")]
-    public async Task<IActionResult> Factory(string text, OpenAIClient openAi)
-    {
-        var audio = openAi.GetAudioClient("tts-1");
-        var speech = await audio.GenerateSpeechAsync(text, GeneratedSpeechVoice.Echo);
-        return File(speech.Value.ToStream(), "audio/mpeg");
     }
 
     [HttpPost("kernel")]
@@ -71,9 +61,8 @@ public static class NarratorEndpoints
 {
     public static void Map(WebApplication app)
     {
-        app.MapPost("/google", async (string text) =>
+        app.MapPost("/google", async (string text, TextToSpeechClient client) =>
         {
-            var client = await TextToSpeechClient.CreateAsync();
             var response = await client.SynthesizeSpeechAsync(new SynthesizeSpeechRequest { Input = new SynthesisInput { Text = text } });
             return Results.File(response.AudioContent.ToByteArray(), "audio/mpeg");
         });

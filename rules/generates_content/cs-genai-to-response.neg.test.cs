@@ -1,6 +1,7 @@
 // lexcode-expect: 0
-// Gemini output only the team reads, token counts and embeddings on a Gemini model, a Vertex AI
-// prediction that is not a generation, and an app class that shares the Gen AI SDK's short name.
+// Gemini output only the team reads, token counts and embeddings on a Gemini model, the model a
+// request or model object names, a Vertex AI prediction that is not a generation, and an app
+// class that shares the Gen AI SDK's short name.
 using Demo.Content;
 using Google.Cloud.AIPlatform.V1;
 using Microsoft.AspNetCore.Mvc;
@@ -33,6 +34,21 @@ public class ModelInfoController : ControllerBase
         var count = await model.CountTokens(prompt);
         var embedding = await model.EmbedContent(prompt);
         return Ok(count.TotalTokens + embedding.Embedding.Values.Count);
+    }
+
+    // Which model a request or a model object names; nothing is generated.
+    [HttpGet("vertex-model")]
+    public IActionResult VertexModel()
+    {
+        var request = new GenerateContentRequest { Model = "gemini-2.5-pro" };
+        return Ok(request.Model);
+    }
+
+    [HttpGet("mscc-model")]
+    public IActionResult MsccModel()
+    {
+        var model = new GenerativeModel(apiKey: "key", model: "gemini-2.5-flash");
+        return Ok(model.Name);
     }
 
     // A Vertex AI prediction from a tabular model, not a generation.

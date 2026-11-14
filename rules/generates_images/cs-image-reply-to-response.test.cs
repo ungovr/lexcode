@@ -1,17 +1,14 @@
-// lexcode-expect: 11
+// lexcode-expect: 10
 // Pictures an image model made, sent back to the person who asked: the OpenAI SDK through its
-// using line, an alias, target-typed new and the Azure OpenAI client; Microsoft.Extensions.AI and
-// Semantic Kernel injected; Imagen; Bedrock; a minimal API, a Blazor component and a hub.
+// using line, an alias and target-typed new; Microsoft.Extensions.AI and Semantic Kernel injected;
+// Imagen; Bedrock; a minimal API, a Blazor component and a hub.
 using Amazon.BedrockRuntime;
 using Amazon.BedrockRuntime.Model;
-using Azure;
-using Azure.AI.OpenAI;
 using Google.GenAI;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.AI;
-using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.TextToImage;
 using OpenAI.Images;
 using Img = OpenAI.Images;
@@ -32,15 +29,6 @@ public class ArtController(IImageGenerator generator, ITextToImageService textTo
     public async Task<IActionResult> Aliased(string prompt)
     {
         Img.ImageClient images = new("dall-e-3", "key");
-        var image = await images.GenerateImageAsync(prompt);
-        return Ok(image.Value.ImageUri);
-    }
-
-    [HttpPost("azure")]
-    public async Task<IActionResult> Azure(string prompt)
-    {
-        var azure = new AzureOpenAIClient(new Uri("https://example.openai.azure.com"), new AzureKeyCredential("key"));
-        var images = azure.GetImageClient("dall-e-3");
         var image = await images.GenerateImageAsync(prompt);
         return Ok(image.Value.ImageUri);
     }
@@ -108,11 +96,10 @@ public class AvatarPicker : ComponentBase
     }
 }
 
-public class ArtHub(Kernel kernel) : Hub
+public class ArtHub(ITextToImageService painter) : Hub
 {
     public async Task Paint(string prompt)
     {
-        var painter = kernel.GetRequiredService<ITextToImageService>();
         var url = await painter.GenerateImageAsync(prompt, 512, 512);
         await Clients.Caller.SendAsync("painted", url);
     }

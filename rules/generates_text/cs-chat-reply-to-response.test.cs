@@ -1,4 +1,4 @@
-// lexcode-expect: 19
+// lexcode-expect: 18
 // Model-written text sent back to the person who asked: MVC controllers, minimal API handlers, a
 // Razor Page, a Blazor component and its Razor copy, SignalR hubs and a hub context. The
 // libraries are reached through using lines, aliases, constructor and primary-constructor
@@ -13,7 +13,6 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.AI;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
-using OpenAI;
 using OpenAI.Chat;
 using Ai = Microsoft.Extensions.AI;
 using Oai = OpenAI.Chat;
@@ -64,14 +63,13 @@ public class AssistantController : ControllerBase
 }
 
 // Primary-constructor parameters: Semantic Kernel, and Microsoft.Extensions.AI through an alias.
-public class ReplyController(Kernel kernel, Ai.IChatClient chat) : Controller
+public class ReplyController(Kernel kernel, IChatCompletionService completions, Ai.IChatClient chat) : Controller
 {
     public async Task<IActionResult> Index(string q)
     {
         var answer = await kernel.InvokePromptAsync(q);
         ViewBag.Answer = answer.ToString();
-        var service = kernel.GetRequiredService<IChatCompletionService>();
-        var message = await service.GetChatMessageContentAsync(q);
+        var message = await completions.GetChatMessageContentAsync(q);
         return View(model: message.Content);
     }
 
@@ -82,7 +80,7 @@ public class ReplyController(Kernel kernel, Ai.IChatClient chat) : Controller
     }
 }
 
-// Minimal API handlers: Bedrock Converse, Anthropic, OpenAI from its client, a raw write.
+// Minimal API handlers: Bedrock Converse, Anthropic, a raw write.
 public static class AssistantEndpoints
 {
     public static void Map(WebApplication app)
@@ -99,9 +97,6 @@ public static class AssistantEndpoints
             var message = await claude.Messages.Create(new() { MaxTokens = 512, Model = "claude-sonnet-4-5", Messages = [] });
             return Results.Ok(message.Content);
         });
-
-        app.MapGet("/haiku", async (string topic, OpenAIClient openAi) =>
-            (await openAi.GetChatClient("gpt-4o").CompleteChatAsync(topic)).Value.Content[0].Text);
 
         app.MapPost("/raw", async (HttpContext context, IChatClient chat) =>
         {

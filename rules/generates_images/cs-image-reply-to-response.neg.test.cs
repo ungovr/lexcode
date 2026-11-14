@@ -1,11 +1,13 @@
 // lexcode-expect: 0
 // A photo a person uploaded, only resized; a Bedrock text model; generated art only the team
-// sees in the log; and an app class that shares the OpenAI SDK's ImageClient short name.
+// sees in the log; the configured image model; and an app class that shares the OpenAI SDK's
+// ImageClient short name.
 using Amazon.BedrockRuntime;
 using Amazon.BedrockRuntime.Model;
 using Demo.Charts;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using OpenAI;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Processing;
 
@@ -48,5 +50,13 @@ public class PhotoController(IAmazonBedrockRuntime bedrock, ILogger<PhotoControl
     {
         var art = await images.GenerateImageAsync("autumn palette");
         logger.LogInformation("moodboard {Uri}", art.Value.ImageUri);
+    }
+
+    // Which image model is configured; nothing is drawn.
+    [HttpGet("image-model")]
+    public IActionResult ImageModel(OpenAIClient openAi)
+    {
+        var images = openAi.GetImageClient("dall-e-3");
+        return Ok(images.Model);
     }
 }

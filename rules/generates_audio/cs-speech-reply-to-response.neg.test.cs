@@ -1,6 +1,7 @@
 // lexcode-expect: 0
 // A person's recording transcribed on the same audio client, a recording only played back, the
-// voices a speech service offers, and app classes that share the speech SDKs' short names.
+// voices a speech service offers, the configured voice model, and app classes that share the
+// speech SDKs' short names.
 using Amazon.Polly;
 using Amazon.Polly.Model;
 using Demo.Media;
@@ -35,7 +36,15 @@ public class VoiceController(IAmazonPolly polly) : ControllerBase
         var google = TextToSpeechClient.Create();
         var voices = google.ListVoices(new ListVoicesRequest());
         var pollyVoices = await polly.DescribeVoicesAsync(new DescribeVoicesRequest());
-        return Ok(new { voices, pollyVoices.Voices });
+        return Ok(voices.Voices.Count + pollyVoices.Voices.Count);
+    }
+
+    // Which voice model is configured; nothing is spoken.
+    [HttpGet("voice-model")]
+    public IActionResult VoiceModel(OpenAIClient openAi)
+    {
+        var audio = openAi.GetAudioClient("tts-1");
+        return Ok(audio.Model);
     }
 
     // The app's own AudioClient and SpeechSynthesizer, in Demo.Media, play stored announcements.

@@ -8,32 +8,22 @@ rules:
     # alias too), so the pattern also matches the short form under using, and never an app's own
     # class of the same short name. A type reached only through a global using in another file
     # is missed (rules/README.md).
+    # Only a call that generates is a source here: a typed client calling its generating method,
+    # or the call that sends a request built for a named generation model. A client or request
+    # object is not output, and a client obtained from a factory or the service container into a
+    # local is the companion signal rule's (the engine cannot type it).
     pattern-sources:
       # The Google Gen AI SDK (Google.GenAI): Models.GenerateContentAsync on a Client. Client is
       # not a vendor-named short name, so it is read qualified only.
       - pattern: (Google.GenAI.Client $C).Models.GenerateContentAsync(...)
       - pattern: (Google.GenAI.Client $C).Models.GenerateContentStreamAsync(...)
-      # Vertex AI: the PredictionServiceClient's generate calls, and a GenerateContentRequest,
-      # which carries on to the result of the call it is passed to (the client is usually built
-      # into a local, where its type is not known).
+      # Vertex AI: the PredictionServiceClient's generate calls.
       - pattern: (Google.Cloud.AIPlatform.V1.PredictionServiceClient $C).GenerateContent(...)
       - pattern: (Google.Cloud.AIPlatform.V1.PredictionServiceClient $C).GenerateContentAsync(...)
       - pattern: (Google.Cloud.AIPlatform.V1.PredictionServiceClient $C).StreamGenerateContent(...)
-      - pattern: new Google.Cloud.AIPlatform.V1.GenerateContentRequest { ... }
-      # Mscc.GenerativeAI: a GenerativeModel, typed, constructed, or taken from GoogleAI or
-      # VertexAI into a local; what it generates carries on from the model.
-      - pattern: (Mscc.GenerativeAI.GenerativeModel $M).GenerateContent(...)
-      - pattern: (Mscc.GenerativeAI.GenerativeModel $M).GenerateContentStream(...)
-      # The (...) { ... } form also matches a construction with no initializer, or with no
-      # argument list.
-      - pattern: new Mscc.GenerativeAI.GenerativeModel(...) { ... }
-      - pattern: (Mscc.GenerativeAI.GoogleAI $G).GenerativeModel(...)
-      - pattern: (Mscc.GenerativeAI.VertexAI $G).GenerativeModel(...)
-    pattern-sanitizers:
-      # Counting tokens and making embeddings on the same model write nothing a person reads.
-      - pattern: $M.CountTokens(...)
-      - pattern: $M.EmbedContent(...)
-      - pattern: $M.BatchEmbedContent(...)
+      # Mscc.GenerativeAI: a GenerativeModel.
+      - pattern: (Mscc.GenerativeAI.GenerativeModel $C).GenerateContent(...)
+      - pattern: (Mscc.GenerativeAI.GenerativeModel $C).GenerateContentStream(...)
     pattern-propagators:
       # Output written to a file carries on in the path, which a file result then hands to the
       # person. System.IO is imported implicitly, so the short form is read as well.
@@ -88,16 +78,33 @@ rules:
         to: $L
         by-side-effect: true
     pattern-sinks:
-      # ASP.NET Core MVC and Web API: a public action of a class named like a controller (the
-      # framework's own convention) or a view component is the response, whether it returns,
-      # streams with yield return, or is written as an expression body. A private helper's value
-      # is not.
+      # ASP.NET Core MVC and Web API: a public action of a controller or a view component is the
+      # response, whether it returns, streams with yield return, or is written as an expression
+      # body. A controller is a class named like one (the framework's own convention, any base),
+      # or one marked [ApiController] or [Controller], whatever its name and base. The attribute
+      # is read qualified (which also matches it under a using or an alias) and short (a file
+      # whose Microsoft.AspNetCore.Mvc using is a global one elsewhere). A private helper's value
+      # is not the response.
       - patterns:
-          - pattern-inside: |
-              class $CTRL : $BASE { ... }
-          - metavariable-regex:
-              metavariable: $CTRL
-              regex: ^\w*(Controller|ViewComponent)$
+          - pattern-either:
+              - patterns:
+                  - pattern-inside: |
+                      class $CTRL : $BASE { ... }
+                  - metavariable-regex:
+                      metavariable: $CTRL
+                      regex: ^\w*(Controller|ViewComponent)$
+              - pattern-inside: |
+                  [Microsoft.AspNetCore.Mvc.ApiController]
+                  class $CTRL { ... }
+              - pattern-inside: |
+                  [ApiController]
+                  class $CTRL { ... }
+              - pattern-inside: |
+                  [Microsoft.AspNetCore.Mvc.Controller]
+                  class $CTRL { ... }
+              - pattern-inside: |
+                  [Controller]
+                  class $CTRL { ... }
           - pattern-either:
               - patterns:
                   - pattern-inside: |
@@ -111,6 +118,11 @@ rules:
                   - metavariable-regex:
                       metavariable: $X
                       regex: ^[^{]
+                  # It binds a one-statement block too ({ Log(x); } as => Log(x)), so the action
+                  # must return a value.
+                  - metavariable-regex:
+                      metavariable: $R
+                      regex: ^(?!(void|Task|ValueTask)$)
           - focus-metavariable: $X
       # Minimal APIs: a route handler's value is the response.
       - patterns:
@@ -118,11 +130,9 @@ rules:
               - patterns:
                   - pattern-inside: $APP.$MAP($ROUTE, ...)
                   - pattern: return $X;
-              - patterns:
-                  - pattern: $APP.$MAP($ROUTE, (...) => $X)
-                  - metavariable-regex:
-                      metavariable: $X
-                      regex: ^[^{]
+              # The engine binds only an expression lambda here, never a block one, which the
+              # return branch above reads.
+              - pattern: $APP.$MAP($ROUTE, (...) => $X)
           - metavariable-regex:
               metavariable: $MAP
               regex: ^Map(Get|Post|Put|Patch|Delete|Methods)?$
@@ -187,7 +197,8 @@ rules:
               - pattern: $F = $X
               - pattern: $F.Add($X)
           - focus-metavariable: $X
-      # SignalR: a message to connected clients, from a hub or through a hub context.
+      # SignalR: a message to connected clients, from a hub (its base may be the app's own) or
+      # through a hub context.
       - pattern: Clients.$WHO.SendAsync(...)
       - pattern: Clients.$WHO(...).SendAsync(...)
       - pattern: $HUB.Clients.$WHO.SendAsync(...)
