@@ -1,0 +1,40 @@
+rules:
+  - id: lexcode.chatbot.php-history-turns
+    languages: [php]
+    severity: INFO
+    message: Appends the user's message to a running history and then stores the language model's reply back in it as an assistant turn, which is deploying a chatbot (deploys_chatbot).
+    # The order the other languages' rules use, in one sequence: the user's turn is pushed, then the
+    # model's reply (read from the response: choices, content[0], text, output_text, candidates) is
+    # pushed to the same list as an assistant turn. The model call between them is what the response
+    # read stands for; leaving it out of the pattern keeps the rule to one `...` sequence. A prompt built
+    # in steps and sent once, and few-shot examples whose assistant turns are fixed text, do not match.
+    patterns:
+      - pattern-either:
+          - pattern-inside: |
+              $H[] = $U;
+              ...
+          - pattern-inside: |
+              array_push($H, $U);
+              ...
+      - pattern-either:
+          - pattern: $H[] = $Z
+          - pattern: array_push($H, $Z)
+      - metavariable-pattern:
+          metavariable: $U
+          pattern: "[..., 'role' => 'user', ...]"
+      - metavariable-pattern:
+          metavariable: $Z
+          patterns:
+            - pattern: "[..., 'role' => 'assistant', ...]"
+            - pattern: "[..., 'content' => $OUT, ...]"
+            - metavariable-regex:
+                metavariable: $OUT
+                regex: (?is)^.*(choices|->content\[0\]|\[["']content["']\]\[0\]|->text\b|output_?text|candidates).*$
+      # Literal anchor inside the match (the assistant turn), so the engine skips files that never write one.
+      - pattern-regex: (?i)['"]role['"]\s*=>\s*['"]assistant['"]
+    metadata:
+      activity: deploys_chatbot
+      mentioned: performs
+      definition: https://lexlint.io/activities/deploys-chatbot
+      provenance: ungovr-original
+      license: MIT

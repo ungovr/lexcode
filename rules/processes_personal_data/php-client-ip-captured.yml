@@ -1,0 +1,158 @@
+rules:
+  - id: lexcode.personal.php-client-ip-captured
+    languages: [php]
+    severity: INFO
+    message: Writes the visitor's IP address into a log or a database, which is processing personal data (processes_personal_data).
+    mode: taint
+    pattern-sources:
+      - patterns:
+          # A whole-file pre-filter lets the engine skip a file that cannot match (without one the
+          # engine parsed every PHP file in Moodle for this rule). Every source below holds one of
+          # these: an address key or header name (REMOTE_ADDR, X-Forwarded-For, X-Real-IP, a client
+          # IP, CF-Connecting-IP), getClientIp, or a call to ip() or ips() through -> or ::. It is
+          # whole-file because a narrower text match would cut a source down to the matched text,
+          # which is not an expression the engine can taint (measured: no match at all).
+          - pattern-either:
+              - pattern-regex: '(?is)\A(?=.*remote.addr).*'
+              - pattern-regex: '(?is)\A(?=.*forwarded).*'
+              - pattern-regex: '(?is)\A(?=.*real.ip).*'
+              - pattern-regex: '(?is)\A(?=.*client.?ip).*'
+              - pattern-regex: '(?is)\A(?=.*connecting.ip).*'
+              - pattern-regex: '(?s)\A(?=.*->(?:\s|#[^\n]*+|//[^\n]*+)*+ips?\b).*'
+              - pattern-regex: '(?s)\A(?=.*::(?:\s|#[^\n]*+|//[^\n]*+)*+ip\b).*'
+          - pattern-either:
+              # Plain PHP: the server array.
+              - patterns:
+                  - pattern: $_SERVER[$K]
+                  - metavariable-regex:
+                      metavariable: $K
+                      regex: ^['"](REMOTE_ADDR|HTTP_X_FORWARDED_FOR|HTTP_X_REAL_IP|HTTP_CLIENT_IP|HTTP_CF_CONNECTING_IP|HTTP_TRUE_CLIENT_IP|HTTP_FORWARDED)['"]$
+              # Laravel and Symfony: the request object (a receiver named for the request, so a
+              # server's or a device's own ip() is not read as a visitor's address).
+              - patterns:
+                  - pattern-either:
+                      - pattern: $R->ip()
+                      - pattern: $R->ips()
+                      - pattern: $R->getClientIp()
+                      - pattern: $R->getClientIps()
+                  - metavariable-regex:
+                      metavariable: $R
+                      regex: (?i).*req
+              - pattern: Request::ip()
+              - pattern: Request::getClientIp()
+              - patterns:
+                  - pattern-either:
+                      - pattern: $R->header($H, ...)
+                      - pattern: $R->server($H, ...)
+                      - pattern: $R->headers->get($H, ...)
+                      - pattern: $R->server->get($H, ...)
+                  - metavariable-regex:
+                      metavariable: $R
+                      regex: (?i).*req
+                  - metavariable-regex:
+                      metavariable: $H
+                      regex: (?i)^['"](x-forwarded-for|x-real-ip|forwarded|cf-connecting-ip|true-client-ip|x-client-ip|remote_addr|http_x_forwarded_for)['"]$
+    # The address is not what is kept when it only feeds a membership test or a check whose
+    # answer is logged (an allow list, a range check, a verification call).
+    pattern-sanitizers:
+      - pattern: in_array(...)
+      - pattern: array_key_exists(...)
+      - pattern: preg_match(...)
+      - patterns:
+          - pattern-either:
+              - pattern: $F(...)
+              - pattern: $C->$F(...)
+              - pattern: $C::$F(...)
+          - metavariable-regex:
+              metavariable: $F
+              regex: ^(check|verify|validate|is|has|can|allow|matches)([A-Z_]\w*)?$
+    options:
+      taint_assume_safe_comparisons: true
+      taint_assume_safe_booleans: true
+    pattern-sinks:
+      # A log line: the Laravel Log facade, a PSR-3 logger, or the PHP error log.
+      - patterns:
+          - pattern-either:
+              - pattern: Log::$M(...)
+              - pattern: \Illuminate\Support\Facades\Log::$M(...)
+              - pattern: logger()->$M(...)
+              - patterns:
+                  - pattern: $L->$M(...)
+                  - metavariable-regex:
+                      metavariable: $L
+                      regex: ^\$(this->)?_?(log|logger|LOG|LOGGER|auditLogger|securityLogger|accessLog)$
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(emergency|alert|critical|error|warning|notice|info|debug|log)$
+      - pattern: logger(...)
+      - pattern: error_log(...)
+      - pattern: syslog(...)
+      # A write to the database (Eloquent and the query builder), as an inline array: the address
+      # is the value of an address-named key, so a value only derived from it (a country looked
+      # up from the address) is not read as the address.
+      - patterns:
+          - pattern-either:
+              - pattern: "$C::$M(..., [..., $K => $V, ...], ...)"
+              - pattern: "$C->$M(..., [..., $K => $V, ...], ...)"
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(create|forceCreate|insert|insertGetId|insertOrIgnore|upsert|updateOrCreate|firstOrCreate|updateOrInsert|update|fill|forceFill)$
+          # A key named for the address: ip, with any snake-case prefix and an addr or address
+          # suffix (user_ip, author_ip, last_login_ip, ip_address), or one of the other spellings.
+          - metavariable-regex:
+              metavariable: $K
+              regex: (?i)^['"]((\w*_)?ip(_?addr(ess)?)?|address|clientIp|remoteIp|remote_?addr|lastip|lastLoginIp|(x_)?forwarded_for)['"]$
+          - focus-metavariable: $V
+      # The same write given an array built first, in any argument (ActivityLog::create($data),
+      # Visitor::updateOrCreate(['id' => $id], $data)). A known limit: the engine taints the whole
+      # variable, so an array holding only a value derived from the address would match here too.
+      - patterns:
+          - pattern-either:
+              - pattern: $C::$M(..., $X, ...)
+              - pattern: $C->$M(..., $X, ...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(create|forceCreate|insert|insertGetId|insertOrIgnore|upsert|updateOrCreate|firstOrCreate|updateOrInsert|update|fill|forceFill)$
+          - metavariable-regex:
+              metavariable: $X
+              regex: ^\$\w+$
+          - focus-metavariable: $X
+      # An address-named attribute set on a stored object: inside an Eloquent model class (as
+      # rb-client-ip-captured holds to an ActiveRecord class), or on an object the same block
+      # then saves. A plain object or a request-scoped context that carries the address is not.
+      # Under an aliased import of Eloquent's Model, a bare Model is the app's own (the engine's
+      # `use X;` also matches `use X as Y;`).
+      - patterns:
+          - pattern: $O->$F = $V
+          - pattern-either:
+              - pattern-inside: |
+                  class $CLS extends \Illuminate\Database\Eloquent\Model { ... }
+              - patterns:
+                  - pattern-inside: |
+                      use Illuminate\Database\Eloquent\Model;
+                      ...
+                  - pattern-not-inside: |
+                      use Illuminate\Database\Eloquent\Model as $AL;
+                      ...
+                  - pattern-inside: |
+                      class $CLS extends Model { ... }
+              - patterns:
+                  - pattern-inside: |
+                      use Illuminate\Database\Eloquent\Model as $BASE;
+                      ...
+                  - pattern-inside: |
+                      class $CLS extends $BASE { ... }
+              - pattern-inside: |
+                  $O->$F = $V;
+                  ...
+                  $O->save(...);
+          - metavariable-regex:
+              metavariable: $F
+              regex: ^(ip_address|ip_addr|ipaddress|ipAddress|client_ip|clientIp|remote_ip|remoteIp|remote_addr|remoteAddr|last_ip|lastip|lastIp|last_ip_address|last_login_ip|lastLoginIp|last_sign_in_ip|current_sign_in_ip|forwarded_for)$
+          - focus-metavariable: $V
+    metadata:
+      activity: processes_personal_data
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-personal-data
+      provenance: ungovr-original
+      license: MIT

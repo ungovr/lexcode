@@ -1,0 +1,250 @@
+rules:
+  - id: lexcode.text.php-chat-reply-to-response
+    languages: [php]
+    severity: INFO
+    message: Sends text written by a chat or completion model back in an HTTP response, a view or a broadcast, which is generating text with AI that reaches users (generates_text).
+    mode: taint
+    # Every source starts with a whole-file anchor (CONTRIBUTING.md, Cost): the engine's own
+    # pre-filter keys on names such as create and text, which most PHP files hold, and without
+    # the anchors this rule parsed every file of a large app. The sources are kept to six: with
+    # ten, each anchored, the engine still parsed every file (measured on Moodle, 2026-11-12).
+    pattern-sources:
+      # openai-php and mozex/anthropic-php on a client object. The receiver is a variable or a
+      # property, never a class: a static call is a facade, and only the library's own facade
+      # counts (below). An Eloquent responses or messages relation also has create, and a survey
+      # response may keep a model column, so the receiver has to look like a model client, as the
+      # images rule requires; the request also names its model, or for Anthropic its token limit.
+      - patterns:
+          - pattern-regex: (?s)\A(?=.*->\s*(?:chat|completions|responses|messages)\s*\(\s*\)\s*->\s*create).*
+          - pattern-either:
+              - pattern: "$C->chat()->create([..., 'model' => $MODEL, ...])"
+              - pattern: "$C->chat()->createStreamed([..., 'model' => $MODEL, ...])"
+              - pattern: "$C->completions()->create([..., 'model' => $MODEL, ...])"
+              - pattern: "$C->completions()->createStreamed([..., 'model' => $MODEL, ...])"
+              - pattern: "$C->responses()->create([..., 'model' => $MODEL, ...])"
+              - pattern: "$C->responses()->createStreamed([..., 'model' => $MODEL, ...])"
+              - pattern: "$C->messages()->create([..., 'max_tokens' => $N, ...])"
+              - pattern: "$C->messages()->createStreamed([..., 'max_tokens' => $N, ...])"
+          - metavariable-regex:
+              metavariable: $C
+              regex: (?i)^\$.*(client|openai|open_ai|anthropic|claude|llm)
+      # The openai-php/laravel and anthropic-php/laravel facades, fully qualified or imported
+      # (under their own name or an alias). An app's own class of the same short name is not one.
+      # The engine's `use X;` also matches `use X as Y;`, so each short-name branch steps aside
+      # where the class is aliased and the short name may be the app's own.
+      - patterns:
+          - pattern-regex: (?s)\A(?=.*OpenAI).*
+          - pattern-either:
+              - pattern: \OpenAI\Laravel\Facades\OpenAI::$R()->$M(...)
+              - patterns:
+                  - pattern-inside: |
+                      use OpenAI\Laravel\Facades\OpenAI;
+                      ...
+                  - pattern-not-inside: |
+                      use OpenAI\Laravel\Facades\OpenAI as $AL;
+                      ...
+                  - pattern: OpenAI::$R()->$M(...)
+              - patterns:
+                  - pattern-inside: |
+                      use OpenAI\Laravel\Facades\OpenAI as $A;
+                      ...
+                  - pattern: $A::$R()->$M(...)
+          - metavariable-regex:
+              metavariable: $R
+              regex: ^(chat|completions|responses)$
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(create|createStreamed)$
+      - patterns:
+          - pattern-regex: (?s)\A(?=.*Anthropic).*
+          - pattern-either:
+              - pattern: \Anthropic\Laravel\Facades\Anthropic::messages()->$M(...)
+              - patterns:
+                  - pattern-inside: |
+                      use Anthropic\Laravel\Facades\Anthropic;
+                      ...
+                  - pattern-not-inside: |
+                      use Anthropic\Laravel\Facades\Anthropic as $AL;
+                      ...
+                  - pattern: Anthropic::messages()->$M(...)
+              - patterns:
+                  - pattern-inside: |
+                      use Anthropic\Laravel\Facades\Anthropic as $A;
+                      ...
+                  - pattern: $A::messages()->$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(create|createStreamed)$
+      # The official Anthropic SDK takes named arguments on a messages property.
+      - patterns:
+          - pattern-regex: (?s)\A(?=.*maxTokens).*
+          - pattern-either:
+              - pattern: '$C->messages->create(..., maxTokens: $N, ...)'
+              - pattern: '$C->messages->createStream(..., maxTokens: $N, ...)'
+      # AWS Bedrock Runtime: the Converse API, or a text model invoked by id.
+      - patterns:
+          - pattern-regex: (?s)\A(?=.*modelId).*
+          - pattern-either:
+              - pattern: "$C->converse([..., 'modelId' => $ID, ...])"
+              - pattern: "$C->converseStream([..., 'modelId' => $ID, ...])"
+              - patterns:
+                  - pattern-either:
+                      - pattern: "$C->invokeModel([..., 'modelId' => $ID, ...])"
+                      - pattern: "$C->invokeModelWithResponseStream([..., 'modelId' => $ID, ...])"
+                  - metavariable-regex:
+                      metavariable: $ID
+                      regex: (?i)^['"][^'"]*(claude|llama|titan-text|nova-(lite|micro|pro|premier)|mistral|command|jamba|deepseek|qwen)[^'"]*['"]$
+      # Prism: a text request, fully qualified or imported (the class or its Laravel facade).
+      # Each short-name branch steps aside under an aliased import, as above.
+      - patterns:
+          - pattern-regex: (?s)\A(?=.*Prism).*
+          - pattern-either:
+              - pattern: \Prism\Prism\Prism::text()-> ... ->$M()
+              - pattern: \Prism\Prism\Facades\Prism::text()-> ... ->$M()
+              - patterns:
+                  - pattern-either:
+                      - patterns:
+                          - pattern-inside: |
+                              use Prism\Prism\Prism;
+                              ...
+                          - pattern-not-inside: |
+                              use Prism\Prism\Prism as $AL;
+                              ...
+                      - patterns:
+                          - pattern-inside: |
+                              use Prism\Prism\Facades\Prism;
+                              ...
+                          - pattern-not-inside: |
+                              use Prism\Prism\Facades\Prism as $AL;
+                              ...
+                  - pattern: Prism::text()-> ... ->$M()
+              - patterns:
+                  - pattern-either:
+                      - pattern-inside: |
+                          use Prism\Prism\Prism as $A;
+                          ...
+                      - pattern-inside: |
+                          use Prism\Prism\Facades\Prism as $A;
+                          ...
+                  - pattern: $A::text()-> ... ->$M()
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(asText|asStream)$
+    pattern-propagators:
+      # A record updated with the model's output carries it to whatever shows or broadcasts the record.
+      - pattern: "$REC->update([..., $K => $V, ...])"
+        from: $V
+        to: $REC
+        by-side-effect: true
+      - pattern: "$REC->fill([..., $K => $V, ...])"
+        from: $V
+        to: $REC
+        by-side-effect: true
+      # Output written to a file or a storage disk carries on in the path, which a download, a
+      # file response or a storage URL then hands to the person.
+      - pattern: file_put_contents($PATH, $V, ...)
+        from: $V
+        to: $PATH
+        by-side-effect: true
+      - pattern: Storage::put($PATH, $V, ...)
+        from: $V
+        to: $PATH
+        by-side-effect: true
+      - pattern: Storage::disk(...)->put($PATH, $V, ...)
+        from: $V
+        to: $PATH
+        by-side-effect: true
+    pattern-sinks:
+      # Known residual: view data passed with compact('reply') is not followed. Taint cannot tie
+      # the string 'reply' to the variable $reply, and a shape that joins the assignment and the
+      # compact() call needs a statement sequence across the method body, which costs too much
+      # on a large app. view('x', ['reply' => $reply]) and ->with('reply', $reply) are found.
+      # Plain PHP writes the response body with echo, print and printf. A console command's
+      # output goes to the terminal of whoever runs it, so it does not count.
+      - patterns:
+          - pattern-either:
+              - pattern: echo ...;
+              - pattern: print(...)
+              - pattern: printf(...)
+          - pattern-not-inside: |
+              class $CMD extends Command {
+                ...
+              }
+      # Laravel: the response and view helpers, the Response, View and Inertia facades, and a broadcast.
+      - pattern: response(...)
+      - pattern: response()->$RM(...)
+      - pattern: view(...)
+      - pattern: view(...)->with(...)
+      - pattern: inertia(...)
+      - pattern: broadcast(...)
+      - patterns:
+          - pattern: $FACADE::$FM(...)
+          - metavariable-regex:
+              metavariable: $FACADE
+              regex: ^\\?(Illuminate\\Support\\Facades\\)?(Response|View|Inertia)$
+          - metavariable-regex:
+              metavariable: $FM
+              regex: ^(json|make|stream|streamJson|eventStream|view|render)$
+      # Symfony and PSR-7: a response built with the text, or the controller's json, render and
+      # stream and file helpers (Livewire's stream too).
+      - patterns:
+          - pattern: new $RESP(...)
+          - metavariable-regex:
+              metavariable: $RESP
+              regex: ^\\?([A-Za-z_]\w*\\)*(Response|JsonResponse|StreamedResponse|StreamedJsonResponse|EventStreamResponse|BinaryFileResponse|HtmlResponse|TextResponse)$
+      - patterns:
+          - pattern: $this->$TM(...)
+          - metavariable-regex:
+              metavariable: $TM
+              regex: ^(json|render|stream|file)$
+      - pattern: $RESPONSE->setContent(...)
+      - pattern: $RESPONSE->getBody()->write(...)
+      # A Laravel controller action's value is the response: a public method of a class named
+      # like a controller. A private helper's value is not.
+      - patterns:
+          - pattern-inside: |
+              class $CTRL extends $BASE {
+                ...
+              }
+          - metavariable-regex:
+              metavariable: $CTRL
+              regex: ^\w*Controller$
+          - pattern-inside: |
+              public function $ACTION(...) {
+                ...
+              }
+          - pattern: return $X;
+          - focus-metavariable: $X
+      # A Laravel route closure's value is the response.
+      - patterns:
+          - pattern-inside: Route::$VERB($PATH, function (...) { ... })
+          - pattern: return $X;
+          - focus-metavariable: $X
+      # A Livewire component's property is rendered by its view.
+      # Under an aliased import of Livewire's Component, a bare Component is the app's own (the
+      # engine's `use X;` also matches `use X as Y;`).
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  class $LW extends \Livewire\Component {
+                    ...
+                  }
+              - patterns:
+                  - pattern-inside: |
+                      use Livewire\Component;
+                      ...
+                  - pattern-not-inside: |
+                      use Livewire\Component as $AL;
+                      ...
+                  - pattern-inside: |
+                      class $LW extends Component {
+                        ...
+                      }
+          - pattern: $this->$PROP = $X
+          - focus-metavariable: $X
+    metadata:
+      activity: generates_text
+      mentioned: performs
+      definition: https://lexlint.io/activities/generates-text
+      provenance: ungovr-original
+      license: MIT

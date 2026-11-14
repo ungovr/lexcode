@@ -1,0 +1,21 @@
+{
+    "name": "acme/storefront",
+    "type": "project",
+    "description": "The Acme web shop",
+    "license": "proprietary",
+    "bin": ["bin/console"],
+    "require": {
+        "php": "^8.3",
+        "symfony/console": "^7.1",
+        "symfony/framework-bundle": "^7.1"
+    },
+    "config": {
+        "bin-dir": "bin",
+        "sort-packages": true
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "src/"
+        }
+    }
+}

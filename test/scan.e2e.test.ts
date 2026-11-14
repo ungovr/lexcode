@@ -164,6 +164,59 @@ describe.skipIf(!engineAvailable)('lexcode scan over Ruby files and ERB views wi
   });
 });
 
+describe.skipIf(!engineAvailable)('lexcode scan over PHP files the engine will not take, with the real engine', () => {
+  function put(rel: string, body: string): void {
+    const full = join(repo, ...rel.split('/'));
+    mkdirSync(dirname(full), { recursive: true });
+    writeFileSync(full, body);
+  }
+
+  it('reaches .module, .inc, .theme and .install files that start with <?php, reporting the original path and line', async () => {
+    rmSync(join(repo, 'app.py'));
+    rmSync(join(repo, 'src'), { recursive: true });
+    rmSync(join(repo, 'web'), { recursive: true });
+    const call = 'Whisper::transcribe("a.wav");';
+    put('modules/talk/talk.module', `<?php\n\nfunction talk_cron() {\n  ${call}\n}\n`);
+    put('includes/talk.inc', `﻿\n<?php\nfunction talk_inc() {\n  ${call}\n}\n`);
+    put('themes/t/t.theme', `<?php\n${call}\n`);
+    put('modules/talk/talk.install', `<?php\n\n\n${call}\n`);
+    put('src/Plain.php', `<?php\nnamespace App;\n\n${call}\n`);
+    put('pascal/defs.inc', `{ not PHP }\n${call}\n`);
+    put(
+      '.rules/processes_voice/php-whisper.yml',
+      [
+        'rules:',
+        '  - id: lexcode.voice.php-whisper',
+        '    languages: [php]',
+        '    severity: INFO',
+        '    message: transcribes audio',
+        '    pattern: Whisper::transcribe(...)',
+        '    metadata:',
+        '      activity: processes_voice',
+        '      mentioned: performs',
+        '      definition: https://lexlint.io/activities/processes_voice',
+        '      provenance: ungovr-original',
+        '      license: MIT',
+        '',
+      ].join('\n'),
+    );
+    const code = await main(['scan', repo, '--rules', join(repo, '.rules'), '--json'], io());
+    expect(code).toBe(0);
+    const rec = JSON.parse(out.join('')) as EvidenceRecord;
+    const voice = rec.activities.find((a) => a.id === 'processes_voice' && a.mentioned === 'performs');
+    expect(voice?.evidence.map((e) => `${e.rule} ${e.where}`).sort()).toEqual([
+      'lexcode.voice.php-whisper includes/talk.inc:4',
+      'lexcode.voice.php-whisper modules/talk/talk.install:4',
+      'lexcode.voice.php-whisper modules/talk/talk.module:4',
+      'lexcode.voice.php-whisper src/Plain.php:4',
+      'lexcode.voice.php-whisper themes/t/t.theme:2',
+    ]);
+    expect(rec.scope.extracted).toBe(4); // the four copies; src/Plain.php is read as it is, pascal/defs.inc is not PHP
+    // The originals reach the engine too, which takes 0 of them without an error.
+    expect(rec.notices.join('\n')).not.toMatch(/could not read|not read:/);
+  });
+});
+
 describe.skipIf(!engineAvailable)('lexcode scan over a Gemfile with the real engine', () => {
   it('counts the gem component map toward the rules that ran, only when a Gemfile is in scope', async () => {
     const scan = async (): Promise<EvidenceRecord> => {

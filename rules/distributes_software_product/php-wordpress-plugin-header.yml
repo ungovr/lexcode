@@ -1,0 +1,21 @@
+rules:
+  - id: lexcode.distribute.php-wordpress-plugin-header
+    languages: [php]
+    severity: INFO
+    message: Carries a WordPress plugin header, which makes the code a plugin that other WordPress sites can install (distributes_software_product).
+    # The line WordPress itself reads as the header (get_file_data): at the start of a line,
+    # after an optional `<?php` and comment marks, case-insensitive, with a name after the colon.
+    pattern-regex: '(?mi)^(?:[ \t]*<\?php)?[ \t/*#@]*Plugin Name:[ \t]*\S[^\n]*'
+    paths:
+      # A site that commits the plugins it runs holds them here; they are installed, not shipped.
+      exclude:
+        - "**/wp-content/plugins/**"
+        - "**/wp-content/mu-plugins/**"
+        - "**/web/app/plugins/**"
+        - "**/web/app/mu-plugins/**"
+    metadata:
+      activity: distributes_software_product
+      mentioned: performs
+      definition: https://lexlint.io/activities/distributes-software-product
+      provenance: ungovr-original
+      license: MIT

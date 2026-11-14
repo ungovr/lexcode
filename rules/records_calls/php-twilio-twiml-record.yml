@@ -1,0 +1,49 @@
+rules:
+  - id: lexcode.calls.php-twilio-twiml-record
+    languages: [php]
+    severity: INFO
+    message: Answers a Twilio call with TwiML that records it, which is recording a call (records_calls).
+    # Taint, so that record() counts only on a twilio/sdk VoiceResponse or a Dial built from one,
+    # not on an audit log or another class that has a record method.
+    mode: taint
+    pattern-sources:
+      # The engine does not resolve imports: the class is matched written in full, imported, or
+      # imported under an alias, and the app's own VoiceResponse in another namespace is not.
+      # The engine's `use X;` also matches `use X as Y;`, so the short-name branch steps aside
+      # where Twilio's class is aliased and the short name may be the app's own.
+      - pattern: new \Twilio\TwiML\VoiceResponse(...)
+      - patterns:
+          - pattern: new VoiceResponse(...)
+          - pattern-inside: |
+              use Twilio\TwiML\VoiceResponse;
+              ...
+          - pattern-not-inside: |
+              use Twilio\TwiML\VoiceResponse as $AL;
+              ...
+      - patterns:
+          - pattern: new $A(...)
+          - pattern-inside: |
+              use Twilio\TwiML\VoiceResponse as $A;
+              ...
+    pattern-sinks:
+      - patterns:
+          - pattern: $R->record(...)
+          - focus-metavariable: $R
+      - patterns:
+          - pattern: "$R->dial($N, [..., 'record' => $V, ...])"
+          - metavariable-regex:
+              metavariable: $V
+              regex: ^(?!\s*['"]do-not-record['"]\s*$)
+          - focus-metavariable: $R
+      - patterns:
+          - pattern: "$R->conference($N, [..., 'record' => $V, ...])"
+          - metavariable-regex:
+              metavariable: $V
+              regex: ^(?!\s*['"]do-not-record['"]\s*$)
+          - focus-metavariable: $R
+    metadata:
+      activity: records_calls
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-calls
+      provenance: ungovr-original
+      license: MIT

@@ -1,0 +1,92 @@
+rules:
+  - id: lexcode.identity.php-idv-sdk
+    languages: [php]
+    severity: INFO
+    message: Checks who a person is with an identity-verification service (Stripe Identity, Onfido or Yoti), which is relying on a digital identity (relies_on_digital_identity).
+    # The engine does not resolve `use` imports, so each vendor class is read three ways: fully
+    # qualified, by its short name under the vendor's import, and by an alias under an aliased
+    # import. One branch per vendor, so one vendor's import cannot admit another's call.
+    # The engine's `use X;` also matches `use X as Y;`, so each short-name branch steps aside where
+    # the class is aliased and the short name may be the app's own.
+    pattern-either:
+      # Stripe Identity: the static resources
+      - patterns:
+          - pattern-either:
+              - pattern: \Stripe\Identity\$C::$M(...)
+              - patterns:
+                  - pattern: $C::$M(...)
+                  - pattern-inside: |
+                      use Stripe\Identity\$C;
+                      ...
+                  - pattern-not-inside: |
+                      use Stripe\Identity\$C as $AL;
+                      ...
+              - patterns:
+                  - pattern: $A::$M(...)
+                  - pattern-inside: |
+                      use Stripe\Identity\$C as $A;
+                      ...
+          - metavariable-regex:
+              metavariable: $C
+              regex: ^(?:VerificationSession|VerificationReport)$
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(?:create|retrieve)$
+      # Stripe Identity: the services of a StripeClient
+      - patterns:
+          - pattern-either:
+              - pattern: $S->identity->verificationSessions->$M(...)
+              - pattern: $S->identity->verificationReports->$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(?:create|retrieve)$
+      # Onfido's API client
+      - pattern: new \Onfido\Api\DefaultApi(...)
+      - patterns:
+          - pattern: new DefaultApi(...)
+          - pattern-inside: |
+              use Onfido\Api\DefaultApi;
+              ...
+          - pattern-not-inside: |
+              use Onfido\Api\DefaultApi as $AL;
+              ...
+      - patterns:
+          - pattern: new $A(...)
+          - pattern-inside: |
+              use Onfido\Api\DefaultApi as $A;
+              ...
+      # Yoti's clients (Yoti's identity app and its document scan)
+      - pattern: new \Yoti\YotiClient(...)
+      - pattern: new \Yoti\DocScan\DocScanClient(...)
+      - patterns:
+          - pattern: new YotiClient(...)
+          - pattern-inside: |
+              use Yoti\YotiClient;
+              ...
+          - pattern-not-inside: |
+              use Yoti\YotiClient as $AL;
+              ...
+      - patterns:
+          - pattern: new $A(...)
+          - pattern-inside: |
+              use Yoti\YotiClient as $A;
+              ...
+      - patterns:
+          - pattern: new DocScanClient(...)
+          - pattern-inside: |
+              use Yoti\DocScan\DocScanClient;
+              ...
+          - pattern-not-inside: |
+              use Yoti\DocScan\DocScanClient as $AL;
+              ...
+      - patterns:
+          - pattern: new $A(...)
+          - pattern-inside: |
+              use Yoti\DocScan\DocScanClient as $A;
+              ...
+    metadata:
+      activity: relies_on_digital_identity
+      mentioned: performs
+      definition: https://lexlint.io/glossary#relies-on-a-digital-identity
+      provenance: ungovr-original
+      license: MIT

@@ -4,6 +4,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { scan } from '../../src/commands/scan.js';
+import { toSarif } from '../../src/record/sarif.js';
 import { loadRuleSet } from '../../src/rules/load.js';
 import type { RuleSet } from '../../src/types.js';
 import { makeRuleSet } from '../helpers/ruleset.js';
@@ -14,12 +15,12 @@ const STUB = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'stubs', 'fa
 const VUE = ['<template>', '  <p>hi</p>', '</template>', '<script setup lang="ts">', 'const a = 1;', '</script>', ''].join('\n');
 
 /** A rule set with exactly one real rule file on disk, whose id the stub engine echoes back. */
-function stubRuleSet(): RuleSet {
+function stubRuleSet(languages = 'python, typescript'): RuleSet {
   const dir = tree({
     'processes_voice/stub.yml': [
       'rules:',
       '  - id: lexcode.test.rule',
-      '    languages: [python, typescript]',
+      `    languages: [${languages}]`,
       '    severity: INFO',
       '    message: stub',
       '    pattern: f(...)',
@@ -163,6 +164,185 @@ describe('scan with a stand-in engine', () => {
       await expect(scan({ root, rulesDirs: [], rs: stubRuleSet(), enginePath: STUB, includeTests: false, snippets: false })).rejects.toThrow(/last stderr line/);
     } finally {
       delete process.env.FAKE_OPENGREP_MODE;
+    }
+  });
+
+  it('maps a match in a whole-file .lexcode.php copy back to the original, also when the engine names the copy by another path', async () => {
+    const root = tree({ 'modules/m/m.module': '<?php\n\nf();\n', 'lib/x.inc': '<?php\n\nf();\n' });
+    // The engine may report a copy under a path that is not the one lexcode passed (a temp directory
+    // behind a symbolic link): the tail after the temp directory still names the original.
+    const result = (p: string) => ({ check_id: 'lexcode.test.rule', path: p, start: { line: 3, col: 1 }, end: { line: 3, col: 4 }, extra: { message: 'm', metadata: {}, lines: 'f();' } });
+    process.env.FAKE_OPENGREP_RESULTS = JSON.stringify([
+      result('/elsewhere/lexcode-scan-x/scripts/modules/m/m.module.lexcode.php'),
+      result('/elsewhere/lexcode-scan-x/scripts/lib/x.inc.lexcode.php'),
+    ]);
+    try {
+      const rec = await scan({ root, rulesDirs: [], rs: stubRuleSet('php'), enginePath: STUB, includeTests: false, snippets: false });
+      const wheres = rec.activities.flatMap((a) => a.evidence.map((e) => e.where)).sort();
+      expect(wheres).toEqual(['lib/x.inc:3', 'modules/m/m.module:3']);
+      expect(rec.scope.extracted).toBe(2);
+    } finally {
+      delete process.env.FAKE_OPENGREP_RESULTS;
+    }
+  });
+
+  describe('hands the engine only the rules with a file to read, and only the files they read (#12997)', () => {
+    /** Four real rules: Python, PHP, a JSON rule limited to composer.json, a generic rule limited to pyproject.toml. */
+    function fourRules(): RuleSet {
+      const rule = (id: string, languages: string, include?: string): string =>
+        [
+          'rules:',
+          `  - id: ${id}`,
+          `    languages: [${languages}]`,
+          '    severity: INFO',
+          '    message: stub',
+          '    pattern: f(...)',
+          ...(include ? ['    paths:', '      include:', `        - "${include}"`] : []),
+          '    metadata:',
+          '      activity: processes_voice',
+          '      mentioned: performs',
+          '      definition: https://lexlint.io/activities/processes_voice',
+          '',
+        ].join('\n');
+      const dir = tree({
+        'processes_voice/py.yml': rule('lexcode.test.py', 'python'),
+        'processes_voice/php.yml': rule('lexcode.test.php', 'php'),
+        'processes_voice/composer.yml': rule('lexcode.test.composer', 'json', 'composer.json'),
+        'processes_voice/toml.yml': rule('lexcode.test.toml', 'generic', 'pyproject.toml'),
+      });
+      return { ...makeRuleSet(), rules: loadRuleSet([dir]).rules.filter((r) => r.id.startsWith('lexcode.test.')), components: [] };
+    }
+    const runsOf = (): { targets: string[]; ruleIds: string[] }[] =>
+      readFileSync(argvLog, 'utf8').trim().split('\n').map((l) => JSON.parse(l) as { targets: string[]; ruleIds: string[] });
+
+    it('leaves out the PHP rule and both path-limited rules when the repository has no PHP, composer.json or pyproject.toml', async () => {
+      const root = tree({ 'src/a.py': 'x = 1\n', 'package.json': '{}\n', 'photos/cat.jpg': 'not really a photo\n', 'README.md': '# hi\n' });
+      process.env.FAKE_OPENGREP_RESULTS = '[]';
+      try {
+        const rec = await scan({ root, rulesDirs: [], rs: fourRules(), enginePath: STUB, includeTests: false, snippets: false });
+        const runs = runsOf();
+        expect(runs).toHaveLength(1);
+        expect(runs[0]?.ruleIds).toEqual(['lexcode.test.py']);
+        expect(runs[0]?.targets).toEqual(['scan-root/src/a.py']);
+        // Only the rule that had a file to read counts as run.
+        expect(rec.searched_not_found).toEqual([{ id: 'processes_voice', rules: 1 }]);
+      } finally {
+        delete process.env.FAKE_OPENGREP_RESULTS;
+      }
+    });
+
+    it('keeps each path-limited rule, and hands over its file, when the file is there at any depth', async () => {
+      const root = tree({ 'src/a.py': 'x = 1\n', 'packages/billing/composer.json': '{}\n', 'pyproject.toml': '[project]\n', 'package.json': '{}\n', 'photos/cat.jpg': 'x\n' });
+      process.env.FAKE_OPENGREP_RESULTS = '[]';
+      try {
+        const rec = await scan({ root, rulesDirs: [], rs: fourRules(), enginePath: STUB, includeTests: false, snippets: false });
+        const runs = runsOf();
+        expect(runs).toHaveLength(1);
+        expect([...(runs[0]?.ruleIds ?? [])].sort()).toEqual(['lexcode.test.composer', 'lexcode.test.py', 'lexcode.test.toml']);
+        expect([...(runs[0]?.targets ?? [])].sort()).toEqual(['scan-root/packages/billing/composer.json', 'scan-root/pyproject.toml', 'scan-root/src/a.py']);
+        expect(rec.searched_not_found).toEqual([{ id: 'processes_voice', rules: 3 }]);
+      } finally {
+        delete process.env.FAKE_OPENGREP_RESULTS;
+      }
+    });
+
+    it('runs no engine scan when no rule has a file to read', async () => {
+      const root = tree({ 'notes.md': '# hi\n', 'photos/cat.jpg': 'x\n' });
+      const rec = await scan({ root, rulesDirs: [], rs: fourRules(), enginePath: STUB, includeTests: false, snippets: false });
+      expect(existsSync(argvLog) ? readFileSync(argvLog, 'utf8').trim() : '').toBe('');
+      expect(rec.searched_not_found).toEqual([]);
+      expect(rec.notices.some((n) => n.startsWith('no file in scope is in a language lexcode reads'))).toBe(true);
+    });
+
+    it('plans again after the long-line skip: a rule whose only file was skipped is not run or counted', async () => {
+      const root = tree({ 'src/a.py': 'x = 1\n', 'gen/only.php': `<?php $s = "${'a'.repeat(100_001)}";\n` });
+      process.env.FAKE_OPENGREP_RESULTS = '[]';
+      try {
+        const rec = await scan({ root, rulesDirs: [], rs: fourRules(), enginePath: STUB, includeTests: false, snippets: false });
+        const runs = runsOf();
+        expect(runs[0]?.ruleIds).toEqual(['lexcode.test.py']);
+        expect(runs[0]?.targets).toEqual(['scan-root/src/a.py']);
+        expect(rec.searched_not_found).toEqual([{ id: 'processes_voice', rules: 1 }]);
+        expect(rec.notices).toContain('skipped 1 file with a line over 100,000 characters (generated or minified code); the engine did not read it');
+      } finally {
+        delete process.env.FAKE_OPENGREP_RESULTS;
+      }
+    });
+
+    it('counts a large file in the pre-filter notice only for a pre-filtered rule that runs', async () => {
+      // A whole-file pre-filtered Python rule limited to setup.py, and a plain Python rule that makes big.py a target.
+      const dir = tree({
+        'processes_voice/pre.yml': [
+          'rules:',
+          '  - id: lexcode.test.pre',
+          '    languages: [python]',
+          '    severity: INFO',
+          '    message: stub',
+          '    patterns:',
+          "      - pattern-regex: '(?s)\\A(?=.*speak).*'",
+          '      - pattern: f(...)',
+          '    paths:',
+          '      include:',
+          '        - "setup.py"',
+          '    metadata:',
+          '      activity: processes_voice',
+          '      mentioned: performs',
+          '',
+        ].join('\n'),
+        'processes_voice/plain.yml': ['rules:', '  - id: lexcode.test.plain', '    languages: [python]', '    severity: INFO', '    message: stub', '    pattern: f(...)', '    metadata:', '      activity: processes_voice', '      mentioned: performs', ''].join('\n'),
+      });
+      const rs: RuleSet = { ...makeRuleSet(), rules: loadRuleSet([dir]).rules.filter((r) => r.id.startsWith('lexcode.test.')), components: [] };
+      const reach = /handed to the engine (?:is|are) over 1,000,000 bytes/;
+      const without = await scan({ root: tree({ 'gen/big.py': pythonOf(1_100_000) }), rulesDirs: [], rs, enginePath: STUB, includeTests: false, snippets: false });
+      expect(without.notices.some((n) => reach.test(n))).toBe(false);
+      const big = await scan({ root: tree({ 'gen/big.py': pythonOf(1_100_000), 'big/setup.py': pythonOf(1_100_000) }), rulesDirs: [], rs, enginePath: STUB, includeTests: false, snippets: false });
+      expect(big.notices.some((n) => reach.test(n))).toBe(true);
+    });
+  });
+
+  it('writes the same record and SARIF with one engine lane as with several (#12997)', async () => {
+    const root = tree({ 'src/a.py': 'x = 1\n', 'src/b.py': 'x = 2\n', 'lib/c.py': 'x = 3\n', 'lib/d.ts': 'const d = 4;\n', 'web/App.vue': VUE, 'README.md': '# hi\n' });
+    const res = (path: string, line: number, col: number, lines: string): unknown => ({
+      check_id: 'lexcode.test.rule',
+      path,
+      start: { line, col },
+      end: { line, col: col + 8 },
+      extra: { metavars: {}, lines },
+    });
+    // Two matches of one rule on one line, the later column written first: the record keeps one, with
+    // the first column's snippet. The extracted Vue block gets the stub's default result.
+    process.env.FAKE_OPENGREP_RESULTS_BY_TARGET = JSON.stringify({
+      'scan-root/src/a.py': [res('scan-root/src/a.py', 3, 9, 'second() first()'), res('scan-root/src/a.py', 3, 1, 'first() second()'), res('scan-root/src/a.py', 1, 1, 'top()')],
+      'scan-root/lib/c.py': [res('scan-root/lib/c.py', 2, 1, 'c()')],
+    });
+    const rs = stubRuleSet();
+    const now = new Date('2026-11-13T12:00:00Z');
+    try {
+      const at = (engineLanes: number) => scan({ root, rulesDirs: [], rs, enginePath: STUB, includeTests: false, snippets: true, now, engineLanes });
+      const one = await at(1);
+      const three = await at(3);
+      const runs = readFileSync(argvLog, 'utf8').trim().split('\n');
+      expect(runs).toHaveLength(1 + 3);
+      expect(JSON.stringify(three)).toBe(JSON.stringify(one));
+      expect(JSON.stringify(toSarif(three, rs, { snippets: true }))).toBe(JSON.stringify(toSarif(one, rs, { snippets: true })));
+      const evidence = one.activities.flatMap((a) => a.evidence);
+      expect(evidence.map((e) => e.where)).toEqual(['lib/c.py:2', 'lib/d.ts:3', 'src/a.py:1', 'src/a.py:3', 'src/b.py:3', 'web/App.vue:3']);
+      expect(evidence.find((e) => e.where === 'src/a.py:3')?.snippet).toBe('first() second()');
+    } finally {
+      delete process.env.FAKE_OPENGREP_RESULTS_BY_TARGET;
+    }
+  });
+
+  it('does not count a PHP rule as run over a Pascal .inc, and says nothing was looked at', async () => {
+    const root = tree({ 'src/defs.inc': '{ Pascal include }\nconst\n  MaxItems = 100;\n', 'README.md': '# hi\n' });
+    process.env.FAKE_OPENGREP_RESULTS = '[]';
+    try {
+      const rec = await scan({ root, rulesDirs: [], rs: stubRuleSet('php'), enginePath: STUB, includeTests: false, snippets: false });
+      expect(rec.scope.extracted).toBe(0);
+      expect(rec.searched_not_found.map((r) => r.id)).not.toContain('processes_voice');
+      expect(rec.notices.some((n) => n.startsWith('no file in scope is in a language lexcode reads') && n.includes('nothing was looked at'))).toBe(true);
+    } finally {
+      delete process.env.FAKE_OPENGREP_RESULTS;
     }
   });
 });

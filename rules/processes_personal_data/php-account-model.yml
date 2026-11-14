@@ -1,0 +1,44 @@
+rules:
+  - id: lexcode.personal.php-account-model
+    languages: [php]
+    severity: INFO
+    message: Declares a user account model with a stored password (a Laravel authenticatable user, or a Symfony password-authenticated user), which is processing personal data (processes_personal_data).
+    pattern-either:
+      # Laravel: the framework's authenticatable user base class, fully qualified, imported or aliased.
+      # The engine's `use X;` also matches `use X as Y;`, so each short-name branch steps aside
+      # where the class is aliased and the short name may be the app's own.
+      - pattern: class $C extends \Illuminate\Foundation\Auth\User { ... }
+      - patterns:
+          - pattern: class $C extends User { ... }
+          - pattern-inside: |
+              use Illuminate\Foundation\Auth\User;
+              ...
+          - pattern-not-inside: |
+              use Illuminate\Foundation\Auth\User as $AL;
+              ...
+      - patterns:
+          - pattern: class $C extends $A { ... }
+          - pattern-inside: |
+              use Illuminate\Foundation\Auth\User as $A;
+              ...
+      # Symfony: a user that signs in with a password the app stores (hashed).
+      - pattern: class $C implements \Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface { ... }
+      - patterns:
+          - pattern: class $C implements PasswordAuthenticatedUserInterface { ... }
+          - pattern-inside: |
+              use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
+              ...
+          - pattern-not-inside: |
+              use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface as $AL;
+              ...
+      - patterns:
+          - pattern: class $C implements $A { ... }
+          - pattern-inside: |
+              use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface as $A;
+              ...
+    metadata:
+      activity: processes_personal_data
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-personal-data
+      provenance: ungovr-original
+      license: MIT

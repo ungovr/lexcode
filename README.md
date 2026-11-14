@@ -57,28 +57,33 @@ file you cannot open for reading (counted in a notice), and never directories
 named `test`, `tests`, `__tests__`, `spec`, `fixtures`, `testdata`,
 `androidTest`, `testFixtures` or `integrationTest`, or the Kotlin Multiplatform
 test source sets `commonTest`, `jvmTest`, `androidUnitTest`,
-`androidInstrumentedTest`, `iosTest`, `jsTest` or `nativeTest`, unless you pass
-`--include-tests`. `app.scope` in `lexlint.yml` narrows the read, as the
-lint reads it.
+`androidInstrumentedTest`, `iosTest`, `jsTest` or `nativeTest`, in any case (so
+Symfony's `Tests` and Magento's `Test` too), unless you pass `--include-tests`.
+`app.scope` in `lexlint.yml` narrows the read, as the lint reads it.
 
 Languages: TypeScript, JavaScript (with JSX and TSX), Python, Go, Ruby
 (`.rb`, `.rake`, `.ru` and `.gemspec` files, and a `Rakefile`, `Fastfile`,
-`Appfile` or `Capfile`), Java (`.java`) and Kotlin (`.kt`, `.kts`), plus the
-`<script>` blocks of Vue, Svelte, HTML, Jinja, ERB (`.erb`, so `.html.erb`) and
-JSP (`.jsp`, `.jspf`, `.tag`) files. In an ERB or JSP view only the `<script>`
-blocks are read, as JavaScript; the Ruby or Java inside the template tags is not
-(the tags are blanked, so line numbers hold). Code in any other language (PHP,
-Swift, C#, Rust and the like) is not read, and the scan names each such
-language with its file count in a notice, so a missing activity there reads as
-"not checked", never as "not there". Manifests: npm
+`Appfile` or `Capfile`), Java (`.java`), Kotlin (`.kt`, `.kts`) and PHP (`.php`,
+`.phtml`, and `.inc`, `.module`, `.theme` and `.install` files that open with
+`<?php`), plus the `<script>` blocks of Vue, Svelte, HTML, Jinja, ERB (`.erb`,
+so `.html.erb`), JSP (`.jsp`, `.jspf`, `.tag`), PHP (`.php`, `.phtml`), Blade
+(`.blade.php`) and Twig (`.twig`, so `.html.twig`) files. In an ERB, JSP or Twig
+view only the `<script>` blocks are read, as JavaScript; the Ruby, Java or
+template code inside the tags is not (the tags are blanked, so line numbers
+hold). A PHP, Blade or `.phtml` view is PHP source, so the whole file is also
+scanned as PHP, and its `<script>` blocks are read as JavaScript as well. Code in any other language (Swift, C#, Rust and the like) is not
+read, and the scan names each such language with its file count in a notice, so
+a missing activity there reads as "not checked", never as "not there".
+Manifests: npm
 (`package.json` with `package-lock.json`, `pnpm-lock.yaml` or `yarn.lock`),
 PyPI (`pyproject.toml`, `requirements*.txt`, `uv.lock`, `poetry.lock`), Go
 (`go.mod`), RubyGems (`Gemfile` or `gems.rb`, with `Gemfile.lock` or
-`gems.locked`, and `*.gemspec`) and Maven (`pom.xml`, and Gradle's `build.gradle`
+`gems.locked`, and `*.gemspec`), Maven (`pom.xml`, and Gradle's `build.gradle`
 and `build.gradle.kts` with their version catalogs, `gradle/*.versions.toml`,
-and the constants and `findLibrary` lookups in `buildSrc` and `build-logic`).
-How Ruby, gems, Java, Kotlin, Maven and Gradle are read, in detail, is in
-[rules/README.md](rules/README.md).
+and the constants and `findLibrary` lookups in `buildSrc` and `build-logic`) and
+Composer (`composer.json`, with the `composer.lock` beside it).
+How Ruby, gems, Java, Kotlin, Maven, Gradle, PHP and Composer are read, in
+detail, is in [rules/README.md](rules/README.md).
 
 ## What it writes
 
@@ -110,7 +115,10 @@ components: [...]
   not an answer: a package can be installed and never called.
 - `signals`: weak hints shown as "worth a look". They never affect a result.
 - `searched_not_found`: activities lexcode has rules for and found nothing,
-  with how many rules it tried. That is a finding, not an absence of one.
+  with how many rules it tried. That is a finding, not an absence of one. A
+  rule is tried only when the scope holds a file it reads (one of its
+  languages, with a name its `paths.include` matches); the engine is handed
+  those rules and those files, nothing else.
 
 `--sarif out.sarif` also writes SARIF 2.1.0 for GitHub code scanning or any
 SARIF viewer. `--json` prints the record instead of writing a file.
@@ -222,6 +230,12 @@ or everyone can write to, since it runs a program from there.
 `LEXCODE_ENGINE_DEADLINE=<seconds>` changes how long a whole engine run may
 take (900, 15 minutes, by default); past it the engine is stopped and the scan
 fails with exit 2.
+
+A large scan runs the engine as several processes at once, one per 4 MB of
+files it reads, at most 8, and no more than the cores and one per 3 GB of
+memory allow. Each process holds its own copy of the rules, so memory rises
+with them. `LEXCODE_ENGINE_LANES=<n>` sets the number; `1` runs the engine as
+one process, for a machine that runs short of memory.
 
 `LEXCODE_RULES_HOME=<dir>` replaces the bundled `rules/` directory (it needs `ruleset.yml`, `classes.yml`, `registry.snapshot.json` and `components/`), for a vendored rule set or a test.
 

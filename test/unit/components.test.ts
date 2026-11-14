@@ -98,6 +98,15 @@ describe('matchComponents', () => {
     expect(matchComponents([d], [], [entry({ ecosystem: 'gem', match: 'com.twilio.sdk:twilio', enables: ['x'] })]).components).toEqual([]);
   });
 
+  it('matches a Composer package case-insensitively, and its evidence rule reads lexcode.manifest.composer', () => {
+    const d: Dependency = { ecosystem: 'composer', name: 'twilio/sdk', version: '8.3.1', manifest: 'composer.json:12' };
+    const r = matchComponents([d], [], [entry({ ecosystem: 'composer', match: 'Twilio/SDK', enables: ['automated_outreach'] })]);
+    expect(r.components[0]?.purl).toBe('pkg:composer/twilio/sdk@8.3.1');
+    expect(r.evidence[0]?.ev.rule).toBe('lexcode.manifest.composer');
+    expect(r.evidence[0]?.ev.where).toBe('composer.json:12');
+    expect(matchComponents([d], [], [entry({ ecosystem: 'npm', match: 'twilio/sdk', enables: ['x'] })]).components).toEqual([]);
+  });
+
   it('matches PyPI names after PEP 503 normalization on both sides', () => {
     const d: Dependency = {
       ecosystem: 'pypi',

@@ -1,0 +1,55 @@
+rules:
+  - id: lexcode.distribute.php-phar-build
+    languages: [php]
+    severity: INFO
+    message: Builds a PHAR archive and sets the stub that makes it runnable, which is packaging a PHP program to ship to others (distributes_software_product).
+    # Each branch carries its own key pattern: a pattern-regex conjunct inside a nested branch
+    # would become that branch's only positive range (the whole file) and match nothing.
+    pattern-either:
+      - patterns:
+          - pattern-either: &build
+              - pattern: $P->buildFromDirectory(...)
+              - pattern: $P->buildFromIterator(...)
+              - pattern: $P->setStub(...)
+              - pattern: $P->setDefaultStub(...)
+          - pattern-inside: |
+              $P = new \Phar(...);
+              ...
+      # A one-segment `use` pattern also matches `use App\X\Phar;`, so the import of the global
+      # class is checked on the file's text.
+      - patterns:
+          - pattern-either: *build
+          - pattern-inside: |
+              $P = new Phar(...);
+              ...
+          - pattern-regex: '(?s)\A(?=.*\buse\s+\\?Phar\s*;).*'
+      - patterns:
+          - pattern-either: *build
+          - pattern-inside: |
+              use Phar as $A;
+              ...
+          - pattern-inside: |
+              $P = new $A(...);
+              ...
+          - pattern-regex: '(?s)\A(?=.*\buse\s+\\?Phar\s+as\s).*'
+      # A file with no namespace, where Phar needs no import. In a namespaced file an
+      # unqualified Phar is the class of the file's own namespace, and in any file an import
+      # (`use App\X\Phar;`) rebinds the name. The one-segment `use Phar;` pattern matches such an
+      # import too; a real `use Phar;` is already read by the second branch.
+      - patterns:
+          - pattern-either: *build
+          - pattern-inside: |
+              $P = new Phar(...);
+              ...
+          - pattern-not-inside: |
+              namespace $N;
+              ...
+          - pattern-not-inside: |
+              use Phar;
+              ...
+    metadata:
+      activity: distributes_software_product
+      mentioned: performs
+      definition: https://lexlint.io/activities/distributes-software-product
+      provenance: ungovr-original
+      license: MIT

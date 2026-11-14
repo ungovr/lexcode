@@ -1,0 +1,32 @@
+rules:
+  - id: lexcode.voice.php-twilio-speech
+    languages: [php]
+    severity: INFO
+    message: Takes a caller's speech through Twilio TwiML, with speech recognition or a transcribed voicemail, which is processing human voices (processes_voice).
+    patterns:
+      # Anchors: every match holds one of these words, and a file without them is skipped
+      # unparsed. Most PHP apps write `record` all over (Moodle's $DB->insert_record), so the
+      # engine's own literal filter admits nearly every file.
+      - pattern-either:
+          - pattern-regex: (?is)\A(?=.*speech).*
+          - pattern-regex: (?s)\A(?=.*transcribe['"]).*
+      - pattern-either:
+          # twilio/sdk TwiML: a Gather whose input includes speech. A keypad-only Gather is not it.
+          - patterns:
+              - pattern: "$R->gather([..., 'input' => $V, ...])"
+              - metavariable-regex:
+                  metavariable: $V
+                  regex: (?i)^['"][^'"]*\bspeech\b
+          # A Record verb that has Twilio transcribe the recording.
+          - patterns:
+              - pattern: "$R->record([..., 'transcribe' => $T, ...])"
+              - metavariable-regex:
+                  metavariable: $T
+                  # PHP's false and null are case-insensitive.
+                  regex: (?i)^(?!\s*(false|null|0|['"](false|0)?['"])\s*$)
+    metadata:
+      activity: processes_voice
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-voice
+      provenance: ungovr-original
+      license: MIT

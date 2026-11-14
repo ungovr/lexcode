@@ -1,0 +1,33 @@
+rules:
+  - id: lexcode.calls.php-twilio-record-call
+    languages: [php]
+    severity: INFO
+    message: Places a Twilio call or opens a video room with recording turned on, or starts recording a live call, which is recording a call (records_calls).
+    patterns:
+      # Anchors: every match holds one of these words, and a file without them is skipped
+      # unparsed. Most PHP apps write `record` all over (Moodle's $DB->insert_record), so the
+      # engine's own literal filter admits nearly every file.
+      - pattern-either:
+          - pattern-regex: (?s)\A(?=.*record['"]\s*=>).*
+          - pattern-regex: (?s)\A(?=.*recordParticipantsOnConnect).*
+          - pattern-regex: (?s)\A(?=.*recordings\s*->\s*create).*
+      - pattern-either:
+          # twilio/sdk: calls->create($to, $from, $options) with a record option, and a video
+          # room that records its participants. Twilio's create takes the two numbers first, so
+          # a create that takes one array is some other calls collection, such as a CRM's.
+          - patterns:
+              - pattern-either:
+                  - pattern: "$C->calls->create($TO, $FROM, [..., 'record' => $V, ...])"
+                  - pattern: "$C->rooms->create([..., 'recordParticipantsOnConnect' => $V, ...])"
+              - metavariable-regex:
+                  metavariable: $V
+                  # PHP's false and null are case-insensitive.
+                  regex: (?i)^(?!\s*(false|null|0|['"](false|0|do-not-record)?['"])\s*$)
+          # Start recording a call that is in progress.
+          - pattern: $C->calls($SID)->recordings->create(...)
+    metadata:
+      activity: records_calls
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-calls
+      provenance: ungovr-original
+      license: MIT
