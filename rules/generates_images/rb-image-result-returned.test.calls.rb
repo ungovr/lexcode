@@ -1,4 +1,4 @@
-# lexcode-expect: 20
+# lexcode-expect: 25
 # One function per source call this rule's sinks list (#13034), in each form that reaches it:
 # returned from a method and a class method, and yielded. A sink entry that stops matching drops a
 # match here.
@@ -29,6 +29,11 @@ class Calls
     yield r
   end
 
+  def x1(q)
+    text = @client.images.generate(parameters: { prompt: q })["choices"]
+    return text
+  end
+
   def self.ys1(q)
     r = client.images.generate(parameters: { prompt: q })
     yield r
@@ -47,6 +52,11 @@ class Calls
   def y2(q)
     r = @client.images.edit(parameters: { prompt: q })
     yield r
+  end
+
+  def x2(q)
+    text = @client.images.edit(parameters: { prompt: q })["choices"]
+    return text
   end
 
   def self.ys2(q)
@@ -69,6 +79,11 @@ class Calls
     yield r
   end
 
+  def x3(q)
+    text = @client.images.variations(parameters: { image: q })["choices"]
+    return text
+  end
+
   def self.ys3(q)
     r = client.images.variations(parameters: { image: q })
     yield r
@@ -89,6 +104,11 @@ class Calls
     yield r
   end
 
+  def x4(q)
+    text = @client.images.create_variation(image: q)["choices"]
+    return text
+  end
+
   def self.ys4(q)
     r = client.images.create_variation(image: q)
     yield r
@@ -107,6 +127,11 @@ class Calls
   def y5(q)
     r = RubyLLM.paint(q)
     yield r
+  end
+
+  def x5(q)
+    text = RubyLLM.paint(q)["choices"]
+    return text
   end
 
   def self.ys5(q)

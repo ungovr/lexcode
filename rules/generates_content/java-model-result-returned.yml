@@ -1,9 +1,11 @@
 # The sink is not every return in the file: every return made the taint pass grow several times
 # faster than the file, 10 to 14 s on a 900 KB file where a scan gives one rule 30 s per file
-# (#13034). It is a return in a method that also makes one of the calls below, or a return that
-# names a field the class sets from one of them. The calls are the sources without their argument
-# and name checks, so every source call is in the scope. A result one method stores at run time and
-# another returns is not followed. How the scope is written, and why, is in CONTRIBUTING.md, Cost.
+# (#13034). It is a return in a method or block lambda that also makes one of the calls below (in a
+# statement, a for-each header or an if header), or a return that names a field the class sets from
+# one of them. Not followed: a result one method stores at run time and another returns, a field
+# derived from such a field, a call in a while header or a for initializer, and a return in a lambda
+# nested in a streaming callback. The calls are the sources without their argument and name checks.
+# How the scope is written, and why, is in CONTRIBUTING.md, Cost.
 rules:
   - id: lexcode.generate.java-model-result-returned
     languages: [java]
@@ -69,11 +71,65 @@ rules:
               - pattern-inside: |
                   $SINKRET $SINKFN(...) {
                     ...
+                    for ($SINKT $SINKE : <... $SINKR.generateContent(...) ...>) $SINKS;
+                    ...
+                  }
+              - pattern-inside: |
+                  $SINKRET $SINKFN(...) {
+                    ...
+                    if (<... $SINKR.generateContent(...) ...>) $SINKS;
+                    ...
+                  }
+              - pattern-inside: |
+                  (...) -> {
+                    ...
+                    $SINKR.generateContent(...);
+                    ...
+                  }
+              - pattern-inside: |
+                  $SINKRET $SINKFN(...) {
+                    ...
                     $SINKR.generateContentStream(...);
                     ...
                   }
               - pattern-inside: |
                   $SINKRET $SINKFN(...) {
+                    ...
+                    for ($SINKT $SINKE : <... $SINKR.generateContentStream(...) ...>) $SINKS;
+                    ...
+                  }
+              - pattern-inside: |
+                  $SINKRET $SINKFN(...) {
+                    ...
+                    if (<... $SINKR.generateContentStream(...) ...>) $SINKS;
+                    ...
+                  }
+              - pattern-inside: |
+                  (...) -> {
+                    ...
+                    $SINKR.generateContentStream(...);
+                    ...
+                  }
+              - pattern-inside: |
+                  $SINKRET $SINKFN(...) {
+                    ...
+                    $SINKR.generateContentAsync(...);
+                    ...
+                  }
+              - pattern-inside: |
+                  $SINKRET $SINKFN(...) {
+                    ...
+                    for ($SINKT $SINKE : <... $SINKR.generateContentAsync(...) ...>) $SINKS;
+                    ...
+                  }
+              - pattern-inside: |
+                  $SINKRET $SINKFN(...) {
+                    ...
+                    if (<... $SINKR.generateContentAsync(...) ...>) $SINKS;
+                    ...
+                  }
+              - pattern-inside: |
+                  (...) -> {
                     ...
                     $SINKR.generateContentAsync(...);
                     ...
@@ -87,11 +143,65 @@ rules:
               - pattern-inside: |
                   $SINKRET $SINKFN(...) {
                     ...
+                    for ($SINKT $SINKE : <... $SINKR.sendMessage(...) ...>) $SINKS;
+                    ...
+                  }
+              - pattern-inside: |
+                  $SINKRET $SINKFN(...) {
+                    ...
+                    if (<... $SINKR.sendMessage(...) ...>) $SINKS;
+                    ...
+                  }
+              - pattern-inside: |
+                  (...) -> {
+                    ...
+                    $SINKR.sendMessage(...);
+                    ...
+                  }
+              - pattern-inside: |
+                  $SINKRET $SINKFN(...) {
+                    ...
                     $SINKR.sendMessageStream(...);
                     ...
                   }
               - pattern-inside: |
                   $SINKRET $SINKFN(...) {
+                    ...
+                    for ($SINKT $SINKE : <... $SINKR.sendMessageStream(...) ...>) $SINKS;
+                    ...
+                  }
+              - pattern-inside: |
+                  $SINKRET $SINKFN(...) {
+                    ...
+                    if (<... $SINKR.sendMessageStream(...) ...>) $SINKS;
+                    ...
+                  }
+              - pattern-inside: |
+                  (...) -> {
+                    ...
+                    $SINKR.sendMessageStream(...);
+                    ...
+                  }
+              - pattern-inside: |
+                  $SINKRET $SINKFN(...) {
+                    ...
+                    $SINKC.chats.create(...);
+                    ...
+                  }
+              - pattern-inside: |
+                  $SINKRET $SINKFN(...) {
+                    ...
+                    for ($SINKT $SINKE : <... $SINKC.chats.create(...) ...>) $SINKS;
+                    ...
+                  }
+              - pattern-inside: |
+                  $SINKRET $SINKFN(...) {
+                    ...
+                    if (<... $SINKC.chats.create(...) ...>) $SINKS;
+                    ...
+                  }
+              - pattern-inside: |
+                  (...) -> {
                     ...
                     $SINKC.chats.create(...);
                     ...

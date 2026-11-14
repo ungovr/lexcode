@@ -1,10 +1,11 @@
 # The sink is not every return in the file: every return made the taint pass grow several times
 # faster than the file, 18 to 27 s on a 900 KB file where a scan gives one rule 30 s per file
-# (#13034). It is a return or an expression body in a function that also makes one of the calls
+# (#13034). It is a return or an expression body in a function whose body makes one of the calls
 # below, or a return or expression body that names a val set from one of them, at the top level, in
-# a class or in a function. The calls are the sources without their argument and name checks, so
-# every source call is in the scope. A result one function stores at run time and another returns is
-# not followed. How the scope is written, and why, is in CONTRIBUTING.md, Cost. prompt(...). ...
+# a class or in a function, and declared before it. Not followed: a result one function stores at
+# run time and another returns, a val derived from such a val, a member declared before the val it
+# returns, and a call in a default parameter. The calls are the sources without their argument and
+# name checks. How the scope is written, and why, is in CONTRIBUTING.md, Cost. prompt(...). ...
 # .call() is in scope through call(...), and chat { ... } through chat(...).
 rules:
   - id: lexcode.text.kt-chat-framework-result-returned

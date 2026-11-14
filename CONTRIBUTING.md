@@ -323,7 +323,7 @@ for those. Each of the six rules has two more positive fixtures:
 lambda, callbacks, a result set at module level), and `*.test.calls.*` holds
 one function per call the sinks list, in each form that reaches it. The Java,
 Kotlin and Ruby ones have a `*.test.calls.*` too. Deleting any one sink entry
-or form drops a match in them (362 checked for Python and JS/TS, 261 for Java,
+or form drops a match in them (362 checked for Python and JS/TS, 345 for Java,
 Kotlin and Ruby, #13034), so a call added to a rule's list needs its function
 in `*.test.calls.*`. That check also found entries another entry already
 covers, and they were dropped: a call is left out of a list when a shorter
@@ -334,7 +334,12 @@ entry matches it (`completions(...)` matches `chat().completions().create(...)`,
 The Java, Kotlin and Ruby `*-result-returned` rules have the same two sinks,
 each in its language's form. In Java a call statement in a method's sequence
 (`$SINKRET $SINKFN(...) { ... CALL; ... }`) matches a statement that holds the
-call anywhere: a declaration, a nested block, a lambda or an anonymous class.
+call: a declaration, a return, a nested block, a lambda or anonymous class in
+the method, a try-with-resources header. It does not reach an `if`, `for` or
+`while` header, and Java has no way to bind a method body for a search, so the
+rules add a for-each and an `if` header form per call
+(`for ($SINKT $SINKE : <... CALL ...>) $SINKS;`), and a block lambda form
+(`(...) -> { ... CALL; ... }`) for code in a field or an initializer.
 The second sink is a field the class sets from a call
 (`class $SINKCLS { ... $SINKT $SINKV = <... CALL ...>; ... }`), named by the
 return as `$SINKV` or `this.$SINKV`. In Kotlin a statement sequence under `fun`
@@ -346,9 +351,14 @@ function. There, write the expression-bodied function as
 `pattern: fun $F(...) = $X`, not `pattern-inside`: with `pattern-inside`, a
 `val` declared inside the body made the `val`'s own statement the sink, which
 holds the source call, and 15 false matches appeared in four codebases. In
-Ruby, `def` and `def self.` with the call in the sequence reach blocks, `if`
-and `begin`. Ruby has no second sink: the old every-return sink followed
-neither a constant nor an instance variable into a method.
+Ruby a statement sequence under `def` reaches blocks, `if` and `begin`, but not
+a call used as the receiver of `[...]` (`client.chat(...)["choices"]`, the usual
+ruby-openai shape) or one in a ternary, an `if` or `case` expression, a
+condition or parentheses, so the scope is a body search under `def` and
+`def self.`, as in Kotlin. Ruby has no second sink: the old every-return sink
+followed neither a constant nor an instance variable into a method. None of the
+three searches the parameter list, so a source call in a default parameter is
+not followed.
 
 `scripts/rule-cost.mjs` times a rule on its plain positive fixture
 (`<stem>.test.<ext>`), where the source call is inside a function, not on a

@@ -1,8 +1,8 @@
 # The sink is not every return in the file: every return made the taint pass grow several times
 # faster than the file, 48 to 56 s on a 900 KB file where a scan gives one rule 30 s per file
-# (#13034). It is a return or a yield in a method that also makes one of the calls below. The calls
-# are the sources without their argument and name checks, so every source call is in the scope. A
-# result one method stores at run time and another returns is not followed. How the scope is
+# (#13034). It is a return or a yield in a method whose body makes one of the calls below. Not
+# followed: a result one method stores at run time and another returns, and a call in a default
+# parameter. The calls are the sources without their argument and name checks. How the scope is
 # written, and why, is in CONTRIBUTING.md, Cost.
 rules:
   - id: lexcode.image.rb-image-result-returned
@@ -33,56 +33,42 @@ rules:
       - patterns:
           - pattern: yield $X
           - pattern-either:
-              - pattern-inside: |
-                  def $SINKFN(...)
-                    ...
-                    $SINKC.images.$SINKM(...)
-                    ...
-                  end
-              - pattern-inside: |
-                  def self.$SINKFN(...)
-                    ...
-                    $SINKC.images.$SINKM(...)
-                    ...
-                  end
-              - pattern-inside: |
-                  def $SINKFN(...)
-                    ...
-                    RubyLLM.paint(...)
-                    ...
-                  end
-              - pattern-inside: |
-                  def self.$SINKFN(...)
-                    ...
-                    RubyLLM.paint(...)
-                    ...
-                  end
+              - patterns:
+                  - pattern-inside: |
+                      def $SINKFN(...)
+                        $...SINKBODY
+                      end
+                  - metavariable-pattern:
+                      metavariable: $...SINKBODY
+                      pattern-either: &sinkcalls
+                        - pattern: $SINKC.images.$SINKM(...)
+                        - pattern: RubyLLM.paint(...)
+              - patterns:
+                  - pattern-inside: |
+                      def self.$SINKFN(...)
+                        $...SINKBODY
+                      end
+                  - metavariable-pattern:
+                      metavariable: $...SINKBODY
+                      pattern-either: *sinkcalls
       - patterns:
           - pattern-either:
-              - pattern-inside: |
-                  def $SINKFN(...)
-                    ...
-                    $SINKC.images.$SINKM(...)
-                    ...
-                  end
-              - pattern-inside: |
-                  def self.$SINKFN(...)
-                    ...
-                    $SINKC.images.$SINKM(...)
-                    ...
-                  end
-              - pattern-inside: |
-                  def $SINKFN(...)
-                    ...
-                    RubyLLM.paint(...)
-                    ...
-                  end
-              - pattern-inside: |
-                  def self.$SINKFN(...)
-                    ...
-                    RubyLLM.paint(...)
-                    ...
-                  end
+              - patterns:
+                  - pattern-inside: |
+                      def $SINKFN(...)
+                        $...SINKBODY
+                      end
+                  - metavariable-pattern:
+                      metavariable: $...SINKBODY
+                      pattern-either: *sinkcalls
+              - patterns:
+                  - pattern-inside: |
+                      def self.$SINKFN(...)
+                        $...SINKBODY
+                      end
+                  - metavariable-pattern:
+                      metavariable: $...SINKBODY
+                      pattern-either: *sinkcalls
           - pattern-either:
               - pattern: return $V
               - pattern: return $V.$M(...)
