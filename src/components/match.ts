@@ -1,7 +1,7 @@
 import { normalizePypiName, purlOf } from '../manifests/purl.js';
 import type { ComponentEntry, ComponentRow, Dependency, Evidence } from '../types.js';
 
-const RULE_SUFFIX = { npm: 'npm', pypi: 'pypi', golang: 'go', gem: 'gem', maven: 'maven', composer: 'composer' } as const;
+const RULE_SUFFIX = { npm: 'npm', pypi: 'pypi', golang: 'go', gem: 'gem', maven: 'maven', composer: 'composer', nuget: 'nuget' } as const;
 
 /**
  * Path glob over POSIX relative paths: `*` and `?` stay inside one path segment, `**` crosses

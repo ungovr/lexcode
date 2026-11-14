@@ -1,0 +1,41 @@
+rules:
+  - id: lexcode.identity.cs-idv-sdk
+    languages: [csharp]
+    severity: INFO
+    message: Checks who a person is with an identity-verification service (Stripe Identity or Yoti), which is relying on a digital identity (relies_on_digital_identity).
+    # Sign-in with a password, and social or workforce sign-in that only links an account (AddGoogle,
+    # AddMicrosoftAccount, AddOpenIdConnect, Microsoft.Identity.Web), do not count and are not read.
+    # Stripe's identity services are built in place or injected, so their calls are read by the
+    # declared or inferred type of the service; the engine infers it from `var s = new T()`.
+    pattern-either:
+      # Stripe Identity (Stripe.net): verification sessions and reports
+      - patterns:
+          - pattern-either:
+              - pattern: (Stripe.Identity.VerificationSessionService $S).$M(...)
+              - pattern: (Stripe.Identity.VerificationReportService $S).$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(?:Create|Get)(?:Async)?$
+      # Stripe Identity through a StripeClient's services
+      - patterns:
+          - pattern-either:
+              - pattern: $C.V1.Identity.VerificationSessions.$M(...)
+              - pattern: $C.V1.Identity.VerificationReports.$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(?:Create|Get)(?:Async)?$
+      # Yoti: its identity app client and its document scan client. YotiClient's short name carries
+      # Yoti's own name, so it is also read where a `global using` in another file brings it in
+      # (Decision 10).
+      - pattern: 'new Yoti.Auth.YotiClient(...) { ... }'
+      - pattern: 'Yoti.Auth.YotiClient $V = new(...) { ... };'
+      - pattern: 'new YotiClient(...) { ... }'
+      - pattern: 'YotiClient $V = new(...) { ... };'
+      - pattern: 'new Yoti.Auth.DocScan.DocScanClient(...) { ... }'
+      - pattern: 'Yoti.Auth.DocScan.DocScanClient $V = new(...) { ... };'
+    metadata:
+      activity: relies_on_digital_identity
+      mentioned: performs
+      definition: https://lexlint.io/glossary#relies-on-a-digital-identity
+      provenance: ungovr-original
+      license: MIT

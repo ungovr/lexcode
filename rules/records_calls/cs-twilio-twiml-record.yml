@@ -1,0 +1,28 @@
+rules:
+  - id: lexcode.calls.cs-twilio-twiml-record
+    languages: [csharp]
+    severity: INFO
+    message: Answers a Twilio call with TwiML that records the bridged call or the conference, which is recording a call (records_calls).
+    # Twilio's types are written in full: the engine resolves a file's `using` lines and aliases, so an
+    # app's own VoiceResponse, Dial or Conference in another namespace is not taken for them. The Record
+    # verb records one caller's own message (voicemail), which is processes_voice, not this activity.
+    patterns:
+      # A Dial or a Conference, on the response, built on its own, or target-typed, with a record setting.
+      # `new T(...) { ... }` also matches a construction with no initializer.
+      - pattern-either:
+          - pattern: "(Twilio.TwiML.VoiceResponse $R).Dial(..., record: $V, ...)"
+          - pattern: "new Twilio.TwiML.Voice.Dial(..., record: $V, ...) { ... }"
+          - pattern: "Twilio.TwiML.Voice.Dial $D = new(..., record: $V, ...) { ... };"
+          - pattern: "(Twilio.TwiML.Voice.Dial $D).Conference(..., record: $V, ...)"
+          - pattern: "new Twilio.TwiML.Voice.Conference(..., record: $V, ...) { ... }"
+          - pattern: "Twilio.TwiML.Voice.Conference $D = new(..., record: $V, ...) { ... };"
+      # ...that is not DoNotRecord or null.
+      - metavariable-regex:
+          metavariable: $V
+          regex: ^(?![\s\S]*\bDoNotRecord[\s)]*$)(?![\s(]*null[\s)]*$)
+    metadata:
+      activity: records_calls
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-calls
+      provenance: ungovr-original
+      license: MIT

@@ -1,0 +1,27 @@
+rules:
+  - id: lexcode.train.cs-mlnet-train
+    languages: [csharp]
+    severity: INFO
+    message: Creates an ML.NET trainer, forecaster or AutoML experiment, which fits a model to the app's data, so it is training models (trains_models).
+    # A trainer exists only to be fitted, so creating one is the training; loading a model, predicting
+    # and fitting data transforms are not matched. The context is typed, so it is found whether it is
+    # injected, a field, or built with `var` or target-typed new, and an app's own MLContext in another
+    # namespace is not.
+    pattern-either:
+      - pattern: (Microsoft.ML.MLContext $C).$CATALOG.Trainers.$T(...)
+      - pattern: (Microsoft.ML.MLContext $C).Recommendation().Trainers.$T(...)
+      - pattern: (Microsoft.ML.MLContext $C).Forecasting.ForecastBySsa(...)
+      # ML.NET AutoML (Microsoft.ML.AutoML): the task experiments, and the newer AutoMLExperiment.
+      - patterns:
+          - pattern: (Microsoft.ML.MLContext $C).Auto().$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^Create\w+Experiment$
+      - pattern: new Microsoft.ML.AutoML.AutoMLExperiment(...) { ... }
+      - pattern: Microsoft.ML.AutoML.AutoMLExperiment $V = new(...) { ... };
+    metadata:
+      activity: trains_models
+      mentioned: performs
+      definition: https://lexlint.io/activities/trains-models
+      provenance: ungovr-original
+      license: MIT

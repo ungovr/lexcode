@@ -124,6 +124,62 @@ describe('listFiles outside git', () => {
     expect(listFiles(root, plain).files).toEqual(['keep.py']);
   });
 
+  it('a walk skips obj with project.assets.json and bin with Debug, and keeps a bin/ that holds scripts', () => {
+    const root = repo(
+      [
+        'src/App/Program.cs',
+        'src/App/obj/project.assets.json',
+        'src/App/obj/Debug/net9.0/App.AssemblyInfo.cs',
+        'src/App/bin/Debug/net9.0/App.deps.json',
+        'src/Lib/bin/Release/net9.0/Lib.xml',
+        'src/Lib/obj/Release/net9.0/Lib.GlobalUsings.cs',
+        'src/Lib/obj/project.assets.json',
+        'bin/deploy.sh', // a bin/ of scripts
+        'tools/bin/Debug.txt', // a file named Debug is not a build configuration directory
+        'native/obj/a.o.c', // an obj/ with no project.assets.json
+      ],
+      { git: false },
+    );
+    expect(listFiles(root, plain).files).toEqual(['bin/deploy.sh', 'native/obj/a.o.c', 'src/App/Program.cs', 'tools/bin/Debug.txt']);
+  });
+
+  describe('a legacy NuGet restore folder (packages/<Id>.<version>/ holding a .nupkg)', () => {
+    const restored = [
+      'src/App/Program.cs',
+      'packages/jQuery.3.7.1/jQuery.3.7.1.nupkg',
+      'packages/jQuery.3.7.1/Content/Scripts/jquery-3.7.1.js',
+      'packages/Newtonsoft.Json.13.0.3/Newtonsoft.Json.13.0.3.nupkg',
+      'packages/Newtonsoft.Json.13.0.3/lib/net45/Newtonsoft.Json.xml',
+      'legacy/Packages/Twilio.5.0.0/Twilio.5.0.0.NUPKG',
+      'legacy/Packages/Twilio.5.0.0/content/Twilio.cs',
+    ];
+    // A JavaScript workspace's own code under packages/, and a packages/ that holds a .nupkg only at its own level
+    const own = ['web/packages/ui/src/index.ts', 'web/packages/api/package.json', 'tools/packages/build.nupkg', 'tools/packages/pack.ps1'];
+
+    it('a walk skips it and keeps a packages/ of the repository own code', () => {
+      const root = repo([...restored, ...own], { git: false });
+      expect(listFiles(root, plain).files).toEqual(['src/App/Program.cs', 'tools/packages/build.nupkg', 'tools/packages/pack.ps1', 'web/packages/api/package.json', 'web/packages/ui/src/index.ts']);
+    });
+
+    it('a git listing skips it too, committed or not, and keeps a packages/ of the repository own code', () => {
+      const root = repo([...restored, ...own]);
+      git(root, 'add', '-A');
+      expect(listFiles(root, plain).files).toEqual(['src/App/Program.cs', 'tools/packages/build.nupkg', 'tools/packages/pack.ps1', 'web/packages/api/package.json', 'web/packages/ui/src/index.ts']);
+    });
+
+    it('a git listing skips it when .gitignore leaves out the .nupkg files but the restored files are committed', () => {
+      const root = repo([...restored, '.gitignore']);
+      put(root, '.gitignore', '*.nupkg\n*.NUPKG\n');
+      git(root, 'add', '-A');
+      expect(listFiles(root, plain).files).toEqual(['.gitignore', 'src/App/Program.cs']);
+    });
+  });
+
+  it('keeps obj and bin in a git repository, where git decides', () => {
+    const root = repo(['src/App/Program.cs', 'src/App/obj/project.assets.json', 'src/App/bin/Debug/x.cs']);
+    expect(listFiles(root, plain).files).toEqual(['src/App/Program.cs', 'src/App/bin/Debug/x.cs', 'src/App/obj/project.assets.json']);
+  });
+
   it('does not skip those directories in a git repository, where git decides', () => {
     const root = repo(['keep.py', 'target/x.py', 'Pods/y.py']);
     expect(listFiles(root, plain).files).toEqual(['Pods/y.py', 'keep.py', 'target/x.py']);
@@ -240,6 +296,46 @@ describe('the skip list', () => {
       'src/Testing/Clock.php',
     ]);
     expect(listFiles(root, { ...plain, includeTests: true }).files).toEqual([...files].sort());
+  });
+
+  it('a .NET test project directory is skipped', () => {
+    // The .NET convention keeps a test project beside the app's own, outside any tests/ directory (#13012).
+    const files = [
+      'src/MyApp.Tests/FooTests.cs',
+      'src/MyApp.IntegrationTests/X.cs',
+      'src/MyApp.UnitTests/A.cs',
+      'src/MyApp.FunctionalTests/B.cs',
+      'src/MyApp.AcceptanceTests/C.cs',
+      'src/MyApp.Test/D.cs',
+      'src/MyApp.Specs/E.cs',
+      'src/Web.TESTS/F.cs',
+      'src/Contests/X.cs',
+      'src/MyApp.Testing/Clock.cs',
+      'src/MyApp.Tests.Shared.txt',
+      'src/MyApp/Program.cs',
+    ];
+    const root = repo(files);
+    expect(listFiles(root, plain).files).toEqual(['src/Contests/X.cs', 'src/MyApp.Testing/Clock.cs', 'src/MyApp.Tests.Shared.txt', 'src/MyApp/Program.cs']);
+    expect(listFiles(root, { ...plain, includeTests: true }).files).toEqual([...files].sort());
+  });
+
+  it('generated .g.cs files are skipped and counted as bundled ones are, and .Designer.cs files are read', () => {
+    const root = repo([
+      'src/App/Program.cs',
+      'src/App/Generated/Routes.g.cs',
+      'src/App/Views/MainWindow.g.i.cs',
+      'src/App/Properties/Resources.Designer.cs',
+      'src/App/Forms/Main.Designer.cs',
+      'src/App/Config.g.json',
+    ]);
+    const r = listFiles(root, plain);
+    expect(r.files).toEqual([
+      'src/App/Config.g.json',
+      'src/App/Forms/Main.Designer.cs',
+      'src/App/Program.cs',
+      'src/App/Properties/Resources.Designer.cs',
+    ]);
+    expect(r.skippedBundled).toBe(2);
   });
 
   it.each(['commonTest', 'jvmTest', 'androidUnitTest', 'androidInstrumentedTest', 'iosTest', 'jsTest', 'nativeTest'])(

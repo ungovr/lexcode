@@ -171,6 +171,17 @@ describe('lexcode explain', () => {
       expect(JSON.parse(out.join('')).enables).toEqual([]);
     });
 
+    it('reads a NuGet purl as its package Id, matched case-insensitively', async () => {
+      const nuget = makeRuleSet();
+      nuget.components = [{ ecosystem: 'nuget', match: 'twilio', enables: ['automated_outreach'], says: 'a', source: 'https://example.org' }];
+      const purl = 'pkg:nuget/Twilio@7.4.0';
+      expect(await runExplainCommand([purl, '--json'], io(), { rs: nuget })).toBe(0);
+      expect(JSON.parse(out.join(''))).toEqual({ purl, enables: ['automated_outreach'] });
+      out.length = 0;
+      expect(await runExplainCommand(['pkg:nuget/twilio.sdk', '--json'], io(), { rs: nuget })).toBe(0);
+      expect(JSON.parse(out.join('')).enables).toEqual([]);
+    });
+
     it('answers a Maven purl from the bundled map through main', async () => {
       vi.unstubAllEnvs(); // the bundled rules home, not the minimal one, holds the Maven map
       expect(await main(['explain', 'pkg:maven/com.twilio.sdk/twilio@10.1.0', '--json'], io())).toBe(0);

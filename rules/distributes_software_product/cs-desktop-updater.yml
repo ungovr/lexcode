@@ -1,0 +1,33 @@
+rules:
+  - id: lexcode.distribute.cs-desktop-updater
+    languages: [csharp]
+    severity: INFO
+    message: Installs or updates a desktop app from a download server (Velopack, Squirrel.Windows, NetSparkle or ClickOnce), which is packaged software made for others to install (distributes_software_product).
+    # Library types are written in full: the engine resolves `using` lines and aliases, so an app's own
+    # UpdateManager in another namespace is not matched. `new T(...) { ... }` also matches a
+    # construction with no initializer.
+    pattern-either:
+      # Velopack. VelopackApp is product-named, so its short form also finds a namespace imported by a
+      # `global using` in another file.
+      - pattern: Velopack.VelopackApp.Build(...)
+      - pattern: VelopackApp.Build(...)
+      - pattern: new Velopack.UpdateManager(...) { ... }
+      - pattern: Velopack.UpdateManager $V = new(...) { ... };
+      # Squirrel.Windows (and Clowd.Squirrel, which keeps the namespace). SquirrelAwareApp is
+      # product-named.
+      - pattern: Squirrel.SquirrelAwareApp.HandleEvents(...)
+      - pattern: SquirrelAwareApp.HandleEvents(...)
+      - pattern: new Squirrel.UpdateManager(...) { ... }
+      - pattern: Squirrel.UpdateManager $V = new(...) { ... };
+      - pattern: Squirrel.UpdateManager.GitHubUpdateManager(...)
+      # NetSparkle's appcast updater.
+      - pattern: new NetSparkleUpdater.SparkleUpdater(...) { ... }
+      - pattern: NetSparkleUpdater.SparkleUpdater $V = new(...) { ... };
+      # A ClickOnce-deployed app (.NET Framework) reading its deployment to check for updates.
+      - pattern: System.Deployment.Application.ApplicationDeployment.CurrentDeployment
+    metadata:
+      activity: distributes_software_product
+      mentioned: performs
+      definition: https://lexlint.io/activities/distributes-software-product
+      provenance: ungovr-original
+      license: MIT

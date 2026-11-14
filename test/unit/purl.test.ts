@@ -48,6 +48,12 @@ describe('purlOf', () => {
     );
     expect(purlOf({ ecosystem: 'composer', name: 'twilio/sdk', manifest: 'composer.json:9' })).toBe('pkg:composer/twilio/sdk');
   });
+  it('writes a NuGet package as its Id as written and version', () => {
+    expect(purlOf({ ecosystem: 'nuget', name: 'AWSSDK.Rekognition', version: '3.7.400', manifest: 'App.csproj:9' })).toBe(
+      'pkg:nuget/AWSSDK.Rekognition@3.7.400',
+    );
+    expect(purlOf({ ecosystem: 'nuget', name: 'Twilio', manifest: 'App.csproj:9' })).toBe('pkg:nuget/Twilio');
+  });
   it('percent-encodes a plus sign in a version', () => {
     expect(
       purlOf({ ecosystem: 'golang', name: 'github.com/a/b', version: 'v2.0.0+incompatible', manifest: 'go.mod:5' }),

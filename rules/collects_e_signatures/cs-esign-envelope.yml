@@ -1,0 +1,52 @@
+rules:
+  - id: lexcode.esign.cs-esign-envelope
+    languages: [csharp]
+    severity: INFO
+    message: Sends a document to a person for electronic signature through DocuSign, Dropbox Sign, HelloSign or BoldSign, which is collecting electronic signatures (collects_e_signatures).
+    # Each vendor's API object is built in place or injected, so its sending calls are read by the
+    # object's declared or inferred type, written fully qualified; an app's own class of the same short
+    # name is not read. Reading back an envelope's status sends nothing and is not read.
+    pattern-either:
+      # DocuSign eSignature
+      - patterns:
+          - pattern-either:
+              - pattern: (DocuSign.eSign.Api.EnvelopesApi $C).$M(...)
+              - pattern: (DocuSign.eSign.Api.IEnvelopesApi $C).$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^CreateEnvelope(?:Async)?$
+      # Dropbox Sign
+      - patterns:
+          - pattern-either:
+              - pattern: (Dropbox.Sign.Api.SignatureRequestApi $C).$M(...)
+              - pattern: (Dropbox.Sign.Api.ISignatureRequestApi $C).$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^SignatureRequest(?:Send|SendWithTemplate|CreateEmbedded|CreateEmbeddedWithTemplate)(?:Async)?$
+      # HelloSign, Dropbox Sign's earlier SDK
+      - patterns:
+          - pattern: (HelloSign.Client $C).$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(?:SendSignatureRequest|CreateEmbeddedSignatureRequest)(?:Async)?$
+      # BoldSign
+      - patterns:
+          - pattern-either:
+              - pattern: (BoldSign.Api.DocumentClient $C).$M(...)
+              - pattern: (BoldSign.Api.IDocumentClient $C).$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(?:SendDocument|CreateEmbeddedRequestUrl)(?:Async)?$
+      - patterns:
+          - pattern-either:
+              - pattern: (BoldSign.Api.TemplateClient $C).$M(...)
+              - pattern: (BoldSign.Api.ITemplateClient $C).$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^SendUsingTemplate(?:Async)?$
+    metadata:
+      activity: collects_e_signatures
+      mentioned: performs
+      definition: https://lexlint.io/glossary#collects-electronic-signatures
+      provenance: ungovr-original
+      license: MIT

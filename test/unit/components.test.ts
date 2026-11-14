@@ -107,6 +107,15 @@ describe('matchComponents', () => {
     expect(matchComponents([d], [], [entry({ ecosystem: 'npm', match: 'twilio/sdk', enables: ['x'] })]).components).toEqual([]);
   });
 
+  it('matches a NuGet Id case-insensitively, and its evidence rule reads lexcode.manifest.nuget', () => {
+    const d: Dependency = { ecosystem: 'nuget', name: 'AWSSDK.Rekognition', version: '3.7.400', manifest: 'src/App/App.csproj:14' };
+    const r = matchComponents([d], [], [entry({ ecosystem: 'nuget', match: 'awssdk.rekognition', enables: ['biometric_identification'] })]);
+    expect(r.components[0]?.purl).toBe('pkg:nuget/AWSSDK.Rekognition@3.7.400');
+    expect(r.evidence[0]?.ev.rule).toBe('lexcode.manifest.nuget');
+    expect(r.evidence[0]?.ev.where).toBe('src/App/App.csproj:14');
+    expect(matchComponents([d], [], [entry({ ecosystem: 'maven', match: 'awssdk.rekognition', enables: ['x'] })]).components).toEqual([]);
+  });
+
   it('matches PyPI names after PEP 503 normalization on both sides', () => {
     const d: Dependency = {
       ecosystem: 'pypi',

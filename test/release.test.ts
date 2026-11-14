@@ -181,6 +181,21 @@ describe('release: the rule set is complete and well formed', () => {
     ).toEqual([]);
   });
 
+  // C# (v1.4, Decision 11). The one C# exemption is
+  // distributes_software_product, whose package evidence lives in the project
+  // file (`<PackageId>`, `<IsPackable>`, a `.nuspec`) as Java's lives in its
+  // build files: it may be met by an msbuild- rule (read as generic text over
+  // `*.csproj`, `*.props` and `*.nuspec`) instead of a C# source rule. No
+  // other exemption was ruled.
+  it('every evidence-class id has a C# rule', () => {
+    const msbuildRule = (r: RuleMeta): boolean => /^msbuild-/.test(basename(r.file));
+    expect(
+      evidenceIdsWithoutRule(
+        (r) => r.languages.includes('csharp') || (r.activity === 'distributes_software_product' && msbuildRule(r)),
+      ),
+    ).toEqual([]);
+  });
+
   // The engine's `paths` excludes are unanchored globs, so `**/samples/**`
   // also drops a JVM package path (com/google/samples/apps/..., org/springframework/
   // samples/petclinic, every com/example package). A Java or Kotlin source rule

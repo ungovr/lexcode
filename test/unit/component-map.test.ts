@@ -15,6 +15,7 @@ const FILES = [
   { file: 'gem.yml', ecosystem: 'gem' },
   { file: 'maven.yml', ecosystem: 'maven' },
   { file: 'composer.yml', ecosystem: 'composer' },
+  { file: 'nuget.yml', ecosystem: 'nuget' },
   { file: 'files.yml', ecosystem: 'files' },
 ] as const;
 

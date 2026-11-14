@@ -1,0 +1,35 @@
+rules:
+  - id: lexcode.biometric.cs-voiceprint
+    languages: [csharp]
+    severity: INFO
+    message: Enrolls or matches a speaker with Amazon Connect Voice ID or Azure speaker recognition, which is processing a voiceprint (processes_biometrics).
+    # Library types are written in full: the engine resolves a file's `using` lines and aliases, so an
+    # app's own SpeakerRecognizer or VoiceProfileClient in another namespace is not taken for Azure's.
+    pattern-either:
+      # Amazon Connect Voice ID (AWSSDK.VoiceID), injected through its interface or built by the app.
+      # The vendor-named short forms also find a client whose namespace comes from a `global using` in
+      # another file.
+      - patterns:
+          - pattern-either:
+              - pattern: (Amazon.VoiceID.IAmazonVoiceID $C).$M(...)
+              - pattern: (Amazon.VoiceID.AmazonVoiceIDClient $C).$M(...)
+              - pattern: (IAmazonVoiceID $C).$M(...)
+              - pattern: (AmazonVoiceIDClient $C).$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(StartSpeakerEnrollmentJob|StartFraudsterRegistrationJob|EvaluateSession)(Async)?$
+      # Azure AI Speech speaker recognition: the profile client that enrolls voices, the recognizer, and
+      # the verification and identification models. `new T(...) { ... }` also matches a construction
+      # with no initializer, and `T $V = new(...) { ... };` a target-typed one.
+      - pattern: new Microsoft.CognitiveServices.Speech.Speaker.VoiceProfileClient(...) { ... }
+      - pattern: Microsoft.CognitiveServices.Speech.Speaker.VoiceProfileClient $V = new(...) { ... };
+      - pattern: new Microsoft.CognitiveServices.Speech.Speaker.SpeakerRecognizer(...) { ... }
+      - pattern: Microsoft.CognitiveServices.Speech.Speaker.SpeakerRecognizer $V = new(...) { ... };
+      - pattern: Microsoft.CognitiveServices.Speech.Speaker.SpeakerVerificationModel.FromProfile(...)
+      - pattern: Microsoft.CognitiveServices.Speech.Speaker.SpeakerIdentificationModel.FromProfiles(...)
+    metadata:
+      activity: processes_biometrics
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-biometrics
+      provenance: ungovr-original
+      license: MIT

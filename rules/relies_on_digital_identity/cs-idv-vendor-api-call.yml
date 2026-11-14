@@ -1,0 +1,33 @@
+rules:
+  - id: lexcode.identity.cs-idv-vendor-api-call
+    languages: [csharp]
+    severity: INFO
+    message: Calls an identity-verification vendor's API (Persona, Veriff, Onfido, Jumio, Yoti, Sumsub and similar), which is relying on a digital identity (relies_on_digital_identity).
+    patterns:
+      # The address opens a C# string: plain, verbatim (@"), interpolated ($") or raw (""").
+      - pattern-regex: (?i)(?<=")https?://(?:[a-z0-9-]*api[a-z0-9-]*\.(?:[a-z0-9-]+\.)*(?:withpersona\.com|veriff\.(?:com|me)|onfido\.com|jumio\.com|netverify\.com|yoti\.com|sumsub\.com|idenfy\.com|au10tix\.com|ondato\.com|incode\.com|trulioo\.com|idnow\.io)|(?:[a-z0-9-]+\.)*(?:withpersona\.com|veriff\.(?:com|me)|onfido\.com|jumio\.(?:com|ai)|netverify\.com|yoti\.com|sumsub\.com|idenfy\.com|au10tix\.com|ondato\.com|incode\.com|trulioo\.com|idnow\.io)/(?:[^\s"]*/)?(?:api|v[0-9]+)(?=/))[^\s"]*
+      # The URL is an argument of an HTTP call: an HttpClient or RestSharp or Flurl method, a request
+      # message, a Uri (a client's BaseAddress among them) or a RestSharp client or request. HttpClient,
+      # HttpRequestMessage and Uri are in namespaces the SDK imports implicitly, so they are read by
+      # their short names too (Decision 10).
+      - pattern-either:
+          - patterns:
+              # `$O.$M(...)` does not match a generic call (`GetFromJsonAsync<T>(...)`), so both are read
+              - pattern-either:
+                  - pattern-inside: $O.$M(...)
+                  - pattern-inside: $O.$M<$T>(...)
+              - metavariable-regex:
+                  metavariable: $M
+                  regex: ^(?:GetAsync|PostAsync|PutAsync|PatchAsync|DeleteAsync|SendAsync|GetStringAsync|GetStreamAsync|GetByteArrayAsync|GetFromJsonAsync|PostAsJsonAsync|PutAsJsonAsync|PatchAsJsonAsync|DeleteFromJsonAsync|ExecuteAsync|ExecuteGetAsync|ExecutePostAsync|GetJsonAsync|PostJsonAsync|PutJsonAsync|PatchJsonAsync|AppendPathSegment|WithHeader|WithOAuthBearerToken)$
+          - pattern-inside: new System.Net.Http.HttpRequestMessage(...)
+          - pattern-inside: new HttpRequestMessage(...)
+          - pattern-inside: new System.Uri(...)
+          - pattern-inside: new Uri(...)
+          - pattern-inside: new RestSharp.RestClient(...)
+          - pattern-inside: new RestSharp.RestRequest(...)
+    metadata:
+      activity: relies_on_digital_identity
+      mentioned: performs
+      definition: https://lexlint.io/glossary#relies-on-a-digital-identity
+      provenance: ungovr-original
+      license: MIT

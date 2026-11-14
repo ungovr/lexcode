@@ -1,0 +1,59 @@
+rules:
+  - id: lexcode.outreach.cs-bulk-send
+    languages: [csharp]
+    severity: INFO
+    message: Sends one message to many recipients in a single batch call, push multicast or campaign send, which is sending automated outreach (automated_outreach).
+    # The method names of the multicast and bulk calls are the vendors' own and match on any receiver:
+    # Firebase's SendEachForMulticastAsync and SendMulticastAsync, Amazon SES's SendBulkEmailAsync (v2)
+    # and SendBulkTemplatedEmailAsync (v1), and Brevo's SendEmailCampaignNow and SendSmsCampaignNow. The
+    # generic names need the client: Firebase's SendEachAsync and SendAllAsync on the default instance or
+    # a typed FirebaseMessaging, Amazon Pinpoint's and Postmark's SendMessagesAsync on a typed client,
+    # and Mailchimp's Campaigns.SendAsync. SendGrid's MailHelper and Twilio Notify's NotificationResource
+    # are fully qualified, so an app's own MailHelper does not match; a single-recipient helper, a
+    # single send and a campaign record saved do not match either.
+    pattern-either:
+      - patterns:
+          - pattern: $F.$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(SendEachForMulticast|SendMulticast|SendBulkEmail|SendBulkTemplatedEmail|SendEmailCampaignNow|SendSmsCampaignNow)(Async)?$
+          - pattern-regex: '\.(SendEachForMulticast|SendMulticast|SendBulkEmail|SendBulkTemplatedEmail|SendEmailCampaignNow|SendSmsCampaignNow)\w*\('
+      - patterns:
+          - pattern-either:
+              - pattern: FirebaseAdmin.Messaging.FirebaseMessaging.DefaultInstance.$M(...)
+              - pattern: FirebaseMessaging.DefaultInstance.$M(...)
+              - pattern: (FirebaseAdmin.Messaging.FirebaseMessaging $F).$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(SendEach|SendAll)(Async)?$
+          - pattern-regex: '\.(SendEach|SendAll)(Async)?\('
+      - patterns:
+          - pattern-either:
+              - pattern: (Amazon.Pinpoint.IAmazonPinpoint $P).$M(...)
+              - pattern: (Amazon.Pinpoint.AmazonPinpointClient $P).$M(...)
+              - pattern: (PostmarkDotNet.PostmarkClient $P).$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(SendMessages|SendUsersMessages)(Async)?$
+          - pattern-regex: '\.(SendMessages|SendUsersMessages)(Async)?\('
+      - patterns:
+          - pattern: $MC.Campaigns.SendAsync(...)
+          - pattern-regex: '\.Campaigns\s*\.\s*SendAsync\('
+      - patterns:
+          - pattern-either:
+              - pattern: SendGrid.Helpers.Mail.MailHelper.CreateSingleEmailToMultipleRecipients(...)
+              - pattern: SendGrid.Helpers.Mail.MailHelper.CreateSingleTemplateEmailToMultipleRecipients(...)
+              - pattern: SendGrid.Helpers.Mail.MailHelper.CreateMultipleEmailsToMultipleRecipients(...)
+              - pattern: SendGrid.Helpers.Mail.MailHelper.CreateMultipleTemplateEmailsToMultipleRecipients(...)
+          - pattern-regex: 'ToMultipleRecipients\('
+      - patterns:
+          - pattern-either:
+              - pattern: Twilio.Rest.Notify.V1.Service.NotificationResource.Create(...)
+              - pattern: Twilio.Rest.Notify.V1.Service.NotificationResource.CreateAsync(...)
+          - pattern-regex: 'NotificationResource\s*\.\s*Create'
+    metadata:
+      activity: automated_outreach
+      mentioned: performs
+      definition: https://lexlint.io/activities/automated-outreach
+      provenance: ungovr-original
+      license: MIT

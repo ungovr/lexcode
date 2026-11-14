@@ -1,0 +1,61 @@
+rules:
+  - id: lexcode.chat.cs-hub-saves-message
+    languages: [csharp]
+    severity: INFO
+    message: Writes what a person sent to a SignalR hub to a message or chat record, which is keeping a text chat (records_text_chat).
+    # The C# counterpart of java-socket-handler-saves-message. The handler is a method of a class whose
+    # base is SignalR's Hub (or Hub<T>, matched by the bare fully qualified name), so an app's own Hub in
+    # another namespace does not match. The write is to a store named for messages, with the persisted
+    # rule's anchors (Chat(Message|Turn|...), Conversation(Message|...), or a bare Message): a DbSet
+    # named for them, a new message handed to a context or repository, a repository or store named for
+    # messages, or a method named for saving one (SaveMessageAsync, AddChatMessageAsync), its name with no
+    # free middle, nouns Message, Msg, Turn or Transcript only, and no Log verb, so CreateChatAsync,
+    # AddNotificationMessageAsync, a StringBuilder's AppendLine and an audit log's LogEntry or
+    # LogMessage do not count, while AppendMessageAsync and RecordMessageAsync do. A hub that only relays
+    # (Clients.All.SendAsync), one that saves a position, a connection, a chat room or a notification,
+    # and a static list in the hub (kept only until the process ends) do not match.
+    patterns:
+      - pattern-inside: |
+          class $K : Microsoft.AspNetCore.SignalR.Hub { ... }
+      - pattern-either:
+          - patterns:
+              - pattern: $CTX.$SET.$W(...)
+              - metavariable-regex:
+                  metavariable: $SET
+                  regex: ^(Chat(Message|Msg|Turn|Entry|Line|History|Histories|Log|Transcript)|Conversation(Message|Turn|Entry|Transcript)|Dialog(Message|Turn)|Message|Msg)s?$
+              - metavariable-regex:
+                  metavariable: $W
+                  regex: ^(Add|AddAsync|AddRange|AddRangeAsync|InsertOne|InsertOneAsync)$
+          - patterns:
+              - pattern-either:
+                  - pattern: $R.$W(<... new $T(...) { ... } ...>)
+              - metavariable-regex:
+                  metavariable: $R
+                  regex: (?i)^(this\.)?_?\w*(context|db|repository|repo|store|dao|collection|container)$
+              - metavariable-regex:
+                  metavariable: $T
+                  regex: ^(\w+\.)*(Chat(Message|Msg|Turn|Entry|Line|Log|Transcript)|Conversation(Message|Turn|Entry|Transcript)|Dialog(Message|Turn)|Message|Msg)$
+              - metavariable-regex:
+                  metavariable: $W
+                  regex: ^(Add|AddAsync|Insert|InsertAsync|InsertOne|InsertOneAsync|Save|SaveAsync|Create|CreateAsync|CreateItemAsync|Upsert|UpsertAsync|UpsertItemAsync|Store|StoreAsync)$
+          - patterns:
+              - pattern: $R.$W(...)
+              - metavariable-regex:
+                  metavariable: $R
+                  regex: (?i)^(this\.)?_?(chat(message|msg|turn|entry|line|history|log|transcript)?s?|conversation(message|turn|entry|transcript)s?|dialog(message|turn)s?|messages?|msgs?|transcripts?)(repository|repo|store|dao|collection|container|context|db|table)$
+              - metavariable-regex:
+                  metavariable: $W
+                  regex: ^(Add|AddAsync|Insert|InsertAsync|InsertOne|InsertOneAsync|Save|SaveAsync|Create|CreateAsync|CreateItemAsync|Upsert|UpsertAsync|UpsertItemAsync|Store|StoreAsync|Append|AppendAsync)$
+          - patterns:
+              - pattern: $R.$M(...)
+              - metavariable-regex:
+                  metavariable: $M
+                  regex: ^(Save|Store|Persist|Insert|Add|Create|Append|Record)(Chat|Conversation)?(Message|Msg|Turn|Transcript)s?(Async)?$
+      # Literal anchor inside the match (the write), so the engine skips files with no such call.
+      - pattern-regex: '\.(Add|Insert|Save|Create|Upsert|Store|Persist|Append|Record)\w*\('
+    metadata:
+      activity: records_text_chat
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-text-chat
+      provenance: ungovr-original
+      license: MIT

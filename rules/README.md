@@ -2,14 +2,15 @@
 
 This directory is the rule set lexcode runs: one YAML rule per file, one
 directory per LexLint activity, positive and negative fixtures beside each rule,
-component maps for npm, PyPI, Go, gem, Maven and Composer packages under `components/`, and
-`classes.yml`, which gives every activity id in the pinned registry snapshot
-(`registry.snapshot.json`, CC BY 4.0, credit "LexLint (UnGovr)") one detection
-class. Every rule is original to UnGovr and MIT licensed. The recall table below
-is measured against the truth sets, per activity.
+component maps for npm, PyPI, Go, gem, Maven, Composer and NuGet packages under
+`components/`, and `classes.yml`, which gives every activity id in the pinned
+registry snapshot (`registry.snapshot.json`, CC BY 4.0, credit "LexLint
+(UnGovr)") one detection class. Every rule is original to UnGovr and MIT
+licensed. The recall table below is measured against the truth sets, per
+activity.
 
 <!-- recall:start -->
-Measured 2026-11-14 over the UnGovr monorepo, 9 pinned starter templates and 3 real apps,
+Measured 2026-11-14 over the UnGovr monorepo, 11 pinned starter templates and 4 real apps,
 against answer keys, each read by an agent that had not seen the rules.
 Found counts evidence of either kind for the activity or its family; signal
 only counts the misses where lexcode showed a worth-a-look row and nothing
@@ -18,24 +19,24 @@ stronger. Recall is printed, never gated.
 | Activity | Expected | Found | Signal only | Missed in |
 |---|---:|---:|---:|---|
 | `aggregates_content` | 3 | 1 | 1 | monorepo, nowinandroid |
-| `automated_outreach` | 4 | 4 | 0 |  |
+| `automated_outreach` | 5 | 5 | 0 |  |
 | `crawls_web` | 3 | 2 | 1 | moodle |
-| `deploys_chatbot` | 2 | 1 | 0 | canvas-android |
-| `distributes_software_product` | 6 | 4 | 0 | nowinandroid, canvas-android |
-| `generates_content` | 4 | 2 | 0 | canvas-android, moodle |
+| `deploys_chatbot` | 4 | 2 | 0 | canvas-android, nopcommerce |
+| `distributes_software_product` | 9 | 6 | 0 | nowinandroid, eshop, canvas-android |
+| `generates_content` | 6 | 4 | 0 | canvas-android, moodle |
 | `generates_images` | 1 | 0 | 0 | moodle |
-| `generates_text` | 3 | 1 | 0 | canvas-android, moodle |
-| `operates_social_platform` | 4 | 0 | 2 | symfony-demo, canvas-android, moodle, sakai |
+| `generates_text` | 5 | 3 | 0 | canvas-android, moodle |
+| `operates_social_platform` | 5 | 0 | 3 | symfony-demo, canvas-android, moodle, nopcommerce, sakai |
 | `processes_biometrics` | 1 | 1 | 0 |  |
-| `processes_personal_data` | 13 | 13 | 0 |  |
+| `processes_personal_data` | 16 | 16 | 0 |  |
 | `processes_voice` | 4 | 3 | 1 | moodle |
 | `records_calls` | 3 | 1 | 0 | monorepo, sakai |
-| `records_text_chat` | 3 | 2 | 0 | moodle |
-| `ships_consumer_interface` | 12 | 0 | 4 | vercel-chatbot, nextjs-subscription-payments, obytes-expo, full-stack-fastapi, bullet-train, spring-petclinic, nowinandroid, symfony-demo, wave, canvas-android, moodle, sakai |
-| `ships_encryption` | 10 | 4 | 2 | vercel-chatbot, obytes-expo, full-stack-fastapi, bullet-train, symfony-demo, wave |
-| `ships_mobile_app` | 4 | 4 | 0 |  |
+| `records_text_chat` | 4 | 2 | 0 | eshop, moodle |
+| `ships_consumer_interface` | 15 | 0 | 6 | vercel-chatbot, nextjs-subscription-payments, obytes-expo, full-stack-fastapi, bullet-train, spring-petclinic, nowinandroid, symfony-demo, wave, eshop, clean-architecture, canvas-android, moodle, nopcommerce, sakai |
+| `ships_encryption` | 13 | 4 | 2 | vercel-chatbot, obytes-expo, full-stack-fastapi, bullet-train, symfony-demo, wave, eshop, clean-architecture, nopcommerce |
+| `ships_mobile_app` | 5 | 5 | 0 |  |
 | `statutory_requests` | 1 | 0 | 1 | monorepo |
-| `tracks_devices` | 6 | 5 | 0 | sakai |
+| `tracks_devices` | 7 | 6 | 0 | sakai |
 | `trains_models` | 1 | 0 | 0 | moodle |
 <!-- recall:end -->
 
@@ -265,6 +266,88 @@ skipped, 64 Composer dependencies recorded without a version, 124 files with a
 line over 100,000 characters skipped, and the engine could not read 31 files.
 The notice naming unread PHP files is gone.
 <!-- moodle:end -->
+
+<!-- nopcommerce:start -->
+### nopCommerce, read with C#, Razor and the MSBuild manifests
+
+Measured 2026-11-14 over `nopSolutions/nopCommerce` at commit `aeb6862`
+(its tree is at https://github.com/nopSolutions/nopCommerce/tree/aeb686282007ed774b362e3cdff34b7c233f8933
+and its license is NPL-4.0, AGPL-3.0 with an attribution term), with lexcode `v1.4` (branch
+build at commit `524e554`), against a reading of the same commit by an agent
+that had not seen the C# rules, checked row by row by a second reader who had
+not seen them either, kept unchanged. The reading includes 10 activities from
+code, marks 12 as absent and leaves 4 unsure. Every figure below is from one
+run, `lexcode scan` and `lexcode check --declaration` with that build, unless it
+names another: lexcode read 6,413 files and 391 extracted copies (script blocks
+of Razor views, and the C# of `@functions` blocks), in 1 minute 20 seconds
+(scan) and 1 minute 49 seconds (check), 0.9 GB at most, on a shared machine
+(load average about 35). The check reports 0 FAIL and 0 WARN.
+
+**Score: 6 of 10 found at evidence strength, 2 signal only, 2 missed, counting
+`generates_content` as found through its family; with no family credit, 5 found,
+2 signal only and 3 missed. No evidence contradicts a row the reading marks
+absent. Of the 4 unsure rows, one drew a signal (`aggregates_content`) and three
+drew nothing, so none is found or missed.** Of the 6 found, 5 have evidence
+under the activity's own id: `processes_personal_data`, `automated_outreach`,
+`tracks_devices` and `distributes_software_product` on C# or MSBuild evidence,
+and `generates_text` on the DeepL package alone. The sixth, `generates_content`,
+has no evidence under its own id. It counts as found because the registry makes
+`generates_text` a child of `generates_content`, so the check and the truth-set
+script read them as one family, and the DeepL package is the only evidence for
+either. That package sits on the translation path, which the reading calls the
+weaker case for `generates_text` and does not cite for `generates_content` at
+all. Read plainly, the built-in AI service (OpenAI, Gemini or DeepSeek writing
+product descriptions) was not seen. The 2 misses are `deploys_chatbot`, where
+nopCommerce inserts an operator-pasted embed code for a chatbot that runs on the
+vendor's servers, and `ships_encryption`, which rests on .NET's own
+`System.Security.Cryptography` classes, ASP.NET Core Data Protection
+configuration and the GoogleAuthenticator package, none of which a C# rule or
+the NuGet component map names. The 2 signals are `ships_consumer_interface` and
+`operates_social_platform`, the two activities whose rules are signal class by
+design. Recall is printed, never gated. Paths below are relative to the
+repository root.
+
+| Activity | The reading | lexcode | Verdict |
+|---|---|---|---|
+| `processes_personal_data` | include: `src/Libraries/Nop.Core/Domain/Customers/Customer.cs:24`, `:29`, `:94`, `:214`, `src/Libraries/Nop.Core/Domain/Common/Address.cs:11`, `:21`, `:66`, `src/Libraries/Nop.Core/Domain/Orders/Order.cs:189`, `src/Libraries/Nop.Core/Domain/Logging/ActivityLog.cs:41`, `src/Presentation/Nop.Web/Controllers/CustomerController.cs:468` and `:1018`, `src/Plugins/Nop.Plugin.Widgets.FacebookPixel/Domain/ConversionsEventUserData.cs:29` | found, performs, 10 matches of `lexcode.personal.cs-schema-field`, among them `src/Libraries/Nop.Data/Mapping/Builders/Customers/CustomerBuilder.cs:26` (`Customer.Email`), `:37` (`Phone`), `:42` (`DateOfBirth`), `:44` (`LastIpAddress`) and `src/Libraries/Nop.Data/Mapping/Builders/Logging/ActivityLogBuilder.cs:23` (`IpAddress`); and enables 1, `pkg:nuget/Microsoft.AspNetCore.Authentication.Facebook@10.0.11` at `src/Plugins/Nop.Plugin.ExternalAuth.Facebook/Nop.Plugin.ExternalAuth.Facebook.csproj:61` | Found, on other code: the database column mappings for the same `Customer` and `ActivityLog` entities the reading cites. The entity files themselves, the sign-in pages and the Facebook Pixel payload are not matched |
+| `ships_consumer_interface` | include: `src/Presentation/Nop.Web/Controllers/HomeController.cs:9`, `CatalogController.cs:117` and `:364`, `ShoppingCartController.cs:593` and `:791`, `CheckoutController.cs:342`, `CustomerController.cs:1018`, and the views `Views/Home/Index.cshtml` and `Views/Checkout/OnePageCheckout.cshtml` | signal only, 3 matches; `lexcode.consumer.cs-signup-screen` at `src/Presentation/Nop.Web/Controllers/CustomerController.cs:1000` and `:1013`, and `lexcode.consumer.cs-signup-route` at `src/Presentation/Nop.Web/Infrastructure/RouteProvider.cs:45` | Signal only, by design: the sign-up rules are signal class. The two controller matches are the attribute lines of the two `Register` actions, the second five lines above the reading's `:1018`, and the route match is the one that serves `/register/`. The storefront controllers and views are not matched |
+| `automated_outreach` | include: `src/Libraries/Nop.Services/Messages/QueuedMessagesSendTask.cs:62`, `src/Libraries/Nop.Services/Reminders/ProcessAbandonedCartsTask.cs:48`, `ProcessPendingOrdersTask.cs:54`, `ProcessIncompleteRegistrationsTask.cs:56`, `src/Plugins/Nop.Plugin.Sms.Twilio/Services/TwilioService.cs:47`, `src/Plugins/Nop.Plugin.Sms.Twilio/Nop.Plugin.Sms.Twilio.csproj:49`, `src/Plugins/Nop.Plugin.Misc.Brevo/Services/BrevoManager.cs:1429` and `:1462`, 23 lines in all | found, performs 9 and enables 1; `lexcode.outreach.cs-send-in-loop` at `src/Libraries/Nop.Services/Messages/QueuedMessagesSendTask.cs:62`, `src/Libraries/Nop.Services/Reminders/ProcessAbandonedCartsTask.cs:135` and `ProcessPendingOrdersTask.cs:143`, `src/Libraries/Nop.Services/Catalog/BackInStockSubscriptionService.cs:155` and 4 more in `OrderProcessingService.cs`; `lexcode.outreach.cs-bulk-send` at `src/Plugins/Nop.Plugin.Misc.Brevo/Services/BrevoManager.cs:1462`; `pkg:nuget/Twilio@8.0.1` at `src/Plugins/Nop.Plugin.Sms.Twilio/Nop.Plugin.Sms.Twilio.csproj:49`; 1 signal, `lexcode.outreach.cs-sms-call-push-send` at `src/Plugins/Nop.Plugin.Sms.Twilio/Services/TwilioService.cs:47` | Found, on 4 of the reading's own lines (`QueuedMessagesSendTask.cs:62`, `BrevoManager.cs:1462`, the Twilio csproj `:49` and, as a signal, `TwilioService.cs:47`) and in 2 more of its files (the abandoned-cart and pending-order tasks). `ProcessIncompleteRegistrationsTask.cs`, the campaign service and the Omnisend plugin are not matched |
+| `tracks_devices` | include: `src/Plugins/Nop.Plugin.Widgets.GoogleAnalytics/GoogleAnalyticsPlugin.cs:98` and `:99`, `Components/WidgetsGoogleAnalyticsViewComponent.cs:123`, `GoogleAnalyticsDefaults.cs:21`, `src/Plugins/Nop.Plugin.Widgets.FacebookPixel/Services/FacebookPixelService.cs:248`, `:294`, `:1073`, `FacebookConversionsHttpClient.cs:51`, `src/Plugins/Nop.Plugin.Misc.Brevo/BrevoPlugin.cs:103` and `:108`, `src/Plugins/Nop.Plugin.Misc.Omnisend/OmnisendPlugin.cs:94` and `:97`, 18 lines in all | found, performs, 2 matches; `lexcode.tracking.cs-analytics-calls` at `src/Plugins/Nop.Plugin.Widgets.GoogleAnalytics/GoogleAnalyticsDefaults.cs:21` (the Measurement Protocol endpoint) and `:26` (its debug twin) | Found, on a line the reading cites (`:21`). The tracking scripts of Google Analytics, Facebook Pixel, Brevo and Omnisend are C# string literals handed to the page by a view component or the plugin's install code, and none is matched; the only matches are the server-side endpoint constants |
+| `deploys_chatbot` | include: `src/Plugins/Nop.Plugin.Widgets.Jotform/JotformPlugin.cs:52`, `:94`, `:96`, `Components/WidgetJotformViewComponent.cs:9` and `:41` | missed (searched, not found; 7 rules tried) | Missed. The plugin registers a widget zone and returns the operator's pasted embed code as `new HtmlString(_jotformSettings.EmbedCode)` (`WidgetJotformViewComponent.cs:41`). There is no model SDK, conversation service or turn history in nopCommerce's code for a rule to name; the chatbot runs on Jotform's servers. The reading itself calls this row a close call |
+| `generates_content` | include: `src/Libraries/Nop.Services/ArtificialIntelligence/ArtificialIntelligenceDefaults.cs:13`, `:18`, `:27`, `:46`, `ArtificialIntelligenceHttpClient.cs:64`, `ArtificialIntelligenceService.cs:302`, `src/Presentation/Nop.Web/Areas/Admin/Controllers/ProductController.cs:1628`, `ArtificialIntelligenceController.cs:73` | no evidence under its own id; counted as found through the family, on `pkg:nuget/DeepL.net@1.22.1` at `src/Presentation/Nop.Web.Framework/Nop.Web.Framework.csproj:15` (see `generates_text`) | Found by family only, and not on the reading's lines. The reading rests this row on the built-in OpenAI, Gemini and DeepSeek service, which lexcode did not see: it builds a request in a helper object and sends it with `_httpClient.SendAsync(request)`, the endpoint a string property on a static class (`ArtificialIntelligenceDefaults.cs:18`, `:27`, `:46`). The C# rules name SDK classes and chat-completion calls, and none reads a hosted model's address |
+| `generates_text` | include: `src/Libraries/Nop.Services/ArtificialIntelligence/ArtificialIntelligenceDefaults.cs:58`, `:63`, `:68`, `:73`, `ArtificialIntelligenceHttpClient.cs:64`, `ArtificialIntelligenceService.cs:302` and `:364`, `src/Presentation/Nop.Web.Framework/Factories/TranslationModelFactory.cs:131`, `Nop.Web.Framework.csproj:15` and `:18` | found, enables 1; `pkg:nuget/DeepL.net@1.22.1` at `src/Presentation/Nop.Web.Framework/Nop.Web.Framework.csproj:15` | Found by dependency, on a line the reading cites, and on the path the reading calls the weaker case (the admin translate button). The language-model path the reading rests the row on is missed, for the reason given under `generates_content` |
+| `ships_encryption` | include: `src/Libraries/Nop.Services/Security/EncryptionService.cs:73`, `:110`, `:121`, `:141`, `src/Libraries/Nop.Services/Customers/CustomerRegistrationService.cs:115` and `:320`, `NopCustomerServiceDefaults.cs:23`, `src/Presentation/Nop.Web.Framework/Infrastructure/Extensions/ServiceCollectionExtensions.cs:263`, `src/Plugins/Nop.Plugin.MultiFactorAuth.GoogleAuthenticator/Services/GoogleAuthenticatorService.cs:181` and `:195`, and its csproj `:52` | missed (searched, not found; 21 rules tried) | Missed. `EncryptionService.cs:73` calls `Aes.Create()` or `TripleDES.Create()` from .NET's own `System.Security.Cryptography`, which the C# rules leave to the framework; they name bundled libraries (Bouncy Castle, NSec, libsodium, PgpCore, JOSE). Data protection is configured with `services.AddDataProtection().PersistKeysToFileSystem(...)` (`ServiceCollectionExtensions.cs:263`), while the data-protection rule reads `CreateProtector(...)` and `DataProtectionProvider.Create(...)`. The `GoogleAuthenticator` package (`csproj:52`) has no entry in the NuGet component map |
+| `distributes_software_product` | include: `LICENSE.md:1`, `README.md:1` and `:56`, `Dockerfile:1`, `src/Presentation/Nop.Web/Nop.Web.csproj:7`, `src/Libraries/Nop.Core/NopVersion.cs:11` | found, performs, 5 matches of `lexcode.distribute.msbuild-nuget-package`, all on the `<PackageLicenseUrl>` line: `src/Libraries/Nop.Core/Nop.Core.csproj:9`, `src/Libraries/Nop.Data/Nop.Data.csproj:9`, `src/Libraries/Nop.Services/Nop.Services.csproj:9`, `src/Presentation/Nop.Web.Framework/Nop.Web.Framework.csproj:9` and `src/Presentation/Nop.Web/Nop.Web.csproj:9` | Found, in a file the reading cites (`Nop.Web.csproj`, two lines below its version at `:7`). The matches are the NuGet package metadata of 5 projects, not the Dockerfile, the license or the version constant |
+| `operates_social_platform` | include: `src/Plugins/Nop.Plugin.Misc.Forums/Domain/ForumTopic.cs:8`, `ForumPost.cs:8`, `Public/Controllers/BoardsController.cs:425` and `:726`, `Services/ForumInstallService.cs:74`, `src/Libraries/Nop.Core/Domain/Catalog/ProductReview.cs:36`, `src/Presentation/Nop.Web/Controllers/ProductController.cs:309`, `BlogController.cs:174`, `ProfileController.cs:29`, `src/Libraries/Nop.Core/Domain/Customers/CustomerSettings.cs:148`, 12 lines in all | signal only, 2 matches; `lexcode.social.cs-post-model` at `src/Plugins/Nop.Plugin.Misc.Forums/Domain/ForumPost.cs:43` and `lexcode.social.cs-direct-message` at `src/Libraries/Nop.Core/Domain/Customers/PrivateMessage.cs:21` | Signal only, by design: the social rules are signal class. One match is in a file the reading cites (`ForumPost.cs`), on its vote-count property; the other is the customer-to-customer private message, which the reading discusses under `records_text_chat` and does not cite for this row. Reviews, blog and news comments and profile pages are not matched |
+
+Unsure in the reading, and not scored: `crawls_web`, `aggregates_content`,
+`records_text_chat` and `relies_on_digital_identity`. lexcode reported nothing
+for `crawls_web`, `records_text_chat` or `relies_on_digital_identity`. For
+`aggregates_content` it gave one signal, `lexcode.aggregate.cs-feed-read` at
+`src/Libraries/Nop.Services/Common/NopHttpClient.cs:174` (`RssFeed.LoadAsync`),
+in the method that fetches the vendor news feed the reading discusses at
+`NopHttpClient.cs:161`.
+
+**Absent rows.** The reading marks 12 activities absent: `trains_models`,
+`generates_images`, `generates_video`, `generates_audio`, `processes_voice`,
+`processes_biometrics`, `records_calls`, `collects_e_signatures`,
+`ships_mobile_app`, `operates_app_store`, `statutory_requests` and
+`publishes_adult_content`. lexcode reported no evidence and no signal for any of
+them, so the check has 0 FAIL.
+
+**Client libraries (known gap).** lexcode reads files under
+`wwwroot/lib/` as the app's own JavaScript in this phase. nopCommerce's
+`src/Presentation/Nop.Web/wwwroot/lib/` holds adminLTE and summernote, with 2
+JavaScript files; `wwwroot/lib_npm/` holds 426 JavaScript files, 263 of them not
+minified or bundled. Of the record's 36 rows (29 evidence rows and 7 signal
+rows), 0 lie under `wwwroot/lib/` and 0 under `wwwroot/lib_npm/`, so the count is
+0 for every activity and no row rests on vendored code. The reading found the
+same: no row rests on a client library.
+
+The scan's notices, as printed: 172 bundled, minified or generated files
+skipped (named `*.min.js`, `*.bundle.js`, `vendor.*.js`, `*.vendor.js`, `*.g.cs`
+or `*.g.i.cs`), 1 file over 5 MB skipped, and the engine could not read 14 files.
+<!-- nopcommerce:end -->
 
 ## Ruby, ERB views and gems
 
@@ -714,6 +797,194 @@ ruled before it is added.
   a Google Play upload), or a PHAR built by Box from a `box.json` as
   `distributes_software_product` (the PHAR rule reads code that builds one with
   the `Phar` class).
+
+## C#, Razor and the NuGet ecosystem
+
+How lexcode reads C# and Razor views, where the engine cannot, and what a NuGet
+manifest counts. NuGet is one ecosystem, `nuget`: a dependency is named by its
+package Id (compared without regard to case), its package URL is
+`pkg:nuget/<Id>@<version>`, its evidence rule id is `lexcode.manifest.nuget`,
+and the component map is `components/nuget.yml`. Nothing is fetched: a package
+outside the repository is not read, and neither is the NuGet cache.
+
+### NuGet
+
+A project file (`*.csproj`, `*.fsproj`, `*.vbproj`: the packages are NuGet
+whatever the project's language) holds `<PackageReference Include="...">`
+dependencies; `Update` and `Remove` forms are not new ones.
+`Directory.Build.props` and `.targets` hold references for every project below
+them, recorded once, at that file. `Directory.Packages.props` gives versions
+only, and a legacy `packages.config` lists `<package>` entries. A row's manifest
+line is the line of its element.
+
+Skipped and counted as development: a reference whose `PrivateAssets` is `all`;
+every reference of a test project (`<IsTestProject>true</IsTestProject>`, a
+reference to `Microsoft.NET.Test.Sdk`, or the `MSTest.Sdk` project SDK); every
+`<GlobalPackageReference>`; and a `packages.config` entry marked
+`developmentDependency="true"`. A Directory.Build file is not a project, so its
+references are judged one by one: development only when the reference or its
+`<ItemGroup>` has a `Condition` requiring `IsTestProject` to equal `true`, and
+`Microsoft.NET.Test.Sdk` always.
+
+A version comes from the first of these that is present: the
+`packages.lock.json` beside the project file (the `type: "Direct"` entry of that
+Id, passed over when it is not a plain version); the reference's own
+`VersionOverride` or `Version` (for a `packages.config` entry, its `version`);
+the `<PackageVersion>` of the nearest `Directory.Packages.props` at or above the
+project. Only a plain NuGet version (`1.2.3`, `1.2.3-beta.1`) counts: a floating
+version (`*`), a range, or an MSBuild property lexcode cannot resolve gives the
+row no version, and the search stops at the source that held it. `$(Name)`
+resolves one level, from a `<PropertyGroup>` of the same file, else of the
+nearest `Directory.Build.props`, else of the nearest `Directory.Packages.props`.
+Rows with no version get one notice for all of them: `N NuGet dependencies have
+no resolved version (no packages.lock.json, a floating or range version, or an
+MSBuild property lexcode could not resolve); recorded without a version`. A file
+that does not parse gets a notice naming it.
+
+Known NuGet gaps: a test host with no test marker (an Aspire functional-test
+project) is not a test project, so under `--include-tests` its references count;
+in a Directory.Build `Condition`, `IsTestProject` is recognized only in a quoted
+comparison (in a project it is the property
+`<IsTestProject>true</IsTestProject>`); `Include="Foo;Bar"` is read as one Id; a
+package referenced twice in one file is read once, from its first reference; and
+a reference's own floating `Version` does not fall through to
+`Directory.Packages.props`, and a `$(Name)` in a central version resolves from
+the props file's location, not the project's.
+
+### C# files
+
+The engine reads only `.cs` as C#: given as explicit targets, `.csx`, `.cake`,
+`.razor` and `.cshtml` files each scanned 0 files (measured 2026-11-12). So
+`.csx` and `.cake` scripts are not read, a known gap that the scan's notice about
+other languages does not name. `*.g.cs` and `*.g.i.cs` are skipped as generated,
+and `*.Designer.cs` is read. A file the parser cannot read is counted in the
+notice `the engine could not read N files; their evidence is missing from this
+record`. In a walk, `bin` is skipped only where it holds a `Debug` or `Release`
+directory, so `bin/x64/Debug` is read. A legacy NuGet restore folder is skipped,
+but missed where its `.nupkg` files are gitignored and absent from the disk, and
+where the restore uses the `RestorePackagesPath` layout. Files under
+`wwwroot/lib/`, LibMan's default for client libraries, are read as the app's own
+JavaScript, a known gap.
+
+### Razor views
+
+`.cshtml` and `.razor` files join the `<script>` block extraction used for Vue,
+Svelte, HTML and the other template languages, and the block search runs on the
+original text. Inside a block the Razor syntax is blanked so the JavaScript
+around it still parses and line numbers hold. Comments, `@{ }` code blocks and
+control blocks (`@if`, `@foreach`, `@using` and the rest, header and braces
+included) become spaces, except the content of `<text>` elements and `@:` lines
+inside a control block, which stays as script (inside `@{ }` they are blanked
+too). An expression, `@( ... )` or an implicit one such as `@Model.Name` or
+`@await Foo()`, becomes `_` padded to its length. An `@` after a letter or digit
+is an email address and is left alone, and brackets are matched with C# strings
+in mind, so a `)` inside a string does not end one.
+
+A Razor file with at least one `@code { ... }` or `@functions { ... }` block
+also gets a C# copy, `<path>.lexcode.cs`, whose findings are reported against
+the original file and line. It is one class, `__RazorCode`:
+
+- The class header goes at the start of the first line that is neither blank nor
+  a directive line (`@page`, `@using`, `@rendermode`, `@layout`, `@attribute`,
+  `@implements`, `@inherits`, `@namespace`, `@model`, `@typeparam`,
+  `@preservewhitespace`). A line holding only a `@* *@` or `<!-- -->` comment
+  counts as blank, and a file of only blank and directive lines gets its header
+  on its first code block's line.
+- A `@using <namespace>` before the header becomes `using <namespace>;`, other
+  directives before it become spaces, and `@inject <Type> <Name>` becomes the
+  field `<Type> <Name>;`. Each code block keeps its body and loses its braces,
+  everything else becomes spaces, and line numbers hold.
+
+Known Razor gaps:
+
+- An `@using` after the class header is not read as a `using`, so a file whose
+  `@inject` comes before its `@using` loses that using. `_Imports.razor` (and
+  `_ViewImports.cshtml` for views) holds the usings of every component or view
+  beside it, in another file, so a library type there is found only by a
+  short-form pattern. A `@{ ... }` statement block is not read as C#; only
+  `@code` and `@functions` are.
+- Markup inside an `@functions` method lands in the C# copy, which the engine
+  reads as partly parsed, so a match inside the dropped part is missing (the
+  scan counts the file in its unread-files notice), and `@@code {` (an escaped
+  `@code`) is read as a code block there.
+- In a script block, an expression that writes code
+  (`$("#tabs").tabs()@Html.Raw(x);`) becomes `_` and leaves invalid JavaScript,
+  both branches of an `@if` / `else` around `<text>` elements are kept, and a
+  `<script>` inside a `@* *@` comment or a `@{ }` string is read as live. An
+  unclosed `<!--` blanks everything to the next code block, which can hide
+  `@inject` lines after it.
+
+### The C# gate
+
+The release test requires every evidence-class activity to have a rule whose
+`languages` include `csharp`. One exemption stands:
+`distributes_software_product`, whose evidence lives in project files, is met by
+an `msbuild-` rule, as Java's is met by a build-file rule. Those rules read
+project and `.nuspec` text as `generic` files. Any other exemption must be
+argued and ruled before it is added.
+
+### What the C# rules decide
+
+- A library type is written fully qualified, once, and matches under a `using`,
+  a `global using` in the same file and an alias, never an app's own class of the
+  same name. A type from a namespace the .NET, Web or MAUI SDK imports implicitly
+  is matched in both forms, and a third-party type gets a short form only when
+  its short name carries the vendor's or product's own name. The engine behavior
+  behind this is in CONTRIBUTING.md, "C# pattern notes".
+- Generation evidence is a direct generating call whose result reaches a sink (a
+  response, a view, a component field). A client or request object handed around
+  (`GetService<IChatClient>()`, `GetChatClient(...)`, a new request) is a signal.
+- The platform's own cryptography (`System.Security.Cryptography`, ASP.NET Core
+  Data Protection) is left to the framework, as the JDK's is, while a bundled
+  library that encrypts (Bouncy Castle, NSec, libsodium, PgpCore, JOSE) is
+  `ships_encryption` evidence. Identity password hashing, PBKDF2 and Data
+  Protection are signals.
+- A bare Twilio `VoiceResponse.Record` verb (voicemail) is `processes_voice`, not
+  `records_calls`, and an in-app SignalR notification is a user interface push,
+  not `automated_outreach`.
+
+### Known C# gaps
+
+The engine sets most of these limits, and the rules' comments point here.
+
+- A third-party type reached only through a `global using` in another file
+  (`GlobalUsings.cs`, an MSBuild `<Using Include>`) is missed, except where its
+  short name carries the vendor's own name.
+- A namespace alias combined with a generic type argument (`Mt.IConsumer<A>`,
+  `Id.UserManager<T>`) is not resolved. The engine knows the type of a field, a
+  parameter and a local built with `new`, not of a value from a static factory
+  or `var x = call()`, so a call on `var a = client.GetAudioClient(...)` is found
+  at the factory call where a rule reads it there, and missed otherwise.
+- Generation: a reply stored by member access in a Blazor component
+  (`_answer = r.Text`), an anonymous-object response (`Ok(new { reply })`) and a
+  hosted model's address in a plain `HttpClient` helper are not read, nor are
+  Bedrock `ModelId` as a statement or non-literal, Vertex `PredictAsync` and
+  `PredictLongRunning`, or a Vertex client from `builder.Build()`.
+- Text chat: a history held in memory and sent to a model vendor is not
+  `records_text_chat`, because the rules read a store.
+- Voice and calls: no rule reads Android call audio, LiveKit egress,
+  BigBlueButton, WebRTC audio taps or AWS Transcribe streaming.
+- Crawling: the `HtmlWeb` and AngleSharp arms do not judge an interpolated
+  address, so `OpenAsync($"pages/{n}")` matches.
+- Personal data and tracking: a FluentMigrator migration on a custom base class,
+  an EF Core configuration through a `var` or an owned-type chain, and a Dapper
+  `Execute` that stores an IP are missed.
+- Identity and signatures: a signature pad declared in XAML and Adobe Acrobat
+  Sign are not read, and the selfie rule reads a class's members as text, so a
+  field set in an initializer is missed, a method's use of an ID-document word
+  is admitted, and a nested class can blur two classes' members.
+- Shipping: a .NET for iOS app with neither MAUI nor Xamarin.Forms is not read as
+  `ships_mobile_app` (its `AppDelegate` is shared with tvOS and Mac Catalyst, and
+  its template `Info.plist` has no `CFBundleIdentifier`). A fine-tuning client in
+  a `var` local and a launcher activity declared as a partial class with no base
+  list are missed. A project that sets `PackageLicenseUrl`,
+  `PackageLicenseExpression` or `PackageLicenseFile` for its license metadata
+  only, or an app's own attribute named `Activity` with a `MainLauncher`
+  property, matches.
+- Signals: the MVC sign-up arm needs a literal `return View(...)` or
+  `=> View(...)`, and no rule reads an `@page` or `.cshtml` route, so a
+  storefront of Razor components with no sign-up screen shows no
+  consumer-interface signal.
 
 ## A known gap: a file over 1 MB
 

@@ -12,7 +12,7 @@ const CLASS_MEANING: Record<string, string> = {
   'declaration-only': 'never read from code; only a declaration can carry it',
 };
 
-const PURL_ECOSYSTEM: Record<string, Dependency['ecosystem']> = { npm: 'npm', pypi: 'pypi', golang: 'golang', gem: 'gem', maven: 'maven', composer: 'composer' };
+const PURL_ECOSYSTEM: Record<string, Dependency['ecosystem']> = { npm: 'npm', pypi: 'pypi', golang: 'golang', gem: 'gem', maven: 'maven', composer: 'composer', nuget: 'nuget' };
 
 type Explained =
   | { kind: 'purl'; purl: string; enables: string[]; unsupported?: string }

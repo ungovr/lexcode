@@ -1,0 +1,25 @@
+<!-- lexcode-expect: 5 -->
+<!-- A client library packed for NuGet: it names its package id, packs on every build and again on
+     a Release build only (an element with a Condition), opts in to packing explicitly and declares
+     the license others receive it under. Its PropertyGroup holds a comment of its own. -->
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;netstandard2.0</TargetFrameworks>
+    <PackageId>Contoso.Payments.Client</PackageId>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <!-- Packs are signed by the release pipeline. -->
+    <GeneratePackageOnBuild Condition="'$(Configuration)' == 'Release'">true</GeneratePackageOnBuild>
+    <IsPackable>true</IsPackable>
+    <Authors>Contoso</Authors>
+    <Description>A client for the Contoso Payments API.</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+    <PackageReference Include="System.Text.Json" Version="9.0.0" />
+  </ItemGroup>
+
+</Project>

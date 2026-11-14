@@ -1,0 +1,42 @@
+rules:
+  - id: lexcode.mobile.cs-android-app-entry
+    languages: [csharp]
+    severity: INFO
+    message: Declares the launcher activity or the Application class of a .NET for Android or .NET MAUI app, the entry an installable Android app is built around, which is shipping a mobile app (ships_mobile_app).
+    pattern-either:
+      # The launcher activity: MainLauncher = true is what puts the app in the device's launcher. The
+      # Android SDK imports Android.App implicitly, so the short attribute is matched too; the
+      # MainLauncher argument is Android's own and keeps an app's own Activity attribute out.
+      - pattern: |
+          [Android.App.Activity(..., MainLauncher = true, ...)]
+          class $C : $B { ... }
+      - pattern: |
+          [global::Android.App.Activity(..., MainLauncher = true, ...)]
+          class $C : $B { ... }
+      - pattern: |
+          [Activity(..., MainLauncher = true, ...)]
+          class $C : $B { ... }
+      # The Application class of a MAUI app's Android head, which Android's [Application] attribute
+      # registers. MAUI's Tizen head (televisions and watches) subclasses MauiApplication too but has
+      # no such attribute. MauiApplication is named in full or, as the MAUI template writes it,
+      # through the MAUI SDK's implicit global usings (a product-named short form); the attribute is
+      # Android.App's, which the Android SDK also imports implicitly.
+      - patterns:
+          - pattern-either:
+              - pattern: |
+                  [Android.App.Application(...)]
+                  class $C : $B { ... }
+              - pattern: |
+                  [Application(...)]
+                  class $C : $B { ... }
+          - pattern-either:
+              - pattern: |
+                  class $C : Microsoft.Maui.MauiApplication { ... }
+              - pattern: |
+                  class $C : MauiApplication { ... }
+    metadata:
+      activity: ships_mobile_app
+      mentioned: performs
+      definition: https://lexlint.io/activities/ships-mobile-app
+      provenance: ungovr-original
+      license: MIT
