@@ -1,0 +1,24 @@
+rules:
+  - id: lexcode.train.php-finetune-job
+    languages: [php]
+    severity: INFO
+    message: Starts a hosted fine-tuning or training job (OpenAI, Amazon SageMaker, Amazon Bedrock or Vertex AI) that adapts a model to the caller's data, which is training models (trains_models).
+    pattern-either:
+      # openai-php/client and its Laravel facade; the engine reads a static call the same way.
+      - pattern: $C->fineTuning()->createJob(...)
+      - pattern: $C->fineTunes()->create(...)
+      # orhanerday/open-ai
+      - pattern: $C->createFineTune(...)
+      # The AWS SDK for PHP. SageMaker requires TrainingJobName; other apps use the method name for a booking.
+      - pattern: "$C->createTrainingJob([..., 'TrainingJobName' => $N, ...])"
+      - pattern: "$C->createTrainingJobAsync([..., 'TrainingJobName' => $N, ...])"
+      - pattern: $C->createModelCustomizationJob(...)
+      - pattern: $C->createModelCustomizationJobAsync(...)
+      # google/cloud-ai-platform
+      - pattern: $C->createTrainingPipeline(...)
+    metadata:
+      activity: trains_models
+      mentioned: performs
+      definition: https://lexlint.io/activities/trains-models
+      provenance: ungovr-original
+      license: MIT

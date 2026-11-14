@@ -1,0 +1,78 @@
+rules:
+  - id: lexcode.aggregate.php-feed-read
+    languages: [php]
+    severity: INFO
+    message: Reads another publisher's RSS or Atom feed (SimplePie, WordPress fetch_feed, Laminas or Zend Feed Reader, feed-io, SimpleXML), which is reusing other publishers' content (aggregates_content).
+    patterns:
+      - pattern-either:
+          # SimplePie's set_feed_url, in a file that names SimplePie (its class, a subclass or a
+          # wrapper), so a project method of the same name elsewhere is not taken for it.
+          - patterns:
+              - pattern-regex: '(?is)\A(?=.*simplepie).*'
+              - pattern: $F->set_feed_url($URL)
+          # WordPress's feed reader, a plain function.
+          - pattern: fetch_feed($URL)
+          # Laminas and Zend Feed Reader. The engine does not resolve imports, so the class is matched
+          # in full, by its short name under its own `use` line, and under an alias; a project
+          # `Reader` in another namespace is not taken for it. The engine's `use X;` also matches
+          # `use X as Y;`, so the short-name branch steps aside where the class is aliased.
+          - patterns:
+              - pattern-either:
+                  - pattern: \Laminas\Feed\Reader\Reader::$M($URL, ...)
+                  - pattern: \Zend\Feed\Reader\Reader::$M($URL, ...)
+                  - patterns:
+                      - pattern-either:
+                          - patterns:
+                              - pattern-inside: |
+                                  use Laminas\Feed\Reader\Reader;
+                                  ...
+                              - pattern-not-inside: |
+                                  use Laminas\Feed\Reader\Reader as $AL;
+                                  ...
+                          - patterns:
+                              - pattern-inside: |
+                                  use Zend\Feed\Reader\Reader;
+                                  ...
+                              - pattern-not-inside: |
+                                  use Zend\Feed\Reader\Reader as $AL;
+                                  ...
+                      - pattern: Reader::$M($URL, ...)
+                  - patterns:
+                      - pattern-either:
+                          - pattern-inside: |
+                              use Laminas\Feed\Reader\Reader as $A;
+                              ...
+                          - pattern-inside: |
+                              use Zend\Feed\Reader\Reader as $A;
+                              ...
+                      - pattern: $A::$M($URL, ...)
+              - metavariable-regex:
+                  metavariable: $M
+                  regex: ^(import|importRemoteFeed)$
+          # feed-io's read, in a file that names feed-io's namespace, on a receiver named for it.
+          - patterns:
+              - pattern-regex: '(?s)\A(?=.*\bFeedIo\\).*'
+              - pattern: $F->read($URL, ...)
+              - metavariable-regex:
+                  metavariable: $F
+                  regex: ^\$(this->)?(\w*[fF]eed\w*|io|\w*[rR]eader)$
+          # PHP's own XML reader given a feed's address. The argument must name a feed and not a path.
+          - patterns:
+              - pattern-either:
+                  - pattern: simplexml_load_file($URL, ...)
+                  - pattern: simplexml_load_string(file_get_contents($URL, ...), ...)
+                  - pattern: new \SimpleXMLElement($URL, $OPTIONS, true, ...)
+                  - pattern: new SimpleXMLElement($URL, $OPTIONS, true, ...)
+              - metavariable-regex:
+                  metavariable: $URL
+                  regex: (?is)^(?!.*(path|file|dir))(?=.*(rss|feed|atom)).*$
+      - metavariable-regex:
+          metavariable: $URL
+          regex: (?s)^(?!["']https?://(localhost|127\.|0\.0\.0\.0|\[::1\]))(?!["']file:).*$
+    metadata:
+      activity: aggregates_content
+      mentioned: performs
+      definition: https://lexlint.io/activities/aggregates-content
+      provenance: ungovr-original
+      license: MIT
+      host_metavar: $URL

@@ -11,7 +11,7 @@ const rs = loadRuleSet();
 
 describe('bundled rule set', () => {
   it('reads the pinned versions and the registry snapshot', () => {
-    expect(rs.version).toBe('1.2.0');
+    expect(rs.version).toBe('1.3.0');
     expect(rs.registryVersion).toBe('1.15');
     expect(rs.registry.get('crawls_web')?.page).toBe('https://lexlint.io/activities/crawls-web');
     expect(rs.registry.get('records_conversations')?.status).toBe('retired');
@@ -62,9 +62,11 @@ afterEach(() => {
 
 const PAGE = 'https://lexlint.io/activities/crawls-web';
 
-function rule(over: { id?: string; metadata?: Record<string, unknown> } = {}): Record<string, unknown> {
+/** A rule body; `metadata` merges into the default metadata, and any other key replaces the default's. */
+function rule(over: { id?: string; metadata?: Record<string, unknown>; [key: string]: unknown } = {}): Record<string, unknown> {
+  const { id, metadata, ...rest } = over;
   return {
-    id: over.id ?? 'lexcode.crawls-web.demo',
+    id: id ?? 'lexcode.crawls-web.demo',
     languages: ['python'],
     severity: 'INFO',
     message: 'Demo rule message.',
@@ -75,8 +77,9 @@ function rule(over: { id?: string; metadata?: Record<string, unknown> } = {}): R
       definition: PAGE,
       provenance: 'ungovr-original',
       license: 'MIT',
-      ...(over.metadata ?? {}),
+      ...(metadata ?? {}),
     },
+    ...rest,
   };
 }
 
@@ -134,6 +137,21 @@ describe('loadRuleSet with extra directories', () => {
   it('throws ToolError on a rule file with no rules', () => {
     writeRule(tmp, 'crawls_web', 'none', []);
     expect(() => loadRuleSet([tmp])).toThrow(ToolError);
+  });
+
+  it('throws ToolError on a rule that names no languages, which a scan would otherwise never hand the engine (#12997)', () => {
+    writeRule(tmp, 'crawls_web', 'nolang', [rule({ languages: [] })]);
+    expect(() => loadRuleSet([tmp])).toThrow(/names no languages/);
+  });
+
+  it('reads paths.include, and leaves it unset when the list is empty or holds anything but strings (#12997)', () => {
+    writeRule(tmp, 'crawls_web', 'inc', [rule({ paths: { include: ['pyproject.toml', 'x.*'] } })]);
+    writeRule(tmp, 'crawls_web', 'empty', [rule({ id: 'lexcode.crawls-web.empty', paths: { include: [] } })]);
+    writeRule(tmp, 'crawls_web', 'mixed', [rule({ id: 'lexcode.crawls-web.mixed', paths: { include: ['a.py', 7] } })]);
+    const rules = loadRuleSet([tmp]).rules;
+    expect(rules.find((x) => x.id === 'lexcode.crawls-web.demo')?.include).toEqual(['pyproject.toml', 'x.*']);
+    expect(rules.find((x) => x.id === 'lexcode.crawls-web.empty')?.include).toBeUndefined();
+    expect(rules.find((x) => x.id === 'lexcode.crawls-web.mixed')?.include).toBeUndefined();
   });
 
   it('throws ToolError on a duplicate rule id across files', () => {

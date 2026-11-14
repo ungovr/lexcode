@@ -1,0 +1,88 @@
+rules:
+  - id: lexcode.crawl.php-fetch-loop-over-urls
+    languages: [php]
+    severity: INFO
+    message: Fetches each URL in a list held in a variable, which may be crawling sites the operator does not run (crawls_web).
+    patterns:
+      # A pre-filter: the client calls below take their receiver from a regular expression, and
+      # `get` is in nearly every PHP file, so without this the engine parses every PHP file, which
+      # on a large codebase is most of this rule's cost. It names a token inside every call the
+      # arms below can match: each function, a receiver named for a client before the arrow,
+      # `Http::`, and a static get or head (an aliased Laravel Http facade).
+      - pattern-regex: '(curl_init|CURLOPT_URL|get_headers|wp_(safe_)?remote_(get|head)|file_get_contents|fopen|Http::|(?i:client|http|guzzle|curl|browser)\w*(?:\(\s*\))?\s*->\s*(get|head|getAsync|headAsync|request|requestAsync)\b|::\s*(get|head)\s*\()'
+      # The loop variable is the whole address. A loop over ids that builds the address from the
+      # app's own base, or a single call to a documented API, does not bind it.
+      - pattern-either:
+          - pattern-inside: |
+              foreach ($L as $URL) { ... }
+          - pattern-inside: |
+              foreach ($L as $K => $URL) { ... }
+          - pattern-inside: |
+              while ($URL = array_shift($L)) { ... }
+          - pattern-inside: |
+              while ($URL = array_pop($L)) { ... }
+          - pattern-inside: |
+              array_map(function ($URL) { ... }, $L)
+          - pattern-inside: |
+              array_map(fn ($URL) => $BODY, $L)
+          - patterns:
+              - pattern-either:
+                  - pattern-inside: |
+                      $L->$M(function ($URL) { ... })
+                  - pattern-inside: |
+                      $L->$M(fn ($URL) => $BODY)
+              - metavariable-regex:
+                  metavariable: $M
+                  regex: ^(each|map|flatMap|mapWithKeys|transform|filter|reject|forAll)$
+      - pattern-either:
+          - pattern: curl_init($URL)
+          - pattern: curl_setopt($CH, CURLOPT_URL, $URL)
+          - pattern: "curl_setopt_array($CH, [..., CURLOPT_URL => $URL, ...])"
+          - pattern: get_headers($URL, ...)
+          - pattern: wp_remote_get($URL, ...)
+          - pattern: wp_remote_head($URL, ...)
+          - pattern: wp_safe_remote_get($URL, ...)
+          # file_get_contents and fopen read local files too, so the loop variable must be named
+          # for an address.
+          - patterns:
+              - pattern-either:
+                  - pattern: file_get_contents($URL, ...)
+                  - pattern: fopen($URL, ...)
+              - metavariable-regex:
+                  metavariable: $URL
+                  regex: (?i)^\$\w*(url|uri(?![a-z])|link|href|site|feed)
+          - patterns:
+              - pattern-either:
+                  - pattern: $C->get($URL, ...)
+                  - pattern: $C->head($URL, ...)
+                  - pattern: $C->getAsync($URL, ...)
+                  - pattern: $C->headAsync($URL, ...)
+                  - pattern: $C->request($METHOD, $URL, ...)
+                  - pattern: $C->requestAsync($METHOD, $URL, ...)
+              # A receiver named for an HTTP client (Guzzle, Symfony HttpClient, curl wrappers), or a
+              # Laravel `Http::` chain, matched by its name as a receiver named `$http` is.
+              - metavariable-regex:
+                  metavariable: $C
+                  regex: (?s)^(\$(this->)?(?!\w*([cC]ache|[sS]tore|[sS]torage|[rR]edis|[mM]emcache|[sS]3|[aA]ws|[sS]ession|[cC]ontainer|[cC]onfig|[sS]ettings))(\w*[cC]lient|\w*[hH]ttp\w*|\w*[gG]uzzle\w*|\w*[cC]url\w*|\w*[bB]rowser)|\\?(Illuminate\\Support\\Facades\\)?Http::.*)$
+          - patterns:
+              - pattern-either:
+                  - pattern: $H::get($URL, ...)
+                  - pattern: $H::head($URL, ...)
+              - metavariable-regex:
+                  metavariable: $H
+                  regex: ^\\?(Illuminate\\Support\\Facades\\)?Http$
+          - patterns:
+              - pattern-inside: |
+                  use Illuminate\Support\Facades\Http as $HA;
+                  ...
+              - pattern-either:
+                  - pattern: $HA::get($URL, ...)
+                  - pattern: $HA::head($URL, ...)
+    metadata:
+      activity: crawls_web
+      mentioned: performs
+      definition: https://lexlint.io/activities/crawls-web
+      provenance: ungovr-original
+      license: MIT
+      strength: signal
+      host_metavar: $URL

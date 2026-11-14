@@ -13,6 +13,11 @@ rules:
           - metavariable-regex:
               metavariable: $DOC
               regex: '(?i)^(?!["''`]?(?-i:[A-Z][A-Z0-9_]*)["''`]?$)["''`]?(?:photo_?id_?(?:image|img|photo|card|doc|document|scan|front|back|upload|file)|id_?(?:document|doc|card|photo|image|img|scan|front|back)|identity_?(?:document|doc|card)|identification_?(?:image|photo|document|doc|card)|passport_?(?:image|photo|scan|page|front)|drivers?_?licen[cs]e_?(?:image|photo|scan|front|back)|document_?(?:image|photo|front|back|scan))\w*["''`]?$'
+          # An emoji table keyed by name holds `selfie` and `identification_card` and no image
+          # (Moodle's emoji data.js, emoji-mart's data). Every such table names U+1F600 too, as
+          # `grinning` or `grinning_face`; a bare key here also matches a quoted one.
+          - pattern-not-inside: '{..., grinning: $_, ...}'
+          - pattern-not-inside: '{..., grinning_face: $_, ...}'
       - patterns:
           - pattern-either:
               - pattern: |

@@ -14,10 +14,11 @@ import { readGo } from '../manifests/go.js';
 import { readNpm } from '../manifests/npm.js';
 import { isRequirementsFile, readPypi } from '../manifests/pypi.js';
 import { readGradle } from '../manifests/gradle.js';
+import { readComposer } from '../manifests/composer.js';
 import { readMaven } from '../manifests/maven.js';
 import { readRuby } from '../manifests/ruby.js';
 import { baseName } from '../manifests/util.js';
-import { buildRecord, countRulesRun, engineTargets, largePrefilteredFiles, prefilterReachNotice, unreadLanguages } from '../record/build.js';
+import { buildRecord, countRulesRun, enginePlan, largePrefilteredFiles, prefilterReachNotice, unreadLanguages } from '../record/build.js';
 import { toSarif } from '../record/sarif.js';
 import { loadRuleSet, writeMergedConfig } from '../rules/load.js';
 import { extractScripts } from '../scope/extract.js';
@@ -43,6 +44,8 @@ export interface ScanOptions {
   /** Repository-relative POSIX paths never read (the record and SARIF files lexcode itself wrote). */
   skipFiles?: string[];
   now?: Date;
+  /** Override the number of engine lanes (tests); otherwise the engine's own rule from the targets' bytes. */
+  engineLanes?: number;
 }
 
 /** A file's size in bytes, or 0 when it cannot be read. */
@@ -74,6 +77,7 @@ function ecosystemsFound(files: string[]): Set<string> {
     else if (base === 'go.mod') found.add('golang');
     else if (base === 'Gemfile' || base === 'gems.rb' || base.endsWith('.gemspec')) found.add('gem');
     else if (base === 'pom.xml' || base === 'build.gradle' || base === 'build.gradle.kts') found.add('maven');
+    else if (base === 'composer.json') found.add('composer');
     else if (base === 'pyproject.toml' || isRequirementsFile(f)) found.add('pypi');
   }
   return found;
@@ -86,13 +90,13 @@ function pathMapper(pairs: { tempPath: string; originalPath: string }[]): (repor
   for (const p of pairs) {
     const posix = p.tempPath.replace(/\\/g, '/');
     exact.set(posix, p.originalPath);
-    const ext = /\.lexcode\.(?:ts|js|rb)$/.exec(posix)?.[0] ?? '';
+    const ext = /\.lexcode\.(?:ts|js|rb|php)$/.exec(posix)?.[0] ?? '';
     tails.push({ tail: `/${p.originalPath}${ext}`, original: p.originalPath });
   }
   return (reported) => {
     const hit = exact.get(reported);
     if (hit !== undefined) return hit;
-    if (!/\.lexcode\.(?:ts|js|rb)$/.test(reported)) return reported;
+    if (!/\.lexcode\.(?:ts|js|rb|php)$/.test(reported)) return reported;
     return tails.find((t) => reported.endsWith(t.tail))?.original ?? reported;
   };
 }
@@ -149,7 +153,7 @@ export async function scan(o: ScanOptions): Promise<EvidenceRecord> {
   }
 
   // Manifests: what the code enables.
-  const readers = [readNpm(root, files), readPypi(root, files), readGo(root, files), readRuby(root, files), readMaven(root, files), readGradle(root, files)];
+  const readers = [readNpm(root, files), readPypi(root, files), readGo(root, files), readRuby(root, files), readMaven(root, files), readGradle(root, files), readComposer(root, files)];
   const deps: Dependency[] = readers.flatMap((r) => r.deps);
   const devSkipped = readers.reduce((n, r) => n + r.devSkipped, 0);
   for (const r of readers) notices.push(...r.notices);
@@ -162,19 +166,21 @@ export async function scan(o: ScanOptions): Promise<EvidenceRecord> {
   try {
     const pairs = rs.rules.length > 0 ? extractScripts(root, files, join(tmp, 'scripts')) : [];
     let countedFiles = [...files, ...pairs.map((p) => p.tempPath)];
-    if (rs.rules.length > 0) {
+    // Only the rules with a file to read, and only the files they read, go to the engine (#12997).
+    let plan = enginePlan(rs.rules, countedFiles);
+    if (plan.targets.length > 0) {
       // A file with a line over 100,000 characters is generated code, and the engine can spend ten
       // minutes on one such line: it is not handed over, and not counted as read.
-      const wanted = engineTargets(rs.rules, countedFiles);
-      const long = new Set(wanted.filter((f) => hasLongLine(isAbsolute(f) ? f : join(root, ...f.split('/')))));
+      const long = new Set(plan.targets.filter((f) => hasLongLine(isAbsolute(f) ? f : join(root, ...f.split('/')))));
       if (long.size > 0) {
         countedFiles = countedFiles.filter((f) => !long.has(f));
+        plan = enginePlan(rs.rules, countedFiles);
         notices.push(
           `skipped ${long.size.toLocaleString('en-US')} ${long.size === 1 ? 'file' : 'files'} with a line over ${MAX_LINE_CHARS.toLocaleString('en-US')} characters (generated or minified code); the engine did not read ${long.size === 1 ? 'it' : 'them'}`,
         );
       }
     }
-    const rulesRun = countRulesRun(rs, rs.rules, countedFiles, ecosystemsFound(files));
+    const rulesRun = countRulesRun(rs, rs.rules, countedFiles, ecosystemsFound(files), plan);
 
     let matches: EngineMatch[] = [];
     let fileErrors = 0;
@@ -183,14 +189,20 @@ export async function scan(o: ScanOptions): Promise<EvidenceRecord> {
       const handle = await ensureEngine({ enginePath: o.enginePath, download: true });
       engineVersion = handle.version;
       const configFile = join(tmp, 'rules.yml');
-      writeMergedConfig(rs.rules, configFile);
-      const targets = engineTargets(rs.rules, countedFiles);
+      const { targets } = plan;
       // A whole-file pre-filter can stop matching in a file over about 1 MB; the engine records nothing, so say so.
-      const bytesOf = (f: string): number => fileBytes(isAbsolute(f) ? f : join(root, ...f.split('/')));
-      const reach = prefilterReachNotice(largePrefilteredFiles(rs.rules, targets, bytesOf));
+      // Read once per file: the reach notice, the engine's lane count and its deal all ask.
+      const sizes = new Map<string, number>();
+      const bytesOf = (f: string): number => {
+        let n = sizes.get(f);
+        if (n === undefined) sizes.set(f, (n = fileBytes(isAbsolute(f) ? f : join(root, ...f.split('/')))));
+        return n;
+      };
+      const reach = prefilterReachNotice(largePrefilteredFiles(plan.rules, targets, bytesOf));
       if (reach !== undefined) notices.push(reach);
       if (targets.length > 0) {
-        const ran = await runEngine({ engine: handle.path, configFile, targets, root });
+        writeMergedConfig(plan.rules, configFile);
+        const ran = await runEngine({ engine: handle.path, configFile, targets, root, bytesOf, ...(o.engineLanes !== undefined ? { lanes: o.engineLanes } : {}) });
         engineVersion = ran.version;
         fileErrors = ran.fileErrors;
         const back = pathMapper(pairs);

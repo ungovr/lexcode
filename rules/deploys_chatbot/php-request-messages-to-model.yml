@@ -1,0 +1,118 @@
+# Not a taint rule on purpose: the cost is that a value passed through a helper method before the
+# call is not followed; the request read in place, or a local variable assigned from it, is. The bar
+# is the JS, Python, Ruby and Java rules': a messages or history LIST from the request reaches the
+# model call. A single typed message or question inside a fixed prompt is a one-shot tool, not a
+# chatbot, so it does not match. The model call is named by its client (a receiver ending in chat(),
+# messages, completions or responses(), as openai-php, the Anthropic SDK and their Laravel facades
+# write it), by Prism's withMessages, by Gemini's startChat, or by a model endpoint posted to with an
+# HTTP client; a record created with a messages key (a stored conversation) is not a model call.
+#
+# The request is $request (Laravel and Symfony), $req, $this->request, the request() helper, the
+# superglobals, or an array named for a decoded body ($input, $payload, $body, $json, $data,
+# $validated), read by a conversation key.
+rules:
+  - id: lexcode.chatbot.php-request-messages-to-model
+    languages: [php]
+    severity: INFO
+    message: Passes the conversation a client sent in a request to a language model, which is deploying a chatbot (deploys_chatbot).
+    patterns:
+      - pattern-either:
+          # The request read in place, inside the argument.
+          - patterns:
+              - pattern-either:
+                  - patterns:
+                      - pattern-either:
+                          - pattern: "$C->create([..., 'messages' => $X, ...])"
+                          - pattern: '$C->create(..., messages: $X, ...)'
+                      - metavariable-regex:
+                          metavariable: $C
+                          regex: (?is)^.*(chat|messages|completions)(\(\))?$
+                  - patterns:
+                      - pattern: "$C->create([..., 'input' => $X, ...])"
+                      - metavariable-regex:
+                          metavariable: $C
+                          regex: (?is)^.*responses(\(\))?$
+                  - pattern: $P->withMessages($X)
+                  - pattern: '$C->startChat(..., history: $X, ...)'
+                  - patterns:
+                      - pattern-either:
+                          - pattern: "$H->post($URL, [..., 'messages' => $X, ...])"
+                          - pattern: "$H->post($URL, [..., 'json' => [..., 'messages' => $X, ...], ...])"
+                      - metavariable-regex:
+                          metavariable: $URL
+                          regex: (?i)^.*(chat/completions|/v1/messages|/api/chat|:generateContent|/v1/responses).*$
+              - metavariable-pattern:
+                  metavariable: $X
+                  patterns:
+                    - pattern-either:
+                        - patterns:
+                            - pattern-either:
+                                - pattern: $R->$GET($K, ...)
+                                - pattern: $R->$PROP->$GET($K, ...)
+                                - pattern: $R->$GET()->$GET2($K, ...)
+                                - pattern: $R[$K]
+                                - pattern: $R->$GET()[$K]
+                                - pattern: $R->$K
+                            - metavariable-regex:
+                                metavariable: $R
+                                regex: ^(\$request|\$req|\$this->request|\$_POST|\$_REQUEST|\$_GET|\$input|\$payload|\$body|\$json|\$data|\$validated)$
+                        - pattern: request($K, ...)
+                        - pattern: request()->$GET($K, ...)
+                    # The same key inside one message's content is text pasted into a single prompt: a one-shot tool.
+                    - pattern-not-inside: "[..., 'content' => $V, ...]"
+                    - metavariable-regex:
+                        metavariable: $K
+                        regex: ^["']?(messages|chat_messages|chatMessages|history|chat_history|chatHistory|conversation|conversation_history|conversationHistory)["']?$
+          # A local variable assigned from the request, then passed whole.
+          - patterns:
+              - pattern-either:
+                  - patterns:
+                      - pattern-either:
+                          - pattern: "$C->create([..., 'messages' => $X, ...])"
+                          - pattern: '$C->create(..., messages: $X, ...)'
+                      - metavariable-regex:
+                          metavariable: $C
+                          regex: (?is)^.*(chat|messages|completions)(\(\))?$
+                  - patterns:
+                      - pattern: "$C->create([..., 'input' => $X, ...])"
+                      - metavariable-regex:
+                          metavariable: $C
+                          regex: (?is)^.*responses(\(\))?$
+                  - pattern: $P->withMessages($X)
+                  - pattern: '$C->startChat(..., history: $X, ...)'
+                  - patterns:
+                      - pattern-either:
+                          - pattern: "$H->post($URL, [..., 'messages' => $X, ...])"
+                          - pattern: "$H->post($URL, [..., 'json' => [..., 'messages' => $X, ...], ...])"
+                      - metavariable-regex:
+                          metavariable: $URL
+                          regex: (?i)^.*(chat/completions|/v1/messages|/api/chat|:generateContent|/v1/responses).*$
+              - pattern-either:
+                  - patterns:
+                      - pattern-either:
+                          - pattern-inside: |
+                              $X = $R->$GET($K, ...);
+                              ...
+                          - pattern-inside: |
+                              $X = $R[$K];
+                              ...
+                          - pattern-inside: |
+                              $X = $R->$GET()->$GET2($K, ...);
+                              ...
+                      - metavariable-regex:
+                          metavariable: $R
+                          regex: ^(\$request|\$req|\$this->request|\$_POST|\$_REQUEST|\$_GET|\$input|\$payload|\$body|\$json|\$data|\$validated)$
+                  - pattern-inside: |
+                      $X = request($K, ...);
+                      ...
+              - metavariable-regex:
+                  metavariable: $K
+                  regex: ^["']?(messages|chat_messages|chatMessages|history|chat_history|chatHistory|conversation|conversation_history|conversationHistory)["']?$
+      # Literal anchor inside the match (the model call), so the engine skips files with no such call.
+      - pattern-regex: (?i)(['"](messages|input)['"]\s*=>|\bmessages\s*:|withMessages\s*\(|\bhistory\s*:)
+    metadata:
+      activity: deploys_chatbot
+      mentioned: performs
+      definition: https://lexlint.io/activities/deploys-chatbot
+      provenance: ungovr-original
+      license: MIT

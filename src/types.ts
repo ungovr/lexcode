@@ -77,6 +77,8 @@ export interface RuleMeta {
   replaces: string[];
   /** Set when a `pattern-regex` of the rule is a whole-file lookahead pre-filter (`\A(?=...)`). */
   wholeFilePrefilter?: true;
+  /** The rule's `paths.include` patterns, when it has a non-empty list of them. */
+  include?: string[];
 }
 
 export interface RegistryEntry {
@@ -92,7 +94,7 @@ export interface RegistryEntry {
 }
 
 export interface ComponentEntry {
-  ecosystem: 'npm' | 'pypi' | 'golang' | 'gem' | 'maven' | 'files';
+  ecosystem: 'npm' | 'pypi' | 'golang' | 'gem' | 'maven' | 'composer' | 'files';
   match: string;
   enables: string[];
   says: string;
@@ -109,7 +111,7 @@ export interface RuleSet {
 }
 
 export interface Dependency {
-  ecosystem: 'npm' | 'pypi' | 'golang' | 'gem' | 'maven';
+  ecosystem: 'npm' | 'pypi' | 'golang' | 'gem' | 'maven' | 'composer';
   name: string;
   version?: string;
   /** POSIX path ':' line of the dependency's entry in its manifest. */

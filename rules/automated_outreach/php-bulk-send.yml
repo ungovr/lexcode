@@ -1,0 +1,64 @@
+rules:
+  - id: lexcode.outreach.php-bulk-send
+    languages: [php]
+    severity: INFO
+    message: Sends one message to many recipients in a single batch call, push multicast or campaign send, which is sending automated outreach (automated_outreach).
+    # Laravel's Notification facade counts when its first argument reads as many notifiables (a name
+    # such as users, subscribers or members, or a query's all(), get(), cursor() or lazy()), and not the
+    # administrators; Laravel documents it for a collection of users, and a single
+    # notifiable is php-send-in-loop's or nothing. Filament's Notification toast and an app's own
+    # Notification class are other classes and do not match. The engine's `use X;` also matches
+    # `use X as Y;`, so the short-name branch steps aside where the facade is aliased.
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: \Illuminate\Support\Facades\Notification::$NM($TO, ...)
+              - pattern: \Notification::$NM($TO, ...)
+              - patterns:
+                  - pattern-inside: |
+                      use Illuminate\Support\Facades\Notification;
+                      ...
+                  - pattern-not-inside: |
+                      use Illuminate\Support\Facades\Notification as $AL;
+                      ...
+                  - pattern: Notification::$NM($TO, ...)
+              - patterns:
+                  - pattern-inside: |
+                      use Illuminate\Support\Facades\Notification as $NA;
+                      ...
+                  - pattern: $NA::$NM($TO, ...)
+          - metavariable-regex:
+              metavariable: $NM
+              regex: ^(send|sendNow)$
+          # Many notifiables by name or by query; a bare plural is not enough ($address, $status), and the
+          # administrators are the mail-to-administrators class, not outreach.
+          - metavariable-regex:
+              metavariable: $TO
+              regex: '(?is)^(?!.*admin).*(users|subscribers|customers|members|recipients|contacts|followers|students|parents|employees|participants|attendees|patients|clients|leads|audience|notifiables)(\(\))?$|^(?!.*admin).*(::all\(\)|->get\(\)|->cursor\(\)|->lazy\(\)|->lazyById\(\))$'
+      # Amazon SES bulk sends.
+      - pattern: $S->sendBulkTemplatedEmail(...)
+      - pattern: $S->sendBulkEmail(...)
+      # Firebase Cloud Messaging multicast (kreait/firebase-php).
+      - pattern: $F->sendMulticast(...)
+      - patterns:
+          - pattern-either:
+              - pattern: $F->sendAll(...)
+              - pattern: $F->sendEach(...)
+          - metavariable-regex:
+              metavariable: $F
+              regex: (?i)^(\$this->|\$)\w*(firebase|fcm|messaging)\w*$
+      # Mailchimp campaign send, Twilio Notify, Postmark and Resend batches, Brevo campaign send.
+      - pattern: $M->campaigns->send(...)
+      - pattern: $T->notify->v1->services(...)->notifications->create(...)
+      - pattern: $P->sendEmailBatch(...)
+      - pattern: $P->sendEmailBatchWithTemplates(...)
+      - pattern: $R->batch->send(...)
+      - pattern: $B->sendEmailCampaignNow(...)
+      # A Mailgun batch: one send with per-recipient variables.
+      - pattern: "$MG->messages()->send($D, [..., 'recipient-variables' => $V, ...])"
+    metadata:
+      activity: automated_outreach
+      mentioned: performs
+      definition: https://lexlint.io/activities/automated-outreach
+      provenance: ungovr-original
+      license: MIT

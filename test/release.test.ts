@@ -168,6 +168,19 @@ describe('release: the rule set is complete and well formed', () => {
     expect(evidenceIdsWithoutRule((r) => r.languages.includes('kotlin'))).toEqual([]);
   });
 
+  // PHP (v1.3, Decision 10). The one PHP exemption is
+  // distributes_software_product, whose package evidence lives in composer.json
+  // as Java's lives in its build files: it may be met by a composer- rule (read
+  // as JSON) instead of a PHP source rule. No other exemption was ruled.
+  it('every evidence-class id has a PHP rule', () => {
+    const composerRule = (r: RuleMeta): boolean => /^composer-/.test(basename(r.file));
+    expect(
+      evidenceIdsWithoutRule(
+        (r) => r.languages.includes('php') || (r.activity === 'distributes_software_product' && composerRule(r)),
+      ),
+    ).toEqual([]);
+  });
+
   // The engine's `paths` excludes are unanchored globs, so `**/samples/**`
   // also drops a JVM package path (com/google/samples/apps/..., org/springframework/
   // samples/petclinic, every com/example package). A Java or Kotlin source rule

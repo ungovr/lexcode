@@ -1,0 +1,77 @@
+rules:
+  - id: lexcode.tracking.php-tracking-cookie
+    languages: [php]
+    severity: INFO
+    message: Writes a cookie whose name marks it as an analytics, advertising or visitor-identifier cookie, which is tracking devices (tracks_devices).
+    patterns:
+      - pattern-either:
+          # Plain PHP.
+          - pattern: setcookie($N, $V, ...)
+          - pattern: setrawcookie($N, $V, ...)
+          # Laravel: the cookie() helper, and a response's cookie(name, value, ...).
+          - pattern: cookie($N, $V, ...)
+          - patterns:
+              - pattern: $R->cookie($N, $V, ...)
+              - metavariable-regex:
+                  metavariable: $R
+                  regex: (?i).*response
+          # Laravel: the Cookie facade, fully qualified, as the root alias, imported or aliased.
+          # The engine's `use X;` also matches `use X as Y;`, so each short-name branch steps aside
+          # where the class is aliased and the short name may be the app's own.
+          - patterns:
+              - pattern-either:
+                  - pattern: \Illuminate\Support\Facades\Cookie::$M($N, $V, ...)
+                  - pattern: \Cookie::$M($N, $V, ...)
+                  - patterns:
+                      - pattern: Cookie::$M($N, $V, ...)
+                      - pattern-inside: |
+                          use Illuminate\Support\Facades\Cookie;
+                          ...
+                      - pattern-not-inside: |
+                          use Illuminate\Support\Facades\Cookie as $AL;
+                          ...
+                  - patterns:
+                      - pattern: $A::$M($N, $V, ...)
+                      - pattern-inside: |
+                          use Illuminate\Support\Facades\Cookie as $A;
+                          ...
+              - metavariable-regex:
+                  metavariable: $M
+                  regex: ^(queue|make|forever)$
+          # Symfony: the HttpFoundation cookie, fully qualified, imported or aliased.
+          - pattern: \Symfony\Component\HttpFoundation\Cookie::create($N, $V, ...)
+          - pattern: new \Symfony\Component\HttpFoundation\Cookie($N, $V, ...)
+          - patterns:
+              - pattern-either:
+                  - pattern: Cookie::create($N, $V, ...)
+                  - pattern: new Cookie($N, $V, ...)
+              - pattern-inside: |
+                  use Symfony\Component\HttpFoundation\Cookie;
+                  ...
+              - pattern-not-inside: |
+                  use Symfony\Component\HttpFoundation\Cookie as $AL;
+                  ...
+          - patterns:
+              - pattern-either:
+                  - pattern: $A::create($N, $V, ...)
+                  - pattern: new $A($N, $V, ...)
+              - pattern-inside: |
+                  use Symfony\Component\HttpFoundation\Cookie as $A;
+                  ...
+      - metavariable-regex:
+          metavariable: $N
+          regex: (?i)^['"](_ga(_.*)?|_gid|_gat(_.*)?|_gcl_.*|_fbp|_fbc|_hjid|_hjSessionUser.*|ajs_(anonymous|user)_id|mp_.*_mixpanel|ph_.*_posthog|amplitude_id.*|_uetvid|_uetsid|_clck|_clsk|__utm.|(visitor|tracking|anonymous|device|browser)_?(id|token|uuid)|fingerprint)['"]$
+      # A cookie written with an empty, null or false value is being removed (the standard way to
+      # withdraw a tracking cookie on a consent change), not set; rb-tracking-cookie holds
+      # removal out the same way. A cookie given only a name is a removal too, and no shape above
+      # matches one.
+      - metavariable-regex:
+          metavariable: $V
+          regex: (?i)^(?!(?:''|""|null|false)$)
+      - focus-metavariable: $N
+    metadata:
+      activity: tracks_devices
+      mentioned: performs
+      definition: https://lexlint.io/activities/tracks-devices
+      provenance: ungovr-original
+      license: MIT

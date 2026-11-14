@@ -217,6 +217,31 @@ describe('the skip list', () => {
     },
   );
 
+  it('matches a test directory name in any case (Symfony bundles write Tests/, Magento modules Test/)', () => {
+    const files = [
+      'Tests/Unit/DigestTest.php',
+      'src/Bundle/Tests/Functional/AppTest.php',
+      'app/code/Acme/Mail/Test/Unit/SenderTest.php',
+      'src/TESTS/a.php',
+      'src/Spec/a.rb',
+      'src/Fixtures/a.php',
+      'src/TestData/a.go',
+      'app/src/AndroidTest/A.kt',
+      'src/Testing/Clock.php',
+      'src/Contest/Entry.php',
+      'src/Tester.php',
+      'app/code/Acme/Mail/Model/Sender.php',
+    ];
+    const root = repo(files);
+    expect(listFiles(root, plain).files).toEqual([
+      'app/code/Acme/Mail/Model/Sender.php',
+      'src/Contest/Entry.php',
+      'src/Tester.php',
+      'src/Testing/Clock.php',
+    ]);
+    expect(listFiles(root, { ...plain, includeTests: true }).files).toEqual([...files].sort());
+  });
+
   it.each(['commonTest', 'jvmTest', 'androidUnitTest', 'androidInstrumentedTest', 'iosTest', 'jsTest', 'nativeTest'])(
     'drops the Kotlin Multiplatform test source set %s, keeps its main source sets, and --include-tests still reads it',
     (name) => {

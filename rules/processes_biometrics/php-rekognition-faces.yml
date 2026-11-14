@@ -1,0 +1,40 @@
+rules:
+  - id: lexcode.biometric.php-rekognition-faces
+    languages: [php]
+    severity: INFO
+    message: Matches or indexes faces with Amazon Rekognition from PHP, which is recognizing people from face geometry (processes_biometrics).
+    patterns:
+      # aws/aws-sdk-php's magic methods for the face-matching operations, and their Async forms.
+      # Detection (detectFaces, detectLabels) names no person and is left out.
+      - pattern-either:
+          - pattern: $C->compareFaces(...)
+          - pattern: $C->compareFacesAsync(...)
+          - pattern: $C->indexFaces(...)
+          - pattern: $C->indexFacesAsync(...)
+          - pattern: $C->searchFaces(...)
+          - pattern: $C->searchFacesAsync(...)
+          - pattern: $C->searchFacesByImage(...)
+          - pattern: $C->searchFacesByImageAsync(...)
+          - pattern: $C->searchUsers(...)
+          - pattern: $C->searchUsersAsync(...)
+          - pattern: $C->searchUsersByImage(...)
+          - pattern: $C->searchUsersByImageAsync(...)
+          - pattern: $C->startFaceSearch(...)
+          - pattern: $C->startFaceSearchAsync(...)
+      # Rekognition's own request keys keep a local method of the same name out, wherever the
+      # client came from (Aws\Sdk, a container). So does the client's import (the engine's
+      # `use X;` also matches an aliased import), or its full name in the file, which an app's
+      # own RekognitionClient in another namespace does not have.
+      - pattern-either:
+          - pattern: "$X->$M([..., 'CollectionId' => $V, ...])"
+          - pattern: "$X->$M([..., 'SourceImage' => $V, ...])"
+          - pattern-inside: |
+              use Aws\Rekognition\RekognitionClient;
+              ...
+          - pattern-regex: (?s)\A(?=.*\\Aws\\Rekognition\\RekognitionClient\b(?<![\w\\]\\Aws\\Rekognition\\RekognitionClient)).*
+    metadata:
+      activity: processes_biometrics
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-biometrics
+      provenance: ungovr-original
+      license: MIT

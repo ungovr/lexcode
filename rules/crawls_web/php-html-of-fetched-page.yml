@@ -1,0 +1,136 @@
+rules:
+  - id: lexcode.crawl.php-html-of-fetched-page
+    languages: [php]
+    severity: INFO
+    message: Fetches a web page and parses its HTML (DOMDocument, Symfony DomCrawler, simple_html_dom, php-html-parser), which is scraping a site the operator may not run (crawls_web).
+    patterns:
+      - pattern-either:
+          # A page fetched inside the parser call itself.
+          - patterns:
+              - pattern-either:
+                  - pattern-inside: $D->loadHTML(...)
+                  - pattern-inside: $D->addHtmlContent(...)
+                  - pattern-inside: str_get_html(...)
+                  - pattern-inside: \Dom\HTMLDocument::createFromString(...)
+                  # Symfony's DomCrawler, matched three ways because the engine does not resolve
+                  # imports: in full, under its own `use` line, and under an alias. A project class
+                  # with the short name `Crawler` in another namespace is not taken for it. The
+                  # engine's `use X;` also matches `use X as Y;`, so the short-name branch steps
+                  # aside where the class is aliased and the short name may be the app's own.
+                  - pattern-inside: new \Symfony\Component\DomCrawler\Crawler(...)
+                  - patterns:
+                      - pattern-inside: |
+                          use Symfony\Component\DomCrawler\Crawler;
+                          ...
+                      - pattern-not-inside: |
+                          use Symfony\Component\DomCrawler\Crawler as $AL;
+                          ...
+                      - pattern-inside: new Crawler(...)
+                  - patterns:
+                      - pattern-inside: |
+                          use Symfony\Component\DomCrawler\Crawler as $A;
+                          ...
+                      - pattern-inside: new $A(...)
+              - pattern-either:
+                  - patterns:
+                      - pattern: file_get_contents($URL, ...)
+                      - metavariable-regex:
+                          metavariable: $URL
+                          regex: (?is)^(?!.*(path|file|dir|template))(["']https?://|.*(url|uri(?![a-z])|link|href|site))
+                  - patterns:
+                      - pattern-either:
+                          - pattern: $C->get($URL, ...)
+                          - pattern: $C->request($M, $URL, ...)
+                      # A receiver named for an HTTP client (Guzzle, Symfony HttpClient, curl wrappers),
+                      # or a Laravel `Http::` chain, short or in full.
+                      - metavariable-regex:
+                          metavariable: $C
+                          regex: (?s)^(\$(this->)?(?!\w*([cC]ache|[sS]tore|[sS]torage|[rR]edis|[mM]emcache|[sS]3|[aA]ws|[sS]ession|[cC]ontainer|[cC]onfig|[sS]ettings))(\w*[cC]lient|\w*[hH]ttp\w*|\w*[gG]uzzle\w*|\w*[cC]url\w*)|\\?(Illuminate\\Support\\Facades\\)?Http::.*)$
+                  - patterns:
+                      - pattern: $H::get($URL, ...)
+                      - metavariable-regex:
+                          metavariable: $H
+                          regex: ^\\?(Illuminate\\Support\\Facades\\)?Http$
+                  - patterns:
+                      - pattern-inside: |
+                          use Illuminate\Support\Facades\Http as $HA;
+                          ...
+                      - pattern-either:
+                          - pattern: $HA::get($URL, ...)
+                          - pattern: $HA::$W(...)->get($URL, ...)
+                  - pattern: wp_remote_get($URL, ...)
+          # A page fetched into a variable, then parsed. The fetch is read from the assigned value.
+          - patterns:
+              - pattern-inside: |
+                  $HTML = $SRC;
+                  ...
+              - pattern-either:
+                  - pattern: $D->loadHTML($HTML, ...)
+                  - pattern: $D->addHtmlContent($HTML, ...)
+                  - pattern: str_get_html($HTML, ...)
+                  - pattern: \Dom\HTMLDocument::createFromString($HTML, ...)
+                  - pattern: new \Symfony\Component\DomCrawler\Crawler($HTML, ...)
+                  - patterns:
+                      - pattern-inside: |
+                          use Symfony\Component\DomCrawler\Crawler;
+                          ...
+                      - pattern-not-inside: |
+                          use Symfony\Component\DomCrawler\Crawler as $AL;
+                          ...
+                      - pattern: new Crawler($HTML, ...)
+                  - patterns:
+                      - pattern-inside: |
+                          use Symfony\Component\DomCrawler\Crawler as $A;
+                          ...
+                      - pattern: new $A($HTML, ...)
+              # The address is read inside the assigned value, so the loopback check is made there too.
+              - metavariable-pattern:
+                  metavariable: $SRC
+                  patterns:
+                    - pattern-either:
+                        - patterns:
+                            - pattern: file_get_contents($URL, ...)
+                            - metavariable-regex:
+                                metavariable: $URL
+                                regex: (?is)^(?!.*(path|file|dir|template))(["']https?://|.*(url|uri(?![a-z])|link|href|site))
+                        - patterns:
+                            - pattern-either:
+                                - pattern: $C->get($URL, ...)
+                                - pattern: $C->request($M, $URL, ...)
+                            - metavariable-regex:
+                                metavariable: $C
+                                regex: (?s)^(\$(this->)?(?!\w*([cC]ache|[sS]tore|[sS]torage|[rR]edis|[mM]emcache|[sS]3|[aA]ws|[sS]ession|[cC]ontainer|[cC]onfig|[sS]ettings))(\w*[cC]lient|\w*[hH]ttp\w*|\w*[gG]uzzle\w*|\w*[cC]url\w*)|\\?(Illuminate\\Support\\Facades\\)?Http::.*)$
+                        - patterns:
+                            - pattern: $H::get($URL, ...)
+                            - metavariable-regex:
+                                metavariable: $H
+                                regex: ^\\?(Illuminate\\Support\\Facades\\)?Http$
+                        - pattern: wp_remote_get($URL, ...)
+                    - metavariable-regex:
+                        metavariable: $URL
+                        regex: (?s)^(?!["']https?://(localhost|127\.|0\.0\.0\.0|\[::1\]))(?!["']file:).*$
+          # Calls that fetch and parse in one step.
+          - patterns:
+              - pattern-either:
+                  - pattern: file_get_html($URL, ...)
+                  - pattern: $V::file_get_html($URL, ...)
+                  - pattern: $D->loadHTMLFile($URL, ...)
+                  - pattern: \Dom\HTMLDocument::createFromFile($URL, ...)
+              - metavariable-regex:
+                  metavariable: $URL
+                  regex: (?is)^(?!.*(path|file|dir|template))(["']https?://|.*(url|uri(?![a-z])|link|href|site))
+          # paquettg/php-html-parser, in a file that names its namespace, so a project class's own
+          # loadFromUrl (an image or config loader) is not taken for it.
+          - patterns:
+              - pattern-regex: '(?s)\A(?=.*\bPHPHtmlParser\\).*'
+              - pattern: $D->loadFromUrl($URL, ...)
+      - metavariable-regex:
+          metavariable: $URL
+          regex: (?s)^(?!["']https?://(localhost|127\.|0\.0\.0\.0|\[::1\]))(?!["']file:).*$
+    metadata:
+      activity: crawls_web
+      mentioned: performs
+      definition: https://lexlint.io/activities/crawls-web
+      provenance: ungovr-original
+      license: MIT
+      host_metavar: $URL

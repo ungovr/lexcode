@@ -1,0 +1,117 @@
+rules:
+  - id: lexcode.outreach.php-send-in-loop
+    languages: [php]
+    severity: INFO
+    message: Sends an email, text, call or notification once per recipient in a loop, which is sending automated outreach (automated_outreach).
+    # A loop over relays, hosts or retry attempts sends ONE message to ONE person; the iterable's name
+    # (or a for loop's condition) rules those out, as in the JS, Python, Go, Ruby and Java rules. The
+    # send set is shared with php-send-in-scheduled-job and php-send-in-background-job. Library classes
+    # are matched by their fully qualified name or under their import, so an app's own Mail or
+    # Notification class in another namespace (Filament's Notification toast among them) is not a send.
+    # The engine's `use X;` also matches `use X as Y;`, so each short-name branch steps aside where the
+    # class is aliased and the short name may be the app's own.
+    patterns:
+      - pattern-either:
+          - patterns:
+              - pattern-inside: |
+                  foreach ($L as $V) {
+                    ...
+                  }
+              - metavariable-regex:
+                  metavariable: $L
+                  regex: '(?is)^(?!.*(relay|host|server|retr|attempt|backoff|endpoint|smtp|fallback|provider|transport|mirror|failover|\bports?\b)).*$'
+          - patterns:
+              - pattern-inside: |
+                  for ($I; $COND; $STEP) {
+                    ...
+                  }
+              - metavariable-regex:
+                  metavariable: $COND
+                  regex: '(?is)^(?!.*(relay|host|server|retr|attempt|backoff|endpoint|smtp|fallback|provider|transport|mirror|failover|\bports?\b)).*$'
+          # A Laravel collection or lazy collection walked with a callback.
+          - patterns:
+              - pattern-inside: $L->each(...)
+              - metavariable-regex:
+                  metavariable: $L
+                  regex: '(?is)^(?!.*(relay|host|server|retr|attempt|backoff|endpoint|smtp|fallback|provider|transport|mirror|failover|\bports?\b)).*$'
+      - pattern-either:
+          # Laravel's Mail facade: to, cc, bcc, send, raw, html, plain, queue and later each send or queue a message.
+          - patterns:
+              - pattern-either:
+                  - pattern: \Illuminate\Support\Facades\Mail::$MM(...)
+                  - pattern: \Mail::$MM(...)
+                  - patterns:
+                      - pattern-inside: |
+                          use Illuminate\Support\Facades\Mail;
+                          ...
+                      - pattern-not-inside: |
+                          use Illuminate\Support\Facades\Mail as $AL;
+                          ...
+                      - pattern: Mail::$MM(...)
+                  - patterns:
+                      - pattern-inside: |
+                          use Illuminate\Support\Facades\Mail as $MA;
+                          ...
+                      - pattern: $MA::$MM(...)
+              - metavariable-regex:
+                  metavariable: $MM
+                  regex: ^(to|cc|bcc|send|sendNow|raw|html|plain|queue|later)$
+          # Laravel's Notification facade: send and sendNow deliver to the notifiables named, route to an address.
+          - patterns:
+              - pattern-either:
+                  - pattern: \Illuminate\Support\Facades\Notification::$NM(...)
+                  - pattern: \Notification::$NM(...)
+                  - patterns:
+                      - pattern-inside: |
+                          use Illuminate\Support\Facades\Notification;
+                          ...
+                      - pattern-not-inside: |
+                          use Illuminate\Support\Facades\Notification as $AL;
+                          ...
+                      - pattern: Notification::$NM(...)
+                  - patterns:
+                      - pattern-inside: |
+                          use Illuminate\Support\Facades\Notification as $NA;
+                          ...
+                      - pattern: $NA::$NM(...)
+              - metavariable-regex:
+                  metavariable: $NM
+                  regex: ^(send|sendNow|route)$
+          # A notifiable notified with a new notification (Laravel).
+          - pattern: $NB->notify(new $NC(...))
+          - pattern: $NB->notifyNow(new $NC(...))
+          # A mailer, notifier, texter or mail object's send: Symfony Mailer and Notifier, PHPMailer, SendGrid, Firebase.
+          - patterns:
+              - pattern: $MR->send(...)
+              - metavariable-regex:
+                  metavariable: $MR
+                  regex: '(?i)^(\$this->|\$)\w*(mail|smtp|notifier|texter|sendgrid|firebase|fcm)\w*$'
+          # PHP's own mail() and WordPress's wp_mail().
+          - pattern: mail(...)
+          - pattern: wp_mail(...)
+          # A call named for a send: sendEmail (Amazon SES, Postmark), sendTransacEmail (Brevo), an app's send_reminder_email.
+          - patterns:
+              - pattern-either:
+                  - pattern: $SX->$SN(...)
+                  - pattern: $SX::$SN(...)
+                  - pattern: $SN(...)
+              - metavariable-regex:
+                  metavariable: $SN
+                  regex: '(?i)^send\w*(email|mail|sms|textmessage|push|notification|reminder|digest|newsletter|alert)s?$'
+          # Twilio texts and calls, Vonage SMS, Amazon SNS to a phone number, Resend, Mailgun.
+          - pattern: "$TC->messages->create($TTO, [..., 'from' => $TF, ...])"
+          - pattern: "$TC->messages->create($TTO, [..., 'messagingServiceSid' => $TF, ...])"
+          - pattern: $TC->calls->create(...)
+          - pattern: $VC->sms()->send(...)
+          - pattern: "$SC->publish([..., 'PhoneNumber' => $SP, ...])"
+          - pattern: $RC->emails->send(...)
+          - pattern: $RC->emails()->send(...)
+          - pattern: $MG->messages()->send(...)
+      # Literal anchor inside the match: it lets the engine skip files with no send call.
+      - pattern-regex: '(?i)(::\s*(to|cc|bcc|send|sendNow|raw|html|plain|queue|later|route)\s*\(|->\s*notify(Now)?\s*\(|\bsend\w*\s*\(|\b(wp_)?mail\s*\(|->\s*(messages|calls)\s*->\s*create\s*\(|->\s*publish\s*\()'
+    metadata:
+      activity: automated_outreach
+      mentioned: performs
+      definition: https://lexlint.io/activities/automated-outreach
+      provenance: ungovr-original
+      license: MIT

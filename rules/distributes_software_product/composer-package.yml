@@ -1,0 +1,41 @@
+rules:
+  - id: lexcode.distribute.composer-package
+    languages: [json]
+    severity: INFO
+    message: Declares a Composer package of an installable type (a library, a Composer plugin, or a type an installer places into another app, such as a framework bundle or a CMS plugin), which is software made available for others to install (distributes_software_product).
+    patterns:
+      - pattern: |
+          {..., "name": $NAME, ..., "type": $TYPE, ...}
+      # A project is an application its adopter runs as their own, a starter or template
+      # included, and is not distributing a product.
+      - metavariable-regex:
+          metavariable: $TYPE
+          regex: '^"(?!project")[^"]+"$'
+      - focus-metavariable: $TYPE
+      # Only the top-level object: an inline package under "repositories" is a dependency.
+      - pattern-not-inside: |
+          $K: {...}
+      - pattern-not-inside: |
+          [...]
+    paths:
+      include:
+        - "composer.json"
+        - "composer-package.*"
+      # A WordPress site that commits the plugins and themes it runs holds them here (Bedrock's
+      # layout under web/app); they are installed, not shipped. The fixture runner reads only the
+      # files beside this rule, so no fixture can sit under these paths; the exclusion was checked
+      # by a scan of a wordpress-plugin manifest under wp-content/plugins and a wordpress-theme
+      # manifest under web/app/themes, which gave 0 matches on Opengrep 1.33.1.
+      exclude:
+        - "**/wp-content/plugins/**"
+        - "**/wp-content/mu-plugins/**"
+        - "**/wp-content/themes/**"
+        - "**/web/app/plugins/**"
+        - "**/web/app/mu-plugins/**"
+        - "**/web/app/themes/**"
+    metadata:
+      activity: distributes_software_product
+      mentioned: performs
+      definition: https://lexlint.io/activities/distributes-software-product
+      provenance: ungovr-original
+      license: MIT

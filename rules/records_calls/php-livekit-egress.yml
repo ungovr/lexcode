@@ -1,0 +1,18 @@
+rules:
+  - id: lexcode.calls.php-livekit-egress
+    languages: [php]
+    severity: INFO
+    message: Starts a LiveKit egress that records the people in a room or call, which is recording a call (records_calls).
+    # LiveKit's server SDK for PHP (agence104/livekit-server-sdk). Web egress records a web page,
+    # not the people in a room, and is left out.
+    pattern-either:
+      - pattern: $X->startRoomCompositeEgress(...)
+      - pattern: $X->startParticipantEgress(...)
+      - pattern: $X->startTrackCompositeEgress(...)
+      - pattern: $X->startTrackEgress(...)
+    metadata:
+      activity: records_calls
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-calls
+      provenance: ungovr-original
+      license: MIT
