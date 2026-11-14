@@ -278,10 +278,10 @@ that had not seen the C# rules, checked row by row by a second reader who had
 not seen them either, kept unchanged. The reading includes 10 activities from
 code, marks 12 as absent and leaves 4 unsure. Every figure below is from one
 run, `lexcode scan` and `lexcode check --declaration` with that build, unless it
-names another: lexcode read 6,413 files and 391 script copies drawn from Razor
-views, in 1 minute 20 seconds (scan) and 1 minute 49 seconds (check), 0.9 GB at
-most, on a shared machine (load average about 35). The check reports 0 FAIL and
-0 WARN.
+names another: lexcode read 6,413 files and 391 extracted copies (script blocks
+of Razor and HTML views, and the C# of `@code` blocks), in 1 minute 20 seconds
+(scan) and 1 minute 49 seconds (check), 0.9 GB at most, on a shared machine
+(load average about 35). The check reports 0 FAIL and 0 WARN.
 
 **Score: 6 of 10 found at evidence strength, 2 signal only, 2 missed, counting
 `generates_content` as found through its family; with no family credit, 5 found,
@@ -291,20 +291,21 @@ drew nothing, so none is found or missed.** Of the 6 found, 5 have evidence
 under the activity's own id: `processes_personal_data`, `automated_outreach`,
 `tracks_devices` and `distributes_software_product` on C# or MSBuild evidence,
 and `generates_text` on the DeepL package alone. The sixth, `generates_content`,
-has no evidence under its own id. It counts as found because the registry makes `generates_text` a
-child of `generates_content`, so the check and the truth-set script read them as
-one family, and the DeepL package is the only evidence for either. That package
-sits on the translation path, which the reading calls the weaker case for
-`generates_text` and does not cite for `generates_content` at all. Read plainly,
-the built-in AI service (OpenAI, Gemini or DeepSeek writing product descriptions)
-was not seen. The 2 misses are `deploys_chatbot`, where nopCommerce inserts an
-operator-pasted embed code for a chatbot that runs on the vendor's servers, and
-`ships_encryption`, which rests on .NET's own `System.Security.Cryptography`
-classes, ASP.NET Core Data Protection configuration and the GoogleAuthenticator
-package, none of which a C# rule or the NuGet component map names. The 2 signals
-are `ships_consumer_interface` and `operates_social_platform`, the two activities
-whose rules are signal class by design. Recall is printed, never gated. Paths
-below are relative to the repository root.
+has no evidence under its own id. It counts as found because the registry makes
+`generates_text` a child of `generates_content`, so the check and the truth-set
+script read them as one family, and the DeepL package is the only evidence for
+either. That package sits on the translation path, which the reading calls the
+weaker case for `generates_text` and does not cite for `generates_content` at
+all. Read plainly, the built-in AI service (OpenAI, Gemini or DeepSeek writing
+product descriptions) was not seen. The 2 misses are `deploys_chatbot`, where
+nopCommerce inserts an operator-pasted embed code for a chatbot that runs on the
+vendor's servers, and `ships_encryption`, which rests on .NET's own
+`System.Security.Cryptography` classes, ASP.NET Core Data Protection
+configuration and the GoogleAuthenticator package, none of which a C# rule or
+the NuGet component map names. The 2 signals are `ships_consumer_interface` and
+`operates_social_platform`, the two activities whose rules are signal class by
+design. Recall is printed, never gated. Paths below are relative to the
+repository root.
 
 | Activity | The reading | lexcode | Verdict |
 |---|---|---|---|
@@ -810,11 +811,11 @@ outside the repository is not read, and neither is the NuGet cache.
 
 A project file (`*.csproj`, `*.fsproj`, `*.vbproj`: the packages are NuGet
 whatever the project's language) holds `<PackageReference Include="...">`
-dependencies; `Update` and `Remove` forms are not new ones. `Directory.Build.props`
-and `.targets` hold references for every project below them, recorded once, at
-that file. `Directory.Packages.props` gives versions only, and a legacy
-`packages.config` lists `<package>` entries. A row's manifest line is the line of
-its element.
+dependencies; `Update` and `Remove` forms are not new ones.
+`Directory.Build.props` and `.targets` hold references for every project below
+them, recorded once, at that file. `Directory.Packages.props` gives versions
+only, and a legacy `packages.config` lists `<package>` entries. A row's manifest
+line is the line of its element.
 
 Skipped and counted as development: a reference whose `PrivateAssets` is `all`;
 every reference of a test project (`<IsTestProject>true</IsTestProject>`, a
@@ -828,25 +829,27 @@ references are judged one by one: development only when the reference or its
 A version comes from the first of these that is present: the
 `packages.lock.json` beside the project file (the `type: "Direct"` entry of that
 Id, passed over when it is not a plain version); the reference's own
-`VersionOverride` or `Version`; the `<PackageVersion>` of the nearest
-`Directory.Packages.props` at or above the project; the `version` of a
-`packages.config` entry. Only a plain NuGet version (`1.2.3`, `1.2.3-beta.1`)
-counts: a floating version (`*`), a range, or an MSBuild property lexcode cannot
-resolve gives the row no version, and the search stops at the source that held
-it. `$(Name)` resolves one level, from a `<PropertyGroup>` of the same file, else
-of the nearest `Directory.Build.props`, else of the nearest
-`Directory.Packages.props`. Rows with no version get one notice for all of them:
-`N NuGet dependencies have no resolved version (no packages.lock.json, a
-floating or range version, or an MSBuild property lexcode could not resolve);
-recorded without a version`. A file that does not parse gets a notice naming it.
+`VersionOverride` or `Version` (for a `packages.config` entry, its `version`);
+the `<PackageVersion>` of the nearest `Directory.Packages.props` at or above the
+project. Only a plain NuGet version (`1.2.3`, `1.2.3-beta.1`) counts: a floating
+version (`*`), a range, or an MSBuild property lexcode cannot resolve gives the
+row no version, and the search stops at the source that held it. `$(Name)`
+resolves one level, from a `<PropertyGroup>` of the same file, else of the
+nearest `Directory.Build.props`, else of the nearest `Directory.Packages.props`.
+Rows with no version get one notice for all of them: `N NuGet dependencies have
+no resolved version (no packages.lock.json, a floating or range version, or an
+MSBuild property lexcode could not resolve); recorded without a version`. A file
+that does not parse gets a notice naming it.
 
 Known NuGet gaps: a test host with no test marker (an Aspire functional-test
 project) is not a test project, so under `--include-tests` its references count;
 in a Directory.Build `Condition`, `IsTestProject` is recognized only in a quoted
-comparison (in a project it is the property `<IsTestProject>true</IsTestProject>`);
-`Include="Foo;Bar"` is read as one Id; a package referenced twice in one file is
-read once, from its first reference; and a reference's own floating `Version`
-does not fall through to `Directory.Packages.props`.
+comparison (in a project it is the property
+`<IsTestProject>true</IsTestProject>`); `Include="Foo;Bar"` is read as one Id; a
+package referenced twice in one file is read once, from its first reference; and
+a reference's own floating `Version` does not fall through to
+`Directory.Packages.props`, and a `$(Name)` in a central version resolves from
+the props file's location, not the project's.
 
 ### C# files
 
@@ -871,10 +874,11 @@ original text. Inside a block the Razor syntax is blanked so the JavaScript
 around it still parses and line numbers hold. Comments, `@{ }` code blocks and
 control blocks (`@if`, `@foreach`, `@using` and the rest, header and braces
 included) become spaces, except the content of `<text>` elements and `@:` lines
-in them, which stays as script. An expression, `@( ... )` or an implicit one such
-as `@Model.Name` or `@await Foo()`, becomes `_` padded to its length. An `@`
-after a letter or digit is an email address and is left alone, and brackets are
-matched with C# strings in mind, so a `)` inside a string does not end one.
+inside a control block, which stays as script (inside `@{ }` they are blanked
+too). An expression, `@( ... )` or an implicit one such as `@Model.Name` or
+`@await Foo()`, becomes `_` padded to its length. An `@` after a letter or digit
+is an email address and is left alone, and brackets are matched with C# strings
+in mind, so a `)` inside a string does not end one.
 
 A Razor file with at least one `@code { ... }` or `@functions { ... }` block
 also gets a C# copy, `<path>.lexcode.cs`, whose findings are reported against
@@ -913,11 +917,11 @@ Known Razor gaps:
 ### The C# gate
 
 The release test requires every evidence-class activity to have a rule whose
-`languages` include `csharp`. One exemption stands: `distributes_software_product`,
-whose evidence lives in project files, is met by an `msbuild-` rule, as Java's is
-met by a build-file rule. Those rules read project and `.nuspec` text as
-`generic` files. Any other exemption must be argued and ruled before it is
-added.
+`languages` include `csharp`. One exemption stands:
+`distributes_software_product`, whose evidence lives in project files, is met by
+an `msbuild-` rule, as Java's is met by a build-file rule. Those rules read
+project and `.nuspec` text as `generic` files. Any other exemption must be
+argued and ruled before it is added.
 
 ### What the C# rules decide
 
@@ -954,11 +958,10 @@ The engine sets most of these limits, and the rules' comments point here.
 - Generation: a reply stored by member access in a Blazor component
   (`_answer = r.Text`), an anonymous-object response (`Ok(new { reply })`) and a
   hosted model's address in a plain `HttpClient` helper are not read, nor are
-  Bedrock `ModelId` as a non-literal, Vertex `PredictAsync` and a Vertex client
-  from `builder.Build()`.
+  Bedrock `ModelId` as a statement or non-literal, Vertex `PredictAsync` and
+  `PredictLongRunning`, or a Vertex client from `builder.Build()`.
 - Text chat: a history held in memory and sent to a model vendor is not
-  `records_text_chat`, because the rules read a store; a chat-named state
-  container ending in `Store` or `Dao` (a Blazor `ChatStore`) can match as one.
+  `records_text_chat`, because the rules read a store.
 - Voice and calls: no rule reads Android call audio, LiveKit egress,
   BigBlueButton, WebRTC audio taps or AWS Transcribe streaming.
 - Crawling: the `HtmlWeb` and AngleSharp arms do not judge an interpolated
@@ -968,15 +971,16 @@ The engine sets most of these limits, and the rules' comments point here.
   `Execute` that stores an IP are missed.
 - Identity and signatures: a signature pad declared in XAML and Adobe Acrobat
   Sign are not read, and the selfie rule reads a class's members as text, so a
-  field set in an initializer is missed and a method's use of an ID-document
-  word is admitted.
+  field set in an initializer is missed, a method's use of an ID-document word
+  is admitted, and a nested class can blur two classes' members.
 - Shipping: a .NET for iOS app with neither MAUI nor Xamarin.Forms is not read as
   `ships_mobile_app` (its `AppDelegate` is shared with tvOS and Mac Catalyst, and
   its template `Info.plist` has no `CFBundleIdentifier`). A fine-tuning client in
   a `var` local and a launcher activity declared as a partial class with no base
-  list are missed. A project that sets `PackageLicenseUrl` for its license
-  metadata only, or an app's own attribute named `Activity` with a
-  `MainLauncher` property, matches.
+  list are missed. A project that sets `PackageLicenseUrl`,
+  `PackageLicenseExpression` or `PackageLicenseFile` for its license metadata
+  only, or an app's own attribute named `Activity` with a `MainLauncher`
+  property, matches.
 - Signals: the MVC sign-up arm needs a literal `return View(...)` or
   `=> View(...)`, and no rule reads an `@page` or `.cshtml` route, so a
   storefront of Razor components with no sign-up screen shows no

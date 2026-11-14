@@ -358,15 +358,16 @@ Measured on Opengrep 1.33.1:
 - The engine does not see the SDK's implicit usings, or a `global using` in
   another file: `new System.Net.Http.HttpClient(...)` misses `new HttpClient()`
   in a file with no `using System.Net.Http;`. A type from a namespace the .NET
-  SDK imports implicitly (`System`, `System.IO`, `System.Linq`, `System.Net.Http`,
-  `System.Threading`, `System.Threading.Tasks`, `System.Collections.Generic`; the
-  Web SDK adds `Microsoft.AspNetCore.Http` and the other ASP.NET Core and
-  `Microsoft.Extensions` namespaces; MAUI adds the `Microsoft.Maui` namespaces)
-  is matched by a `pattern-either` of its fully qualified and short forms, and a
-  short form of a generic name pins its method names. A third-party type may add a short form
-  only when the short name carries the vendor's or product's own name
-  (`AmazonRekognitionClient`, `TwilioClient`, `SendGridClient`); otherwise the
-  global-using gap stands and is recorded in `rules/README.md`.
+  SDK imports implicitly (`System`, `System.IO`, `System.Linq`,
+  `System.Net.Http`, `System.Threading`, `System.Threading.Tasks`,
+  `System.Collections.Generic`; the Web SDK adds `Microsoft.AspNetCore.Http` and
+  the other ASP.NET Core and `Microsoft.Extensions` namespaces; MAUI adds the
+  `Microsoft.Maui` namespaces) is matched by a `pattern-either` of its fully
+  qualified and short forms, and a short form of a generic name pins its method
+  names. A third-party type may add a short form only when the short name
+  carries the vendor's or product's own name (`AmazonRekognitionClient`,
+  `TwilioClient`, `SendGridClient`); otherwise the global-using gap stands and
+  is recorded in `rules/README.md`.
 - A typed metavariable follows a field, a constructor parameter, a
   primary-constructor parameter, a lambda parameter and a local built with `new`
   (`var c = new T();`, `T c = new();`). It does not follow a value returned by a
@@ -382,8 +383,8 @@ Measured on Opengrep 1.33.1:
   target-typed `new()`; `new T(...)` alone misses that too). A rule keyed on a
   constructed request or options type needs a fixture with an initializer.
 - A positional `$M` does not match a named argument: `new ChatClient($M, ...)`
-  misses `new ChatClient(model: "gpt-4o", ...)`, which `new ChatClient(model: $M, ...)`
-  matches. Carry both forms.
+  misses `new ChatClient(model: "gpt-4o", ...)`, which `new ChatClient(model:
+  $M, ...)` matches. Carry both forms.
 - A generic type resolves through a `using` or the full name only when the
   pattern omits its type arguments (`(Ns.IPasswordHasher $H)`,
   `class $K : Ns.Hub { ... }`); written with arguments (`Ns.Hub<$T>`) it matches
