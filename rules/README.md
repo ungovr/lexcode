@@ -279,7 +279,7 @@ not seen them either, kept unchanged. The reading includes 10 activities from
 code, marks 12 as absent and leaves 4 unsure. Every figure below is from one
 run, `lexcode scan` and `lexcode check --declaration` with that build, unless it
 names another: lexcode read 6,413 files and 391 extracted copies (script blocks
-of Razor and HTML views, and the C# of `@code` blocks), in 1 minute 20 seconds
+of Razor views, and the C# of `@functions` blocks), in 1 minute 20 seconds
 (scan) and 1 minute 49 seconds (check), 0.9 GB at most, on a shared machine
 (load average about 35). The check reports 0 FAIL and 0 WARN.
 
