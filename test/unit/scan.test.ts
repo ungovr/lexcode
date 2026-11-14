@@ -4,6 +4,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { scan } from '../../src/commands/scan.js';
+import { toSarif } from '../../src/record/sarif.js';
 import { loadRuleSet } from '../../src/rules/load.js';
 import type { RuleSet } from '../../src/types.js';
 import { makeRuleSet } from '../helpers/ruleset.js';
@@ -324,6 +325,39 @@ describe('scan with a stand-in engine', () => {
       const big = await scan({ root: tree({ 'gen/big.py': pythonOf(1_100_000), 'big/setup.py': pythonOf(1_100_000) }), rulesDirs: [], rs, enginePath: STUB, includeTests: false, snippets: false });
       expect(big.notices.some((n) => reach.test(n))).toBe(true);
     });
+  });
+
+  it('writes the same record and SARIF with one engine lane as with several (#12997)', async () => {
+    const root = tree({ 'src/a.py': 'x = 1\n', 'src/b.py': 'x = 2\n', 'lib/c.py': 'x = 3\n', 'lib/d.ts': 'const d = 4;\n', 'web/App.vue': VUE, 'README.md': '# hi\n' });
+    const res = (path: string, line: number, col: number, lines: string): unknown => ({
+      check_id: 'lexcode.test.rule',
+      path,
+      start: { line, col },
+      end: { line, col: col + 8 },
+      extra: { metavars: {}, lines },
+    });
+    // Two matches of one rule on one line, the later column written first: the record keeps one, with
+    // the first column's snippet. The extracted Vue block gets the stub's default result.
+    process.env.FAKE_OPENGREP_RESULTS_BY_TARGET = JSON.stringify({
+      'scan-root/src/a.py': [res('scan-root/src/a.py', 3, 9, 'second() first()'), res('scan-root/src/a.py', 3, 1, 'first() second()'), res('scan-root/src/a.py', 1, 1, 'top()')],
+      'scan-root/lib/c.py': [res('scan-root/lib/c.py', 2, 1, 'c()')],
+    });
+    const rs = stubRuleSet();
+    const now = new Date('2026-11-13T12:00:00Z');
+    try {
+      const at = (engineLanes: number) => scan({ root, rulesDirs: [], rs, enginePath: STUB, includeTests: false, snippets: true, now, engineLanes });
+      const one = await at(1);
+      const three = await at(3);
+      const runs = readFileSync(argvLog, 'utf8').trim().split('\n');
+      expect(runs).toHaveLength(1 + 3);
+      expect(JSON.stringify(three)).toBe(JSON.stringify(one));
+      expect(JSON.stringify(toSarif(three, rs, { snippets: true }))).toBe(JSON.stringify(toSarif(one, rs, { snippets: true })));
+      const evidence = one.activities.flatMap((a) => a.evidence);
+      expect(evidence.map((e) => e.where)).toEqual(['lib/c.py:2', 'lib/d.ts:3', 'src/a.py:1', 'src/a.py:3', 'src/b.py:3', 'web/App.vue:3']);
+      expect(evidence.find((e) => e.where === 'src/a.py:3')?.snippet).toBe('first() second()');
+    } finally {
+      delete process.env.FAKE_OPENGREP_RESULTS_BY_TARGET;
+    }
   });
 
   it('does not count a PHP rule as run over a Pascal .inc, and says nothing was looked at', async () => {

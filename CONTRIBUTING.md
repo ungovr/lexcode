@@ -186,6 +186,21 @@ A rule's languages reach only the extensions `LANGUAGE_EXTENSIONS` in
 reads for it, measured on explicit targets (a `javascript` rule also reads
 `.ts`); a rule naming a language lexcode does not map reads every file.
 
+A large scan runs the engine as several processes at once, called lanes
+(`runEngine` in `src/engine/run.ts`, #12997). One engine process does not keep
+many cores busy, since its workers are threads of one process that wait on each
+other: on the UnGovr monorepo one process with `--jobs 16` used about 6 of 24
+cores. A scan gets one lane per 4 MB of targets (`LANE_BYTES`), at most 8
+(`MAX_LANES`), at most the cores available and at most one per 3 GB of memory
+(`LANE_MEMORY_BYTES`, the machine's or the process's own limit, whichever is
+lower), and the lanes share up to 16 jobs. `LEXCODE_ENGINE_LANES` overrides the
+count. The targets are sorted biggest first and dealt round-robin, so the
+largest files land in different lanes. Each extra process costs about 3.5
+CPU-seconds to start, parse the rules and take its targets, so a small
+repository stays one process, and memory, since each lane holds its own copy of
+the rules and its own heap: on canvas-lms about 0.65 GB a lane. The matches are
+sorted into one order, so the record does not depend on the number of lanes.
+
 A PHP taint rule keeps its pre-filter only when each source has a whole-file
 `pattern-regex` anchor and the rule has about six sources or fewer; beyond that
 the engine parses every file, so split a rule that grows past it. Two free
@@ -199,6 +214,45 @@ written with a leading backslash `\\NAME\b(?<![\w\\]\\NAME)`. A lookbehind writt
 before the name (`(?<![\w\\])\\?NAME`) costs steps at every position and lost the
 only match at the top of a file over about 600 KB. After the name it is tried
 only where the name matched.
+
+A rule's cost inside one file matters as well: a scan gives each rule 30 s per
+file (`--timeout 30`), and a file the rule does not finish is a file error with
+its matches lost. In a `patterns` block the engine pairs the matches of the
+positive terms (`pattern`, `pattern-inside`, `pattern-either`) before it applies
+a name check (`metavariable-regex` and the other `metavariable-` conditions) at
+the same level. A field pattern (`$T $F;`) beside a class `pattern-inside`, with
+the checks after both, paired every field of a file with every class, so the JVM
+social rules took 10 to 33 s on a 900 KB file and one passed 30 s on a CI runner
+(#13009). Put each check in a nested `patterns` block with the term that binds
+its metavariable, so each term keeps only the matches that pass before the
+pairing:
+
+```yaml
+- patterns:
+    - pattern-either:
+        - pattern: $T $F;
+        - pattern: $T $F = $V;
+    - metavariable-regex:
+        metavariable: $F
+        regex: '^(recipient|receiver)$'
+- patterns:
+    - pattern-inside: |
+        class $C { ... $T2 $G; ... }
+    - metavariable-regex:
+        metavariable: $G
+        regex: '^(sender|author)$'
+- pattern-not-inside: |
+    $RET $M(...) { ... }
+```
+
+The nested form matches the same ranges and took those rules to about 3 s. A
+check on a metavariable that two terms bind stays at the joined level. Before a
+release, `node scripts/rule-cost.mjs` times each rule with a positive fixture in
+Java, Kotlin, PHP, Ruby, Python, JavaScript, TypeScript or Go on that fixture
+followed by filler, at 90 KB and 900 KB, beside a bare rule that only parses the
+same filler. It names a rule whose time grows more than twice as fast as the bare
+rule's for the 10x file, or that takes more than five times the bare rule's time
+on 900 KB, and every rule the engine failed on.
 
 ### Kotlin pattern notes
 

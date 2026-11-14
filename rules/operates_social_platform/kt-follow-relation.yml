@@ -1,5 +1,9 @@
 # The regular expressions in this file repeat across its arms (each arm names the same properties,
 # classes or paths again). Edit every copy together, or an arm drifts from the others.
+# Each name check sits in the block that binds its name (CONTRIBUTING.md, Cost): the engine joins the
+# terms of one level before it checks names there, and every property joined with every class costs
+# time quadratic in the file: 10 to 34 s on a 900 KB file, where a scan gives one rule 30 s per file,
+# so a slower machine lost the file's matches (#13009).
 rules:
   - id: lexcode.social.kt-follow-relation
     languages: [kotlin]
@@ -27,48 +31,50 @@ rules:
                     metavariable: $F
                     regex: '^(followed|followee|following)(User|Account|Member|Profile)?(Id)?$'
             - patterns:
-                - pattern-either:
-                    - pattern: 'val $G: $T'
-                    - pattern: 'var $G: $T'
-                    - pattern: 'val $G: $T = $V'
-                    - pattern: 'var $G: $T = $V'
-                - pattern-either:
-                    - pattern-inside: |
-                        class $C(...) {
-                          ...
-                          val $F: $T2
-                          ...
-                        }
-                    - pattern-inside: |
-                        class $C(...) {
-                          ...
-                          var $F: $T2
-                          ...
-                        }
-                    - pattern-inside: |
-                        class $C(...) {
-                          ...
-                          val $F: $T2 = $W
-                          ...
-                        }
-                    - pattern-inside: |
-                        class $C(...) {
-                          ...
-                          var $F: $T2 = $W
-                          ...
-                        }
+                - patterns:
+                    - pattern-either:
+                        - pattern: 'val $G: $T'
+                        - pattern: 'var $G: $T'
+                        - pattern: 'val $G: $T = $V'
+                        - pattern: 'var $G: $T = $V'
+                    - metavariable-regex:
+                        metavariable: $G
+                        regex: '^follower(User|Account|Member|Profile)?(Id)?$'
+                - patterns:
+                    - pattern-either:
+                        - pattern-inside: |
+                            class $C(...) {
+                              ...
+                              val $F: $T2
+                              ...
+                            }
+                        - pattern-inside: |
+                            class $C(...) {
+                              ...
+                              var $F: $T2
+                              ...
+                            }
+                        - pattern-inside: |
+                            class $C(...) {
+                              ...
+                              val $F: $T2 = $W
+                              ...
+                            }
+                        - pattern-inside: |
+                            class $C(...) {
+                              ...
+                              var $F: $T2 = $W
+                              ...
+                            }
+                    - metavariable-regex:
+                        metavariable: $F
+                        regex: '^(followed|followee|following)(User|Account|Member|Profile)?(Id)?$'
                 - pattern-not-inside: |
                     fun $FN(...) {
                       ...
                     }
                 - pattern-not-inside: |
                     fun $FN(...) = $FE
-                - metavariable-regex:
-                    metavariable: $G
-                    regex: '^follower(User|Account|Member|Profile)?(Id)?$'
-                - metavariable-regex:
-                    metavariable: $F
-                    regex: '^(followed|followee|following)(User|Account|Member|Profile)?(Id)?$'
             - patterns:
                 - pattern-either:
                     - pattern: 'class $C(...)'

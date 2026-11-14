@@ -1554,35 +1554,33 @@ describe('Razor views and components', () => {
       }
     });
 
-    it('razorCSharp and blankRazorTags read a 100,000-character worst-case line well inside a second', () => {
-      // FIX_BASE took 6 s on a using line of 4,000 spaces then `(` (cubic), so a cubic or quadratic pattern
-      // cannot finish these in time. Linear code reads each in a few milliseconds.
-      const n = 100_000;
-      const shapes: [string, string][] = [
-        ['@using, spaces then (', `@using x${' '.repeat(n)}(\n@code { }\n`],
-        ['@using, tabs then ;!', `@using x${' \t'.repeat(n / 2)};!\n@code { }\n`],
-        ['@inject, spaces then !', `@inject I X\n@inject a b${' '.repeat(n)}!\n@code { }\n`],
-        ['@inject, many words then !', `@inject I X\n@inject${' a'.repeat(n / 2)}!\n@code { }\n`],
-        ['@code, spaces then no brace', `@code${' '.repeat(n)}x\n@code { }\n`],
-        ['leading directive, spaces', `@page${' '.repeat(n)}\n@code { }\n`],
-        ['a run of $ in a code block', `@code { ${'$'.repeat(n)} }\n`],
-        ['a run of $@ in a code block', `@code { ${'$@'.repeat(n / 2)} }\n`],
-        ['markup comments that open', `${'<!--'.repeat(n / 4)}\n@code { }\n`],
-      ];
-      for (const [name, text] of shapes) {
-        const start = performance.now();
-        expect(razorCSharp(text), name).not.toBeNull();
-        expect(performance.now() - start, `razorCSharp over ${name}`).toBeLessThan(1_000);
-      }
-      for (const [name, body] of [
-        ['a run of $ in a code block', `@{ ${'$'.repeat(n)} }`],
-        ['a run of $ in an expression', `@( ${'$'.repeat(n)} )`],
-        ['await then spaces', `@await${' '.repeat(n)}!`],
-        ['else then spaces', `@if (a) { } else${' '.repeat(n)}!`],
+    it('razorCSharp grows near-linearly over each worst-case line shape no other ratio test covers', () => {
+      // FIX_BASE took 6 s on a using line of 4,000 spaces then `(` (cubic). Each shape is a long run that ends in
+      // a character the pattern rejects; a quadratic or cubic scan shows as 100x or 1,000x the time for 10x the
+      // input; the sizes are small, as above, so a cubic regression fails in seconds. (The @using and @inject
+      // space runs are timed above, and a run of $ below.)
+      for (const [name, text] of [
+        ['@inject, many words then !', (n: number) => `@inject I X\n@inject${' a'.repeat(n / 2)}!\n@code { }\n`],
+        ['@code, spaces then no brace', (n: number) => `@code${' '.repeat(n)}x\n@code { }\n`],
+        ['a leading directive, spaces', (n: number) => `@page${' '.repeat(n)}\n@code { }\n`],
+        ['a run of $@ in a code block', (n: number) => `@code { ${'$@'.repeat(n / 2)} }\n`],
+        ['markup comments that open', (n: number) => `${'<!--'.repeat(n / 4)}\n@code { }\n`],
       ] as const) {
-        const start = performance.now();
-        expect(blankRazorTags(body)).toHaveLength(body.length);
-        expect(performance.now() - start, `blankRazorTags over ${name}`).toBeLessThan(1_000);
+        const m = measureScaling({ small: 500, large: 5_000, setup: text, run: (t) => razorCSharp(t) });
+        expect(m.result, name).not.toBeNull();
+        expectNearLinear(m, `razorCSharp over ${name}`);
+      }
+    });
+
+    it('blankRazorTags grows near-linearly over each worst-case shape no other ratio test covers', () => {
+      for (const [name, body] of [
+        ['a run of $ in an expression', (n: number) => `@( ${'$'.repeat(n)} )`],
+        ['await then spaces', (n: number) => `@await${' '.repeat(n)}!`],
+        ['else then spaces', (n: number) => `@if (a) { } else${' '.repeat(n)}!`],
+      ] as const) {
+        const m = measureScaling({ small: 500, large: 5_000, setup: body, run: (t) => blankRazorTags(t) });
+        expect(m.result, name).toHaveLength(body(5_000).length);
+        expectNearLinear(m, `blankRazorTags over ${name}`);
       }
     });
 

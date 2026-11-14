@@ -45,6 +45,8 @@ export interface ScanOptions {
   /** Repository-relative POSIX paths never read (the record and SARIF files lexcode itself wrote). */
   skipFiles?: string[];
   now?: Date;
+  /** Override the number of engine lanes (tests); otherwise the engine's own rule from the targets' bytes. */
+  engineLanes?: number;
 }
 
 /** A file's size in bytes, or 0 when it cannot be read. */
@@ -193,12 +195,18 @@ export async function scan(o: ScanOptions): Promise<EvidenceRecord> {
       const configFile = join(tmp, 'rules.yml');
       const { targets } = plan;
       // A whole-file pre-filter can stop matching in a file over about 1 MB; the engine records nothing, so say so.
-      const bytesOf = (f: string): number => fileBytes(isAbsolute(f) ? f : join(root, ...f.split('/')));
+      // Read once per file: the reach notice, the engine's lane count and its deal all ask.
+      const sizes = new Map<string, number>();
+      const bytesOf = (f: string): number => {
+        let n = sizes.get(f);
+        if (n === undefined) sizes.set(f, (n = fileBytes(isAbsolute(f) ? f : join(root, ...f.split('/')))));
+        return n;
+      };
       const reach = prefilterReachNotice(largePrefilteredFiles(plan.rules, targets, bytesOf));
       if (reach !== undefined) notices.push(reach);
       if (targets.length > 0) {
         writeMergedConfig(plan.rules, configFile);
-        const ran = await runEngine({ engine: handle.path, configFile, targets, root });
+        const ran = await runEngine({ engine: handle.path, configFile, targets, root, bytesOf, ...(o.engineLanes !== undefined ? { lanes: o.engineLanes } : {}) });
         engineVersion = ran.version;
         fileErrors = ran.fileErrors;
         const back = pathMapper(pairs);

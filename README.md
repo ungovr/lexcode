@@ -51,7 +51,9 @@ directory), and applies the simple patterns of the root `.gitignore`: a
 name, `dir/`, a glob such as `*.ext`, and a leading `/`. Negations (`!pattern`)
 are not supported, and neither is a `.gitignore` below the root; the scan says
 so in a notice. Never
-`node_modules`, `vendor`, `dist`, `build` or `.git`, never minified or bundled
+`node_modules`, `vendor`, `dist`, `build` or `.git`, never a legacy NuGet
+restore folder (a `packages` directory whose subdirectories hold a `.nupkg`;
+a `packages/` of your own code is read), never minified or bundled
 files (including any named `*.min.js`, `*.bundle.js`, `vendor.*.js` or
 `*.vendor.js`), never C# the compiler generated (`*.g.cs` and `*.g.i.cs`;
 a `*.Designer.cs` is read), never a file with a line over 100,000 characters (generated
@@ -71,14 +73,17 @@ Languages: TypeScript, JavaScript (with JSX and TSX), Python, Go, Ruby
 (`.rb`, `.rake`, `.ru` and `.gemspec` files, and a `Rakefile`, `Fastfile`,
 `Appfile` or `Capfile`), Java (`.java`), Kotlin (`.kt`, `.kts`) and PHP (`.php`,
 `.phtml`, and `.inc`, `.module`, `.theme` and `.install` files that open with
-`<?php`), plus the `<script>` blocks of Vue, Svelte, HTML, Jinja, ERB (`.erb`,
-so `.html.erb`), JSP (`.jsp`, `.jspf`, `.tag`), PHP (`.php`, `.phtml`), Blade
-(`.blade.php`) and Twig (`.twig`, so `.html.twig`) files. In an ERB, JSP or Twig
-view only the `<script>` blocks are read, as JavaScript; the Ruby, Java or
-template code inside the tags is not (the tags are blanked, so line numbers
-hold). A PHP, Blade or `.phtml` view is PHP source, so the whole file is also
-scanned as PHP, and its `<script>` blocks are read as JavaScript as well. Code in any other language (Swift, C#, Rust and the like) is not
-read, and the scan names each such language with its file count in a notice, so
+`<?php`) and C# (`.cs`; `.csx` and `.cake` scripts are not read), plus the
+`<script>` blocks of Vue, Svelte, HTML, Jinja, ERB (`.erb`, so `.html.erb`),
+JSP (`.jsp`, `.jspf`, `.tag`), PHP (`.php`, `.phtml`), Blade (`.blade.php`),
+Twig (`.twig`, so `.html.twig`) and Razor (`.cshtml`, `.razor`) files. In an
+ERB, JSP, Twig or Razor view only the `<script>` blocks are read, as
+JavaScript; the Ruby, Java, C# or template code inside the tags is not (the
+tags are blanked, so line numbers hold), except that a Razor file's `@code`
+and `@functions` blocks are also read as C#. A PHP, Blade or `.phtml` view is
+PHP source, so the whole file is also scanned as PHP, and its `<script>`
+blocks are read as JavaScript as well. Code in any other language (Swift, F#,
+Visual Basic, Rust and the like) is not read, and the scan names each such language with its file count in a notice, so
 a missing activity there reads as "not checked", never as "not there".
 Manifests: npm
 (`package.json` with `package-lock.json`, `pnpm-lock.yaml` or `yarn.lock`),
@@ -87,9 +92,12 @@ PyPI (`pyproject.toml`, `requirements*.txt`, `uv.lock`, `poetry.lock`), Go
 `gems.locked`, and `*.gemspec`), Maven (`pom.xml`, and Gradle's `build.gradle`
 and `build.gradle.kts` with their version catalogs, `gradle/*.versions.toml`,
 and the constants and `findLibrary` lookups in `buildSrc` and `build-logic`) and
-Composer (`composer.json`, with the `composer.lock` beside it).
-How Ruby, gems, Java, Kotlin, Maven, Gradle, PHP and Composer are read, in
-detail, is in [rules/README.md](rules/README.md).
+Composer (`composer.json`, with the `composer.lock` beside it) and NuGet
+(`*.csproj`, `*.fsproj`, `*.vbproj`, `Directory.Build.props`,
+`Directory.Build.targets`, `Directory.Packages.props` and `packages.config`,
+with the `packages.lock.json` beside a project).
+How Ruby, gems, Java, Kotlin, Maven, Gradle, PHP, Composer, C#, Razor and
+NuGet are read, in detail, is in [rules/README.md](rules/README.md).
 
 ## What it writes
 
@@ -236,6 +244,12 @@ or everyone can write to, since it runs a program from there.
 `LEXCODE_ENGINE_DEADLINE=<seconds>` changes how long a whole engine run may
 take (900, 15 minutes, by default); past it the engine is stopped and the scan
 fails with exit 2.
+
+A large scan runs the engine as several processes at once, one per 4 MB of
+files it reads, at most 8, and no more than the cores and one per 3 GB of
+memory allow. Each process holds its own copy of the rules, so memory rises
+with them. `LEXCODE_ENGINE_LANES=<n>` sets the number; `1` runs the engine as
+one process, for a machine that runs short of memory.
 
 `LEXCODE_RULES_HOME=<dir>` replaces the bundled `rules/` directory (it needs `ruleset.yml`, `classes.yml`, `registry.snapshot.json` and `components/`), for a vendored rule set or a test.
 
