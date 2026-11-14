@@ -3,7 +3,8 @@
 // chat history, a view model's ChatMessages, a state object's ChatHistory, a session object, a context object for the
 // prompt, a prompt list with a user role, a chat context object's Messages and ChatMessages with a user role), a
 // contact form and a support ticket saved, a chat room created with no text in it, a chat room repository, account
-// records with a user or admin role, and a Dapper insert into a contact table.
+// records with a user or admin role, a Dapper insert into a contact table, and an in-memory ChatStore's
+// ChatMessages list.
 using Dapper;
 using Microsoft.Extensions.AI;
 
@@ -55,5 +56,23 @@ public class SupportService(AppDb db, ChatRoomRepository chatRoomRepository, Sys
         await chatRoomRepository.AddAsync(new ChatRoom { Name = form.Subject });
         await connection.ExecuteAsync("INSERT INTO contact_requests (email, body) VALUES (@Email, @Body)", form);
         await db.SaveChangesAsync();
+    }
+}
+
+// A Blazor app's in-memory chat store: a class named for a store whose ChatMessages is a plain list, added to
+// synchronously through a field and through a constructor parameter.
+public class ChatStore
+{
+    public List<string> ChatMessages { get; } = [];
+}
+
+public class ChatPanel(ChatStore chatStore)
+{
+    private readonly ChatStore _store = chatStore;
+
+    public void Post(string text)
+    {
+        _store.ChatMessages.Add(text);
+        chatStore.ChatMessages.Add(text);
     }
 }

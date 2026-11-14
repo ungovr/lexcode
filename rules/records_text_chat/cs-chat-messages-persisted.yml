@@ -12,14 +12,17 @@ rules:
     #
     # Turns kept in memory for a session are not kept (the definition: an assistant that keeps no
     # transcript is deploys_chatbot alone): Microsoft.Extensions.AI's own ChatMessage added to a message
-    # list, a view model's ChatMessages collection, a state object's ChatHistory, a session object. So a
-    # chat-named set counts on a receiver named for a store (`db.ChatMessages.Add`) or with EF Core's
-    # asynchronous add, never on `this` or a state object with List's Add or AddRange; the entity branch
+    # list, a view model's ChatMessages collection, a state object's ChatHistory, a session object, an
+    # in-memory ChatStore's list. So a chat-named set counts on a receiver named for a data context
+    # (`db.ChatMessages.Add`, `_dbContext`, `uow`) or with EF Core's asynchronous add, never on `this`, a
+    # state object, or a repository, store, DAO or database object with List's Add or AddRange. The
+    # asynchronous add counts on any receiver, so a type of the app's own that exposes an AddAsync on a
+    # chat-named property (`chatStore.ChatMessages.AddAsync(m)`) matches too; the entity branch
     # needs a receiver named for a store and leaves Microsoft.Extensions.AI's ChatMessage out; and a list
     # named for the chat history counts only with a store's method (an insert, a save, an asynchronous add).
     # A receiver that begins with chat, conversation, prompt, session or history and ends in a bare
     # Context (`chatContext`, `conversationContext`) is taken for a holder object, and its synchronous
-    # Add stays out as ambiguous; with a store suffix (`chatDb`, `chatDbContext`) it is a store.
+    # Add stays out as ambiguous; with a data-context suffix (`chatDb`, `chatDbContext`) it is a store.
     #
     # The C# counterpart of php/rb-assistant-turns-stored: a message or turn record (or an entry named
     # for a chat or transcript) handed to a DbContext or repository with a literal user or assistant role
@@ -34,10 +37,12 @@ rules:
               regex: ^(Chat(Message|Msg|Turn|Entry|History|Histories|Log|Transcript)|Conversation(Message|Turn|Entry|Transcript)|Dialog(Message|Turn))s?$
           - metavariable-regex:
               metavariable: $CTX
-              # A store suffix (db, dbcontext, ctx, uow, repo, repository, store, dao, database) counts
-              # whatever the prefix (chatDbContext, chatDb); a bare Context suffix only without a holder
-              # prefix, so chatContext.ChatMessages.Add stays out as ambiguous.
-              regex: (?i)^(this\.)?_?\w*(db|dbcontext|ctx|uow|unitofwork|repo|repository|store|dao|database)$|^(?!(this\.)?_?(chat|conversation|prompt|session|history))(this\.)?_?\w*context$
+              # A data-context suffix (db, dbcontext, ctx, uow, unitofwork) counts whatever the prefix
+              # (chatDbContext, chatDb); a bare Context suffix only without a holder prefix, so
+              # chatContext.ChatMessages.Add stays out as ambiguous. A repository, store, DAO or database
+              # object does not count here: a set on it is as often an in-memory list (a Blazor app's
+              # ChatStore holding a List<string> ChatMessages) as a DbSet, and List has an Add.
+              regex: (?i)^(this\.)?_?\w*(db|dbcontext|ctx|uow|unitofwork)$|^(?!(this\.)?_?(chat|conversation|prompt|session|history))(this\.)?_?\w*context$
           - metavariable-regex:
               metavariable: $W
               regex: ^(Add|AddAsync|AddRange|AddRangeAsync)$
