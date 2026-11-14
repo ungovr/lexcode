@@ -3,8 +3,9 @@
 # return in a function that builds a chat model or calls one by one of the method names below, or a
 # return that names a variable an earlier statement in an enclosing block, the module included, set
 # from one of those calls. A chain built at module level from a model (prompt.pipe(llm)) and called
-# by a method not listed, or a result one function stores and another returns, is no longer
-# followed. How the scope is written, and why, is in CONTRIBUTING.md, Cost.
+# by a method not listed, a function that returns a local copied from a module-level answer, or a
+# result one function stores and another returns, is no longer followed. How the scope is written,
+# and why, is in CONTRIBUTING.md, Cost.
 rules:
   - id: lexcode.generate.js-model-result-returned
     languages: [javascript, typescript]

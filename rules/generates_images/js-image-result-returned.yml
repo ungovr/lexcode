@@ -1,9 +1,10 @@
 # The sink is not every return in the file: that made the taint pass grow several times faster than
 # the file, 15 to 25 s on a 900 KB file where a scan gives one rule 30 s per file (#13034). It is a
 # return in a function that also calls the image model, or a return that names a variable an earlier
-# statement in an enclosing block, the module included, set from that call. A result one function
-# stores (in a global, or on self or this) and another function returns is no longer followed. How
-# the scope is written, and why, is in CONTRIBUTING.md, Cost.
+# statement in an enclosing block, the module included, set from that call. A function that returns
+# a local copied from a module-level result (text = reply.choices[0].message.content; return text),
+# or a result one function stores (in a global, or on self or this) and another returns, is no
+# longer followed. How the scope is written, and why, is in CONTRIBUTING.md, Cost.
 rules:
   - id: lexcode.image.js-image-result-returned
     languages: [javascript, typescript]

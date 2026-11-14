@@ -287,10 +287,13 @@ module included) set from the call:
 
 The `metavariable-pattern` sees `$SINKV` already bound and searches `$X` for
 it, so `return reply.choices[0]` names `reply`, and a return that does not name
-the variable never becomes a sink. Neither sink follows a result that one
-function stores (in a global, or on `self` or `this`) and another returns, or a
-chain built at module level from a model (`prompt.pipe(llm)`) and called by a
-method the rule does not list; the old sink did. `py-model-result-returned` has
+the variable never becomes a sink. The return has to name the variable itself:
+a function that copies a field of a module-level result into a local and
+returns the local (`text = reply.choices[0].message.content; return text`) is
+not followed. Neither sink follows a result that one function stores (in a
+global, or on `self` or `this`) and another returns, or a chain built at module
+level from a model (`prompt.pipe(llm)`) and called by a method the rule does
+not list; the old sink did. `py-model-result-returned` has
 only the first sink: with its 63 call shapes the second cost 10 to 18 times the
 parse on 900 KB, so there a module-level model called directly (`llm(q)`) or by
 a method the rule does not list, and an answer made at module level and
@@ -315,8 +318,19 @@ on the call's text misses a call imported under a bare name
 calls nothing a rule looks for and fails on any match. The filler has no
 controller classes, route decorators or calls, so a sink scoped by one of those
 matches nothing there whatever it costs; `scripts/rule-cost.mjs` is the check
-for those. The `*.test.shapes.*` fixtures of the six rules hold the shapes each
-sink form exists for, so a form that stops matching fails a fixture.
+for those. Each of the six rules has two more positive fixtures:
+`*.test.shapes.*` holds the shapes each sink form exists for (`async with`, a
+lambda, callbacks, a result set at module level), and `*.test.calls.*` holds
+one function per call the sinks list, in each form that reaches it. Deleting
+any one sink entry or form drops a match in them (all 362 checked, #13034), so
+a call added to a rule's list needs its function in `*.test.calls.*`.
+
+`scripts/rule-cost.mjs` times a rule on its first positive fixture, where the
+source call is inside a function. A source at module level costs more, because
+its taint reaches every function in the file: on 900 KB of filler under one
+module-level call, `py-chat-result-returned` took 4.5 s (3.1 s without the
+second sink, 16.9 s with the old every-return sink) and
+`js-chat-result-returned` 8.4 s (6.4 s, 25.9 s).
 
 Before a release, `node scripts/rule-cost.mjs` times each rule with a positive
 fixture in Java, Kotlin, PHP, Ruby, Python, JavaScript, TypeScript or Go on that
