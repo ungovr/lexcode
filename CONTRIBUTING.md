@@ -191,8 +191,10 @@ A large scan runs the engine as several processes at once, called lanes
 many cores busy, since its workers are threads of one process that wait on each
 other: on the UnGovr monorepo one process with `--jobs 16` used about 6 of 24
 cores. A scan gets one lane per 4 MB of targets (`LANE_BYTES`), at most 8
-(`MAX_LANES`) and at most the cores available, and the lanes share up to 16
-jobs. The targets are sorted biggest first and dealt round-robin, so the
+(`MAX_LANES`), at most the cores available and at most one per 3 GB of memory
+(`LANE_MEMORY_BYTES`, the machine's or the process's own limit, whichever is
+lower), and the lanes share up to 16 jobs. `LEXCODE_ENGINE_LANES` overrides the
+count. The targets are sorted biggest first and dealt round-robin, so the
 largest files land in different lanes. Each extra process costs about 3.5
 CPU-seconds to start, parse the rules and take its targets, so a small
 repository stays one process, and memory, since each lane holds its own copy of

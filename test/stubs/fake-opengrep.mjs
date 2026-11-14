@@ -15,6 +15,8 @@
 //   FAKE_OPENGREP_GO_FILE   a failing run (FAIL_TARGETS) waits for this file to exist before it fails
 //   FAKE_OPENGREP_EXIT_FILE a failing run, once it has written its message, closes its stderr and waits for this file before it exits
 //   FAKE_OPENGREP_HANG_TARGET  a run holding this target hangs as in sleep mode
+//   FAKE_OPENGREP_TERM_EXIT0  in the sleep modes and a hang, exit 0 on SIGTERM without writing output
+//   FAKE_OPENGREP_KILL_TARGET  a run holding this target kills itself with SIGKILL (as the out-of-memory killer would)
 //   FAKE_OPENGREP_PID_DIR   create a file named by this process id in this directory at the start of a scan run
 //   FAKE_OPENGREP_BARRIER   <dir>:<n>  each scan run adds a file to <dir> and waits until <dir> holds <n> files
 //                           (10 s at most, then exits 3): passes only when n runs are running at once
@@ -126,10 +128,15 @@ if (failing !== undefined) {
   }
   process.exit(2);
 }
+if (process.env.FAKE_OPENGREP_KILL_TARGET !== undefined && targets.includes(process.env.FAKE_OPENGREP_KILL_TARGET)) {
+  process.kill(process.pid, 'SIGKILL');
+  await new Promise(() => {});
+}
 const hangs = process.env.FAKE_OPENGREP_HANG_TARGET !== undefined && targets.includes(process.env.FAKE_OPENGREP_HANG_TARGET);
 
 if (mode === 'sleep' || mode === 'sleep-ignore-term' || hangs) {
   if (mode === 'sleep-ignore-term') process.on('SIGTERM', () => {});
+  else if (process.env.FAKE_OPENGREP_TERM_EXIT0) process.on('SIGTERM', () => process.exit(0));
   if (process.env.FAKE_OPENGREP_GRANDCHILD_PID_FILE) {
     const worker = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' });
     writeFileSync(process.env.FAKE_OPENGREP_GRANDCHILD_PID_FILE, String(worker.pid));

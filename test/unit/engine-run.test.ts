@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { availableParallelism, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -10,12 +10,16 @@ import {
   chunkTargets,
   dealTargets,
   engineDeadlineMs,
+  engineLanesFromEnv,
   engineVersion,
   jobsPerLane,
   LANE_BYTES,
+  LANE_MEMORY_BYTES,
   laneCount,
   MAX_JOBS,
   MAX_LANES,
+  memoryBytes,
+  memoryLanes,
   runEngine,
   type RunEngineOptions,
 } from '../../src/engine/run.js';
@@ -61,6 +65,31 @@ describe('engine lanes (#12997)', () => {
     expect(laneCount(LANE_BYTES * 1_000, 16)).toBe(MAX_LANES);
     expect(laneCount(LANE_BYTES * 1_000, 4)).toBe(4);
     expect(laneCount(LANE_BYTES * 1_000, 1)).toBe(1);
+  });
+
+  it('caps the lanes by memory: one per LANE_MEMORY_BYTES, at least 1', () => {
+    const GiB = 1024 ** 3;
+    expect(LANE_MEMORY_BYTES).toBe(3 * GiB);
+    expect(memoryLanes(1 * GiB)).toBe(1);
+    expect(memoryLanes(8 * GiB)).toBe(2);
+    expect(memoryLanes(16 * GiB)).toBe(5);
+    expect(memoryLanes(24 * GiB)).toBe(8);
+    expect(laneCount(LANE_BYTES * 1_000, 16, 16 * GiB)).toBe(5);
+    expect(laneCount(LANE_BYTES * 1_000, 16, 2 * GiB)).toBe(1);
+    expect(laneCount(LANE_BYTES * 3, 16, 64 * GiB)).toBe(3);
+    // A process limit lower than the machine's memory is the one that counts.
+    expect(memoryBytes()).toBeGreaterThan(0);
+  });
+
+  it('reads LEXCODE_ENGINE_LANES as a whole number from 1 to maxJobs, and refuses anything else', () => {
+    expect(engineLanesFromEnv(16, {})).toBeUndefined();
+    expect(engineLanesFromEnv(16, { LEXCODE_ENGINE_LANES: ' ' })).toBeUndefined();
+    expect(engineLanesFromEnv(16, { LEXCODE_ENGINE_LANES: '1' })).toBe(1);
+    expect(engineLanesFromEnv(16, { LEXCODE_ENGINE_LANES: '16' })).toBe(16);
+    for (const bad of ['0', '-2', '2.5', 'four', '17']) {
+      expect(() => engineLanesFromEnv(16, { LEXCODE_ENGINE_LANES: bad })).toThrow(ToolError);
+    }
+    expect(() => engineLanesFromEnv(16, { LEXCODE_ENGINE_LANES: '17' })).toThrow(/from 1 to 16/);
   });
 
   it('shares maxJobs between the lanes, at least one job each', () => {
@@ -130,6 +159,7 @@ describe.skipIf(skipStub)('runEngine with the fake engine', () => {
     setEnv('FAKE_OPENGREP_MODE', undefined);
     setEnv('FAKE_OPENGREP_RESULTS', undefined);
     setEnv('FAKE_OPENGREP_VERSION', undefined);
+    setEnv('LEXCODE_ENGINE_LANES', undefined);
   });
   afterEach(async () => {
     for (const [k, v] of Object.entries(saved)) {
@@ -433,7 +463,7 @@ describe.skipIf(skipStub)('runEngine with the fake engine', () => {
     it('takes the lane count from the targets\' bytes, and stays one lane with every job for a small scan', async () => {
       const big = (): number => LANE_BYTES;
       await run({ engine: STUB, configFile: 'c.yml', targets: targets.slice(0, 3), root: dir, bytesOf: big });
-      const want = laneCount(3 * LANE_BYTES, maxJobs);
+      const want = laneCount(3 * LANE_BYTES, maxJobs, memoryBytes());
       let cs = await calls();
       expect(cs).toHaveLength(want);
       for (const c of cs) expect(c.options['--jobs']).toBe(String(jobsPerLane(maxJobs, want)));
@@ -473,6 +503,16 @@ describe.skipIf(skipStub)('runEngine with the fake engine', () => {
       expect(one.matches.map((m) => m.path)).toEqual([...targets].sort().flatMap((t) => [t, t, t, t]));
     });
 
+    it('takes the lane count from LEXCODE_ENGINE_LANES when it is set', async () => {
+      setEnv('LEXCODE_ENGINE_LANES', '3');
+      setEnv('FAKE_OPENGREP_BARRIER', `${await subdir('barrier')}:3`);
+      // No sizes: by its own rule this scan is one lane.
+      await run({ engine: STUB, configFile: 'c.yml', targets, root: dir });
+      const cs = await calls();
+      expect(cs).toHaveLength(3);
+      for (const c of cs) expect(c.options['--jobs']).toBe(String(jobsPerLane(maxJobs, 3)));
+    });
+
     it('sums file errors over the lanes', async () => {
       setEnv('FAKE_OPENGREP_MODE', 'errors');
       const r = await run({ engine: STUB, configFile: 'c.yml', targets, root: dir, bytesOf, lanes: 3 });
@@ -503,13 +543,46 @@ describe.skipIf(skipStub)('runEngine with the fake engine', () => {
       expect(await readdir(dirs.tempRoot)).toEqual([]);
     });
 
-    it.skipIf(process.platform !== 'linux')('raises the lowest-numbered lane\'s error when several lanes fail at once', async () => {
+    it('raises the failed lane\'s error when a stopped lane exits 0 on SIGTERM', async () => {
+      // The engine can exit 0 when it is stopped, having written no output; that is not its own result.
+      const pids = await subdir('pids');
+      const [lane0, , lane2] = lanesOf(3) as [string[], string[], string[]];
+      setEnv('FAKE_OPENGREP_PID_DIR', pids);
+      setEnv('FAKE_OPENGREP_HANG_TARGET', lane0[0]);
+      setEnv('FAKE_OPENGREP_TERM_EXIT0', '1');
+      setEnv('FAKE_OPENGREP_FAIL_TARGETS', JSON.stringify({ [lane2[0]!]: 'lane two broke' }));
+      const go = join(dir, 'go');
+      setEnv('FAKE_OPENGREP_GO_FILE', go);
+      const pending = run({ engine: STUB, configFile: 'c.yml', targets, root: dir, bytesOf, lanes: 3, deadlineMs: 120_000 }).catch((e: unknown) => e);
+      for (let i = 0; i < 500 && (await pidsIn(pids)).length < 3; i += 1) await new Promise((r) => setTimeout(r, 20));
+      expect(await pidsIn(pids)).toHaveLength(3);
+      await writeFile(go, '');
+      const err = await pending;
+      expect(err).toBeInstanceOf(ToolError);
+      expect((err as Error).message).toBe('the engine exited with code 2:\nlane two broke\nRe-run with the same arguments directly to see the full output.');
+      for (const pid of await pidsIn(pids)) await waitDead(pid);
+    });
+
+    it.skipIf(process.platform === 'win32')('says how to run as one process when a lane is killed by SIGKILL', async () => {
+      const [, lane1] = lanesOf(3) as [string[], string[], string[]];
+      setEnv('FAKE_OPENGREP_KILL_TARGET', lane1[0]);
+      const err = await run({ engine: STUB, configFile: 'c.yml', targets, root: dir, bytesOf, lanes: 3 }).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(ToolError);
+      expect((err as Error).message).toContain('was stopped by SIGKILL');
+      expect((err as Error).message).toContain('The engine ran as 3 processes at once; if memory ran out, run again with LEXCODE_ENGINE_LANES=1.');
+      // One process: no such hint.
+      const one = await run({ engine: STUB, configFile: 'c.yml', targets, root: dir, bytesOf, lanes: 1 }).catch((e: unknown) => e);
+      expect((one as Error).message).toContain('was stopped by SIGKILL');
+      expect((one as Error).message).not.toContain('LEXCODE_ENGINE_LANES');
+    });
+
+    it.skipIf(process.platform !== 'linux')('raises a failed lane\'s own error when several lanes fail at once, usually the lowest-numbered', async () => {
       // Lanes 1 and 2 fail at the same moment; lane 0 hangs and is stopped. Both failing engines write
       // their message and close their stderr, then Node is held busy until both have exited, so it
       // records both exits in one pass. One target per invocation, and lane 1 fails in its second, so
       // lane 2's failing engine is the older one: Node records exits in the order the processes
-      // started, and lane 2's failure is the first it sees. Lane 1 must still count as failed, not
-      // as stopped by lane 2's failure.
+      // started, and lane 2's failure is the first it sees. Lane 1 should still count as failed, not
+      // as stopped by lane 2's failure, and the error is a failed lane's own either way.
       const pids = await subdir('pids');
       const go = join(dir, 'go');
       const [lane0, lane1, lane2] = lanesOf(3) as [string[], string[], string[]];
@@ -528,7 +601,8 @@ describe.skipIf(skipStub)('runEngine with the fake engine', () => {
       await writeFile(go, '');
       // Let Node read both messages and see both stderr pipes close before the engines exit.
       await new Promise((r) => setTimeout(r, 500));
-      await writeFile(exit, '');
+      // Synchronous: an awaited write yields, and Node can record one exit and stop the run before the other.
+      writeFileSync(exit, '');
       const zombie = (pid: number): boolean => {
         try {
           return readFileSync(`/proc/${pid}/stat`, 'utf8').split(') ')[1]?.startsWith('Z') ?? false;
@@ -541,8 +615,10 @@ describe.skipIf(skipStub)('runEngine with the fake engine', () => {
       expect(failing.every(zombie)).toBe(true);
       const err = await pending;
       expect(err).toBeInstanceOf(ToolError);
-      expect((err as Error).message).toContain('lane one broke');
-      expect((err as Error).message).not.toContain('lane two broke');
+      // Lane one's error in most runs; at a load of about 30 on 24 cores, lane two's in 1 of 20
+      // (2026-11-14), so the order is not promised. Either way it is a failed lane's own message,
+      // with its exit code, never a stopped lane's.
+      expect((err as Error).message).toMatch(/^the engine exited with code 2:\nlane (one|two) broke\n/);
       for (const pid of await pidsIn(pids)) await waitDead(pid);
     });
 

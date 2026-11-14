@@ -1,7 +1,7 @@
 import { execFile, spawn, type ChildProcess } from 'node:child_process';
 import { mkdirSync, readFileSync, symlinkSync } from 'node:fs';
 import { mkdtemp, readFile } from 'node:fs/promises';
-import { availableParallelism, tmpdir } from 'node:os';
+import { availableParallelism, tmpdir, totalmem } from 'node:os';
 import { isAbsolute, join } from 'node:path';
 import { terminateGroup, trackChild, trackTempDir } from '../cleanup.js';
 import { ToolError } from '../errors.js';
@@ -43,13 +43,49 @@ export const LANE_BYTES = 4_000_000;
  * Lanes at most. Each lane is an engine of its own with its own copy of the rules and its own heap:
  * on canvas-lms the engines' memory rose by about 0.65 GB a lane (10.3 GB as one process, 12.2 GB
  * as 4 lanes, 14.8 GB as 8, past 15 GB within 12 s as 16), while 8 lanes of 2 jobs kept most of the
- * time saved (UnGovr monorepo 87 to 89 s as one process, 55 s as 8 lanes, 44 s as 16) (#12997).
+ * time saved (#12997; the timings are under LANE_BYTES).
  */
 export const MAX_LANES = 8;
 
-/** How many lanes a scan of `totalBytes` of targets runs: one per LANE_BYTES, at least 1, at most MAX_LANES and `maxJobs`. */
-export function laneCount(totalBytes: number, maxJobs: number): number {
-  return Math.max(1, Math.min(maxJobs, MAX_LANES, Math.round(totalBytes / LANE_BYTES)));
+/**
+ * Memory per lane, for the cap `memoryLanes` puts on the lane count. A lane costs about 0.65 GB more
+ * than one engine (MAX_LANES), and one engine on a large repository already holds several GB, so a
+ * 16 GB machine gets 5 lanes, an 8 GB one 2, and only a machine of 24 GB or more the full 8.
+ */
+export const LANE_MEMORY_BYTES = 3 * 1024 ** 3;
+
+/** The machine's memory, or this process's own limit (a container, a cgroup) when that is lower. */
+export function memoryBytes(): number {
+  const total = totalmem();
+  const limit = typeof process.constrainedMemory === 'function' ? process.constrainedMemory() : 0;
+  return typeof limit === 'number' && limit > 0 && limit < total ? limit : total;
+}
+
+/** Lanes `bytes` of memory allows: one per LANE_MEMORY_BYTES, at least 1. */
+export function memoryLanes(bytes: number): number {
+  return Math.max(1, Math.floor(bytes / LANE_MEMORY_BYTES));
+}
+
+/**
+ * How many lanes a scan of `totalBytes` of targets runs: one per LANE_BYTES, at least 1, at most
+ * MAX_LANES, `maxJobs` and what `memory` bytes allow (`memoryLanes`).
+ */
+export function laneCount(totalBytes: number, maxJobs: number, memory = Infinity): number {
+  return Math.max(1, Math.min(maxJobs, MAX_LANES, memoryLanes(memory), Math.round(totalBytes / LANE_BYTES)));
+}
+
+/**
+ * The lane count LEXCODE_ENGINE_LANES sets, or undefined when it is unset: a whole number from 1 to
+ * `maxJobs`. `1` runs the engine as one process, as lexcode did before lanes.
+ */
+export function engineLanesFromEnv(maxJobs: number, env: Record<string, string | undefined> = process.env): number | undefined {
+  const raw = env.LEXCODE_ENGINE_LANES;
+  if (raw === undefined || raw.trim() === '') return undefined;
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < 1 || n > maxJobs) {
+    throw new ToolError(`LEXCODE_ENGINE_LANES must be a whole number from 1 to ${String(maxJobs)} (the cores lexcode uses here), not "${raw}".`);
+  }
+  return n;
 }
 
 /** Engine jobs for each of `lanes` lanes: the lanes share `maxJobs`, and each has at least one. */
@@ -405,10 +441,11 @@ const cmp = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 
 /**
  * The one order matches come back in, whatever the lanes: path, start line, start column, rule id,
- * end line, end column, matched text, metavariables. The engine writes each file's matches in start
- * order, so for one rule's matches on one line that start at different columns this is the
- * engine's own order, and the evidence a record keeps for such a line (the first; `buildRecord`
- * sorts by path, line and rule id only) is the one it kept before the matches were sorted here.
+ * end line, end column, matched text, metavariables. It does not depend on the engine's own order
+ * either. A record keeps the first of one rule's matches on one line (`buildRecord` sorts by path,
+ * line and rule id only), so where the engine wrote such matches in another order a record could
+ * keep a different one than before lanes; on the UnGovr monorepo and the 14 truth-set repositories
+ * every record was identical to the one-process build's (#12997, 2026-11-14).
  */
 function compareMatches(a: Placed, b: Placed): number {
   return (
@@ -530,6 +567,8 @@ interface Lane {
   dir: string;
   cwd: string;
   env: NodeJS.ProcessEnv;
+  /** How many lanes the run has. */
+  of: number;
 }
 
 interface LaneResult {
@@ -540,9 +579,11 @@ interface LaneResult {
 
 /**
  * Run the engine over the targets as one or more lanes at once (see LANE_BYTES), under one
- * deadline. When a lane fails the others are stopped, and the error is the lowest-numbered failed
- * lane's. No engine process outlives the call. The matches come back in one fixed order (see
- * compareMatches), so the result does not depend on the number of lanes.
+ * deadline. When a lane fails the others are stopped, and the error is a failed lane's own, never
+ * a stopped lane's. When several fail at about the same moment it is usually the lowest-numbered
+ * one's, but not always: a lane that fails a moment after the stop takes effect counts as stopped.
+ * No engine process outlives the call. The matches come back in one fixed order (see compareMatches), so the result does not
+ * depend on the number of lanes.
  */
 export async function runEngine(o: RunEngineOptions): Promise<RunEngineResult> {
   const dirs = o.dirs ?? {};
@@ -551,7 +592,7 @@ export async function runEngine(o: RunEngineOptions): Promise<RunEngineResult> {
 
   const maxJobs = Math.min(availableParallelism(), MAX_JOBS);
   const bytesOf = o.bytesOf ?? ((): number => 0);
-  const wanted = o.lanes ?? laneCount(o.targets.reduce((n, t) => n + bytesOf(t), 0), maxJobs);
+  const wanted = o.lanes ?? engineLanesFromEnv(maxJobs) ?? laneCount(o.targets.reduce((n, t) => n + bytesOf(t), 0), maxJobs, memoryBytes());
   const shares = dealTargets(o.targets, wanted, bytesOf);
   const jobs = o.jobs ?? jobsPerLane(maxJobs, shares.length);
   const chunkChars = o.chunkChars ?? (process.platform === 'win32' ? CHUNK_CHARS_WINDOWS : CHUNK_CHARS_OTHER);
@@ -568,7 +609,7 @@ export async function runEngine(o: RunEngineOptions): Promise<RunEngineResult> {
       mkdirSync(cwd, { recursive: true });
       symlinkSync(o.root, join(cwd, ROOT_LINK), 'junction');
       const given = share.map((t) => (isAbsolute(t) ? t : `${ROOT_LINK}/${t}`));
-      return { chunks: chunkTargets(given, chunkChars), dir, cwd, env: engineEnv(makeScratch(join(dir, 'tmp')), cache.dir) };
+      return { chunks: chunkTargets(given, chunkChars), dir, cwd, env: engineEnv(makeScratch(join(dir, 'tmp')), cache.dir), of: shares.length };
     });
     // Lanes start at once: the engine extracts itself first, alone (see warmedCaches).
     const warmKey = `${o.engine}\0${cache.dir}`;
@@ -647,7 +688,12 @@ async function runLane(o: RunEngineOptions, lane: Lane, jobs: number, deadlineMs
     if (run.code !== 0) {
       const tail = lastLines(run.stderr, 5);
       const how = run.signal ? `was stopped by ${run.signal}` : `exited with code ${String(run.code)}`;
-      throw new ToolError(`the engine ${how}${tail ? `:\n${tail}` : ' without a message'}\nRe-run with the same arguments directly to see the full output.`);
+      // The kernel's out-of-memory killer sends SIGKILL, and every lane holds an engine of its own.
+      const memory =
+        run.signal === 'SIGKILL' && lane.of > 1
+          ? `\nThe engine ran as ${String(lane.of)} processes at once; if memory ran out, run again with LEXCODE_ENGINE_LANES=1.`
+          : '';
+      throw new ToolError(`the engine ${how}${tail ? `:\n${tail}` : ' without a message'}${memory}\nRe-run with the same arguments directly to see the full output.`);
     }
     let raw: unknown;
     try {
