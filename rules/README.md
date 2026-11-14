@@ -290,8 +290,8 @@ absent. Of the 4 unsure rows, one drew a signal (`aggregates_content`) and three
 drew nothing, so none is found or missed.** Of the 6 found, 5 have evidence
 under the activity's own id: `processes_personal_data`, `automated_outreach`,
 `tracks_devices` and `distributes_software_product` on C# or MSBuild evidence,
-and `generates_text` on the DeepL package alone. The sixth, `generates_content`, has no evidence under
-its own id. It counts as found because the registry makes `generates_text` a
+and `generates_text` on the DeepL package alone. The sixth, `generates_content`,
+has no evidence under its own id. It counts as found because the registry makes `generates_text` a
 child of `generates_content`, so the check and the truth-set script read them as
 one family, and the DeepL package is the only evidence for either. That package
 sits on the translation path, which the reading calls the weaker case for
@@ -801,100 +801,80 @@ ruled before it is added.
 
 How lexcode reads C# and Razor views, where the engine cannot, and what a NuGet
 manifest counts. NuGet is one ecosystem, `nuget`: a dependency is named by its
-package Id as the manifest first writes it (compared without regard to case),
-its package URL is `pkg:nuget/<Id>@<version>`, its evidence rule id is
-`lexcode.manifest.nuget`, and the component map is `components/nuget.yml`.
-Nothing is fetched: a package outside the repository is not read, and neither is
-the NuGet cache.
+package Id (compared without regard to case), its package URL is
+`pkg:nuget/<Id>@<version>`, its evidence rule id is `lexcode.manifest.nuget`,
+and the component map is `components/nuget.yml`. Nothing is fetched: a package
+outside the repository is not read, and neither is the NuGet cache.
 
 ### NuGet
 
 A project file (`*.csproj`, `*.fsproj`, `*.vbproj`: the packages are NuGet
 whatever the project's language) holds `<PackageReference Include="...">`
-dependencies; the `Update` and `Remove` forms are not new ones.
-`Directory.Build.props` and `Directory.Build.targets` hold references that apply
-to every project below them, recorded once, at that file.
-`Directory.Packages.props` gives versions only, and a legacy `packages.config`
-lists `<package>` entries. Any of them makes a scan report the `nuget`
-ecosystem, and a row's manifest line is the line of its element.
+dependencies; `Update` and `Remove` forms are not new ones. `Directory.Build.props`
+and `.targets` hold references for every project below them, recorded once, at
+that file. `Directory.Packages.props` gives versions only, and a legacy
+`packages.config` lists `<package>` entries. A row's manifest line is the line of
+its element.
 
-Skipped and counted as development: a reference whose `PrivateAssets` is `all`
-(attribute or child element, in any case); every reference of a test project
-(`<IsTestProject>true</IsTestProject>`, a reference to `Microsoft.NET.Test.Sdk`,
-or the `MSTest.Sdk` project SDK); every `<GlobalPackageReference>`, meant for
-analyzers and build tools; and a `packages.config` entry marked
+Skipped and counted as development: a reference whose `PrivateAssets` is `all`;
+every reference of a test project (`<IsTestProject>true</IsTestProject>`, a
+reference to `Microsoft.NET.Test.Sdk`, or the `MSTest.Sdk` project SDK); every
+`<GlobalPackageReference>`; and a `packages.config` entry marked
 `developmentDependency="true"`. A Directory.Build file is not a project, so its
 references are judged one by one: development only when the reference or its
 `<ItemGroup>` has a `Condition` requiring `IsTestProject` to equal `true`, and
 `Microsoft.NET.Test.Sdk` always.
 
-A version comes from the first of these that holds a plain NuGet version
-(`1.2.3`, `1.2.3.4`, `1.2.3-beta.1`): the `packages.lock.json` beside the project
-file (the `type: "Direct"` entry of that Id, from the first framework in file
-order that lists it); the reference's own `VersionOverride` or `Version`; the
-`<PackageVersion>` of the nearest `Directory.Packages.props` at or above the
-project; the `version` of a `packages.config` entry. A floating version (`*`), a
-range, or an MSBuild property lexcode cannot resolve is no version. `$(Name)`
-resolves one level, from a `<PropertyGroup>` of the same file, else of the
-nearest `Directory.Build.props`, else of the nearest `Directory.Packages.props`.
-Rows with no version are recorded without one, and the scan gives one notice for
-all of them: `N NuGet dependencies have no resolved version (no
-packages.lock.json, a floating or range version, or an MSBuild property lexcode
-could not resolve); recorded without a version`. A file that does not parse gets
-a notice naming it.
+A version comes from the first of these that is present: the
+`packages.lock.json` beside the project file (the `type: "Direct"` entry of that
+Id, passed over when it is not a plain version); the reference's own
+`VersionOverride` or `Version`; the `<PackageVersion>` of the nearest
+`Directory.Packages.props` at or above the project; the `version` of a
+`packages.config` entry. Only a plain NuGet version (`1.2.3`, `1.2.3-beta.1`)
+counts: a floating version (`*`), a range, or an MSBuild property lexcode cannot
+resolve gives the row no version, and the search stops at the source that held
+it. `$(Name)` resolves one level, from a `<PropertyGroup>` of the same file, else
+of the nearest `Directory.Build.props`, else of the nearest
+`Directory.Packages.props`. Rows with no version get one notice for all of them:
+`N NuGet dependencies have no resolved version (no packages.lock.json, a
+floating or range version, or an MSBuild property lexcode could not resolve);
+recorded without a version`. A file that does not parse gets a notice naming it.
 
 Known NuGet gaps: a test host with no test marker (an Aspire functional-test
-project on `Aspire.AppHost.Sdk`) is not a test project, so under `--include-tests`
-its references count; `IsTestProject` is recognized only in a quoted comparison;
+project) is not a test project, so under `--include-tests` its references count;
+in a Directory.Build `Condition`, `IsTestProject` is recognized only in a quoted
+comparison (in a project it is the property `<IsTestProject>true</IsTestProject>`);
 `Include="Foo;Bar"` is read as one Id; a package referenced twice in one file is
-read once, from its first reference; a reference's own floating `Version` does
-not fall through to `Directory.Packages.props`; and a `$(Name)` in a central
-version resolves from the props file's location, not the project's.
+read once, from its first reference; and a reference's own floating `Version`
+does not fall through to `Directory.Packages.props`.
 
 ### C# files
 
 The engine reads only `.cs` as C#: given as explicit targets, `.csx`, `.cake`,
 `.razor` and `.cshtml` files each scanned 0 files (measured 2026-11-12). So
 `.csx` and `.cake` scripts are not read, a known gap that the scan's notice about
-other languages does not name. `*.g.cs` and `*.g.i.cs` are generated by the
-compiler and skipped as bundled files are; `*.Designer.cs` is read. F# and Visual
-Basic are named in that notice with their file counts (`.fs` counts as F# only
-beside an `.fsproj`, because it is also a GLSL shader extension). The parser
-reads `#if` around whole members, `unsafe` code, `#region`, partial classes,
-top-level statements, records, primary constructors and raw string literals; a
-file it cannot read is counted in the notice `the engine could not read N files;
-their evidence is missing from this record`.
-
-Scope follows .NET conventions: a directory named like a test project
-(`src/MyApp.Tests`) is a test directory in any case. In a walk, `bin` is skipped
-only where it holds a `Debug` or `Release` directory, so `bin/x64/Debug` is read.
-A legacy NuGet restore folder is skipped because package contents are not the
-app's code, but it is missed where its `.nupkg` files are gitignored and absent
-from the disk, and where the restore uses the `RestorePackagesPath` layout
-(`packages/<id>/<version>/<id>.<version>.nupkg`). Files under `wwwroot/lib/`,
-LibMan's default for client libraries, are read as the app's own JavaScript in
-this release, a known gap.
+other languages does not name. `*.g.cs` and `*.g.i.cs` are skipped as generated,
+and `*.Designer.cs` is read. A file the parser cannot read is counted in the
+notice `the engine could not read N files; their evidence is missing from this
+record`. In a walk, `bin` is skipped only where it holds a `Debug` or `Release`
+directory, so `bin/x64/Debug` is read. A legacy NuGet restore folder is skipped,
+but missed where its `.nupkg` files are gitignored and absent from the disk, and
+where the restore uses the `RestorePackagesPath` layout. Files under
+`wwwroot/lib/`, LibMan's default for client libraries, are read as the app's own
+JavaScript, a known gap.
 
 ### Razor views
 
 `.cshtml` and `.razor` files join the `<script>` block extraction used for Vue,
-Svelte, HTML and the other template languages; the block search runs on the
-original text. Inside a block:
-
-- `@* ... *@` becomes spaces, and `@@` becomes ` @`.
-- An explicit expression `@( ... )` becomes `_` padded to its length, and so does
-  an implicit one: `@`, an optional `await `, an identifier, then any run of
-  `.identifier`, `( ... )` and `[ ... ]`. An `@` after a letter or digit is an
-  email address and is left alone.
-- A code block `@{ ... }` becomes spaces. A control block (`@if`, `@else`,
-  `@foreach`, `@for`, `@while`, `@do`, `@switch`, `@using`, `@lock`, `@try`,
-  `@catch`, `@finally`, with chained `else`, `catch` and `finally`) becomes
-  spaces, keyword, header and braces included, except the content of `<text>`
-  elements and of `@:` lines inside it, which stays as script with its own
-  expressions blanked.
-- Brackets are matched with C# strings in mind (`"..."`, `'...'`, verbatim,
-  interpolated and raw), so a `)` or `}` inside a string does not end them.
-  Line breaks are kept, so line numbers hold.
+Svelte, HTML and the other template languages, and the block search runs on the
+original text. Inside a block the Razor syntax is blanked so the JavaScript
+around it still parses and line numbers hold. Comments, `@{ }` code blocks and
+control blocks (`@if`, `@foreach`, `@using` and the rest, header and braces
+included) become spaces, except the content of `<text>` elements and `@:` lines
+in them, which stays as script. An expression, `@( ... )` or an implicit one such
+as `@Model.Name` or `@await Foo()`, becomes `_` padded to its length. An `@`
+after a letter or digit is an email address and is left alone, and brackets are
+matched with C# strings in mind, so a `)` inside a string does not end one.
 
 A Razor file with at least one `@code { ... }` or `@functions { ... }` block
 also gets a C# copy, `<path>.lexcode.cs`, whose findings are reported against
@@ -905,32 +885,30 @@ the original file and line. It is one class, `__RazorCode`:
   `@implements`, `@inherits`, `@namespace`, `@model`, `@typeparam`,
   `@preservewhitespace`). A line holding only a `@* *@` or `<!-- -->` comment
   counts as blank, and a file of only blank and directive lines gets its header
-  on the line of its first code block.
-- Each `@using <namespace>` before the header becomes `using <namespace>;`, the
-  other directives before it become spaces, and each `@inject <Type> <Name>`
-  becomes the field `<Type> <Name>;`.
-- Each code block keeps its body as written and loses its braces; everything
-  else becomes spaces. Line numbers hold, and columns hold except on the header
-  line.
+  on its first code block's line.
+- A `@using <namespace>` before the header becomes `using <namespace>;`, other
+  directives before it become spaces, and `@inject <Type> <Name>` becomes the
+  field `<Type> <Name>;`. Each code block keeps its body and loses its braces,
+  everything else becomes spaces, and line numbers hold.
 
 Known Razor gaps:
 
 - An `@using` after the class header is not read as a `using`, so a file whose
-  `@inject` comes before its `@using` loses that using. `_Imports.razor` holds
-  the usings of every component beside it, in another file, so a library type
-  there is found only by a short-form pattern (see the gaps below).
-- A `@{ ... }` statement block is not read as C#; only `@code` and `@functions`
-  are.
+  `@inject` comes before its `@using` loses that using. `_Imports.razor` (and
+  `_ViewImports.cshtml` for views) holds the usings of every component or view
+  beside it, in another file, so a library type there is found only by a
+  short-form pattern. A `@{ ... }` statement block is not read as C#; only
+  `@code` and `@functions` are.
 - Markup inside an `@functions` method lands in the C# copy, which the engine
-  reads as partly parsed, so a match inside the dropped part is missing. An
-  expression that writes code (`$("#tabs").tabs()@Html.Raw(x);`) becomes `_` and
-  leaves invalid JavaScript. Both branches of an `@if` / `else` around `<text>`
-  are kept, markup in a control block other than `<text>` and `@:` is read as
-  script, and a `<script>` inside a `@* *@` comment or a `@{ }` string, or after
-  `@@code {`, is read as live. The scan counts such files in its unread-files
-  notice.
-- An unclosed `<!--` in markup blanks everything to the next code block, which
-  can hide `@inject` lines after it.
+  reads as partly parsed, so a match inside the dropped part is missing (the
+  scan counts the file in its unread-files notice), and `@@code {` (an escaped
+  `@code`) is read as a code block there.
+- In a script block, an expression that writes code
+  (`$("#tabs").tabs()@Html.Raw(x);`) becomes `_` and leaves invalid JavaScript,
+  both branches of an `@if` / `else` around `<text>` elements are kept, and a
+  `<script>` inside a `@* *@` comment or a `@{ }` string is read as live. An
+  unclosed `<!--` blanks everything to the next code block, which can hide
+  `@inject` lines after it.
 
 ### The C# gate
 
@@ -938,34 +916,28 @@ The release test requires every evidence-class activity to have a rule whose
 `languages` include `csharp`. One exemption stands: `distributes_software_product`,
 whose evidence lives in project files, is met by an `msbuild-` rule, as Java's is
 met by a build-file rule. Those rules read project and `.nuspec` text as
-`generic` files, with `paths.include` naming the MSBuild file types, because the
-engine reads an XML rule only against `.xml` files. Any other exemption must be
-argued and ruled before it is added.
+`generic` files. Any other exemption must be argued and ruled before it is
+added.
 
 ### What the C# rules decide
 
-- The engine resolves `using` for C#. A library type is written fully qualified,
-  once, and matches fully qualified, under a `using`, under a `global using` in
-  the same file, under `using static` and through an alias. It does not match an
-  app's own class of that name in another namespace, so PHP's twin is not needed.
-- The engine does not see the SDK's implicit usings. A type from a namespace the
-  .NET, Web or MAUI SDK imports implicitly (`System.Net.Http`,
-  `Microsoft.AspNetCore.Http`, `Microsoft.Maui.Devices.Sensors` and the like) is
-  matched in both forms, with method names pinned where the short name is
-  generic. A third-party type gets a short form only when the short name carries
-  the vendor's or product's own name (`AmazonRekognitionClient`, `TwilioClient`).
+- A library type is written fully qualified, once, and matches under a `using`,
+  a `global using` in the same file and an alias, never an app's own class of the
+  same name. A type from a namespace the .NET, Web or MAUI SDK imports implicitly
+  is matched in both forms, and a third-party type gets a short form only when
+  its short name carries the vendor's or product's own name. The engine behavior
+  behind this is in CONTRIBUTING.md, "C# pattern notes".
 - Generation evidence is a direct generating call whose result reaches a sink (a
   response, a view, a component field). A client or request object handed around
   (`GetService<IChatClient>()`, `GetChatClient(...)`, a new request) is a signal.
-- The platform's own cryptography is not `ships_encryption`:
-  `System.Security.Cryptography` and ASP.NET Core Data Protection
-  (`AddDataProtection`) are left to the framework, as the JDK's are, while a
-  bundled library that encrypts (Bouncy Castle, NSec, libsodium, PgpCore, JOSE)
-  is evidence. Identity password hashing, PBKDF2 and Data Protection are signals.
+- The platform's own cryptography (`System.Security.Cryptography`, ASP.NET Core
+  Data Protection) is left to the framework, as the JDK's is, while a bundled
+  library that encrypts (Bouncy Castle, NSec, libsodium, PgpCore, JOSE) is
+  `ships_encryption` evidence. Identity password hashing, PBKDF2 and Data
+  Protection are signals.
 - A bare Twilio `VoiceResponse.Record` verb (voicemail) is `processes_voice`, not
-  `records_calls`; `Dial` and `Conference` recording stay `records_calls`.
-- An in-app SignalR notification (`Clients.User(...).SendNotification`) is a user
-  interface push, not `automated_outreach`.
+  `records_calls`, and an in-app SignalR notification is a user interface push,
+  not `automated_outreach`.
 
 ### Known C# gaps
 
@@ -975,46 +947,40 @@ The engine sets most of these limits, and the rules' comments point here.
   (`GlobalUsings.cs`, an MSBuild `<Using Include>`) is missed, except where its
   short name carries the vendor's own name.
 - A namespace alias combined with a generic type argument (`Mt.IConsumer<A>`,
-  `Id.UserManager<T>`, `Sr.Hub<IFoo>`) is not resolved; a plain alias, a `using`
-  with generics and a type alias are.
-- The engine knows the type of a field, a parameter and a local built with `new`,
-  not of a value from a static factory or `var x = call()`. A call on
-  `Kernel.CreateBuilder()...Build()` or `var a = client.GetAudioClient(...)` is
-  found at the factory call where a rule reads it there, and missed otherwise.
+  `Id.UserManager<T>`) is not resolved. The engine knows the type of a field, a
+  parameter and a local built with `new`, not of a value from a static factory
+  or `var x = call()`, so a call on `var a = client.GetAudioClient(...)` is found
+  at the factory call where a rule reads it there, and missed otherwise.
 - Generation: a reply stored by member access in a Blazor component
   (`_answer = r.Text`), an anonymous-object response (`Ok(new { reply })`) and a
-  hosted model's address in a plain `HttpClient` helper are not read, and neither
-  are Bedrock `ModelId` as a statement or non-literal, Vertex `PredictAsync` and
-  `PredictLongRunning`, or a Vertex client from `builder.Build()`.
+  hosted model's address in a plain `HttpClient` helper are not read, nor are
+  Bedrock `ModelId` as a non-literal, Vertex `PredictAsync` and a Vertex client
+  from `builder.Build()`.
 - Text chat: a history held in memory and sent to a model vendor is not
   `records_text_chat`, because the rules read a store; a chat-named state
   container ending in `Store` or `Dao` (a Blazor `ChatStore`) can match as one.
 - Voice and calls: no rule reads Android call audio, LiveKit egress,
-  BigBlueButton, WebRTC audio taps or AWS Transcribe streaming. A recording flag
-  set by a ternary, a negation, a field or a sixth positional argument is not
-  read, and Azure Communication Services recording can be counted twice. A
-  name-only guard (`using Azure.AI.OpenAI;`) is also met by a longer namespace.
+  BigBlueButton, WebRTC audio taps or AWS Transcribe streaming.
 - Crawling: the `HtmlWeb` and AngleSharp arms do not judge an interpolated
   address, so `OpenAsync($"pages/{n}")` matches.
 - Personal data and tracking: a FluentMigrator migration on a custom base class,
   an EF Core configuration through a `var` or an owned-type chain, and a Dapper
-  `Execute` that stores an IP are missed; `Device.Id = Environment.MachineName`,
-  a constant `User.Id` and an app-owned `Context` in an initializer match.
+  `Execute` that stores an IP are missed.
 - Identity and signatures: a signature pad declared in XAML and Adobe Acrobat
-  Sign are not read, the selfie rule reads a class's members as a text region so
-  a nested class can blur two, and the agreement-type test is a substring test.
+  Sign are not read, and the selfie rule reads a class's members as text, so a
+  field set in an initializer is missed and a method's use of an ID-document
+  word is admitted.
 - Shipping: a .NET for iOS app with neither MAUI nor Xamarin.Forms is not read as
   `ships_mobile_app` (its `AppDelegate` is shared with tvOS and Mac Catalyst, and
   its template `Info.plist` has no `CFBundleIdentifier`). A fine-tuning client in
-  a `var` local is missed, a `TrainingPipeline` built on one line and passed on
-  the next gives two matches, and an app's own attribute named `Activity` with a
-  `MainLauncher` property matches the launcher rule. A project that sets
-  `PackageLicenseUrl` or `PackageLicenseExpression` for its license metadata only
-  reads as shipping a package.
+  a `var` local and a launcher activity declared as a partial class with no base
+  list are missed. A project that sets `PackageLicenseUrl` for its license
+  metadata only, or an app's own attribute named `Activity` with a
+  `MainLauncher` property, matches.
 - Signals: the MVC sign-up arm needs a literal `return View(...)` or
-  `=> View(...)`, the follower query misses `context.Set<Follow>()`, and no rule
-  reads an `@page` or `.cshtml` route, so a storefront of Razor components with
-  no sign-up screen shows no consumer-interface signal.
+  `=> View(...)`, and no rule reads an `@page` or `.cshtml` route, so a
+  storefront of Razor components with no sign-up screen shows no
+  consumer-interface signal.
 
 ## A known gap: a file over 1 MB
 
