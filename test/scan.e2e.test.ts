@@ -217,6 +217,89 @@ describe.skipIf(!engineAvailable)('lexcode scan over PHP files the engine will n
   });
 });
 
+describe.skipIf(!engineAvailable)('lexcode scan over Razor files, with the real engine', () => {
+  function put(rel: string, body: string): void {
+    const full = join(repo, ...rel.split('/'));
+    mkdirSync(dirname(full), { recursive: true });
+    writeFileSync(full, body);
+  }
+
+  it('a finding in a Razor code block is reported against the .razor file', async () => {
+    rmSync(join(repo, 'app.py'));
+    rmSync(join(repo, 'src'), { recursive: true });
+    rmSync(join(repo, 'web'), { recursive: true });
+    put(
+      'Components/Pages/Chat.razor',
+      [
+        '@using Microsoft.Extensions.AI',
+        '@page "/chat"',
+        '@inject IChatClient Chat',
+        '',
+        '<h3>Chat</h3>',
+        '<input @bind="prompt" />',
+        '<button @onclick="Send">Send</button>',
+        '<p>@reply</p>',
+        '',
+        '@code {',
+        '    private string prompt = "";',
+        '    private string reply = "";',
+        '    private async Task Send() {',
+        '        var r = await Chat.GetResponseAsync(prompt);',
+        '        reply = r.Text;',
+        '    }',
+        '}',
+        '',
+      ].join('\n'),
+    );
+    // A view whose script holds Razor expressions and a control block: its JavaScript copy must parse.
+    put(
+      'Views/Shared/_Talk.cshtml',
+      [
+        '@model TalkModel',
+        '<script>',
+        "  const to = 'support@example.com';",
+        '  var d = @Html.Raw(Json.Serialize(Model.Config));',
+        '  @if (Model.On) {',
+        "    <text>fbq('init', '@Model.Pixel');</text>",
+        '  } else {',
+        "    @:gtag('a');",
+        '  }',
+        '  navigator.mediaDevices.getUserMedia({audio: true});',
+        '</script>',
+        '',
+      ].join('\n'),
+    );
+    put(
+      '.rules/generates_content/cs-chat-client.yml',
+      [
+        'rules:',
+        '  - id: lexcode.gen.cs-chat-client',
+        '    languages: [csharp]',
+        '    severity: INFO',
+        '    message: asks a chat model for a response',
+        '    pattern: (Microsoft.Extensions.AI.IChatClient $C).GetResponseAsync(...)',
+        '    metadata:',
+        '      activity: generates_content',
+        '      mentioned: performs',
+        '      definition: https://lexlint.io/activities/generates_content',
+        '      provenance: ungovr-original',
+        '      license: MIT',
+        '',
+      ].join('\n'),
+    );
+    const code = await main(['scan', repo, '--rules', join(repo, '.rules'), '--json'], io());
+    expect(code).toBe(0);
+    const rec = JSON.parse(out.join('')) as EvidenceRecord;
+    const gen = rec.activities.find((a) => a.id === 'generates_content' && a.mentioned === 'performs');
+    expect(gen?.evidence.map((e) => `${e.rule} ${e.where}`)).toEqual(['lexcode.gen.cs-chat-client Components/Pages/Chat.razor:14']);
+    const voice = rec.activities.find((a) => a.id === 'processes_voice' && a.mentioned === 'performs');
+    expect(voice?.evidence.map((e) => `${e.rule} ${e.where}`)).toEqual(['lexcode.voice.browser-microphone Views/Shared/_Talk.cshtml:10']);
+    expect(rec.scope.extracted).toBe(2); // the component's C# copy and the view's JavaScript copy
+    // The engine read both copies without a parse error.
+    expect(rec.notices.join('\n')).not.toMatch(/could not read|not read:/);
+  });
+});
+
 describe.skipIf(!engineAvailable)('lexcode scan over a Gemfile with the real engine', () => {
   it('counts the gem component map toward the rules that ran, only when a Gemfile is in scope', async () => {
     const scan = async (): Promise<EvidenceRecord> => {
