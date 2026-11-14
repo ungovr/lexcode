@@ -371,6 +371,65 @@ describe.skipIf(!engineAvailable)('lexcode scan over a Gemfile with the real eng
   });
 });
 
+describe.skipIf(!engineAvailable)('lexcode scan over Rust inline tests, with the real engine', () => {
+  // Rust keeps unit tests in a #[cfg(test)] module of the source file itself, and the engine matches
+  // code there; tests are out of scope unless --include-tests is given (Decision 7, #13199).
+  it('a finding inside a Rust test module is dropped', async () => {
+    rmSync(join(repo, 'app.py'));
+    rmSync(join(repo, 'src'), { recursive: true });
+    rmSync(join(repo, 'web'), { recursive: true });
+    rmSync(join(repo, '.rules'), { recursive: true });
+    mkdirSync(join(repo, '.rules', 'crawls_web'), { recursive: true });
+    writeFileSync(
+      join(repo, '.rules', 'crawls_web', 'rust-reqwest-get.yml'),
+      [
+        'rules:',
+        '  - id: lexcode.crawl.rust-reqwest-get',
+        '    languages: [rust]',
+        '    severity: INFO',
+        '    message: fetches a web page',
+        '    pattern: reqwest::get(...)',
+        '    metadata:',
+        '      activity: crawls_web',
+        '      mentioned: performs',
+        '      definition: https://lexlint.io/activities/crawls_web',
+        '      provenance: ungovr-original',
+        '      license: MIT',
+        '',
+      ].join('\n'),
+    );
+    writeFileSync(
+      join(repo, 'main.rs'),
+      [
+        'fn main() {',
+        '    let s = "}";',
+        '    let _ = reqwest::get("https://a.example.com");', // 3
+        '}',
+        '',
+        '#[cfg(test)]',
+        '#[allow(unused)]',
+        '// the brace in a raw string does not close the module: }',
+        'mod tests {',
+        '    const RAW: &str = r#"}"#;',
+        '    #[test]',
+        '    fn t() {',
+        '        let _ = reqwest::get("https://b.example.com");', // 13
+        '    }',
+        '}',
+        '',
+      ].join('\n'),
+    );
+    const where = async (...extra: string[]): Promise<string[] | undefined> => {
+      out = [];
+      expect(await main(['scan', repo, '--rules', join(repo, '.rules'), '--json', ...extra], io())).toBe(0);
+      const rec = JSON.parse(out.join('')) as EvidenceRecord;
+      return rec.activities.find((a) => a.id === 'crawls_web' && a.mentioned === 'performs')?.evidence.map((e) => `${e.rule} ${e.where}`);
+    };
+    expect(await where()).toEqual(['lexcode.crawl.rust-reqwest-get main.rs:3']);
+    expect(await where('--include-tests')).toEqual(['lexcode.crawl.rust-reqwest-get main.rs:3', 'lexcode.crawl.rust-reqwest-get main.rs:13']);
+  });
+});
+
 describe('lexcode scan failures', () => {
   it('exits 2 with a next step when no file is in scope', async () => {
     const empty = mkdtempSync(join(tmpdir(), 'lexcode-empty-'));
