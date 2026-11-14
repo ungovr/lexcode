@@ -321,16 +321,47 @@ matches nothing there whatever it costs; `scripts/rule-cost.mjs` is the check
 for those. Each of the six rules has two more positive fixtures:
 `*.test.shapes.*` holds the shapes each sink form exists for (`async with`, a
 lambda, callbacks, a result set at module level), and `*.test.calls.*` holds
-one function per call the sinks list, in each form that reaches it. Deleting
-any one sink entry or form drops a match in them (all 362 checked, #13034), so
-a call added to a rule's list needs its function in `*.test.calls.*`.
+one function per call the sinks list, in each form that reaches it. The Java,
+Kotlin and Ruby ones have a `*.test.calls.*` too. Deleting any one sink entry
+or form drops a match in them (362 checked for Python and JS/TS, 261 for Java,
+Kotlin and Ruby, #13034), so a call added to a rule's list needs its function
+in `*.test.calls.*`. That check also found entries another entry already
+covers, and they were dropped: a call is left out of a list when a shorter
+entry matches it (`completions(...)` matches `chat().completions().create(...)`,
+`converse(...)` matches `converse { ... }`, a Ruby `chat(...)` matches
+`RubyLLM.chat(...)`), and a rule's header says so.
 
-`scripts/rule-cost.mjs` times a rule on its first positive fixture, where the
-source call is inside a function. A source at module level costs more, because
+The Java, Kotlin and Ruby `*-result-returned` rules have the same two sinks,
+each in its language's form. In Java a call statement in a method's sequence
+(`$SINKRET $SINKFN(...) { ... CALL; ... }`) matches a statement that holds the
+call anywhere: a declaration, a nested block, a lambda or an anonymous class.
+The second sink is a field the class sets from a call
+(`class $SINKCLS { ... $SINKT $SINKV = <... CALL ...>; ... }`), named by the
+return as `$SINKV` or `this.$SINKV`. In Kotlin a statement sequence under `fun`
+does not reach inside `if`, `try` or `when`, so the scope is a search of the
+body (`fun $SINKFN(...) { $...SINKBODY }` with a `metavariable-pattern`, which
+matches a function with a return type too) and of an expression body, and the
+second sink is a `val` set from a call at the top level, in a class or in a
+function. There, write the expression-bodied function as
+`pattern: fun $F(...) = $X`, not `pattern-inside`: with `pattern-inside`, a
+`val` declared inside the body made the `val`'s own statement the sink, which
+holds the source call, and 15 false matches appeared in four codebases. In
+Ruby, `def` and `def self.` with the call in the sequence reach blocks, `if`
+and `begin`. Ruby has no second sink: the old every-return sink followed
+neither a constant nor an instance variable into a method.
+
+`scripts/rule-cost.mjs` times a rule on its plain positive fixture
+(`<stem>.test.<ext>`), where the source call is inside a function, not on a
+variant such as `*.test.calls.*`, which holds every source call of the rule at
+once, many of them at module level. A source at module level costs more, because
 its taint reaches every function in the file: on 900 KB of filler under one
 module-level call, `py-chat-result-returned` took 4.5 s (3.1 s without the
 second sink, 16.9 s with the old every-return sink) and
-`js-chat-result-returned` 8.4 s (6.4 s, 25.9 s).
+`js-chat-result-returned` 8.4 s (6.4 s, 25.9 s). In Kotlin the same file took
+`kt-chat-result-returned` 22.9 s: 16.1 s with no sink at all, 20.7 s without
+the `val` sink, 33.1 s with the old sink. Each further top-level `val` set from
+a call makes the returns after it candidates for the `val` sink: with 26 of
+them ahead of the filler the rule took 28.6 s, against 22.9 s for the old sink.
 
 Before a release, `node scripts/rule-cost.mjs` times each rule with a positive
 fixture in Java, Kotlin, PHP, Ruby, Python, JavaScript, TypeScript or Go on that

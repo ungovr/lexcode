@@ -1,3 +1,10 @@
+# The sink is not every return in the file: every return made the taint pass grow several times
+# faster than the file, 48 to 56 s on a 900 KB file where a scan gives one rule 30 s per file
+# (#13034). It is a return or a yield in a method that also makes one of the calls below. The calls
+# are the sources without their argument and name checks, so every source call is in the scope. A
+# result one method stores at run time and another returns is not followed. How the scope is
+# written, and why, is in CONTRIBUTING.md, Cost. chat.completions.create(...) and RubyLLM.chat(...)
+# are in scope through chat(...).
 rules:
   - id: lexcode.text.rb-chat-result-returned
     languages: [ruby]
@@ -41,15 +48,177 @@ rules:
         from: $S
         to: $X
     pattern-sinks:
-      - pattern: yield $X
       - patterns:
+          - pattern: yield $X
           - pattern-either:
               - pattern-inside: |
-                  def $F(...)
+                  def $SINKFN(...)
+                    ...
+                    $SINKC.chat(...)
                     ...
                   end
               - pattern-inside: |
-                  def self.$F(...)
+                  def self.$SINKFN(...)
+                    ...
+                    $SINKC.chat(...)
+                    ...
+                  end
+              - pattern-inside: |
+                  def $SINKFN(...)
+                    ...
+                    $SINKC.completions(...)
+                    ...
+                  end
+              - pattern-inside: |
+                  def self.$SINKFN(...)
+                    ...
+                    $SINKC.completions(...)
+                    ...
+                  end
+              - pattern-inside: |
+                  def $SINKFN(...)
+                    ...
+                    $SINKC.converse(...)
+                    ...
+                  end
+              - pattern-inside: |
+                  def self.$SINKFN(...)
+                    ...
+                    $SINKC.converse(...)
+                    ...
+                  end
+              - pattern-inside: |
+                  def $SINKFN(...)
+                    ...
+                    $SINKC.converse_stream(...)
+                    ...
+                  end
+              - pattern-inside: |
+                  def self.$SINKFN(...)
+                    ...
+                    $SINKC.converse_stream(...)
+                    ...
+                  end
+              - pattern-inside: |
+                  def $SINKFN(...)
+                    ...
+                    $SINKC.complete(...)
+                    ...
+                  end
+              - pattern-inside: |
+                  def self.$SINKFN(...)
+                    ...
+                    $SINKC.complete(...)
+                    ...
+                  end
+              - pattern-inside: |
+                  def $SINKFN(...)
+                    ...
+                    $SINKC.responses.$SINKM(...)
+                    ...
+                  end
+              - pattern-inside: |
+                  def self.$SINKFN(...)
+                    ...
+                    $SINKC.responses.$SINKM(...)
+                    ...
+                  end
+              - pattern-inside: |
+                  def $SINKFN(...)
+                    ...
+                    $SINKC.messages.$SINKM(...)
+                    ...
+                  end
+              - pattern-inside: |
+                  def self.$SINKFN(...)
+                    ...
+                    $SINKC.messages.$SINKM(...)
+                    ...
+                  end
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  def $SINKFN(...)
+                    ...
+                    $SINKC.chat(...)
+                    ...
+                  end
+              - pattern-inside: |
+                  def self.$SINKFN(...)
+                    ...
+                    $SINKC.chat(...)
+                    ...
+                  end
+              - pattern-inside: |
+                  def $SINKFN(...)
+                    ...
+                    $SINKC.completions(...)
+                    ...
+                  end
+              - pattern-inside: |
+                  def self.$SINKFN(...)
+                    ...
+                    $SINKC.completions(...)
+                    ...
+                  end
+              - pattern-inside: |
+                  def $SINKFN(...)
+                    ...
+                    $SINKC.converse(...)
+                    ...
+                  end
+              - pattern-inside: |
+                  def self.$SINKFN(...)
+                    ...
+                    $SINKC.converse(...)
+                    ...
+                  end
+              - pattern-inside: |
+                  def $SINKFN(...)
+                    ...
+                    $SINKC.converse_stream(...)
+                    ...
+                  end
+              - pattern-inside: |
+                  def self.$SINKFN(...)
+                    ...
+                    $SINKC.converse_stream(...)
+                    ...
+                  end
+              - pattern-inside: |
+                  def $SINKFN(...)
+                    ...
+                    $SINKC.complete(...)
+                    ...
+                  end
+              - pattern-inside: |
+                  def self.$SINKFN(...)
+                    ...
+                    $SINKC.complete(...)
+                    ...
+                  end
+              - pattern-inside: |
+                  def $SINKFN(...)
+                    ...
+                    $SINKC.responses.$SINKM(...)
+                    ...
+                  end
+              - pattern-inside: |
+                  def self.$SINKFN(...)
+                    ...
+                    $SINKC.responses.$SINKM(...)
+                    ...
+                  end
+              - pattern-inside: |
+                  def $SINKFN(...)
+                    ...
+                    $SINKC.messages.$SINKM(...)
+                    ...
+                  end
+              - pattern-inside: |
+                  def self.$SINKFN(...)
+                    ...
+                    $SINKC.messages.$SINKM(...)
                     ...
                   end
           - pattern-either:

@@ -1,3 +1,12 @@
+# The sink is not every return in the file: every return made the taint pass grow several times
+# faster than the file, 18 to 27 s on a 900 KB file where a scan gives one rule 30 s per file
+# (#13034). It is a return or an expression body in a function that also makes one of the calls
+# below, or a return or expression body that names a val set from one of them, at the top level, in
+# a class or in a function. The calls are the sources without their argument and name checks, so
+# every source call is in the scope. A result one function stores at run time and another returns is
+# not followed. How the scope is written, and why, is in CONTRIBUTING.md, Cost.
+# chat().completions().create(...) and completions().create(...) are in scope through
+# completions(...), and a trailing-lambda call such as converse { ... } through converse(...).
 rules:
   - id: lexcode.text.kt-chat-result-returned
     languages:
@@ -112,6 +121,111 @@ rules:
     pattern-sinks:
       - patterns:
           - pattern: return $X
+          - pattern-either:
+              - patterns:
+                  - pattern-inside: |
+                      fun $SINKFN(...) {
+                        $...SINKBODY
+                      }
+                  - metavariable-pattern:
+                      metavariable: $...SINKBODY
+                      pattern-either: &sinkcalls
+                        - pattern: $SINKC.responses().$SINKM(...)
+                        - pattern: $SINKC.messages().$SINKM(...)
+                        - pattern: $SINKR.chatCompletion(...)
+                        - pattern: $SINKR.chatCompletions(...)
+                        - pattern: $SINKR.completion(...)
+                        - pattern: $SINKR.completions(...)
+                        - pattern: $SINKR.getChatCompletions(...)
+                        - pattern: $SINKR.getChatCompletionsStream(...)
+                        - pattern: $SINKR.getChatCompletionsWithResponse(...)
+                        - pattern: $SINKR.getCompletions(...)
+                        - pattern: $SINKR.getCompletionsStream(...)
+                        - pattern: $SINKR.getCompletionsWithResponse(...)
+                        - pattern: $SINKR.complete(...)
+                        - pattern: $SINKR.completeStream(...)
+                        - pattern: $SINKR.converse(...)
+                        - pattern: $SINKR.converseStream(...)
+                        - pattern: $SINKR.invokeModel(...)
+                        - pattern: $SINKR.invokeModelWithResponseStream(...)
+                        - pattern: 'InvokeModelRequest { ... }'
+                        - pattern: 'InvokeModelWithResponseStreamRequest { ... }'
+                        - pattern: InvokeModelRequest.builder()
+                        - pattern: InvokeModelWithResponseStreamRequest.builder()
+              - patterns:
+                  - pattern: return $X
+                  - pattern-either: &valscopes
+                      - pattern-inside: |
+                          val $SINKV = <... $SINKC.responses().$SINKM(...) ...>
+                          ...
+                      - pattern-inside: |
+                          val $SINKV = <... $SINKC.messages().$SINKM(...) ...>
+                          ...
+                      - pattern-inside: |
+                          val $SINKV = <... $SINKR.chatCompletion(...) ...>
+                          ...
+                      - pattern-inside: |
+                          val $SINKV = <... $SINKR.chatCompletions(...) ...>
+                          ...
+                      - pattern-inside: |
+                          val $SINKV = <... $SINKR.completion(...) ...>
+                          ...
+                      - pattern-inside: |
+                          val $SINKV = <... $SINKR.completions(...) ...>
+                          ...
+                      - pattern-inside: |
+                          val $SINKV = <... $SINKR.getChatCompletions(...) ...>
+                          ...
+                      - pattern-inside: |
+                          val $SINKV = <... $SINKR.getChatCompletionsStream(...) ...>
+                          ...
+                      - pattern-inside: |
+                          val $SINKV = <... $SINKR.getChatCompletionsWithResponse(...) ...>
+                          ...
+                      - pattern-inside: |
+                          val $SINKV = <... $SINKR.getCompletions(...) ...>
+                          ...
+                      - pattern-inside: |
+                          val $SINKV = <... $SINKR.getCompletionsStream(...) ...>
+                          ...
+                      - pattern-inside: |
+                          val $SINKV = <... $SINKR.getCompletionsWithResponse(...) ...>
+                          ...
+                      - pattern-inside: |
+                          val $SINKV = <... $SINKR.complete(...) ...>
+                          ...
+                      - pattern-inside: |
+                          val $SINKV = <... $SINKR.completeStream(...) ...>
+                          ...
+                      - pattern-inside: |
+                          val $SINKV = <... $SINKR.converse(...) ...>
+                          ...
+                      - pattern-inside: |
+                          val $SINKV = <... $SINKR.converseStream(...) ...>
+                          ...
+                      - pattern-inside: |
+                          val $SINKV = <... $SINKR.invokeModel(...) ...>
+                          ...
+                      - pattern-inside: |
+                          val $SINKV = <... $SINKR.invokeModelWithResponseStream(...) ...>
+                          ...
+                      - pattern-inside: |
+                          val $SINKV = <... InvokeModelRequest { ... } ...>
+                          ...
+                      - pattern-inside: |
+                          val $SINKV = <... InvokeModelWithResponseStreamRequest { ... } ...>
+                          ...
+                      - pattern-inside: |
+                          val $SINKV = <... InvokeModelRequest.builder() ...>
+                          ...
+                      - pattern-inside: |
+                          val $SINKV = <... InvokeModelWithResponseStreamRequest.builder() ...>
+                          ...
+                  - metavariable-pattern:
+                      metavariable: $X
+                      pattern-either:
+                        - pattern: $SINKV
+                        - pattern: this.$SINKV
           - pattern-not-inside:
               patterns:
                 - pattern-either:
@@ -140,6 +254,40 @@ rules:
                   fun $F(...) = $X
               - pattern-inside: |
                   fun $F(...): $R = $X
+          - metavariable-pattern:
+              metavariable: $X
+              pattern-either: *sinkcalls
+          - focus-metavariable: $X
+          - pattern-not-inside:
+              patterns:
+                - pattern-either:
+                    - pattern: |
+                        @$A(...)
+                        fun $F(...) = $X
+                    - pattern: |
+                        @$A(...)
+                        fun $F(...): $R = $X
+                    - pattern: |
+                        @$A
+                        fun $F(...) = $X
+                    - pattern: |
+                        @$A
+                        fun $F(...): $R = $X
+                - metavariable-regex:
+                    metavariable: $A
+                    regex: ^(GetMapping|PostMapping|PutMapping|PatchMapping|DeleteMapping|RequestMapping|ResponseBody|SendTo|SendToUser|QueryMapping|MutationMapping|SubscriptionMapping|GET|POST|PUT|DELETE|HEAD|Get|Post|Put|Patch|Delete|Route)$
+      - patterns:
+          - pattern-either:
+              - pattern: |
+                  fun $F(...) = $X
+              - pattern: |
+                  fun $F(...): $R = $X
+          - pattern-either: *valscopes
+          - metavariable-pattern:
+              metavariable: $X
+              pattern-either:
+                - pattern: $SINKV
+                - pattern: this.$SINKV
           - focus-metavariable: $X
           - pattern-not-inside:
               patterns:

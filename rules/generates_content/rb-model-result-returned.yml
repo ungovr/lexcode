@@ -1,3 +1,9 @@
+# The sink is not every return in the file: every return made the taint pass grow several times
+# faster than the file, 48 to 56 s on a 900 KB file where a scan gives one rule 30 s per file
+# (#13034). It is a return or a yield in a method that also makes one of the calls below. The calls
+# are the sources without their argument and name checks, so every source call is in the scope. A
+# result one method stores at run time and another returns is not followed. How the scope is
+# written, and why, is in CONTRIBUTING.md, Cost.
 rules:
   - id: lexcode.generate.rb-model-result-returned
     languages: [ruby]
@@ -59,15 +65,105 @@ rules:
       - pattern: $S.similarity_search(...)
       - pattern: $S.similarity_search_by_vector(...)
     pattern-sinks:
-      - pattern: yield $X
       - patterns:
+          - pattern: yield $X
           - pattern-either:
               - pattern-inside: |
-                  def $F(...)
+                  def $SINKFN(...)
+                    ...
+                    Langchain::LLM::$SINKK.new(...)
                     ...
                   end
               - pattern-inside: |
-                  def self.$F(...)
+                  def self.$SINKFN(...)
+                    ...
+                    Langchain::LLM::$SINKK.new(...)
+                    ...
+                  end
+              - pattern-inside: |
+                  def $SINKFN(...)
+                    ...
+                    $SINKC.ask(...)
+                    ...
+                  end
+              - pattern-inside: |
+                  def self.$SINKFN(...)
+                    ...
+                    $SINKC.ask(...)
+                    ...
+                  end
+              - pattern-inside: |
+                  def $SINKFN(...)
+                    ...
+                    $SINKC.generate_content(...)
+                    ...
+                  end
+              - pattern-inside: |
+                  def self.$SINKFN(...)
+                    ...
+                    $SINKC.generate_content(...)
+                    ...
+                  end
+              - pattern-inside: |
+                  def $SINKFN(...)
+                    ...
+                    $SINKC.stream_generate_content(...)
+                    ...
+                  end
+              - pattern-inside: |
+                  def self.$SINKFN(...)
+                    ...
+                    $SINKC.stream_generate_content(...)
+                    ...
+                  end
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  def $SINKFN(...)
+                    ...
+                    Langchain::LLM::$SINKK.new(...)
+                    ...
+                  end
+              - pattern-inside: |
+                  def self.$SINKFN(...)
+                    ...
+                    Langchain::LLM::$SINKK.new(...)
+                    ...
+                  end
+              - pattern-inside: |
+                  def $SINKFN(...)
+                    ...
+                    $SINKC.ask(...)
+                    ...
+                  end
+              - pattern-inside: |
+                  def self.$SINKFN(...)
+                    ...
+                    $SINKC.ask(...)
+                    ...
+                  end
+              - pattern-inside: |
+                  def $SINKFN(...)
+                    ...
+                    $SINKC.generate_content(...)
+                    ...
+                  end
+              - pattern-inside: |
+                  def self.$SINKFN(...)
+                    ...
+                    $SINKC.generate_content(...)
+                    ...
+                  end
+              - pattern-inside: |
+                  def $SINKFN(...)
+                    ...
+                    $SINKC.stream_generate_content(...)
+                    ...
+                  end
+              - pattern-inside: |
+                  def self.$SINKFN(...)
+                    ...
+                    $SINKC.stream_generate_content(...)
                     ...
                   end
           - pattern-either:

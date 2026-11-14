@@ -1,3 +1,10 @@
+# The sink is not every return in the file: every return made the taint pass grow several times
+# faster than the file, 10 to 14 s on a 900 KB file where a scan gives one rule 30 s per file
+# (#13034). It is a return in a method that also makes one of the calls below, or a return that
+# names a field the class sets from one of them. The calls are the sources without their argument
+# and name checks, so every source call is in the scope. A result one method stores at run time and
+# another returns is not followed. How the scope is written, and why, is in CONTRIBUTING.md, Cost.
+# chat().completions().create(...) is in scope through completions(...).
 rules:
   - id: lexcode.text.java-chat-result-returned
     languages: [java]
@@ -96,6 +103,255 @@ rules:
     pattern-sinks:
       - patterns:
           - pattern: return $X;
+          - pattern-either:
+              - pattern-inside: |
+                  $SINKRET $SINKFN(...) {
+                    ...
+                    $SINKC.responses().$SINKM(...);
+                    ...
+                  }
+              - pattern-inside: |
+                  $SINKRET $SINKFN(...) {
+                    ...
+                    $SINKC.completions().$SINKM(...);
+                    ...
+                  }
+              - pattern-inside: |
+                  $SINKRET $SINKFN(...) {
+                    ...
+                    $SINKC.messages().$SINKM(...);
+                    ...
+                  }
+              - pattern-inside: |
+                  $SINKRET $SINKFN(...) {
+                    ...
+                    $SINKR.invokeModel(...);
+                    ...
+                  }
+              - pattern-inside: |
+                  $SINKRET $SINKFN(...) {
+                    ...
+                    $SINKR.invokeModelWithResponseStream(...);
+                    ...
+                  }
+              - pattern-inside: |
+                  $SINKRET $SINKFN(...) {
+                    ...
+                    $SINKR.getChatCompletions(...);
+                    ...
+                  }
+              - pattern-inside: |
+                  $SINKRET $SINKFN(...) {
+                    ...
+                    $SINKR.getChatCompletionsStream(...);
+                    ...
+                  }
+              - pattern-inside: |
+                  $SINKRET $SINKFN(...) {
+                    ...
+                    $SINKR.getChatCompletionsWithResponse(...);
+                    ...
+                  }
+              - pattern-inside: |
+                  $SINKRET $SINKFN(...) {
+                    ...
+                    $SINKR.getCompletions(...);
+                    ...
+                  }
+              - pattern-inside: |
+                  $SINKRET $SINKFN(...) {
+                    ...
+                    $SINKR.getCompletionsStream(...);
+                    ...
+                  }
+              - pattern-inside: |
+                  $SINKRET $SINKFN(...) {
+                    ...
+                    $SINKR.complete(...);
+                    ...
+                  }
+              - pattern-inside: |
+                  $SINKRET $SINKFN(...) {
+                    ...
+                    $SINKR.completeStream(...);
+                    ...
+                  }
+              - pattern-inside: |
+                  $SINKRET $SINKFN(...) {
+                    ...
+                    $SINKR.converse(...);
+                    ...
+                  }
+              - pattern-inside: |
+                  $SINKRET $SINKFN(...) {
+                    ...
+                    $SINKR.converseStream(...);
+                    ...
+                  }
+              - pattern-inside: |
+                  $SINKRET $SINKFN(...) {
+                    ...
+                    $SINKR.chat(...);
+                    ...
+                  }
+              - pattern-inside: |
+                  $SINKRET $SINKFN(...) {
+                    ...
+                    $SINKR.generate(...);
+                    ...
+                  }
+              - pattern-inside: |
+                  $SINKRET $SINKFN(...) {
+                    ...
+                    $SINKR.generateAsync(...);
+                    ...
+                  }
+              - pattern-inside: |
+                  $SINKRET $SINKFN(...) {
+                    ...
+                    $SINKR.call(...);
+                    ...
+                  }
+              - pattern-inside: |
+                  $SINKRET $SINKFN(...) {
+                    ...
+                    $SINKR.stream(...);
+                    ...
+                  }
+              - pattern-inside: |
+                  $SINKRET $SINKFN(...) {
+                    ...
+                    $SINKR.chatComplete(...);
+                    ...
+                  }
+              - patterns:
+                  - pattern: return $X;
+                  - pattern-either:
+                      - pattern-inside: |
+                          class $SINKCLS {
+                            ...
+                            $SINKT $SINKV = <... $SINKC.responses().$SINKM(...) ...>;
+                            ...
+                          }
+                      - pattern-inside: |
+                          class $SINKCLS {
+                            ...
+                            $SINKT $SINKV = <... $SINKC.completions().$SINKM(...) ...>;
+                            ...
+                          }
+                      - pattern-inside: |
+                          class $SINKCLS {
+                            ...
+                            $SINKT $SINKV = <... $SINKC.messages().$SINKM(...) ...>;
+                            ...
+                          }
+                      - pattern-inside: |
+                          class $SINKCLS {
+                            ...
+                            $SINKT $SINKV = <... $SINKR.invokeModel(...) ...>;
+                            ...
+                          }
+                      - pattern-inside: |
+                          class $SINKCLS {
+                            ...
+                            $SINKT $SINKV = <... $SINKR.invokeModelWithResponseStream(...) ...>;
+                            ...
+                          }
+                      - pattern-inside: |
+                          class $SINKCLS {
+                            ...
+                            $SINKT $SINKV = <... $SINKR.getChatCompletions(...) ...>;
+                            ...
+                          }
+                      - pattern-inside: |
+                          class $SINKCLS {
+                            ...
+                            $SINKT $SINKV = <... $SINKR.getChatCompletionsStream(...) ...>;
+                            ...
+                          }
+                      - pattern-inside: |
+                          class $SINKCLS {
+                            ...
+                            $SINKT $SINKV = <... $SINKR.getChatCompletionsWithResponse(...) ...>;
+                            ...
+                          }
+                      - pattern-inside: |
+                          class $SINKCLS {
+                            ...
+                            $SINKT $SINKV = <... $SINKR.getCompletions(...) ...>;
+                            ...
+                          }
+                      - pattern-inside: |
+                          class $SINKCLS {
+                            ...
+                            $SINKT $SINKV = <... $SINKR.getCompletionsStream(...) ...>;
+                            ...
+                          }
+                      - pattern-inside: |
+                          class $SINKCLS {
+                            ...
+                            $SINKT $SINKV = <... $SINKR.complete(...) ...>;
+                            ...
+                          }
+                      - pattern-inside: |
+                          class $SINKCLS {
+                            ...
+                            $SINKT $SINKV = <... $SINKR.completeStream(...) ...>;
+                            ...
+                          }
+                      - pattern-inside: |
+                          class $SINKCLS {
+                            ...
+                            $SINKT $SINKV = <... $SINKR.converse(...) ...>;
+                            ...
+                          }
+                      - pattern-inside: |
+                          class $SINKCLS {
+                            ...
+                            $SINKT $SINKV = <... $SINKR.converseStream(...) ...>;
+                            ...
+                          }
+                      - pattern-inside: |
+                          class $SINKCLS {
+                            ...
+                            $SINKT $SINKV = <... $SINKR.chat(...) ...>;
+                            ...
+                          }
+                      - pattern-inside: |
+                          class $SINKCLS {
+                            ...
+                            $SINKT $SINKV = <... $SINKR.generate(...) ...>;
+                            ...
+                          }
+                      - pattern-inside: |
+                          class $SINKCLS {
+                            ...
+                            $SINKT $SINKV = <... $SINKR.generateAsync(...) ...>;
+                            ...
+                          }
+                      - pattern-inside: |
+                          class $SINKCLS {
+                            ...
+                            $SINKT $SINKV = <... $SINKR.call(...) ...>;
+                            ...
+                          }
+                      - pattern-inside: |
+                          class $SINKCLS {
+                            ...
+                            $SINKT $SINKV = <... $SINKR.stream(...) ...>;
+                            ...
+                          }
+                      - pattern-inside: |
+                          class $SINKCLS {
+                            ...
+                            $SINKT $SINKV = <... $SINKR.chatComplete(...) ...>;
+                            ...
+                          }
+                  - metavariable-pattern:
+                      metavariable: $X
+                      pattern-either:
+                        - pattern: $SINKV
+                        - pattern: this.$SINKV
           - pattern-not-inside: |
               @GetMapping(...)
               $R $F(...) {

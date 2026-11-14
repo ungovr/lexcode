@@ -37,22 +37,11 @@ const engine = process.env.LEXCODE_ENGINE ?? cachedEngine();
 const FILLER_KB = 20;
 
 /**
- * Rules whose sink still matches every return, each to be scoped like the Python and JavaScript ones
- * (#13034). A rule leaves this list once its sink matches nothing here; the test fails while a listed
- * rule no longer matches, so the list cannot outlive its entries.
+ * Rules whose sink still matches every return, each waiting on an open issue to scope it. Empty since
+ * #13034 scoped the last of the *-result-returned rules. The test fails while a listed rule no longer
+ * matches, so the list cannot outlive its entries.
  */
-const OPEN = new Set<string>([
-  'lexcode.generate.java-model-result-returned',
-  'lexcode.image.java-image-result-returned',
-  'lexcode.text.java-chat-result-returned',
-  'lexcode.generate.kt-model-result-returned',
-  'lexcode.image.kt-image-result-returned',
-  'lexcode.text.kt-chat-framework-result-returned',
-  'lexcode.text.kt-chat-result-returned',
-  'lexcode.generate.rb-model-result-returned',
-  'lexcode.image.rb-image-result-returned',
-  'lexcode.text.rb-chat-result-returned',
-]);
+const OPEN = new Set<string>([]);
 
 const FORMULA_KEYS = ['pattern', 'patterns', 'pattern-either', 'pattern-regex'];
 

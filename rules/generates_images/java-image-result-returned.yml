@@ -1,3 +1,9 @@
+# The sink is not every return in the file: every return made the taint pass grow several times
+# faster than the file, 10 to 14 s on a 900 KB file where a scan gives one rule 30 s per file
+# (#13034). It is a return in a method that also makes one of the calls below, or a return that
+# names a field the class sets from one of them. The calls are the sources without their argument
+# and name checks, so every source call is in the scope. A result one method stores at run time and
+# another returns is not followed. How the scope is written, and why, is in CONTRIBUTING.md, Cost.
 rules:
   - id: lexcode.image.java-image-result-returned
     languages: [java]
@@ -65,6 +71,147 @@ rules:
     pattern-sinks:
       - patterns:
           - pattern: return $X;
+          - pattern-either:
+              - pattern-inside: |
+                  $SINKRET $SINKFN(...) {
+                    ...
+                    $SINKC.images().$SINKM(...);
+                    ...
+                  }
+              - pattern-inside: |
+                  $SINKRET $SINKFN(...) {
+                    ...
+                    $SINKR.generateImages(...);
+                    ...
+                  }
+              - pattern-inside: |
+                  $SINKRET $SINKFN(...) {
+                    ...
+                    $SINKR.editImage(...);
+                    ...
+                  }
+              - pattern-inside: |
+                  $SINKRET $SINKFN(...) {
+                    ...
+                    $SINKR.upscaleImage(...);
+                    ...
+                  }
+              - pattern-inside: |
+                  $SINKRET $SINKFN(...) {
+                    ...
+                    $SINKR.invokeModel(...);
+                    ...
+                  }
+              - pattern-inside: |
+                  $SINKRET $SINKFN(...) {
+                    ...
+                    $SINKR.invokeModelWithResponseStream(...);
+                    ...
+                  }
+              - pattern-inside: |
+                  $SINKRET $SINKFN(...) {
+                    ...
+                    $SINKR.generate(...);
+                    ...
+                  }
+              - pattern-inside: |
+                  $SINKRET $SINKFN(...) {
+                    ...
+                    $SINKR.edit(...);
+                    ...
+                  }
+              - pattern-inside: |
+                  $SINKRET $SINKFN(...) {
+                    ...
+                    $SINKR.call(...);
+                    ...
+                  }
+              - pattern-inside: |
+                  $SINKRET $SINKFN(...) {
+                    ...
+                    $SINKR.getImageGenerations(...);
+                    ...
+                  }
+              - pattern-inside: |
+                  $SINKRET $SINKFN(...) {
+                    ...
+                    $SINKR.getImageGenerationsWithResponse(...);
+                    ...
+                  }
+              - patterns:
+                  - pattern: return $X;
+                  - pattern-either:
+                      - pattern-inside: |
+                          class $SINKCLS {
+                            ...
+                            $SINKT $SINKV = <... $SINKC.images().$SINKM(...) ...>;
+                            ...
+                          }
+                      - pattern-inside: |
+                          class $SINKCLS {
+                            ...
+                            $SINKT $SINKV = <... $SINKR.generateImages(...) ...>;
+                            ...
+                          }
+                      - pattern-inside: |
+                          class $SINKCLS {
+                            ...
+                            $SINKT $SINKV = <... $SINKR.editImage(...) ...>;
+                            ...
+                          }
+                      - pattern-inside: |
+                          class $SINKCLS {
+                            ...
+                            $SINKT $SINKV = <... $SINKR.upscaleImage(...) ...>;
+                            ...
+                          }
+                      - pattern-inside: |
+                          class $SINKCLS {
+                            ...
+                            $SINKT $SINKV = <... $SINKR.invokeModel(...) ...>;
+                            ...
+                          }
+                      - pattern-inside: |
+                          class $SINKCLS {
+                            ...
+                            $SINKT $SINKV = <... $SINKR.invokeModelWithResponseStream(...) ...>;
+                            ...
+                          }
+                      - pattern-inside: |
+                          class $SINKCLS {
+                            ...
+                            $SINKT $SINKV = <... $SINKR.generate(...) ...>;
+                            ...
+                          }
+                      - pattern-inside: |
+                          class $SINKCLS {
+                            ...
+                            $SINKT $SINKV = <... $SINKR.edit(...) ...>;
+                            ...
+                          }
+                      - pattern-inside: |
+                          class $SINKCLS {
+                            ...
+                            $SINKT $SINKV = <... $SINKR.call(...) ...>;
+                            ...
+                          }
+                      - pattern-inside: |
+                          class $SINKCLS {
+                            ...
+                            $SINKT $SINKV = <... $SINKR.getImageGenerations(...) ...>;
+                            ...
+                          }
+                      - pattern-inside: |
+                          class $SINKCLS {
+                            ...
+                            $SINKT $SINKV = <... $SINKR.getImageGenerationsWithResponse(...) ...>;
+                            ...
+                          }
+                  - metavariable-pattern:
+                      metavariable: $X
+                      pattern-either:
+                        - pattern: $SINKV
+                        - pattern: this.$SINKV
           - pattern-not-inside: |
               @GetMapping(...)
               $R $F(...) {
