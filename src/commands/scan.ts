@@ -1,4 +1,4 @@
-import { statSync } from 'node:fs';
+import { readFileSync, statSync } from 'node:fs';
 import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { isAbsolute, join, resolve } from 'node:path';
@@ -25,6 +25,7 @@ import { loadRuleSet, writeMergedConfig } from '../rules/load.js';
 import { extractScripts } from '../scope/extract.js';
 import { listFiles } from '../scope/files.js';
 import { hasLongLine, MAX_LINE_CHARS } from '../scope/longlines.js';
+import { dropRustTestMatches } from '../scope/rust-tests.js';
 import { loadSidecar } from '../config/sidecar.js';
 import type { Dependency, EngineMatch, Evidence, EvidenceRecord, RuleSet, ScopeSpec, Sidecar } from '../types.js';
 import { defaultIo, flag, parseFlags, str, strList, type Io } from './args.js';
@@ -55,6 +56,15 @@ function fileBytes(file: string): number {
     return statSync(file).size;
   } catch {
     return 0;
+  }
+}
+
+/** A file's text as UTF-8, or undefined when it cannot be read. */
+function readText(file: string): string | undefined {
+  try {
+    return readFileSync(file, 'utf8');
+  } catch {
+    return undefined;
   }
 }
 
@@ -211,6 +221,10 @@ export async function scan(o: ScanOptions): Promise<EvidenceRecord> {
         fileErrors = ran.fileErrors;
         const back = pathMapper(pairs);
         matches = ran.matches.map((m) => ({ ...m, path: back(m.path) }));
+        // Rust's unit tests sit in #[cfg(test)] modules of the source file itself; they are tests, out of
+        // scope unless the scan includes them. Filtered on the original paths the record will carry: an
+        // extracted copy is never .rs, and each .rs file with a match is read once.
+        if (!o.includeTests) matches = dropRustTestMatches(matches, (f) => readText(isAbsolute(f) ? f : join(root, ...f.split('/'))));
       }
       if (!handle.pinned && engineVersion !== ENGINE_PIN.version) {
         notices.push(`the engine is ${engineVersion}, not the pinned ${ENGINE_PIN.version}; the rule fixtures were checked against the pinned version only`);
