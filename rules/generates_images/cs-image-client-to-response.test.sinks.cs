@@ -1,8 +1,7 @@
 // lexcode-expect: 52
 // Every sink and propagator branch of the rule, each reached alone, with the rule's own source.
-// Generated with the rule's branches (#13012 fix round 1). Microsoft.AspNetCore.Http, System.IO and
-// Microsoft.Maui.Controls are not imported (they are implicit), so a short form and its aliased
-// qualified form each have a case of their own.
+// Microsoft.AspNetCore.Http, System.IO and Microsoft.Maui.Controls are not imported (they are
+// implicit), so a short form and its aliased qualified form each have a case of their own.
 using OpenAI;
 using System.Text;
 using Microsoft.AspNetCore.Components;

@@ -8,10 +8,9 @@ rules:
     # alias too), so the pattern also matches the short form under using, and never an app's own
     # class of the same short name. A type reached only through a global using in another file
     # is missed (rules/README.md).
-    # Only a call that generates is a source here: a typed client calling its generating method,
-    # or the call that sends a request built for a named generation model. A client or request
-    # object is not output, and a client obtained from a factory or the service container into a
-    # local is the companion signal rule's (the engine cannot type it).
+    # Only a call that generates is a source here: a typed client calling its generating method.
+    # A client object is not output, and a client obtained from a factory or the service container
+    # into a local is the companion signal rule's (the engine cannot type it).
     # A short name that carries the vendor's own name is also read in its short form, so a file
     # that reaches it through a global using elsewhere is still read (Decision 10): a class named
     # after the vendor is that vendor's client either way. Here: AmazonPollyClient

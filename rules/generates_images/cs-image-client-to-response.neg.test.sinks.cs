@@ -1,6 +1,6 @@
 // lexcode-expect: 0
 // What the sinks leave out, each reached with the rule's own source; removing the guard named in a
-// case's comment makes that case match. Generated with the rule's sinks (#13012 fix round 1).
+// case's comment makes that case match.
 using OpenAI;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;

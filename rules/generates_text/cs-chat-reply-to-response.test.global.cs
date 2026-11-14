@@ -1,8 +1,8 @@
 // lexcode-expect: 12
 // No using at all: only the vendor-named short forms can match, as in a file whose
 // usings are global ones in another file.
-// Generated with the rule's branches (#13012 fix round 1): one action per source branch,
-// each sending what the source produced back as the response.
+// One action per source branch, each sending what the source produced back as the
+// response.
 using Microsoft.AspNetCore.Mvc;
 
 namespace Demo.Generated;

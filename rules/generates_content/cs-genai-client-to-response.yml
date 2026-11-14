@@ -8,17 +8,19 @@ rules:
     # alias too), so the pattern also matches the short form under using, and never an app's own
     # class of the same short name. A type reached only through a global using in another file
     # is missed (rules/README.md).
-    # The companion of the evidence rule: a model client obtained from a factory or the service
-    # container (where the engine cannot type the local), or a request or model object, followed
-    # to a response. Signal strength: the object reaches the response, which most often means
-    # what it generated does. Reading its metadata, or checking it for null, does not count.
+    # The companion of the evidence rule: a Gemini model object, made by a constructor or a
+    # factory, or a Vertex AI request object, followed to a response. Signal strength: the object
+    # reaches the response, which most often means what it generated does. Reading its metadata,
+    # or checking it for null, does not count.
     pattern-sources:
       # Vertex AI: a GenerateContentRequest, which carries on to the result of the call it is
       # passed to (the client is usually built into a local, where its type is not known).
       - pattern: new Google.Cloud.AIPlatform.V1.GenerateContentRequest { ... }
+      - pattern: Google.Cloud.AIPlatform.V1.GenerateContentRequest $V = new() { ... };
       # Mscc.GenerativeAI: a GenerativeModel constructed, or taken from GoogleAI or VertexAI. The
       # (...) { ... } form also matches a construction with no initializer, or with no argument list.
       - pattern: new Mscc.GenerativeAI.GenerativeModel(...) { ... }
+      - pattern: Mscc.GenerativeAI.GenerativeModel $V = new(...) { ... };
       - pattern: (Mscc.GenerativeAI.GoogleAI $C).GenerativeModel(...)
       - pattern: (Mscc.GenerativeAI.VertexAI $C).GenerativeModel(...)
     pattern-sanitizers:

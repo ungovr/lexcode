@@ -9,9 +9,9 @@ rules:
     # class of the same short name. A type reached only through a global using in another file
     # is missed (rules/README.md).
     # The companion of the evidence rule: a model client obtained from a factory or the service
-    # container (where the engine cannot type the local), or a request or model object, followed
-    # to a response. Signal strength: the object reaches the response, which most often means
-    # what it generated does. Reading its metadata, or checking it for null, does not count.
+    # container (where the engine cannot type the local), followed to a response. Signal
+    # strength: the client reaches the response, which most often means what it generated does.
+    # Reading its metadata, or checking it for null, does not count.
     # A short name that carries the vendor's own name is also read in its short form, so a file
     # that reaches it through a global using elsewhere is still read (Decision 10): a class named
     # after the vendor is that vendor's client either way. Here: OpenAIClient

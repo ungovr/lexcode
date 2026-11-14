@@ -1,7 +1,7 @@
-// lexcode-expect: 21
+// lexcode-expect: 22
 // Every source branch whose library type can be aliased, reached through the alias.
-// Generated with the rule's branches (#13012 fix round 1): one action per source branch,
-// each sending what the source produced back as the response.
+// One action per source branch, each sending what the source produced back as the
+// response.
 using AABM5 = Amazon.BedrockRuntime.Model;
 using AGG4 = Google.GenAI;
 using AMEA2 = Microsoft.Extensions.AI;
@@ -159,6 +159,14 @@ public class SourcesController : ControllerBase
     public async Task<IActionResult> Case21(IRuntimeClient runtime)
     {
         var request = new AABM5.InvokeModelRequest { ContentType = "application/json", ModelId = "amazon.nova-canvas-v1:0" };
+        var r = await runtime.InvokeModelAsync(request);
+        return Ok(r);
+    }
+
+    // Amazon.BedrockRuntime.Model.InvokeModelRequest declared with target-typed new()
+    public async Task<IActionResult> Case22(IRuntimeClient runtime)
+    {
+        AABM5.InvokeModelRequest request = new() { ContentType = "application/json", ModelId = "amazon.nova-canvas-v1:0" };
         var r = await runtime.InvokeModelAsync(request);
         return Ok(r);
     }

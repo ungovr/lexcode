@@ -44,7 +44,10 @@ rules:
       # request, or the model id it names, generates nothing.
       - label: REQUEST
         patterns:
-          - pattern: new Amazon.BedrockRuntime.Model.InvokeModelRequest { ..., ModelId = $ID, ... }
+          - pattern-either:
+              - pattern: new Amazon.BedrockRuntime.Model.InvokeModelRequest { ..., ModelId = $ID, ... }
+              # A declaration with target-typed new().
+              - pattern: Amazon.BedrockRuntime.Model.InvokeModelRequest $V = new() { ..., ModelId = $ID, ... };
           - metavariable-regex:
               metavariable: $ID
               regex: (?i)^"[^"]*(titan-image|nova-canvas|stability\.|stable-diffusion|stable-image|sd3)[^"]*"$

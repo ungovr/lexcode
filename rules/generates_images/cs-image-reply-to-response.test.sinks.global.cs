@@ -1,7 +1,6 @@
 // lexcode-expect: 2
 // Controllers marked [ApiController] and [Controller] in a file with no Microsoft.AspNetCore.Mvc
-// using (it is a global using elsewhere): the short attribute forms. Generated with the rule's
-// branches (#13012 fix round 1).
+// using (it is a global using elsewhere): the short attribute forms.
 using OpenAI.Images;
 
 namespace Demo.Sinks;

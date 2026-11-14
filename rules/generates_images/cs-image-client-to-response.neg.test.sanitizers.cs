@@ -1,9 +1,8 @@
 // lexcode-expect: 0
 // What the rule does not count, each sent straight back as the response: a client's or
 // request's metadata, a null check, and the calls on the same object that generate nothing.
-// Generated with the rule's sanitizers (#13012 fix round 1): removing any one of them makes
-// its case match. The is-not-null check goes to ViewBag: inside Ok(...) the engine carries
-// no taint through an is pattern, so that shape would pin nothing.
+// Removing any one of the rule's sanitizers makes its case match. The is-not-null check
+// goes to ViewBag: inside Ok(...) the engine carries no taint through an is pattern.
 using Microsoft.AspNetCore.Mvc;
 using OpenAI;
 

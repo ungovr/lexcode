@@ -72,13 +72,19 @@ rules:
       - pattern: (AmazonBedrockRuntimeClient $C).ConverseStreamAsync(...)
       - label: REQUEST
         patterns:
-          - pattern: new Amazon.BedrockRuntime.Model.InvokeModelRequest { ..., ModelId = $ID, ... }
+          - pattern-either:
+              - pattern: new Amazon.BedrockRuntime.Model.InvokeModelRequest { ..., ModelId = $ID, ... }
+              # A declaration with target-typed new().
+              - pattern: Amazon.BedrockRuntime.Model.InvokeModelRequest $V = new() { ..., ModelId = $ID, ... };
           - metavariable-regex:
               metavariable: $ID
               regex: (?i)^"[^"]*(claude|llama|titan-text|nova-(lite|micro|pro|premier)|mistral|command|jamba|deepseek|qwen)[^"]*"$
       - label: REQUEST
         patterns:
-          - pattern: new Amazon.BedrockRuntime.Model.InvokeModelWithResponseStreamRequest { ..., ModelId = $ID, ... }
+          - pattern-either:
+              - pattern: new Amazon.BedrockRuntime.Model.InvokeModelWithResponseStreamRequest { ..., ModelId = $ID, ... }
+              # A declaration with target-typed new().
+              - pattern: Amazon.BedrockRuntime.Model.InvokeModelWithResponseStreamRequest $V = new() { ..., ModelId = $ID, ... };
           - metavariable-regex:
               metavariable: $ID
               regex: (?i)^"[^"]*(claude|llama|titan-text|nova-(lite|micro|pro|premier)|mistral|command|jamba|deepseek|qwen)[^"]*"$

@@ -1,7 +1,7 @@
-// lexcode-expect: 40
+// lexcode-expect: 42
 // Every source branch, its library imported with a using line.
-// Generated with the rule's branches (#13012 fix round 1): one action per source branch,
-// each sending what the source produced back as the response.
+// One action per source branch, each sending what the source produced back as the
+// response.
 using Amazon.BedrockRuntime.Model;
 using Amazon.BedrockRuntime;
 using Anthropic;
@@ -253,51 +253,67 @@ public class SourcesController : ControllerBase
         return Ok(r);
     }
 
-    // new Amazon.BedrockRuntime.Model.InvokeModelWithResponseStreamRequest { ModelId = ... }
+    // Amazon.BedrockRuntime.Model.InvokeModelRequest declared with target-typed new()
     public async Task<IActionResult> Case34(IRuntimeClient runtime)
+    {
+        InvokeModelRequest request = new() { ContentType = "application/json", ModelId = "anthropic.claude-3-haiku-20240307-v1:0" };
+        var r = await runtime.InvokeModelAsync(request);
+        return Ok(r);
+    }
+
+    // new Amazon.BedrockRuntime.Model.InvokeModelWithResponseStreamRequest { ModelId = ... }
+    public async Task<IActionResult> Case35(IRuntimeClient runtime)
     {
         var request = new InvokeModelWithResponseStreamRequest { ContentType = "application/json", ModelId = "meta.llama3-70b-instruct-v1:0" };
         var r = await runtime.InvokeModelWithResponseStreamAsync(request);
         return Ok(r);
     }
 
+    // Amazon.BedrockRuntime.Model.InvokeModelWithResponseStreamRequest declared with target-typed new()
+    public async Task<IActionResult> Case36(IRuntimeClient runtime)
+    {
+        InvokeModelWithResponseStreamRequest request = new() { ContentType = "application/json", ModelId = "meta.llama3-70b-instruct-v1:0" };
+        var r = await runtime.InvokeModelWithResponseStreamAsync(request);
+        return Ok(r);
+    }
+
     // (OllamaSharp.IOllamaApiClient $C).GenerateAsync(...)
-    public async Task<IActionResult> Case35(IOllamaApiClient client)
+    public async Task<IActionResult> Case37(IOllamaApiClient client)
     {
         var r = await client.GenerateAsync("q");
         return Ok(r);
     }
 
     // (OllamaSharp.IOllamaApiClient $C).ChatAsync(...)
-    public async Task<IActionResult> Case36(IOllamaApiClient client)
+    public async Task<IActionResult> Case38(IOllamaApiClient client)
     {
         var r = await client.ChatAsync("q");
         return Ok(r);
     }
 
     // (OllamaSharp.OllamaApiClient $C).GenerateAsync(...)
-    public async Task<IActionResult> Case37(OllamaApiClient client)
+    public async Task<IActionResult> Case39(OllamaApiClient client)
     {
         var r = await client.GenerateAsync("q");
         return Ok(r);
     }
 
     // (OllamaSharp.OllamaApiClient $C).ChatAsync(...)
-    public async Task<IActionResult> Case38(OllamaApiClient client)
+    public async Task<IActionResult> Case40(OllamaApiClient client)
     {
         var r = await client.ChatAsync("q");
         return Ok(r);
     }
 
     // (OllamaSharp.Chat $C).SendAsync(...)
-    public async Task<IActionResult> Case39(Chat client)
+    public async Task<IActionResult> Case41(Chat client)
     {
         var r = await client.SendAsync("q");
         return Ok(r);
     }
 
     // (OllamaSharp.Chat $C).SendAsAsync(...)
-    public async Task<IActionResult> Case40(Chat client)
+    public async Task<IActionResult> Case42(Chat client)
     {
         var r = await client.SendAsAsync("q");
         return Ok(r);

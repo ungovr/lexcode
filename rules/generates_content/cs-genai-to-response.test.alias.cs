@@ -1,7 +1,7 @@
 // lexcode-expect: 7
 // Every source branch whose library type can be aliased, reached through the alias.
-// Generated with the rule's branches (#13012 fix round 1): one action per source branch,
-// each sending what the source produced back as the response.
+// One action per source branch, each sending what the source produced back as the
+// response.
 using AGCAV2 = Google.Cloud.AIPlatform.V1;
 using AGG1 = Google.GenAI;
 using AMG3 = Mscc.GenerativeAI;

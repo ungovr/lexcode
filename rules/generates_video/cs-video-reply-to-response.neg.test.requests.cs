@@ -2,8 +2,7 @@
 // A request built for a generation model but never sent, echoed back as the response (the
 // request, the model or address it names, the request serialized), and a request for a
 // model or address of another kind, sent. Only the result of sending a request for a
-// generation model is output (the REQUEST label). Generated with the rule's request sources
-// (#13012 fix round 1).
+// generation model is output (the REQUEST label).
 using Amazon.BedrockRuntime.Model;
 using Microsoft.AspNetCore.Mvc;
 
@@ -25,15 +24,22 @@ public class RequestsController : ControllerBase
         return Ok(request.ModelId);
     }
 
-    // new StartAsyncInvokeRequest { ModelId = ... }, serialized (not sent)
+    // StartAsyncInvokeRequest declared with target-typed new(), echoed
     public async Task<IActionResult> Case3(IRuntimeClient runtime, HttpClient http)
+    {
+        StartAsyncInvokeRequest request = new() { ContentType = "application/json", ModelId = "amazon.nova-reel-v1:1" };
+        return Ok(request);
+    }
+
+    // new StartAsyncInvokeRequest { ModelId = ... }, serialized (not sent)
+    public async Task<IActionResult> Case4(IRuntimeClient runtime, HttpClient http)
     {
         var request = new StartAsyncInvokeRequest { ContentType = "application/json", ModelId = "amazon.nova-reel-v1:1" };
         return Ok(System.Text.Json.JsonSerializer.Serialize(request));
     }
 
     // new StartAsyncInvokeRequest { ModelId = ... } for a model of another kind, sent
-    public async Task<IActionResult> Case4(IRuntimeClient runtime, HttpClient http)
+    public async Task<IActionResult> Case5(IRuntimeClient runtime, HttpClient http)
     {
         var request = new StartAsyncInvokeRequest { ContentType = "application/json", ModelId = "twelvelabs.marengo-embed-2-7-v1:0" };
         var response = await runtime.StartAsyncInvokeAsync(request);
@@ -41,21 +47,28 @@ public class RequestsController : ControllerBase
     }
 
     // new HttpRequestMessage for a video address, echoed
-    public async Task<IActionResult> Case5(IRuntimeClient runtime, HttpClient http)
+    public async Task<IActionResult> Case6(IRuntimeClient runtime, HttpClient http)
     {
         var request = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/videos");
         return Ok(request);
     }
 
     // new HttpRequestMessage for a video address, its address
-    public async Task<IActionResult> Case6(IRuntimeClient runtime, HttpClient http)
+    public async Task<IActionResult> Case7(IRuntimeClient runtime, HttpClient http)
     {
         var request = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/videos");
         return Ok(request.RequestUri);
     }
 
+    // HttpRequestMessage for a video address, declared with target-typed new() and a named address, echoed
+    public async Task<IActionResult> Case8(IRuntimeClient runtime, HttpClient http)
+    {
+        HttpRequestMessage request = new(method: HttpMethod.Post, requestUri: "https://api.openai.com/v1/videos") { Content = null };
+        return Ok(request);
+    }
+
     // new HttpRequestMessage for an image address, sent
-    public async Task<IActionResult> Case7(IRuntimeClient runtime, HttpClient http)
+    public async Task<IActionResult> Case9(IRuntimeClient runtime, HttpClient http)
     {
         var request = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/images/generations");
         var response = await http.SendAsync(request);

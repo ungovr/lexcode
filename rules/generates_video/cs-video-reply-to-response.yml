@@ -20,7 +20,10 @@ rules:
       # request, or the model id it names, generates nothing.
       - label: REQUEST
         patterns:
-          - pattern: new Amazon.BedrockRuntime.Model.StartAsyncInvokeRequest { ..., ModelId = $ID, ... }
+          - pattern-either:
+              - pattern: new Amazon.BedrockRuntime.Model.StartAsyncInvokeRequest { ..., ModelId = $ID, ... }
+              # A declaration with target-typed new().
+              - pattern: Amazon.BedrockRuntime.Model.StartAsyncInvokeRequest $V = new() { ..., ModelId = $ID, ... };
           - metavariable-regex:
               metavariable: $ID
               regex: (?i)^"[^"]*(nova-reel|luma\.)[^"]*"$
@@ -43,16 +46,30 @@ rules:
               - pattern: $HTTP.GetAsync($URL, ...)
               - pattern: $HTTP.GetStreamAsync($URL, ...)
               - pattern: $HTTP.GetByteArrayAsync($URL, ...)
+              # The same calls with the address as a named argument.
+              - pattern: '$HTTP.PostAsync(..., requestUri: $URL, ...)'
+              - pattern: '$HTTP.PostAsJsonAsync(..., requestUri: $URL, ...)'
+              - pattern: '$HTTP.GetAsync(..., requestUri: $URL, ...)'
+              - pattern: '$HTTP.GetStreamAsync(..., requestUri: $URL, ...)'
+              - pattern: '$HTTP.GetByteArrayAsync(..., requestUri: $URL, ...)'
           - metavariable-regex:
               metavariable: $URL
               regex: ^\$?@?"https://(?:api\.openai\.com/v1/videos|generativelanguage\.googleapis\.com/[^"]*:predictLongRunning|[^"]*aiplatform\.googleapis\.com/[^"]*veo[^"]*:predictLongRunning|api\.(?:dev\.)?runwayml\.com/v1/(?:text|image)_to_video)
       # A request message for the same addresses, with or without an initializer, is a request
       # object: it carries REQUEST, and the result of the Send it goes through is the source.
+      # Constructed or declared with target-typed new(), the address positional or named;
+      # System.Net.Http is imported implicitly, so the short form is read as well.
       - label: REQUEST
         patterns:
           - pattern-either:
               - pattern: new System.Net.Http.HttpRequestMessage($VERB, $URL) { ... }
               - pattern: new HttpRequestMessage($VERB, $URL) { ... }
+              - pattern: 'new System.Net.Http.HttpRequestMessage(..., requestUri: $URL, ...) { ... }'
+              - pattern: 'new HttpRequestMessage(..., requestUri: $URL, ...) { ... }'
+              - pattern: System.Net.Http.HttpRequestMessage $V = new($VERB, $URL) { ... };
+              - pattern: HttpRequestMessage $V = new($VERB, $URL) { ... };
+              - pattern: 'System.Net.Http.HttpRequestMessage $V = new(..., requestUri: $URL, ...) { ... };'
+              - pattern: 'HttpRequestMessage $V = new(..., requestUri: $URL, ...) { ... };'
           - metavariable-regex:
               metavariable: $URL
               regex: ^\$?@?"https://(?:api\.openai\.com/v1/videos|generativelanguage\.googleapis\.com/[^"]*:predictLongRunning|[^"]*aiplatform\.googleapis\.com/[^"]*veo[^"]*:predictLongRunning|api\.(?:dev\.)?runwayml\.com/v1/(?:text|image)_to_video)

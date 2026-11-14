@@ -1,7 +1,7 @@
 // lexcode-expect: 7
 // Every source branch, its library imported with a using line.
-// Generated with the rule's branches (#13012 fix round 1): one action per source branch,
-// each sending what the source produced back as the response.
+// One action per source branch, each sending what the source produced back as the
+// response.
 using Google.Cloud.AIPlatform.V1;
 using Google.GenAI;
 using Microsoft.AspNetCore.Mvc;

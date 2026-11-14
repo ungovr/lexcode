@@ -1,7 +1,7 @@
-// lexcode-expect: 4
+// lexcode-expect: 6
 // Every source branch whose library type can be aliased, reached through the alias.
-// Generated with the rule's branches (#13012 fix round 1): one action per source branch,
-// each sending what the source produced back as the response.
+// One action per source branch, each sending what the source produced back as the
+// response.
 using AGCAV1 = Google.Cloud.AIPlatform.V1;
 using AMG2 = Mscc.GenerativeAI;
 using Microsoft.AspNetCore.Mvc;
@@ -20,16 +20,32 @@ public class SourcesController : ControllerBase
         return Ok(r);
     }
 
+    // Google.Cloud.AIPlatform.V1.GenerateContentRequest declared with target-typed new()
+    public async Task<IActionResult> Case2(IVertexGateway vertex)
+    {
+        AGCAV1.GenerateContentRequest request = new() { Model = "gemini-2.5-pro" };
+        var r = await vertex.GenerateContentAsync(request);
+        return Ok(r);
+    }
+
     // new Mscc.GenerativeAI.GenerativeModel(...) { ... }
-    public async Task<IActionResult> Case2(string q)
+    public async Task<IActionResult> Case3(string q)
     {
         var made = new AMG2.GenerativeModel("key");
         var r = await made.GenerateContent(q);
         return Ok(r);
     }
 
+    // Mscc.GenerativeAI.GenerativeModel declared with target-typed new()
+    public async Task<IActionResult> Case4(string q)
+    {
+        AMG2.GenerativeModel made = new("key");
+        var r = await made.GenerateContent(q);
+        return Ok(r);
+    }
+
     // (Mscc.GenerativeAI.GoogleAI $C).GenerativeModel(...)
-    public async Task<IActionResult> Case3(AMG2.GoogleAI client)
+    public async Task<IActionResult> Case5(AMG2.GoogleAI client)
     {
         var made = client.GenerativeModel("model");
         var r = await made.GenerateContent("q");
@@ -37,7 +53,7 @@ public class SourcesController : ControllerBase
     }
 
     // (Mscc.GenerativeAI.VertexAI $C).GenerativeModel(...)
-    public async Task<IActionResult> Case4(AMG2.VertexAI client)
+    public async Task<IActionResult> Case6(AMG2.VertexAI client)
     {
         var made = client.GenerativeModel("model");
         var r = await made.GenerateContent("q");
