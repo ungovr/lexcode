@@ -54,6 +54,25 @@ describe('purlOf', () => {
     );
     expect(purlOf({ ecosystem: 'nuget', name: 'Twilio', manifest: 'App.csproj:9' })).toBe('pkg:nuget/Twilio');
   });
+  it('writes a crate as its name and version', () => {
+    expect(purlOf({ ecosystem: 'cargo', name: 'async-openai', version: '0.25.0', manifest: 'Cargo.toml:9' })).toBe('pkg:cargo/async-openai@0.25.0');
+    expect(purlOf({ ecosystem: 'cargo', name: 'serde_json', manifest: 'Cargo.toml:9' })).toBe('pkg:cargo/serde_json');
+  });
+  it('writes a Swift package as its host, owner and repository', () => {
+    expect(purlOf({ ecosystem: 'swift', name: 'github.com/Alamofire/Alamofire', version: '5.10.2', manifest: 'Package.swift:9' })).toBe(
+      'pkg:swift/github.com/Alamofire/Alamofire@5.10.2',
+    );
+    expect(purlOf({ ecosystem: 'swift', name: 'mona/LinkedList', manifest: 'Package.swift:9' })).toBe('pkg:swift/mona/LinkedList');
+  });
+  it('writes a CocoaPods subspec path as the purl subpath', () => {
+    expect(purlOf({ ecosystem: 'cocoapods', name: 'Firebase/Analytics', version: '10.29.0', manifest: 'Podfile.lock:9' })).toBe(
+      'pkg:cocoapods/Firebase@10.29.0#Analytics',
+    );
+    expect(purlOf({ ecosystem: 'cocoapods', name: 'GoogleUtilities/Environment', manifest: 'Podfile.lock:9' })).toBe(
+      'pkg:cocoapods/GoogleUtilities#Environment',
+    );
+    expect(purlOf({ ecosystem: 'cocoapods', name: 'Alamofire', version: '5.9.1', manifest: 'Podfile.lock:9' })).toBe('pkg:cocoapods/Alamofire@5.9.1');
+  });
   it('percent-encodes a plus sign in a version', () => {
     expect(
       purlOf({ ecosystem: 'golang', name: 'github.com/a/b', version: 'v2.0.0+incompatible', manifest: 'go.mod:5' }),
