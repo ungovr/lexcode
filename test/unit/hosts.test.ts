@@ -25,6 +25,34 @@ describe('hostOfLiteral', () => {
     expect(hostOfLiteral('')).toBeNull();
   });
 
+  it("reads C#'s verbatim, hole-free interpolated and raw string literals as literals, so a C# crawl keeps its host", () => {
+    expect(hostOfLiteral('@"https://api.example.org/v1"')).toBe('api.example.org');
+    expect(hostOfLiteral('@"https://api.example.org/a""b"')).toBe('api.example.org');
+    expect(hostOfLiteral('$"https://api.example.org/v1"')).toBe('api.example.org');
+    expect(hostOfLiteral('$"https://api.example.org/{{id}}"')).toBe('api.example.org');
+    expect(hostOfLiteral('$@"https://api.example.org/v1"')).toBe('api.example.org');
+    expect(hostOfLiteral('@$"https://api.example.org/v1"')).toBe('api.example.org');
+    expect(hostOfLiteral('"""https://api.example.org/v1"""')).toBe('api.example.org');
+    expect(hostOfLiteral('""""https://api.example.org/"x""""')).toBe('api.example.org');
+    expect(hostOfLiteral('"""\n    https://api.example.org/v1\n    """')).toBe('api.example.org');
+    expect(hostOfLiteral('$"""https://api.example.org/v1"""')).toBe('api.example.org');
+    expect(hostOfLiteral('$$"""https://api.example.org/{id}"""')).toBe('api.example.org');
+    expect(urlLiteral('@"/v1/items"')).toEqual({ literal: true, host: null });
+  });
+
+  it('reads a C# interpolation with a hole, or two C# literals joined, as code', () => {
+    expect(urlLiteral('$"https://{host}/v1"')).toEqual({ literal: false });
+    expect(urlLiteral('$@"https://{host}/v1"')).toEqual({ literal: false });
+    expect(urlLiteral('$"""https://{host}/v1"""')).toEqual({ literal: false });
+    expect(urlLiteral('$$"""https://{{host}}/v1"""')).toEqual({ literal: false });
+    expect(urlLiteral('@"https://a.example.org" + @"/x"')).toEqual({ literal: false });
+    expect(urlLiteral('$"https://a.example.org" + "/x"')).toEqual({ literal: false });
+    expect(urlLiteral('"""https://a.example.org""" + """/x"""')).toEqual({ literal: false });
+    expect(urlLiteral('"""https://a.example.org/x""""')).toEqual({ literal: false });
+    // a raw string with no `$` in front and a `$` inside is a Kotlin template
+    expect(urlLiteral('"""https://$host/v1"""')).toEqual({ literal: false });
+  });
+
   it('returns null for a literal with no host, such as a relative path', () => {
     expect(hostOfLiteral(`'/v1/items'`)).toBeNull();
     expect(urlLiteral(`'/v1/items'`)).toEqual({ literal: true, host: null });
