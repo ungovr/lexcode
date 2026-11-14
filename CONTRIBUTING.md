@@ -361,9 +361,9 @@ Measured on Opengrep 1.33.1:
   SDK imports implicitly (`System`, `System.IO`, `System.Linq`, `System.Net.Http`,
   `System.Threading`, `System.Threading.Tasks`, `System.Collections.Generic`; the
   Web SDK adds `Microsoft.AspNetCore.Http` and the other ASP.NET Core and
-  `Microsoft.Extensions` namespaces; MAUI adds the `Microsoft.Maui` namespaces) is matched by
-  a `pattern-either` of its fully qualified and short forms, and a short form of
-  a generic name pins its method names. A third-party type may add a short form
+  `Microsoft.Extensions` namespaces; MAUI adds the `Microsoft.Maui` namespaces)
+  is matched by a `pattern-either` of its fully qualified and short forms, and a
+  short form of a generic name pins its method names. A third-party type may add a short form
   only when the short name carries the vendor's or product's own name
   (`AmazonRekognitionClient`, `TwilioClient`, `SendGridClient`); otherwise the
   global-using gap stands and is recorded in `rules/README.md`.

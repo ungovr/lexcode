@@ -92,7 +92,7 @@ PyPI (`pyproject.toml`, `requirements*.txt`, `uv.lock`, `poetry.lock`), Go
 (`go.mod`), RubyGems (`Gemfile` or `gems.rb`, with `Gemfile.lock` or
 `gems.locked`, and `*.gemspec`), Maven (`pom.xml`, and Gradle's `build.gradle`
 and `build.gradle.kts` with their version catalogs, `gradle/*.versions.toml`,
-and the constants and `findLibrary` lookups in `buildSrc` and `build-logic`) and
+and the constants and `findLibrary` lookups in `buildSrc` and `build-logic`),
 Composer (`composer.json`, with the `composer.lock` beside it) and NuGet
 (`*.csproj`, `*.fsproj`, `*.vbproj`, `Directory.Build.props`,
 `Directory.Build.targets`, `Directory.Packages.props` and `packages.config`,
