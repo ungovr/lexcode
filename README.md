@@ -51,7 +51,9 @@ directory), and applies the simple patterns of the root `.gitignore`: a
 name, `dir/`, a glob such as `*.ext`, and a leading `/`. Negations (`!pattern`)
 are not supported, and neither is a `.gitignore` below the root; the scan says
 so in a notice. Never
-`node_modules`, `vendor`, `dist`, `build` or `.git`, never minified or bundled
+`node_modules`, `vendor`, `dist`, `build` or `.git`, never a legacy NuGet
+restore folder (a `packages` directory whose subdirectories hold a `.nupkg`;
+a `packages/` of your own code is read), never minified or bundled
 files (including any named `*.min.js`, `*.bundle.js`, `vendor.*.js` or
 `*.vendor.js`), never C# the compiler generated (`*.g.cs` and `*.g.i.cs`;
 a `*.Designer.cs` is read), never a file with a line over 100,000 characters (generated

@@ -143,6 +143,38 @@ describe('listFiles outside git', () => {
     expect(listFiles(root, plain).files).toEqual(['bin/deploy.sh', 'native/obj/a.o.c', 'src/App/Program.cs', 'tools/bin/Debug.txt']);
   });
 
+  describe('a legacy NuGet restore folder (packages/<Id>.<version>/ holding a .nupkg)', () => {
+    const restored = [
+      'src/App/Program.cs',
+      'packages/jQuery.3.7.1/jQuery.3.7.1.nupkg',
+      'packages/jQuery.3.7.1/Content/Scripts/jquery-3.7.1.js',
+      'packages/Newtonsoft.Json.13.0.3/Newtonsoft.Json.13.0.3.nupkg',
+      'packages/Newtonsoft.Json.13.0.3/lib/net45/Newtonsoft.Json.xml',
+      'legacy/Packages/Twilio.5.0.0/Twilio.5.0.0.NUPKG',
+      'legacy/Packages/Twilio.5.0.0/content/Twilio.cs',
+    ];
+    // A JavaScript workspace's own code under packages/, and a packages/ that holds a .nupkg only at its own level
+    const own = ['web/packages/ui/src/index.ts', 'web/packages/api/package.json', 'tools/packages/build.nupkg', 'tools/packages/pack.ps1'];
+
+    it('a walk skips it and keeps a packages/ of the repository own code', () => {
+      const root = repo([...restored, ...own], { git: false });
+      expect(listFiles(root, plain).files).toEqual(['src/App/Program.cs', 'tools/packages/build.nupkg', 'tools/packages/pack.ps1', 'web/packages/api/package.json', 'web/packages/ui/src/index.ts']);
+    });
+
+    it('a git listing skips it too, committed or not, and keeps a packages/ of the repository own code', () => {
+      const root = repo([...restored, ...own]);
+      git(root, 'add', '-A');
+      expect(listFiles(root, plain).files).toEqual(['src/App/Program.cs', 'tools/packages/build.nupkg', 'tools/packages/pack.ps1', 'web/packages/api/package.json', 'web/packages/ui/src/index.ts']);
+    });
+
+    it('a git listing skips it when .gitignore leaves out the .nupkg files but the restored files are committed', () => {
+      const root = repo([...restored, '.gitignore']);
+      put(root, '.gitignore', '*.nupkg\n*.NUPKG\n');
+      git(root, 'add', '-A');
+      expect(listFiles(root, plain).files).toEqual(['.gitignore', 'src/App/Program.cs']);
+    });
+  });
+
   it('keeps obj and bin in a git repository, where git decides', () => {
     const root = repo(['src/App/Program.cs', 'src/App/obj/project.assets.json', 'src/App/bin/Debug/x.cs']);
     expect(listFiles(root, plain).files).toEqual(['src/App/Program.cs', 'src/App/bin/Debug/x.cs', 'src/App/obj/project.assets.json']);

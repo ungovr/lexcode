@@ -44,6 +44,32 @@ function dotnetOutputDir(dirAbs: string, name: string): boolean {
   return false;
 }
 
+/**
+ * A legacy NuGet restore folder: `packages/` beside a solution, where `packages.config` restores each package
+ * into `packages/<Id>.<version>/` with its `.nupkg` and its files (`content/Scripts/jquery.js` among them).
+ * Keyed on what NuGet writes there, never on the name alone: a `packages/` of the repository's own code holds
+ * no `.nupkg` in a subdirectory and is read. Skipped by a git listing and a walk alike, since a repository may
+ * commit its restore folder.
+ */
+function nugetRestoreDir(dirAbs: string, name: string): boolean {
+  if (name.toLowerCase() !== 'packages') return false;
+  let children;
+  try {
+    children = readdirSync(dirAbs, { withFileTypes: true });
+  } catch {
+    return false;
+  }
+  for (const child of children) {
+    if (!child.isDirectory()) continue;
+    try {
+      if (readdirSync(path.join(dirAbs, child.name)).some((f) => f.toLowerCase().endsWith('.nupkg'))) return true;
+    } catch {
+      // an unreadable package directory says nothing either way
+    }
+  }
+  return false;
+}
+
 function isDirectory(abs: string): boolean {
   try {
     return lstatSync(abs).isDirectory();
@@ -268,6 +294,7 @@ function walk(root: string): { found: string[]; gitignore: { rules: number; notA
         if (ALWAYS_SKIPPED.has(entry.name) || WALK_SKIPPED.has(entry.name)) continue;
         if (VENV_NAMES.has(entry.name) && existsSync(path.join(abs, entry.name, 'pyvenv.cfg'))) continue;
         if (dotnetOutputDir(path.join(abs, entry.name), entry.name)) continue;
+        if (nugetRestoreDir(path.join(abs, entry.name), entry.name)) continue;
         if (ignoredBy(ignore.rules, rel, true)) continue;
         visit(rel);
       } else if (!ignoredBy(ignore.rules, rel, false)) {
@@ -316,8 +343,26 @@ export function listFiles(root: string, spec: ScopeSpec): ListFilesResult {
   let skippedBundled = 0;
   let skippedUnreadable = 0;
   const candidates: string[] = [];
+  // A git listing names files, not directories: each `packages` directory on a listed path is asked once.
+  const restoreDirs = new Map<string, boolean>();
+  const underRestoreDir = (rel: string): boolean => {
+    if (!rel.toLowerCase().includes('packages/')) return false;
+    const parts = rel.split('/');
+    for (let i = 0; i < parts.length - 1; i++) {
+      if ((parts[i] as string).toLowerCase() !== 'packages') continue;
+      const dirRel = parts.slice(0, i + 1).join('/');
+      let skip = restoreDirs.get(dirRel);
+      if (skip === undefined) {
+        skip = nugetRestoreDir(path.join(root, ...parts.slice(0, i + 1)), parts[i] as string);
+        restoreDirs.set(dirRel, skip);
+      }
+      if (skip) return true;
+    }
+    return false;
+  };
   for (const rel of listed) {
     if (underSkippedDir(rel, spec.includeTests)) continue;
+    if (viaGit !== null && underRestoreDir(rel)) continue;
     if (BUNDLED_NAME.test(rel.slice(rel.lastIndexOf('/') + 1))) {
       skippedBundled++;
       continue;
