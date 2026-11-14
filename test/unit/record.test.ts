@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   buildRecord,
@@ -28,6 +29,11 @@ const base = {
 };
 
 const voice = { id: 'lexcode.voice.whisper', activity: 'processes_voice' };
+
+/** A language name as a whole word in a notice: `\bC#\b` would need a word character after the `#`. */
+function namedIn(name: string): RegExp {
+  return new RegExp(`(?<![\\w#])${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\w#])`);
+}
 
 describe('buildRecord', () => {
   it('fills the header from the rule set and the clock', () => {
@@ -283,7 +289,7 @@ describe('buildRecord', () => {
 
   describe('a repository lexcode cannot read (S4)', () => {
     const rs = ruleSetWith([{ id: 'lexcode.voice.whisper', activity: 'processes_voice' }]);
-    const noRead = /no file in scope is in a language lexcode reads \(TypeScript, JavaScript, Python, Go, Ruby, Java, Kotlin and PHP, and script blocks in HTML, Vue, Svelte, Jinja, ERB, JSP, PHP, Blade and Twig views\); nothing was looked at/;
+    const noRead = /no file in scope is in a language lexcode reads \(TypeScript, JavaScript, Python, Go, Ruby, Java, Kotlin, PHP and C#, and script blocks in HTML, Vue, Svelte, Jinja, ERB, JSP, PHP, Blade, Twig and Razor views\); nothing was looked at/;
 
     it('adds a notice when no code rule had a file to read', () => {
       const rulesRun = countRulesRun(rs, rs.rules, ['app.rb', 'README.md'], new Set());
@@ -302,11 +308,11 @@ describe('buildRecord', () => {
       expect(buildRecord({ ...base, rs: withJson, rulesRun }).notices.join('\n')).toMatch(noRead);
     });
 
-    it('the notice names every language and view type lexcode reads, Ruby, Java, Kotlin, PHP, ERB, JSP, Blade and Twig included', () => {
+    it('the notice names every language and view type lexcode reads, Ruby, Java, Kotlin, PHP, C#, ERB, JSP, Blade, Twig and Razor included', () => {
       const rulesRun = countRulesRun(rs, rs.rules, ['app.rb', 'README.md'], new Set());
       const text = buildRecord({ ...base, rs, rulesRun }).notices.find((n) => noRead.test(n)) ?? '';
-      for (const name of ['TypeScript', 'JavaScript', 'Python', 'Go', 'Ruby', 'Java', 'Kotlin', 'PHP', 'HTML', 'Vue', 'Svelte', 'Jinja', 'ERB', 'JSP', 'Blade', 'Twig']) {
-        expect(text).toMatch(new RegExp(`\\b${name}\\b`));
+      for (const name of ['TypeScript', 'JavaScript', 'Python', 'Go', 'Ruby', 'Java', 'Kotlin', 'PHP', 'C#', 'HTML', 'Vue', 'Svelte', 'Jinja', 'ERB', 'JSP', 'Blade', 'Twig', 'Razor']) {
+        expect(text).toMatch(namedIn(name));
       }
     });
 
@@ -320,11 +326,12 @@ describe('buildRecord', () => {
         java: 'Java',
         kotlin: 'Kotlin',
         php: 'PHP',
+        csharp: 'C#',
       };
       // settings formats and build-file readers are not source languages
       const notSource = new Set(['json', 'yaml', 'yml', 'xml', 'generic', 'regex']);
       const langs = new Set(loadRuleSet().rules.flatMap((r) => r.languages.map((l) => l.toLowerCase())));
-      const unnamed = [...langs].filter((l) => !notSource.has(l) && !new RegExp(`\\b${display[l] ?? `no name for ${l}`}\\b`).test(READ_LANGUAGES));
+      const unnamed = [...langs].filter((l) => !notSource.has(l) && !namedIn(display[l] ?? `no name for ${l}`).test(READ_LANGUAGES));
       expect(unnamed).toEqual([]);
     });
 
@@ -705,13 +712,19 @@ describe('the notice for files past a whole-file pre-filter\'s reach', () => {
     expect(asked).toEqual(['large.rb']);
   });
 
-  it('marks the bundled rules that carry a whole-file lookahead, in Java, Kotlin, Ruby and PHP', () => {
+  it('marks the bundled rules that carry a whole-file lookahead, and only those, whatever their language', () => {
     const rs = loadRuleSet();
     const marked = rs.rules.filter((r) => r.wholeFilePrefilter);
     expect(marked.some((r) => r.id === 'lexcode.crawl.rb-mechanize-fetch')).toBe(true);
     expect(rs.rules.find((r) => r.id === 'lexcode.social.java-direct-message')?.wholeFilePrefilter).toBe(true);
     expect(rs.rules.find((r) => r.id.startsWith('lexcode.') && r.languages.includes('python'))?.wholeFilePrefilter).toBeUndefined();
-    expect(new Set(marked.flatMap((r) => r.languages))).toEqual(new Set(['java', 'kotlin', 'ruby', 'php']));
+    // The expected set is read from the rule files' own text, so a group that adds or drops a lookahead moves it:
+    // in 1.4 no C# rule carries one (groups 2 and 5 replaced theirs with structural gates in review).
+    const carries = rs.rules.filter((r) => /^\s*-?\s*pattern-regex:.*\\A\(\?=/m.test(readFileSync(r.file, 'utf8')));
+    expect(marked.map((r) => r.id).sort()).toEqual(carries.map((r) => r.id).sort());
+    const languages = new Set(marked.flatMap((r) => r.languages));
+    expect(languages).toEqual(new Set(carries.flatMap((r) => r.languages)));
+    for (const l of ['java', 'kotlin', 'ruby', 'php']) expect(languages.has(l), l).toBe(true);
     // The notice names a large .php file's language as PHP, through the bundled rules.
     expect(prefilterReachNotice(largePrefilteredFiles(rs.rules, ['big.php'], () => big))).toMatch(/ \(PHP\); /);
   });
