@@ -56,10 +56,10 @@ restore folder (a `packages` directory whose subdirectories hold a `.nupkg`;
 a `packages/` of your own code is read), never minified or bundled
 files (including any named `*.min.js`, `*.bundle.js`, `vendor.*.js` or
 `*.vendor.js`), never C# the compiler generated (`*.g.cs` and `*.g.i.cs`;
-a `*.Designer.cs` is read), never a file with a line over 100,000 characters (generated
-code, counted in a notice), never symbolic links, never files over 5 MB, never a
-file you cannot open for reading (counted in a notice), and never directories
-named `test`, `tests`, `__tests__`, `spec`, `fixtures`, `testdata`,
+a `*.Designer.cs` is read), never a file with a line over 100,000 characters
+(generated code, counted in a notice), never symbolic links, never files over
+5 MB, never a file you cannot open for reading (counted in a notice), and never
+directories named `test`, `tests`, `__tests__`, `spec`, `fixtures`, `testdata`,
 `androidTest`, `testFixtures` or `integrationTest`, or the Kotlin Multiplatform
 test source sets `commonTest`, `jvmTest`, `androidUnitTest`,
 `androidInstrumentedTest`, `iosTest`, `jsTest` or `nativeTest`, or .NET test
@@ -71,7 +71,7 @@ too), unless you pass `--include-tests`.
 
 Languages: TypeScript, JavaScript (with JSX and TSX), Python, Go, Ruby
 (`.rb`, `.rake`, `.ru` and `.gemspec` files, and a `Rakefile`, `Fastfile`,
-`Appfile` or `Capfile`), Java (`.java`), Kotlin (`.kt`, `.kts`) and PHP (`.php`,
+`Appfile` or `Capfile`), Java (`.java`), Kotlin (`.kt`, `.kts`), PHP (`.php`,
 `.phtml`, and `.inc`, `.module`, `.theme` and `.install` files that open with
 `<?php`) and C# (`.cs`; `.csx` and `.cake` scripts are not read), plus the
 `<script>` blocks of Vue, Svelte, HTML, Jinja, ERB (`.erb`, so `.html.erb`),
@@ -83,15 +83,16 @@ tags are blanked, so line numbers hold), except that a Razor file's `@code`
 and `@functions` blocks are also read as C#. A PHP, Blade or `.phtml` view is
 PHP source, so the whole file is also scanned as PHP, and its `<script>`
 blocks are read as JavaScript as well. Code in any other language (Swift, F#,
-Visual Basic, Rust and the like) is not read, and the scan names each such language with its file count in a notice, so
-a missing activity there reads as "not checked", never as "not there".
+Visual Basic, Rust and the like) is not read, and the scan names each such
+language with its file count in a notice, so a missing activity there reads as
+"not checked", never as "not there".
 Manifests: npm
 (`package.json` with `package-lock.json`, `pnpm-lock.yaml` or `yarn.lock`),
 PyPI (`pyproject.toml`, `requirements*.txt`, `uv.lock`, `poetry.lock`), Go
 (`go.mod`), RubyGems (`Gemfile` or `gems.rb`, with `Gemfile.lock` or
 `gems.locked`, and `*.gemspec`), Maven (`pom.xml`, and Gradle's `build.gradle`
 and `build.gradle.kts` with their version catalogs, `gradle/*.versions.toml`,
-and the constants and `findLibrary` lookups in `buildSrc` and `build-logic`) and
+and the constants and `findLibrary` lookups in `buildSrc` and `build-logic`),
 Composer (`composer.json`, with the `composer.lock` beside it) and NuGet
 (`*.csproj`, `*.fsproj`, `*.vbproj`, `Directory.Build.props`,
 `Directory.Build.targets`, `Directory.Packages.props` and `packages.config`,
