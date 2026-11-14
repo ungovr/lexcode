@@ -1,3 +1,8 @@
+# The sink is a return in a function that also calls the image model, not every return in the file:
+# that made the taint pass grow several times faster than the file, 15 to 25 s on a 900 KB file
+# where a scan gives one rule 30 s per file (#13034). The flow this rule follows starts at a call in
+# the same function, so the narrower sink keeps its matches. How the scope is written, and why, is
+# in CONTRIBUTING.md, Cost.
 rules:
   - id: lexcode.image.js-image-result-returned
     languages: [javascript, typescript]
@@ -25,7 +30,57 @@ rules:
               import { ..., generateImage, ... } from "ai";
               ...
     pattern-sinks:
-      - pattern: return $X
+      - patterns:
+          - pattern: return $X
+          - pattern-either:
+              - pattern-inside: |
+                  function $SINKFN(...) {
+                    ...
+                    <... $SINKC.images.$SINKM(...) ...>;
+                    ...
+                  }
+              - pattern-inside: |
+                  function (...) {
+                    ...
+                    <... $SINKC.images.$SINKM(...) ...>;
+                    ...
+                  }
+              - pattern-inside: |
+                  function $SINKFN(...) {
+                    ...
+                    <... $SINKC.models.generateImages(...) ...>;
+                    ...
+                  }
+              - pattern-inside: |
+                  function (...) {
+                    ...
+                    <... $SINKC.models.generateImages(...) ...>;
+                    ...
+                  }
+              - pattern-inside: |
+                  function $SINKFN(...) {
+                    ...
+                    <... experimental_generateImage(...) ...>;
+                    ...
+                  }
+              - pattern-inside: |
+                  function (...) {
+                    ...
+                    <... experimental_generateImage(...) ...>;
+                    ...
+                  }
+              - pattern-inside: |
+                  function $SINKFN(...) {
+                    ...
+                    <... generateImage(...) ...>;
+                    ...
+                  }
+              - pattern-inside: |
+                  function (...) {
+                    ...
+                    <... generateImage(...) ...>;
+                    ...
+                  }
     pattern-sanitizers:
       - patterns:
           - pattern: $RES.$M(...)

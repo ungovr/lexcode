@@ -1,3 +1,8 @@
+# The sink is a return in a function that also calls the model, not every return in the file: that
+# made the taint pass grow several times faster than the file, 15 to 25 s on a 900 KB file where a
+# scan gives one rule 30 s per file (#13034). The flow this rule follows starts at a call in the
+# same function, so the narrower sink keeps its matches. How the scope is written, and why, is in
+# CONTRIBUTING.md, Cost.
 rules:
   - id: lexcode.text.js-chat-result-returned
     languages: [javascript, typescript]
@@ -34,7 +39,93 @@ rules:
               import { ..., streamObject, ... } from "ai";
               ...
     pattern-sinks:
-      - pattern: return $X
+      - patterns:
+          - pattern: return $X
+          - pattern-either:
+              - pattern-inside: |
+                  function $SINKFN(...) {
+                    ...
+                    <... $SINKC.chat.completions.$SINKM(...) ...>;
+                    ...
+                  }
+              - pattern-inside: |
+                  function (...) {
+                    ...
+                    <... $SINKC.chat.completions.$SINKM(...) ...>;
+                    ...
+                  }
+              - pattern-inside: |
+                  function $SINKFN(...) {
+                    ...
+                    <... $SINKC.responses.$SINKM(...) ...>;
+                    ...
+                  }
+              - pattern-inside: |
+                  function (...) {
+                    ...
+                    <... $SINKC.responses.$SINKM(...) ...>;
+                    ...
+                  }
+              - pattern-inside: |
+                  function $SINKFN(...) {
+                    ...
+                    <... $SINKC.messages.$SINKM(...) ...>;
+                    ...
+                  }
+              - pattern-inside: |
+                  function (...) {
+                    ...
+                    <... $SINKC.messages.$SINKM(...) ...>;
+                    ...
+                  }
+              - pattern-inside: |
+                  function $SINKFN(...) {
+                    ...
+                    <... generateText(...) ...>;
+                    ...
+                  }
+              - pattern-inside: |
+                  function (...) {
+                    ...
+                    <... generateText(...) ...>;
+                    ...
+                  }
+              - pattern-inside: |
+                  function $SINKFN(...) {
+                    ...
+                    <... streamText(...) ...>;
+                    ...
+                  }
+              - pattern-inside: |
+                  function (...) {
+                    ...
+                    <... streamText(...) ...>;
+                    ...
+                  }
+              - pattern-inside: |
+                  function $SINKFN(...) {
+                    ...
+                    <... generateObject(...) ...>;
+                    ...
+                  }
+              - pattern-inside: |
+                  function (...) {
+                    ...
+                    <... generateObject(...) ...>;
+                    ...
+                  }
+              - pattern-inside: |
+                  function $SINKFN(...) {
+                    ...
+                    <... streamObject(...) ...>;
+                    ...
+                  }
+              - pattern-inside: |
+                  function (...) {
+                    ...
+                    <... streamObject(...) ...>;
+                    ...
+                  }
     pattern-sanitizers:
       - patterns:
           - pattern: $RES.$M(...)

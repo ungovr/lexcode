@@ -188,11 +188,57 @@ pairing:
 ```
 
 The nested form matches the same ranges and took those rules to about 3 s. A
-check on a metavariable that two terms bind stays at the joined level. Before a
-release, `node scripts/rule-cost.mjs` times each rule with a positive fixture in
-Java, Kotlin, PHP, Ruby, Python, JavaScript, TypeScript or Go on that fixture
-followed by filler, at 90 KB and 900 KB, beside a bare rule that only parses the
-same filler. It names a rule whose time grows more than twice as fast as the bare
+check on a metavariable that two terms bind stays at the joined level.
+
+A taint rule's sink costs in proportion to how often it matches. The engine
+finds every sink match in the file before its taint pass, and the pass then
+takes time that grows with the number of sink matches times the size of the
+file. With every `return` in the file as the sink, the Python and JavaScript
+`*-result-returned` rules took 15 to 25 s on a 900 KB file of small functions;
+the same Python rule with a sink that matched nothing took 0.7 s (#13034). The
+flow those rules follow starts at a call in the same function, so the sink is a
+return inside a function that makes the call:
+
+```yaml
+- patterns:
+    - pattern: return $X
+    - pattern-either:
+        - pattern-inside: |
+            function $SINKFN(...) {
+              ...
+              <... $SINKC.chat.completions.$SINKM(...) ...>;
+              ...
+            }
+        - pattern-inside: |
+            function (...) {
+              ...
+              <... $SINKC.chat.completions.$SINKM(...) ...>;
+              ...
+            }
+```
+
+In JavaScript and TypeScript, `function $SINKFN(...)` matches a declaration, a
+method, and a function or arrow given a name, and `function (...)` matches a
+callback, so each call needs both. In Python, `def $SINKFN(...):` with the call
+in a statement sequence finds it in an assignment, a `with` or `if` header, a
+loop and a `try`, but a sequence does not reach inside `async with` or
+`async for`. The Python rules add `async def $SINKFN(...):` over `$...SINKBODY`
+with a `metavariable-pattern` that searches the body, and the same for a
+lambda. Spell each call out with its names, and leave off the sources' argument
+checks so the scope is never narrower than the sources. A call pattern with no
+name in it (`<... $SINKCALL(...) ...>` checked by a `metavariable-regex`) pairs
+every call with every function around it: it ran 28 s on a 2.4 MB JavaScript
+bundle and stopped with "Too many matches" on a 19 KB Python file, and a regex
+on the call's text misses a call imported under a bare name
+(`from litellm import completion`), which a pattern finds.
+`test/unit/taint-sinks.test.ts` runs every taint rule's sinks over filler that
+calls nothing a rule looks for and fails on any match.
+
+Before a release, `node scripts/rule-cost.mjs` times each rule with a positive
+fixture in Java, Kotlin, PHP, Ruby, Python, JavaScript, TypeScript or Go on that
+fixture followed by filler (`scripts/filler.mjs`, where every function returns
+a variable), at 90 KB and 900 KB, beside a bare rule that only parses the same
+filler. It names a rule whose time grows more than twice as fast as the bare
 rule's for the 10x file, or that takes more than five times the bare rule's time
 on 900 KB, and every rule the engine failed on.
 

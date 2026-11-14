@@ -1,3 +1,8 @@
+# The sink is a return in a function that also calls the image model, not every return in the file:
+# that made the taint pass grow several times faster than the file, 15 to 25 s on a 900 KB file
+# where a scan gives one rule 30 s per file (#13034). The flow this rule follows starts at a call in
+# the same function, so the narrower sink keeps its matches. How the scope is written, and why, is
+# in CONTRIBUTING.md, Cost.
 rules:
   - id: lexcode.image.py-image-result-returned
     languages: [python]
@@ -15,6 +20,38 @@ rules:
           - pattern-either:
               - pattern: return $X
               - pattern: yield $X
+          - pattern-either:
+              - pattern-inside: |
+                  def $SINKFN(...):
+                    ...
+                    <... $SINKC.images.$SINKM(...) ...>
+                    ...
+              - pattern-inside: |
+                  def $SINKFN(...):
+                    ...
+                    <... $SINKC.models.generate_images(...) ...>
+                    ...
+              - pattern-inside: |
+                  def $SINKFN(...):
+                    ...
+                    <... openai.Image.create(...) ...>
+                    ...
+              - patterns:
+                  - pattern-inside: |
+                      async def $SINKFN(...):
+                        $...SINKBODY
+                  - metavariable-pattern:
+                      metavariable: $...SINKBODY
+                      pattern-either: &sinkcalls
+                        - pattern: $SINKC.images.$SINKM(...)
+                        - pattern: $SINKC.models.generate_images(...)
+                        - pattern: openai.Image.create(...)
+              - patterns:
+                  - pattern-inside: |
+                      lambda $...SINKARGS: $SINKLAMBDA
+                  - metavariable-pattern:
+                      metavariable: $SINKLAMBDA
+                      pattern-either: *sinkcalls
           - pattern-not-inside: |
               @$A.$M(...)
               def $F(...):

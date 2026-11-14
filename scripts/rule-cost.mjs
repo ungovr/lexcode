@@ -28,6 +28,7 @@ import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'n
 import { tmpdir } from 'node:os';
 import { basename, dirname, extname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { FILLER, fill } from './filler.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const RULES = join(ROOT, 'rules');
@@ -39,21 +40,8 @@ const ATTEMPTS = 3;
 /** One engine run on the two files; far above any rule worth keeping, so a runaway rule fails instead of hanging. */
 const SCAN_CAP_MS = 15 * 60 * 1000;
 
-const JAVA = { language: 'java', bare: 'C0', unit: 'class C%N { private int a; private int b; void m() { int x = 1; } }\n' };
-const KOTLIN = { language: 'kotlin', bare: 'C0', unit: 'class C%N { private val a: Int = 1; private val b: Int = 2; fun m() { val x = 1 } }\n' };
-const TYPESCRIPT = { language: 'typescript', bare: 'C0', unit: 'class C%N { a: number = 1; b: number = 2; m(p: number) { const x = p + 1; return x; } }\n' };
-/** Filler per fixture extension: dense in classes, fields, functions and returns, naming nothing a rule looks for. */
-const LANGS = {
-  '.java': JAVA,
-  '.kt': KOTLIN,
-  '.php': { language: 'php', bare: 'f0', unit: 'function f%N($a, $b) { $x = $a + $b; return $x * 2; }\n', head: '<?php\n' },
-  '.rb': { language: 'ruby', bare: 'C0', unit: 'class C%N\n  def m(a, b)\n    x = a + b\n    x * 2\n  end\nend\n' },
-  '.py': { language: 'python', bare: 'C0', unit: 'class C%N:\n    a = 1\n    b = 2\n\n    def m(self, p):\n        x = p + 1\n        return x\n\n\n' },
-  '.js': { language: 'javascript', bare: 'C0', unit: 'class C%N { constructor() { this.a = 1; this.b = 2; } m(p) { const x = p + 1; return x; } }\n' },
-  '.ts': TYPESCRIPT,
-  '.tsx': TYPESCRIPT,
-  '.go': { language: 'go', bare: 'C0', unit: 'type C%N struct {\n\ta int\n\tb int\n}\n\nfunc (c C%N) M(p int) int {\n\tx := p + 1\n\treturn x\n}\n\n', head: 'package demo\n\n' },
-};
+/** Filler per fixture extension (scripts/filler.mjs). */
+const LANGS = FILLER;
 
 function args() {
   const a = process.argv.slice(2);
@@ -97,17 +85,6 @@ function rulesWithFixtures(dir) {
     if (fixture) out.push({ rule: p, fixture: join(dir, fixture) });
   }
   return out.sort((x, y) => x.rule.localeCompare(y.rule));
-}
-
-function fill(head, unit, kb) {
-  const parts = [head.endsWith('\n') || head === '' ? head : `${head}\n`];
-  let n = parts[0].length;
-  for (let i = 0; n < kb * 1000; i++) {
-    const s = unit.replaceAll('%N', String(i));
-    parts.push(s);
-    n += s.length;
-  }
-  return parts.join('');
 }
 
 /** Runs the engine once; `times` maps each target's file name to its run time, or `error` says why there are none. */
