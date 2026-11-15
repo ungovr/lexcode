@@ -1,0 +1,49 @@
+rules:
+  - id: lexcode.tracking.swift-analytics-google
+    languages: [swift]
+    severity: INFO
+    message: Sends events or a user id to Google's analytics or crash reporting (Firebase Analytics, which follows the device with its own app-instance id, Crashlytics given a user id, or the Google Analytics Measurement Protocol), which is tracking devices (tracks_devices).
+    # One of four Swift analytics rules, split by vendor family from one rule whose engine
+    # prefilter grew to 14 MB and took 24 s on one 109 KB file (#13199). Each family keeps its
+    # own import guards; together the four report exactly what the single rule did.
+    # Shapes (Decision 8, Amendment 2):
+    # - Firebase's Analytics carries no vendor name, so it is module-qualified only: the engine
+    #   resolves `import FirebaseAnalytics` and the `import Firebase` umbrella when each is
+    #   written as its own module, and never reads an app's own Analytics type in a file without
+    #   the import.
+    # - Crashlytics carries the product's name, so its short form also matches with no import,
+    #   for a file reached through an `@_exported import` elsewhere or a bridging header.
+    # - The engine does not resolve a module-qualified head of a chain under `try` or `await`,
+    #   so a chain matches its head inside the call it receives.
+    # - Clearing the user id (nil or "") is the opposite of following the device, and is left out.
+    pattern-either:
+      # Firebase Analytics. appInstanceID reads Firebase's own per-install identifier.
+      - patterns:
+          - pattern-either:
+              - pattern: FirebaseAnalytics.Analytics.$M(...)
+              - pattern: Firebase.Analytics.$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(logEvent|setUserID|setUserProperty|appInstanceID)$
+          - pattern-not: FirebaseAnalytics.Analytics.setUserID(nil)
+          - pattern-not: Firebase.Analytics.setUserID(nil)
+          - pattern-not: FirebaseAnalytics.Analytics.setUserID("")
+          - pattern-not: Firebase.Analytics.setUserID("")
+      # Crashlytics: a user id set on the crash reporter.
+      - patterns:
+          - pattern-either:
+              - pattern: FirebaseCrashlytics.Crashlytics.crashlytics()
+              - pattern: Firebase.Crashlytics.crashlytics()
+              - pattern: Crashlytics.crashlytics()
+          - pattern-inside: $X.setUserID(...)
+          - pattern-not-inside: $X.setUserID(nil)
+          - pattern-not-inside: $X.setUserID("")
+      # Google Analytics Measurement Protocol: a hit sent to the collect endpoint, matched on the
+      # string's text.
+      - pattern-regex: '"(?:https?:)?(?://)?(?:www\.|ssl\.|region1\.)?google-analytics\.com/(?:mp/|g/|debug/mp/)?collect\b'
+    metadata:
+      activity: tracks_devices
+      mentioned: performs
+      definition: https://lexlint.io/activities/tracks-devices
+      provenance: ungovr-original
+      license: MIT
