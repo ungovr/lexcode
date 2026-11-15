@@ -1,4 +1,4 @@
-// lexcode-expect: 13
+// lexcode-expect: 26
 use async_openai::{config::OpenAIConfig, Client};
 use aws_sdk_transcribe::types::{LanguageCode, Media};
 use aws_sdk_transcribestreaming::types::{AudioStream, LanguageCode as StreamLanguage};
@@ -24,6 +24,7 @@ impl Transcriber {
             .await?;
         self.transcribe.start_medical_transcription_job().send().await?;
         self.transcribe.start_call_analytics_job().send().await?;
+        self.transcribe.start_medical_scribe_job().send().await?;
         Ok(())
     }
 
@@ -35,6 +36,8 @@ impl Transcriber {
             .media_sample_rate_hertz(16000)
             .send()
             .await?;
+        self.streaming.start_medical_stream_transcription().send().await?;
+        self.streaming.start_call_analytics_stream_transcription().send().await?;
         Ok(())
     }
 
@@ -54,12 +57,14 @@ impl Transcriber {
     pub async fn deepgram(&self, path: &str) -> anyhow::Result<()> {
         let options = Options::builder().language(Language::en).build();
         let _r = self.dg.transcription().prerecorded(path.into(), &options).await?;
+        let _live = self.dg.transcription().stream_request().keep_alive();
         Ok(())
     }
 }
 
 pub async fn other_clients(oai: &mut OpenAIClient, req: openai_api_rs::v1::audio::AudioTranscriptionRequest) -> anyhow::Result<()> {
     let _r = oai.audio_transcription(req).await?;
+    let _en = oai.audio_translation(Default::default()).await?;
     Ok(())
 }
 
@@ -67,5 +72,13 @@ pub async fn by_address(http: &reqwest::Client, audio: Vec<u8>, id: &str) -> any
     http.post("https://api.assemblyai.com/v2/upload").body(audio.clone()).send().await?;
     let _poll = format!("https://api.assemblyai.com/v2/transcript/{id}");
     http.post("https://api.deepgram.com/v1/listen?model=nova-2").body(audio).send().await?;
+    http.post("https://api.rev.ai/speechtotext/v1/jobs").send().await?;
+    http.post("https://asr.api.speechmatics.com/v2/jobs/").send().await?;
+    http.post("https://api.gladia.io/v2/pre-recorded").send().await?;
+    http.post("https://api.elevenlabs.io/v1/speech-to-text").send().await?;
+    http.post("https://speech.googleapis.com/v1/speech:recognize").send().await?;
+    http.post("https://westus.stt.speech.microsoft.com/speech/recognition/conversation/cognitiveservices/v1").send().await?;
+    http.post("https://westus.api.cognitive.microsoft.com/speechtotext/v3.2/transcriptions").send().await?;
+    http.post("http://localhost:8000/v1/audio/translations").send().await?;
     Ok(())
 }

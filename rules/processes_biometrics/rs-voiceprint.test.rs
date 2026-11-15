@@ -1,4 +1,4 @@
-// lexcode-expect: 10
+// lexcode-expect: 11
 use sherpa_rs::{embedding_manager, speaker_id};
 use vosk::{Model, Recognizer, SpeakerModel};
 
@@ -35,5 +35,6 @@ pub async fn voice_id(client: &aws_sdk_voiceid::Client, domain: &str, session: &
 pub async fn by_address(http: &reqwest::Client, endpoint: &str, user: &str) -> anyhow::Result<()> {
     http.post(format!("https://api.voiceit.io/enrollments/voice/{user}")).send().await?;
     http.post(format!("{endpoint}/speaker-recognition/verification/text-independent/profiles")).send().await?;
+    http.post(format!("{endpoint}/speaker/identification/v2.0/text-independent/profiles")).send().await?;
     Ok(())
 }

@@ -1,21 +1,20 @@
 # Recording, transcribing or analyzing a call or meeting through a platform API from Rust:
 # - LiveKit egress (livekit-api's `EgressClient`), which records a room, a participant or a track;
 # - the AWS SDK for Rust: an Amazon Chime SDK media capture or insights pipeline, a Chime meeting's
-#   live transcription, Amazon Connect contact recording, and Amazon Transcribe call analytics (a call
-#   between an agent and a customer, transcribed and analyzed). Each is a builder started from the
+#   live transcription and Amazon Connect contact recording. Each is a builder started from the
 #   client, so it is matched by its zero-argument start;
 # - an address written in a string: Zoom cloud recordings, a notetaker bot sent into a meeting
 #   (Recall.ai, MeetingBaaS, Attendee), Twilio Video compositions of a recorded room, Agora cloud
 #   recording, and Daily's `enable_recording` room property. The string checks read the source text,
 #   so an address or property inside `format!` or `json!` is found too.
 # A web egress records a web page, not the people in a room, and is left out, as in the other
-# languages. Call analytics transcribes speech as well, and rs-transcription-sdk also reports it under
-# processes_voice.
+# languages. Amazon Transcribe call analytics is reported by rs-transcription-sdk under processes_voice
+# only, as C# reports it (the controller's ruling).
 rules:
   - id: lexcode.calls.rs-meeting-recording-apis
     languages: [rust]
     severity: INFO
-    message: Records, transcribes or analyzes a call or meeting through a platform API (LiveKit egress, Amazon Chime capture or live transcription, Amazon Connect recording, Amazon Transcribe call analytics, Zoom recordings, a notetaker bot, Twilio Video compositions, Agora or Daily cloud recording), which is recording calls (records_calls).
+    message: Records, transcribes or analyzes a call or meeting through a platform API (LiveKit egress, Amazon Chime capture or live transcription, Amazon Connect recording, Zoom recordings, a notetaker bot, Twilio Video compositions, Agora or Daily cloud recording), which is recording calls (records_calls).
     pattern-either:
       - pattern: $C.start_room_composite_egress(...)
       - pattern: $C.start_participant_egress(...)
@@ -25,8 +24,6 @@ rules:
       - pattern: $C.create_media_insights_pipeline()
       - pattern: $C.start_meeting_transcription()
       - pattern: $C.start_contact_recording()
-      - pattern: $C.start_call_analytics_job()
-      - pattern: $C.start_call_analytics_stream_transcription()
       - pattern-regex: |-
           "[^"\n]*(\bapi\.zoom\.us/v2/(meetings|users|accounts|past_meetings)/[^"\n]*recordings|\brecall\.ai/api/v\d+/bot|\bapi\.meetingbaas\.com/bots|\bapp\.attendee\.dev/api/v\d+/bots|\bvideo\.twilio\.com/v1/Compositions|\bapi\.agora\.io/v1/apps/[^"\n]*/cloud_recording/)
       - pattern-regex: \benable_recording\\?"\s*:\s*\\?"(cloud|local|raw-tracks|cloud-audio-only|rtp-tracks)\\?"

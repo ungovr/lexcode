@@ -9,10 +9,18 @@ rules:
     severity: INFO
     message: Opens the microphone to capture sound, which is recording a human voice (processes_voice).
     pattern-either:
-      - pattern: $D.build_input_stream(...)
-      - pattern: $D.build_input_stream_raw(...)
-      - pattern: $PA.default_input_stream_params(...)
-      - pattern: $PA.default_input_stream_params::<$T>(...)
+      # cpal's methods are trait methods, so a file that calls them has a `use cpal` line bringing
+      # `DeviceTrait` in; the guard costs no file and keeps an app's own `build_input_stream` out.
+      - patterns:
+          - pattern-either:
+              - pattern: $D.build_input_stream(...)
+              - pattern: $D.build_input_stream_raw(...)
+          - pattern-regex: (?sm)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+cpal\b).*
+      - patterns:
+          - pattern-either:
+              - pattern: $PA.default_input_stream_params(...)
+              - pattern: $PA.default_input_stream_params::<$T>(...)
+          - pattern-regex: (?sm)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+portaudio\b).*
       - pattern: portaudio::InputStreamSettings::new(...)
     metadata:
       activity: processes_voice

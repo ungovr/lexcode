@@ -23,14 +23,14 @@ rules:
       # counts only in a file whose `use` names vosk.
       - patterns:
           - pattern: $R.set_speaker_model(...)
-          - pattern-regex: (?sm)\A(?=.*^[ \t]*(?:pub\s+)?use\s+vosk\b).*
+          - pattern-regex: (?sm)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+vosk\b).*
       - pattern: sherpa_rs::speaker_id::EmbeddingExtractor::new(...)
       - pattern: sherpa_rs::embedding_manager::EmbeddingManager::new(...)
       - patterns:
           - pattern-either:
               - pattern: EmbeddingExtractor::new(...)
               - pattern: EmbeddingManager::new(...)
-          - pattern-regex: (?sm)\A(?=.*^[ \t]*(?:pub\s+)?use\s+sherpa_rs\b).*
+          - pattern-regex: (?sm)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+sherpa_rs\b).*
       - pattern: $C.start_speaker_enrollment_job()
       - pattern: $C.start_fraudster_registration_job()
       - patterns:

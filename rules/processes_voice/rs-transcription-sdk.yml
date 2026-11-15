@@ -1,9 +1,9 @@
 # Speech to text through a vendor's API: Amazon Transcribe (batch, medical, scribe, call analytics and
 # streaming, the AWS SDK for Rust's builders started from the client, so each is matched by its
-# zero-argument start), OpenAI audio transcription and translation through async-openai
-# (`client.audio().transcribe(..)` and its variants, and the newer `client.audio().transcription()`
-# group) and openai-api-rs (`audio_transcription`), Deepgram's `transcription()` client, and a
-# speech-to-text endpoint written in a string (AssemblyAI, Deepgram, Rev.ai, Speechmatics, Gladia,
+# zero-argument start; call analytics is reported here only, as in C#), OpenAI audio transcription
+# and translation through async-openai (`client.audio().transcribe(..)` and its variants, and the
+# newer `client.audio().transcription()` group) and openai-api-rs (`audio_transcription`),
+# Deepgram's `transcription()` client, and a speech-to-text endpoint written in a string (AssemblyAI, Deepgram, Rev.ai, Speechmatics, Gladia,
 # ElevenLabs, Google, Azure, and any OpenAI-compatible `/v1/audio/transcriptions` server). The string
 # check reads the source text, so an address built in `format!` is found too.
 #
@@ -22,13 +22,27 @@ rules:
       - pattern: $C.start_stream_transcription()
       - pattern: $C.start_medical_stream_transcription()
       - pattern: $C.start_call_analytics_stream_transcription()
+      # async-openai's own word, `transcribe`, is matched on any `audio()` receiver. `transcription`,
+      # `translate` and `translation` are words an app's own media type may use (a stored transcript, a
+      # geometry move), so they count only in a file that imports async-openai; any file that names
+      # its client type has that `use` line.
       - patterns:
           - pattern: $C.audio().$M(...)
           - metavariable-regex:
               metavariable: $M
-              regex: ^(transcribe|transcription|translate|translation)(_\w+)?$
-      - pattern: $C.audio_transcription(...)
-      - pattern: $C.audio_translation(...)
+              regex: ^transcribe(_\w+)?$
+      - patterns:
+          - pattern: $C.audio().$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(transcription|translate|translation)(_\w+)?$
+          - pattern-regex: (?sm)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+async_openai\b).*
+      # openai-api-rs, in a file that imports it.
+      - patterns:
+          - pattern-either:
+              - pattern: $C.audio_transcription(...)
+              - pattern: $C.audio_translation(...)
+          - pattern-regex: (?sm)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+openai_api_rs\b).*
       - patterns:
           - pattern: $C.transcription().$M(...)
           - metavariable-regex:
