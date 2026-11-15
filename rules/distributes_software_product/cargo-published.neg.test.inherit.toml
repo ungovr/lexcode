@@ -1,0 +1,12 @@
+# lexcode-expect: 0
+# A member that inherits publish from its workspace, which sets it only to switch publishing off.
+[package]
+name = "acme_api_routes"
+version.workspace = true
+description.workspace = true
+license.workspace = true
+categories.workspace = true
+publish.workspace = true
+
+[dependencies]
+axum = "0.8"

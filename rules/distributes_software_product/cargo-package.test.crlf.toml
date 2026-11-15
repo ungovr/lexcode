@@ -1,0 +1,10 @@
+# lexcode-expect: 1
+# The same shape saved with Windows line endings (a checkout with core.autocrlf).
+[package]
+name = "orders-core"
+version = "0.3.0"
+description = "Order rules"
+license = "Apache-2.0"
+
+[dependencies]
+serde = "1"

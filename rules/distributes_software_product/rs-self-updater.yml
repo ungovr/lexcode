@@ -1,0 +1,47 @@
+rules:
+  - id: lexcode.distribute.rs-self-updater
+    languages: [rust]
+    severity: INFO
+    message: Updates an installed program from its release server (self_update, the Tauri updater, Velopack, axoupdater or self_replace), which is software made for others to install and run (distributes_software_product).
+    # An updater exists because copies of the program run on other people's machines: a hosted
+    # service is updated by deploying it, not by replacing its own executable. Each item is written
+    # by its crate path, which the engine resolves through `use`, a flat grouped `use` and an alias.
+    # self_update's documented import is a nested group (`use self_update::{backends::github::Update,
+    # ..}`) and Velopack's is a glob (`use velopack::*`), neither of which the engine resolves, so
+    # their short forms are matched in a file with a `use` line naming the crate, as are the Tauri
+    # updater's extension methods on the app handle.
+    pattern-either:
+      # self_update: a release backend configured to replace the running program.
+      - pattern: self_update::backends::github::Update::configure()
+      - pattern: self_update::backends::gitlab::Update::configure()
+      - pattern: self_update::backends::gitea::Update::configure()
+      - pattern: self_update::backends::s3::Update::configure()
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+self_update\b).*'
+          - pattern: Update::configure()
+      # The Tauri updater: the Tauri 2 plugin registered or used, and Tauri 1's built-in updater.
+      - pattern: tauri_plugin_updater::Builder::new()
+      - pattern: tauri::updater::builder(...)
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+tauri_plugin_updater\b).*'
+          - pattern-either:
+              - pattern: $APP.updater()
+              - pattern: $APP.updater_builder()
+      # Velopack: the app's startup hook and its update manager.
+      - pattern: velopack::VelopackApp::build()
+      - pattern: velopack::UpdateManager::new(...)
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+velopack\b).*'
+          - pattern-either:
+              - pattern: VelopackApp::build()
+              - pattern: UpdateManager::new(...)
+      # axoupdater (cargo-dist's updater) and self_replace.
+      - pattern: axoupdater::AxoUpdater::new_for(...)
+      - pattern: axoupdater::AxoUpdater::new_for_updater_executable()
+      - pattern: self_replace::self_replace(...)
+    metadata:
+      activity: distributes_software_product
+      mentioned: performs
+      definition: https://lexlint.io/activities/distributes-software-product
+      provenance: ungovr-original
+      license: MIT

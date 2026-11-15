@@ -1,0 +1,11 @@
+# lexcode-expect: 1
+# publish = true written out, saved with Windows line endings (a checkout with core.autocrlf).
+[package]
+name = "edge-proto"
+version = "0.9.0"
+description = "Wire types for the edge protocol"
+license = "MIT"
+publish = true
+
+[dependencies]
+prost = "0.13"
