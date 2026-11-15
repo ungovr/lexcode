@@ -1,0 +1,29 @@
+rules:
+  - id: lexcode.chatbot.swift-chat-session
+    languages: [swift]
+    severity: INFO
+    message: Starts a Gemini chat session, which keeps the earlier turns of a conversation with a language model, where the code does not show who the conversation is with, which may be deploying a chatbot (deploys_chatbot).
+    # Signal strength, like kt-chat-memory and the Python and JavaScript Gemini chat-session rules: a
+    # model that remembers the last turn is conversational, but the code alone does not show a person
+    # on the other end. `startChat` is read only under a Gemini SDK import (Firebase AI Logic,
+    # Firebase Vertex AI, the Firebase umbrella, Google's generative-ai-swift): SwiftOpenAI has a
+    # `startChat(parameters:)` that is one chat-completion request and keeps nothing, so that form is
+    # left out even in a file that imports both SDKs.
+    # Apple's LanguageModelSession is not read here even though it keeps a transcript: it is the
+    # only way to call the on-device model, so a signal on it would fire on every summary or caption.
+    # A session used in a chat screen is swift-history-turns.
+    patterns:
+      - pattern-regex: '(?s)\bimport\s+(FirebaseAI|FirebaseVertexAI|Firebase|GoogleGenerativeAI)\b.*'
+      # The Firebase umbrella also brings Firestore and Auth to messaging apps, whose own
+      # `startChat(with:)` is a person-to-person chat, so the file must also build a Gemini model
+      # before the call.
+      - pattern-regex: '(?s)\b(generativeModel|GenerativeModel)\b.*'
+      - pattern: $M.startChat(...)
+      - pattern-not: '$M.startChat(parameters: $P)'
+    metadata:
+      activity: deploys_chatbot
+      mentioned: performs
+      definition: https://lexlint.io/activities/deploys-chatbot
+      provenance: ungovr-original
+      license: MIT
+      strength: signal

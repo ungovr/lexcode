@@ -1,0 +1,47 @@
+rules:
+  - id: lexcode.voice.swift-transcription-api
+    languages: [swift]
+    severity: INFO
+    message: Sends recorded speech to a speech-to-text service from Swift (OpenAI transcription or translation through the MacPaw OpenAI or SwiftOpenAI client, Amazon Transcribe including Call Analytics, or a speech-to-text endpoint named in a string), which is transcribing human voices (processes_voice).
+    # The engine has no typed metavariable for Swift, so a client's call is matched by the vendor's
+    # own method name in a file that imports the vendor's module (the import line is the guard: an
+    # app's own audioTranscriptions in a file without it is not matched). Text-to-speech calls
+    # (audioCreateSpeech, createSpeech, Amazon Polly) read typed text aloud and are left out.
+    pattern-either:
+      # MacPaw OpenAI: completion handler, Combine and async forms share the method names.
+      - patterns:
+          - pattern-regex: '(?sm)^[ \t]*(?:@\w+[ \t]+)*import[ \t]+OpenAI\b.*'
+          - pattern-either:
+              - pattern: $C.audioTranscriptions(...)
+              - pattern: $C.audioTranslations(...)
+      # SwiftOpenAI
+      - patterns:
+          - pattern-regex: '(?sm)^[ \t]*(?:@\w+[ \t]+)*import[ \t]+SwiftOpenAI\b.*'
+          - pattern-either:
+              - pattern: $C.createTranscription(...)
+              - pattern: $C.createTranslation(...)
+      # The AWS SDK for Swift: Amazon Transcribe batch jobs and Transcribe Streaming, Call
+      # Analytics included (kept here, as in every other language).
+      - patterns:
+          - pattern-regex: '(?sm)^[ \t]*(?:@\w+[ \t]+)*import[ \t]+AWSTranscribe\b.*'
+          - pattern-either:
+              - pattern: $C.startTranscriptionJob(...)
+              - pattern: $C.startMedicalTranscriptionJob(...)
+              - pattern: $C.startMedicalScribeJob(...)
+              - pattern: $C.startCallAnalyticsJob(...)
+      - patterns:
+          - pattern-regex: '(?sm)^[ \t]*(?:@\w+[ \t]+)*import[ \t]+AWSTranscribeStreaming\b.*'
+          - pattern-either:
+              - pattern: $C.startStreamTranscription(...)
+              - pattern: $C.startMedicalStreamTranscription(...)
+              - pattern: $C.startCallAnalyticsStreamTranscription(...)
+      # A speech-to-text endpoint in a string literal, whichever HTTP client sends it (URLSession,
+      # Vapor's client, AsyncHTTPClient). Text-to-speech endpoints are not in the list.
+      - pattern-regex: |-
+          "[^"\n]*\b(api\.deepgram\.com/v1/listen|api\.assemblyai\.com/v2/(transcript|upload)|api\.openai\.com/v1/audio/(transcriptions|translations)|api\.elevenlabs\.io/v1/speech-to-text|speech\.googleapis\.com/v1[a-z0-9]*/speech:(recognize|longrunningrecognize)|stt\.speech\.microsoft\.com/speech/recognition|/speechtotext/(v3\.\d+/)?transcriptions)
+    metadata:
+      activity: processes_voice
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-voice
+      provenance: ungovr-original
+      license: MIT

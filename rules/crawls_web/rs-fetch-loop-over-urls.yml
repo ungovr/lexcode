@@ -1,0 +1,53 @@
+# Fetching each address in a list may be crawling sites the operator does not run, so this is a
+# signal, as it is in every other language. The loop is a `for` over a list, or a closure handed
+# to an iterator or stream adapter (`map`, `for_each`, `then`, `filter_map`, and the like), the
+# usual shape of a concurrent fetcher. The fetch is a GET: reqwest's, ureq's, surf's, isahc's or
+# attohttpc's top-level `get`, or a request started with `.get(..)` and sent with `.send()` or
+# `.call()`; a POST to each address is a delivery (webhooks), and a `get` on a map is neither sent
+# nor called. The address is the loop variable itself, or a field of it, written plainly or with
+# `&`, `.as_str()`, `.clone()`, `.to_string()` or `.as_ref()`. A loop over ids that builds each
+# address on a base the app holds (`format!("{base}/orders/{id}")`) does not bind it.
+rules:
+  - id: lexcode.crawl.rs-fetch-loop-over-urls
+    languages: [rust]
+    severity: INFO
+    message: Fetches each URL in a list held in a variable, which may be crawling sites the operator does not run (crawls_web).
+    patterns:
+      - pattern-either:
+          - pattern-inside: |
+              for $URL in $L { ... }
+          - pattern-inside: |
+              for ($I, $URL) in $L { ... }
+          - patterns:
+              - pattern-inside: $L.$M(|$URL| $BODY)
+              - metavariable-regex:
+                  metavariable: $M
+                  regex: ^(map|for_each|then|filter_map|flat_map|and_then|map_ok|try_for_each|for_each_concurrent|try_for_each_concurrent)$
+      - pattern-either:
+          - pattern: reqwest::get($ARG)
+          - pattern: reqwest::blocking::get($ARG)
+          - pattern: ureq::get($ARG)
+          - pattern: surf::get($ARG)
+          - pattern: isahc::get($ARG)
+          - pattern: isahc::get_async($ARG)
+          - pattern: attohttpc::get($ARG)
+          - patterns:
+              - pattern: $C.get($ARG)
+              - pattern-either:
+                  - pattern-inside: $X.send()
+                  - pattern-inside: $X.call()
+      # The address is a plain name or field path, with at most one conversion, and it holds the
+      # loop variable (the engine unifies $URL here with the loop's binding).
+      - metavariable-regex:
+          metavariable: $ARG
+          regex: ^&?\*?[A-Za-z_][\w.]*(\.(as_str|clone|to_string|as_ref)\(\))?$
+      - metavariable-pattern:
+          metavariable: $ARG
+          pattern: $URL
+    metadata:
+      activity: crawls_web
+      mentioned: performs
+      definition: https://lexlint.io/activities/crawls-web
+      provenance: ungovr-original
+      license: MIT
+      strength: signal

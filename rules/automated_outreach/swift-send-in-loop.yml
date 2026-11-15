@@ -1,0 +1,73 @@
+rules:
+  - id: lexcode.outreach.swift-send-in-loop
+    languages: [swift]
+    severity: INFO
+    message: Sends an email, text, push notification or direct message once per recipient in a loop, which is sending automated outreach (automated_outreach).
+    # The loops are `for x in xs { }` (with `where`, `for try await` and tuple bindings, which the one
+    # pattern matches) and `xs.forEach { }` in any closure form; a send in a task group's `addTask`
+    # inside the loop counts. As in kt-send-in-loop, a loop over relays, hosts or retry attempts
+    # sends ONE message to ONE person: the sequence's name, a literal numeric range (`1...3`,
+    # `0..<3`) and a loop variable named for an attempt rule those out.
+    # The sends: a method named for one (sendEmail, sendDigest, sendReminder, sendSMS, sendDM ...),
+    # a `send` on a mail, SMTP, SendGrid, Mailgun or Postmark client (Vapor's `app.smtp.send`,
+    # `req.application.sendgrid.client.send(email:)`), a Vapor APNs `send`, APNSwift's
+    # `sendAlertNotification` (by the name rule), an Amazon SNS text (`PublishInput` with a
+    # `phoneNumber`, module-qualified only, Decision 8) and a Discord direct-message channel opened
+    # with DiscordBM's `createDm` (under its import). A direct message is one of the channels the
+    # definition names. A bare `Text` or `Alert` suffix is not a send to a person (`ws.sendText`
+    # broadcasts a socket frame, `sendAlert` shows a dialog), so only `TextMessage` and an Email, SMS
+    # or Push alert count. The silent-push and local words exclude only a name ending in Push,
+    # Notification or Reminder, so `sendLocalizedDigestEmail` still counts.
+    # The send set is the one in swift-send-in-scheduled-job and swift-send-in-background-job; the
+    # three rules change together, and its metavariable names must not reuse a scope's ($V, $L).
+    # Left out on purpose: a local notification (UserNotifications) is drawn by the system on the
+    # person's own device and goes over no network to anyone, as an in-app SignalR notification is a
+    # user interface push in the C# rules, so `center.add(request)` and any send named Local do not
+    # count; a silent push (background, Live Activity, VoIP, file-provider, complication,
+    # push-to-talk) refreshes an app and carries no message to read; a post to a bot's own channels
+    # (`sendMessage(channelId:)`, `createMessage`) is a public post, not a message to a person.
+    patterns:
+      - pattern-either:
+          - patterns:
+              - pattern-inside: |
+                  for $V in $L { ... }
+              - metavariable-regex:
+                  metavariable: $L
+                  regex: '(?is)^(?!.*(relay|host|server|retr|attempt|backoff|endpoint|smtp|fallback|provider|transport|mirror|failover|\bports?\b)).*$'
+              - metavariable-regex:
+                  metavariable: $L
+                  regex: '(?s)^(?!\s*\(?\s*\d+\s*(\.\.\.|\.\.<)\s*\d+\s*\)?\s*$).*$'
+              - metavariable-regex:
+                  metavariable: $V
+                  regex: '(?is)^(?!.*(attempt|retr|tries)).*$'
+          - patterns:
+              - pattern-inside: $L.forEach(...)
+              - metavariable-regex:
+                  metavariable: $L
+                  regex: '(?is)^(?!.*(relay|host|server|retr|attempt|backoff|endpoint|smtp|fallback|provider|transport|mirror|failover|\bports?\b)).*$'
+      - pattern-either:
+          - patterns:
+              - pattern-either:
+                  - pattern: $X.$N(...)
+                  - pattern: $N(...)
+              - metavariable-regex:
+                  metavariable: $N
+                  regex: ^(?!\w*(Local|Background|LiveActivity|VoIP|FileProvider|Complication|PushToTalk)(Push|Notification|Reminder)s?$)send\w*(Email|Mail|Sms|SMS|TextMessage|Push|PushNotification|Notification|Reminder|Digest|Newsletter|(Email|Sms|SMS|Push)Alert|DM|Dm|DirectMessage)s?$
+          - patterns:
+              - pattern: $M.send(...)
+              - metavariable-regex:
+                  metavariable: $M
+                  regex: '(?i)^([\w.]*\.)?\w*(mail|smtp|sendgrid|mailgun|postmark)\w*(\(\))?(\.client)?$'
+          - pattern: $A.apns.send(...)
+          - pattern: 'AWSSNS.PublishInput(..., phoneNumber: $P, ...)'
+          - patterns:
+              - pattern-regex: '(?s)\bimport\s+(DiscordBM|DiscordHTTP)\b.*'
+              - pattern: $DMC.createDm(...)
+      # Literal anchor inside the match: it lets the engine skip files with no send call.
+      - pattern-regex: '(\bsend\w*\s*\(|\.send\s*\(|phoneNumber\s*:|\.createDm\s*\()'
+    metadata:
+      activity: automated_outreach
+      mentioned: performs
+      definition: https://lexlint.io/activities/automated-outreach
+      provenance: ungovr-original
+      license: MIT

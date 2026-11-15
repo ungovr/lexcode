@@ -1,0 +1,50 @@
+# The Rust form of the other languages' history-turns rules: the model's earlier answer goes back
+# into the conversation as an assistant turn, so the next call answers in the light of it. The
+# rules in other languages read the order (user turn pushed, model called, reply pushed); in Rust
+# the assistant turn has its own constructor, so the turn is read where it is built from a value:
+# async-openai's assistant message builder (`ChatCompletionRequestAssistantMessageArgs::default()
+# .content(reply)`) and ollama-rs's `ChatMessage::assistant(reply)`. A few-shot example written as a
+# string literal is a fixed prompt, not a conversation, and does not match.
+#
+# The shape is the group-common amendment of 2026-11-15. On Opengrep 1.33.1 the engine does not
+# resolve a `use` whose group nests a path (`use async_openai::{types::{...}, Client};`), which is how
+# async-openai's and ollama-rs's own examples import these types. So each crate has two branches in
+# one `pattern-either`: the crate-path pattern, which the engine resolves through a flat or
+# single-level grouped `use`, `use <crate> as <alias>` and an item imported under another name
+# (`use ...::ChatMessage as Msg;`); and the short form, guarded by a whole-file check that a `use`
+# line names the crate (one greedy lookahead, CONTRIBUTING.md). The guard reads a `use` line, anchored
+# at the line's start (optionally `pub` or `pub(crate)`), not any mention: a file that holds
+# `ollama_rs::Ollama` only as a field type, or a comment that says "use ollama_rs", beside its own
+# `ChatMessage` does not match.
+rules:
+  - id: lexcode.chatbot.rs-history-turns
+    languages: [rust]
+    severity: INFO
+    message: Puts the model's earlier reply back into the conversation as an assistant turn, which is deploying a chatbot (deploys_chatbot).
+    patterns:
+      - pattern-either:
+          # async-openai, by crate path (the types module before and after 0.30's split).
+          - pattern: async_openai::types::ChatCompletionRequestAssistantMessageArgs::default().content($X)
+          - pattern: async_openai::types::chat::ChatCompletionRequestAssistantMessageArgs::default().content($X)
+          # async-openai, the short form in a file whose use line names the crate; any builder
+          # calls before content() are allowed.
+          - patterns:
+              - pattern: $B.content($X)
+              - metavariable-regex:
+                  metavariable: $B
+                  regex: '(?s)^(\w+::)*ChatCompletionRequestAssistantMessageArgs::default\(\)'
+              - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+async_openai\b).*'
+          # ollama-rs, by crate path, and the short form in a file whose use line names the crate.
+          - pattern: ollama_rs::generation::chat::ChatMessage::assistant($X)
+          - patterns:
+              - pattern: ChatMessage::assistant($X)
+              - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+ollama_rs\b).*'
+      - metavariable-regex:
+          metavariable: $X
+          regex: '(?s)^(?!\s*(r#*)?"|\s*String::from\(\s*(r#*)?").*$'
+    metadata:
+      activity: deploys_chatbot
+      mentioned: performs
+      definition: https://lexlint.io/activities/deploys-chatbot
+      provenance: ungovr-original
+      license: MIT
