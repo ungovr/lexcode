@@ -1,0 +1,75 @@
+# Fetching a link read from a page is following links from site to site, which is what a crawler
+# does. The link is an `href` or `src` attribute read with scraper's or select's `attr`,
+# chromiumoxide's `attribute` or headless_chrome's `get_attribute_value`, in an iterator chain
+# (`filter_map(|e| e.value().attr("href"))`) or on its own. Taint follows it through `Url::join`,
+# into a queue or a list (`push`, `push_back`, `insert`, `extend`) and out of it again (`pop_front`,
+# a `for` loop). The fetch is reqwest's, ureq's, surf's, isahc's or attohttpc's `get`, a request
+# started with `.get(url)` and sent with `.send()` or `.call()`, or a browser's navigation
+# (`goto`, `navigate_to`, `new_page`). An attribute that is not a link (alt text, a class), a link
+# only stored, and a query parameter named `src` are not followed links. The address comes from a
+# page, so it is never a literal and the rule names no host.
+rules:
+  - id: lexcode.crawl.rs-fetch-extracted-link
+    languages: [rust]
+    severity: INFO
+    message: Fetches a link taken from a page it has read (an anchor's href, an image's src), which is following links from site to site, crawling the web (crawls_web).
+    mode: taint
+    pattern-sources:
+      - patterns:
+          - pattern-either:
+              - pattern: $E.attr($A)
+              - pattern: $E.attribute($A)
+              - pattern: $E.get_attribute_value($A)
+              # A closure that reads the link inside an iterator chain: the closure's value is the link.
+              - pattern: $I.$M(|$P| <... $E.attr($A) ...>)
+          - metavariable-regex:
+              metavariable: $A
+              regex: ^"(href|src)"$
+    pattern-propagators:
+      - pattern: $V.push($X)
+        from: $X
+        to: $V
+      - pattern: $V.push_back($X)
+        from: $X
+        to: $V
+      - pattern: $V.push_front($X)
+        from: $X
+        to: $V
+      - pattern: $V.insert($X)
+        from: $X
+        to: $V
+      - pattern: $V.extend($X)
+        from: $X
+        to: $V
+      # `while let Some(next) = queue.pop_front()` binds no value the engine follows on its own.
+      - patterns:
+          - pattern-inside: |
+              while let Some($N) = $Q.$POP() { ... }
+          - pattern: $N
+        from: $Q
+        to: $N
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: reqwest::get($URL)
+              - pattern: reqwest::blocking::get($URL)
+              - pattern: ureq::get($URL)
+              - pattern: surf::get($URL)
+              - pattern: isahc::get($URL)
+              - pattern: isahc::get_async($URL)
+              - pattern: attohttpc::get($URL)
+              - patterns:
+                  - pattern: $C.get($URL)
+                  - pattern-either:
+                      - pattern-inside: $X.send()
+                      - pattern-inside: $X.call()
+              - pattern: $P.goto($URL)
+              - pattern: $T.navigate_to($URL)
+              - pattern: $B.new_page($URL)
+          - focus-metavariable: $URL
+    metadata:
+      activity: crawls_web
+      mentioned: performs
+      definition: https://lexlint.io/activities/crawls-web
+      provenance: ungovr-original
+      license: MIT

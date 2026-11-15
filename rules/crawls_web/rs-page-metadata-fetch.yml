@@ -1,0 +1,27 @@
+# A page downloaded to read its title, description and Open Graph tags: webpage's
+# `Webpage::from_url` and opengraph's `scrape` fetch the address themselves. That is fetching a
+# page from a site the operator may not run by automated means, whether one page per link a user
+# posts (a link preview) or many. Written by crate path, so an app's own `Webpage` under
+# `use crate::...` is not taken for it; parsing HTML the app already holds (`HTML::from_string`)
+# fetches nothing. The address is the host (`host_metavar`): a link held in a variable, the usual
+# link-preview case, makes the finding a signal, since one fetch per link a person posts is not
+# plainly crawling at scale. A loopback or file address is the app's own.
+rules:
+  - id: lexcode.crawl.rs-page-metadata-fetch
+    languages: [rust]
+    severity: INFO
+    message: Downloads a web page to read its title, description and Open Graph tags (webpage, opengraph), which is fetching a page from a site the operator may not run (crawls_web).
+    patterns:
+      - pattern-either:
+          - pattern: webpage::Webpage::from_url($URL, ...)
+          - pattern: opengraph::scrape($URL, ...)
+      - metavariable-regex:
+          metavariable: $URL
+          regex: (?s)^(?!&?(?:r#*)?"(https?://(localhost|127\.|0\.0\.0\.0|\[::1\])|file:)).*$
+    metadata:
+      activity: crawls_web
+      mentioned: performs
+      definition: https://lexlint.io/activities/crawls-web
+      provenance: ungovr-original
+      license: MIT
+      host_metavar: $URL

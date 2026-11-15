@@ -1,0 +1,50 @@
+# Reading an RSS or Atom feed is taking in another publisher's headlines and excerpts: feed-rs's
+# `parser::parse` and `parse_with_uri`, rss's `Channel::read_from`, `from_str` and `parse::<Channel>`,
+# atom_syndication's `Feed` in the same three forms, and syndication's `Feed` parsed from text. As
+# in Ruby and Python, the parse is the evidence wherever the bytes came from, except the app's own
+# files: an argument that reads a file, a path or a bundled resource (`File::open`, `fs::read`,
+# `include_bytes!`, `Path::new`) or a string literal (a sample in the code) is not another
+# publisher's feed. Publishing the app's own feed (rss's `ChannelBuilder`, `to_string`, `write_to`)
+# is not matched. Items are written by crate path, so an app's own `Channel` or `parser` under
+# `use crate::...` is not taken for them. A feed read from a file into a variable named like any
+# other (`let text = fs::read_to_string(..)`) is still matched; tests, where such reads live, are
+# out of scope.
+rules:
+  - id: lexcode.aggregate.rs-feed-read
+    languages: [rust]
+    severity: INFO
+    message: Reads another publisher's RSS or Atom feed (feed-rs, rss, atom_syndication, syndication), which is reusing other publishers' content (aggregates_content).
+    patterns:
+      - pattern-either:
+          - pattern: feed_rs::parser::parse($X)
+          - pattern: feed_rs::parser::parse_with_uri($X, ...)
+          - pattern: rss::Channel::read_from($X)
+          - pattern: rss::Channel::from_str($X)
+          - pattern: atom_syndication::Feed::read_from($X)
+          - pattern: atom_syndication::Feed::from_str($X)
+          # The type in a turbofish is matched by its last segment whatever the file imports, so
+          # each `parse::<T>()` form also needs the crate in a `use` line or written in the path.
+          - patterns:
+              - pattern-either:
+                  - pattern-regex: (?s)\A(?=.*\buse\s+rss\b).*
+                  - pattern-regex: (?s)\A(?=.*\brss::Channel\b).*
+              - pattern: $X.parse::<rss::Channel>()
+          - patterns:
+              - pattern-either:
+                  - pattern-regex: (?s)\A(?=.*\buse\s+atom_syndication\b).*
+                  - pattern-regex: (?s)\A(?=.*\batom_syndication::Feed\b).*
+              - pattern: $X.parse::<atom_syndication::Feed>()
+          - patterns:
+              - pattern-either:
+                  - pattern-regex: (?s)\A(?=.*\buse\s+syndication\b).*
+                  - pattern-regex: (?s)\A(?=.*\bsyndication::Feed\b).*
+              - pattern: $X.parse::<syndication::Feed>()
+      - metavariable-regex:
+          metavariable: $X
+          regex: (?s)^(?!.*(\bFile::|\bfs::|\binclude_(str|bytes)!|\bPath(Buf)?::|\bfile\b|_path\b|\bpath\b))(?!&?b?(?:r#*)?").*$
+    metadata:
+      activity: aggregates_content
+      mentioned: performs
+      definition: https://lexlint.io/activities/aggregates-content
+      provenance: ungovr-original
+      license: MIT

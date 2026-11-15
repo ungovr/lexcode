@@ -1,0 +1,36 @@
+# A crawler crate set to work is crawling the web: spider's `Website::new(start)` (the crawl's
+# start address, followed by `.crawl()` or `.scrape()`), and a crawler reading a site's robots.txt
+# for its own user agent before it fetches (texting_robots' `Robot::new`, the robotstxt crate's
+# Google matcher). Only a crawler asks whether robots.txt lets it in. Items are written by crate
+# path, so an app's own `Website` or `Robot` under `use crate::...` is not taken for them. spider's
+# own examples import `use spider::{tokio, website::Website};`, a grouped `use` with a nested path
+# that the engine does not resolve, so `Website::new` is also matched by its short name in a file
+# with a `use spider` line. The robotstxt matcher's method names are its own, read in a file with a
+# `use robotstxt` line. A spider pointed at a loopback or file address is the app's own site.
+rules:
+  - id: lexcode.crawl.rs-crawler-library
+    languages: [rust]
+    severity: INFO
+    message: Runs a crawler library (spider) or checks a site's robots.txt for its own crawler (texting_robots, robotstxt), which is crawling the web (crawls_web).
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: spider::website::Website::new($URL)
+              - patterns:
+                  - pattern-regex: (?s)\A(?=.*\buse\s+spider\b).*
+                  - pattern: Website::new($URL)
+          - metavariable-regex:
+              metavariable: $URL
+              regex: (?s)^(?!&?(?:r#*)?"(https?://(localhost|127\.|0\.0\.0\.0|\[::1\])|file:)).*$
+      - pattern: texting_robots::Robot::new(...)
+      - patterns:
+          - pattern-regex: (?s)\A(?=.*\buse\s+robotstxt\b).*
+          - pattern-either:
+              - pattern: $M.one_agent_allowed_by_robots(...)
+              - pattern: $M.allowed_by_robots(...)
+    metadata:
+      activity: crawls_web
+      mentioned: performs
+      definition: https://lexlint.io/activities/crawls-web
+      provenance: ungovr-original
+      license: MIT
