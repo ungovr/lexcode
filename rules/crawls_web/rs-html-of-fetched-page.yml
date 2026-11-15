@@ -1,0 +1,55 @@
+# A page downloaded over HTTP and handed to an HTML parser is scraping. The download is reqwest's
+# top-level and blocking `get`, ureq's, surf's, isahc's or attohttpc's, or a request started with
+# `.get(url)` on any client and sent with `.send()` (reqwest, reqwest-middleware) or `.call()` (a
+# ureq agent). A `get` on a map is neither sent nor called, so a cache lookup is not a download.
+# Taint follows the body through `.await?`, `.text()`, `.bytes()` and locals to the parser. The
+# parsers are written by crate path (scraper, select, kuchiki and kuchikiki, tl, webpage's HTML,
+# dom_query), so an app's own `Html` under `use crate::...` is not taken for scraper's. A JSON API
+# answer is never parsed as HTML, so one call to a documented API does not match. The address is
+# the host (`host_metavar`): a literal one names the site, and an address held in a variable makes
+# the finding a signal, since the code alone cannot say whose page it is. A loopback, file or
+# relative address is the app's own.
+rules:
+  - id: lexcode.crawl.rs-html-of-fetched-page
+    languages: [rust]
+    severity: INFO
+    message: Downloads a web page and parses its HTML (scraper, select, kuchiki, tl, webpage, dom_query), which is scraping a site the operator may not run (crawls_web).
+    mode: taint
+    pattern-sources:
+      - patterns:
+          - pattern-either:
+              - pattern: reqwest::get($URL)
+              - pattern: reqwest::blocking::get($URL)
+              - pattern: ureq::get($URL)
+              - pattern: surf::get($URL)
+              - pattern: isahc::get($URL)
+              - pattern: isahc::get_async($URL)
+              - pattern: attohttpc::get($URL)
+              - patterns:
+                  - pattern: $C.get($URL)
+                  - pattern-either:
+                      - pattern-inside: $X.send()
+                      - pattern-inside: $X.call()
+          - metavariable-regex:
+              metavariable: $URL
+              regex: (?s)^(?!&?(?:r#*)?"(https?://(localhost|127\.|0\.0\.0\.0|\[::1\])|file:|/(?!/))).*$
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: scraper::Html::parse_document($S)
+              - pattern: scraper::Html::parse_fragment($S)
+              - pattern: select::document::Document::from($S)
+              - pattern: select::document::Document::from_read($S)
+              - pattern: kuchiki::parse_html().one($S)
+              - pattern: kuchikiki::parse_html().one($S)
+              - pattern: tl::parse($S, ...)
+              - pattern: webpage::HTML::from_string($S, ...)
+              - pattern: dom_query::Document::from($S)
+          - focus-metavariable: $S
+    metadata:
+      activity: crawls_web
+      mentioned: performs
+      definition: https://lexlint.io/activities/crawls-web
+      provenance: ungovr-original
+      license: MIT
+      host_metavar: $URL
