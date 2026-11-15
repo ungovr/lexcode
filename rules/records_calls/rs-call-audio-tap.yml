@@ -1,0 +1,30 @@
+# Signal strength, as Java's and Kotlin's WebRTC audio taps are: the decoded audio frames of a remote
+# participant in a LiveKit room (the Rust SDK's `NativeAudioStream`, from `livekit::webrtc` or the
+# `libwebrtc` crate), read inside the app. That is how a notetaker or a recorder hears a call, and
+# also how a voice agent hears the one person talking to it, which is processes_voice; the code at
+# this call does not say which, so it is a row worth a look. Publishing the app's own audio
+# (`NativeAudioSource`) is left out.
+#
+# Written by crate path; the SDK's examples import it through a nested group
+# (`use livekit::webrtc::{audio_stream::native::NativeAudioStream, prelude::*}`), which the engine
+# does not resolve, so the short form counts in a file whose `use` names livekit or libwebrtc.
+rules:
+  - id: lexcode.calls.rs-call-audio-tap
+    languages: [rust]
+    severity: INFO
+    message: Reads a remote participant's audio from a LiveKit call inside the app, which may be recording or transcribing a call (records_calls).
+    pattern-either:
+      - pattern: livekit::webrtc::audio_stream::native::NativeAudioStream::new(...)
+      - pattern: libwebrtc::audio_stream::native::NativeAudioStream::new(...)
+      - patterns:
+          - pattern: NativeAudioStream::new(...)
+          - pattern-either:
+              - pattern-regex: (?sm)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+livekit\b).*
+              - pattern-regex: (?sm)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+libwebrtc\b).*
+    metadata:
+      activity: records_calls
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/records-calls
+      provenance: ungovr-original
+      license: MIT

@@ -1,0 +1,214 @@
+rules:
+  - id: lexcode.image.swift-image-result-returned
+    languages: [swift]
+    severity: INFO
+    message: Returns a picture made by an image model from a function, which may be generating images with AI that reaches users (generates_images).
+    # The signal beside swift-image-reply-to-response. A Vapor or Hummingbird handler is left to the evidence rule.
+    # Swift shapes (Opengrep 1.33.1, probed for #13199): the engine does not carry taint through an
+    # optional binding (`guard let x = ...`, `if let x = ...`), so a name bound from a model call, or from a
+    # value that holds one, is a source of its own; a `for try await` loop variable, a `switch` or `if case`
+    # `.success(let x)` binding and the first parameter of a vendor's completion closure are carried. An
+    # `if let x = try ...` condition does not parse at all and is a known gap. A local `var` declared in the
+    # same function is not a screen, so a state-name sink skips it.
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+          - patterns:
+              - pattern-either:
+                  - pattern-regex: '(?s)\A(?=.*\bimport\s+OpenAI\b).*'
+                  - pattern-regex: '(?s)\A(?=.*\bimport\s+SwiftOpenAI\b).*'
+                  - pattern-regex: '(?s)\A(?=.*\bimport\s+ImagePlayground\b).*'
+                  - pattern-regex: '(?s)\A(?=.*\bimport\s+FirebaseAI\b).*'
+                  - pattern-regex: '(?s)\A(?=.*\bimport\s+FirebaseAILogic\b).*'
+                  - pattern-regex: '(?s)\A(?=.*\bimport\s+FirebaseVertexAI\b).*'
+                  - pattern-regex: '(?s)\A(?=.*\bFirebaseAI\.firebaseAI\b).*'
+                  - pattern-regex: '(?s)\A(?=.*\bVertexAI\.vertexAI\b).*'
+              - pattern-either: &calls_vendors
+                  - pattern: '$C.images(query: $Q)'
+                  - pattern: '$C.imageEdits(query: $Q)'
+                  - pattern: '$C.imageVariations(query: $Q)'
+                  - pattern: '$S.createImages(parameters: $P)'
+                  - pattern: '$S.legacyCreateImages(parameters: $P)'
+                  - pattern: '$S.legacyEditImage(parameters: $P)'
+                  - pattern: '$S.legacyCreateImageVariations(parameters: $P)'
+                  - pattern: '$C.images(for: $P, style: $ST, limit: $LM)'
+                  - pattern: '$M.generateImages(...)'
+          - patterns:
+              - pattern-regex: '(?s)\A(?=.*\bimport\s+AWSBedrockRuntime\b).*'
+              - pattern-either:
+                  - pattern-regex: '(?s)\A(?=.*"amazon\.nova-canvas).*'
+                  - pattern-regex: '(?s)\A(?=.*"amazon\.titan-image-generator).*'
+                  - pattern-regex: '(?s)\A(?=.*"stability\.).*'
+              - pattern-either:
+                  - pattern: '$C.invokeModel(input: $I)'
+      - pattern-either:
+          - patterns:
+              - pattern-either:
+                  - pattern-regex: '(?s)\A(?=.*\bimport\s+OpenAI\b).*'
+                  - pattern-regex: '(?s)\A(?=.*\bimport\s+SwiftOpenAI\b).*'
+                  - pattern-regex: '(?s)\A(?=.*\bimport\s+ImagePlayground\b).*'
+                  - pattern-regex: '(?s)\A(?=.*\bimport\s+FirebaseAI\b).*'
+                  - pattern-regex: '(?s)\A(?=.*\bimport\s+FirebaseAILogic\b).*'
+                  - pattern-regex: '(?s)\A(?=.*\bimport\s+FirebaseVertexAI\b).*'
+                  - pattern-regex: '(?s)\A(?=.*\bFirebaseAI\.firebaseAI\b).*'
+                  - pattern-regex: '(?s)\A(?=.*\bVertexAI\.vertexAI\b).*'
+              - pattern-either:
+                  - pattern: |
+                      $C.images(query: $Q) { $R in
+                        ...
+                      }
+                  - pattern: |
+                      $C.images(query: $Q) { [weak self] $R in
+                        ...
+                      }
+                  - pattern: |
+                      $C.imageEdits(query: $Q) { $R in
+                        ...
+                      }
+                  - pattern: |
+                      $C.imageEdits(query: $Q) { [weak self] $R in
+                        ...
+                      }
+                  - pattern: |
+                      $C.imageVariations(query: $Q) { $R in
+                        ...
+                      }
+                  - pattern: |
+                      $C.imageVariations(query: $Q) { [weak self] $R in
+                        ...
+                      }
+              - focus-metavariable: $R
+      - pattern-either:
+          - patterns:
+              - pattern-either:
+                  - pattern-regex: '(?s)\A(?=.*\bimport\s+OpenAI\b).*'
+                  - pattern-regex: '(?s)\A(?=.*\bimport\s+SwiftOpenAI\b).*'
+                  - pattern-regex: '(?s)\A(?=.*\bimport\s+ImagePlayground\b).*'
+                  - pattern-regex: '(?s)\A(?=.*\bimport\s+FirebaseAI\b).*'
+                  - pattern-regex: '(?s)\A(?=.*\bimport\s+FirebaseAILogic\b).*'
+                  - pattern-regex: '(?s)\A(?=.*\bimport\s+FirebaseVertexAI\b).*'
+                  - pattern-regex: '(?s)\A(?=.*\bFirebaseAI\.firebaseAI\b).*'
+                  - pattern-regex: '(?s)\A(?=.*\bVertexAI\.vertexAI\b).*'
+              - patterns:
+                  - pattern-either:
+                      - pattern-inside: |
+                          guard let $X = $E0 else { ... }
+                          ...
+                      - pattern-inside: |
+                          guard let $X = $E0, ... else { ... }
+                          ...
+                  - metavariable-pattern:
+                      metavariable: $E0
+                      pattern-either: *calls_vendors
+                  - pattern: $X
+      - pattern-either:
+          - patterns:
+              - pattern-either:
+                  - pattern-regex: '(?s)\A(?=.*\bimport\s+OpenAI\b).*'
+                  - pattern-regex: '(?s)\A(?=.*\bimport\s+SwiftOpenAI\b).*'
+                  - pattern-regex: '(?s)\A(?=.*\bimport\s+ImagePlayground\b).*'
+                  - pattern-regex: '(?s)\A(?=.*\bimport\s+FirebaseAI\b).*'
+                  - pattern-regex: '(?s)\A(?=.*\bimport\s+FirebaseAILogic\b).*'
+                  - pattern-regex: '(?s)\A(?=.*\bimport\s+FirebaseVertexAI\b).*'
+                  - pattern-regex: '(?s)\A(?=.*\bFirebaseAI\.firebaseAI\b).*'
+                  - pattern-regex: '(?s)\A(?=.*\bVertexAI\.vertexAI\b).*'
+              - patterns:
+                  - pattern-either:
+                      - pattern-inside: |
+                          let $V = $E0
+                          ...
+                      - pattern-inside: |
+                          var $V = $E0
+                          ...
+                  - metavariable-pattern:
+                      metavariable: $E0
+                      pattern-either: *calls_vendors
+                  - pattern-either:
+                      - pattern-inside: |
+                          guard let $X = $E1 else { ... }
+                          ...
+                      - pattern-inside: |
+                          guard let $X = $E1, ... else { ... }
+                          ...
+                      - pattern-inside: |
+                          if let $X = $E1 {
+                            ...
+                          }
+                      - pattern-inside: |
+                          if let $X = $E1, ... {
+                            ...
+                          }
+                  - metavariable-pattern:
+                      metavariable: $E1
+                      pattern: $V
+                  - pattern: $X
+    pattern-propagators:
+      - patterns:
+          - pattern-inside: |
+              for try await $X in $S {
+                ...
+              }
+          - pattern: $X
+        from: $S
+        to: $X
+      - patterns:
+          - pattern-inside: |
+              for await $X in $S {
+                ...
+              }
+          - pattern: $X
+        from: $S
+        to: $X
+      - patterns:
+          - pattern-inside: |
+              switch $S {
+              case .success(let $X):
+                ...
+              }
+          - pattern: $X
+        from: $S
+        to: $X
+      - patterns:
+          - pattern-inside: |
+              if case .success(let $X) = $S {
+                ...
+              }
+          - pattern: $X
+        from: $S
+        to: $X
+      - patterns:
+          - pattern-inside: |
+              guard case .success(let $X) = $S else { ... }
+              ...
+          - pattern: $X
+        from: $S
+        to: $X
+    pattern-sinks:
+      - patterns:
+          - pattern: |
+              func $F(...) -> $T {
+                ...
+                return $X
+              }
+          - focus-metavariable: $X
+          - pattern-not-inside:
+              patterns:
+                - pattern-either:
+                    - pattern-regex: '(?s)\A(?=.*\bimport\s+Vapor\b).*'
+                    - pattern-regex: '(?s)\A(?=.*\bimport\s+Hummingbird\b).*'
+                - pattern-either:
+                    - pattern: |
+                        func $G(..., $REQ: Request, ...) -> $U {
+                          ...
+                        }
+                    - pattern: |
+                        func $G(..., $REQ: HBRequest, ...) -> $U {
+                          ...
+                        }
+    metadata:
+      activity: generates_images
+      mentioned: performs
+      definition: https://lexlint.io/activities/generates-images
+      provenance: ungovr-original
+      license: MIT
+      strength: signal
