@@ -86,4 +86,30 @@ describe('parsePbxproj', () => {
       expect(() => parsePbxproj(t), t).toThrow(PbxprojError);
     }
   });
+  it('nesting past the depth cap throws PbxprojError, never a RangeError', () => {
+    const deepArrays = `{ a = ${'('.repeat(20000)}x${')'.repeat(20000)}; }`;
+    const deepDicts = `{ ${'a = { '.repeat(10000)}b = c; ${'}; '.repeat(10000)}}`;
+    for (const t of [deepArrays, deepDicts]) {
+      let err: unknown;
+      try {
+        parsePbxproj(t);
+      } catch (e) {
+        err = e;
+      }
+      expect(err).toBeInstanceOf(PbxprojError);
+      expect((err as PbxprojError).kind).toBe('syntax');
+      expect((err as PbxprojError).message).toMatch(/nested too deep/);
+    }
+  });
+
+  it('nesting under the cap parses', () => {
+    const { root } = parsePbxproj(`{ a = ${'('.repeat(200)}x${')'.repeat(200)}; }`);
+    let v: unknown = root['a'];
+    let depth = 0;
+    while (Array.isArray(v)) {
+      v = v[0];
+      depth++;
+    }
+    expect([depth, v]).toEqual([200, 'x']);
+  });
 });

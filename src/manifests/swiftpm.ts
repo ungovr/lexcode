@@ -25,7 +25,9 @@ import { ancestorDirs, baseName, describeParseError, dirOf, fileExists, joinRel,
  * for a `Package.swift` with no `Package.resolved` at or above it, the first Xcode pins file
  * (`*.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/` or `*.xcworkspace/xcshareddata/swiftpm/`, in
  * sorted order) in its own directory or the nearest ancestor that has one, since a local package inside an
- * Xcode app resolves through the app's workspace; an exact requirement. A pin is matched by identity, the URL's last path segment lowercased without
+ * Xcode app resolves through the app's workspace. Both bundle kinds sort together by name, so
+ * `App.xcodeproj` comes before `App.xcworkspace`, and the search stops at the first pins file it finds,
+ * even when that file lacks the package. Last, an exact requirement. A pin is matched by identity, the URL's last path segment lowercased without
  * `.git`. A pin with no `version` (a branch or revision pin) gives no version.
  */
 
@@ -73,7 +75,12 @@ interface StrLit {
   start: number;
   end: number;
   value: string;
+  /** True when the literal holds a `\(...)` interpolation, so its value is not known. */
+  interpolated: boolean;
 }
+
+/** Deepest string interpolation read; a crafted manifest past it is a notice, not a RangeError. */
+const MAX_INTERPOLATION_DEPTH = 256;
 
 class SwiftSyntaxError extends Error {
   constructor(
@@ -97,7 +104,7 @@ class SwiftScan {
 
   constructor(private readonly s: string) {
     this.out = s.split('');
-    this.scanCode(0, false);
+    this.scanCode(0, 0);
     this.code = this.out.join('');
   }
 
@@ -105,9 +112,10 @@ class SwiftScan {
     for (let j = a; j < b; j++) if (this.out[j] !== '\n') this.out[j] = ' ';
   }
 
-  /** Scan code from `i`. Inside an interpolation, stop after the `)` that closes it. */
-  private scanCode(i: number, interp: boolean): number {
+  /** Scan code from `i`. Inside an interpolation (`level` above 0), stop after the `)` that closes it. */
+  private scanCode(i: number, level: number): number {
     const s = this.s;
+    const interp = level > 0;
     const start = i;
     let depth = 0;
     while (i < s.length) {
@@ -128,7 +136,7 @@ class SwiftScan {
       if (c === '"' || c === '#') {
         const m = /^(#*)("""|")/.exec(s.slice(i, i + 64));
         if (m && (c === '"' || (m[1] as string).length > 0)) {
-          i = this.scanString(i, (m[1] as string).length, m[2] as string, !interp);
+          i = this.scanString(i, (m[1] as string).length, m[2] as string, level);
           continue;
         }
       }
@@ -162,13 +170,14 @@ class SwiftScan {
     throw new SwiftSyntaxError('unterminated comment', i);
   }
 
-  private scanString(start: number, hashes: number, delim: string, record: boolean): number {
+  private scanString(start: number, hashes: number, delim: string, level: number): number {
     const s = this.s;
     const pound = '#'.repeat(hashes);
     const close = delim + pound;
     const esc = `\\${pound}`;
     let i = start + hashes + delim.length;
     let value = '';
+    let interpolated = false;
     for (;;) {
       if (i >= s.length || (delim === '"' && s[i] === '\n')) throw new SwiftSyntaxError('unterminated string', start);
       if (s.startsWith(close, i)) {
@@ -179,7 +188,9 @@ class SwiftScan {
         const j = i + esc.length;
         const e = s[j];
         if (e === '(') {
-          const end = this.scanCode(j + 1, true);
+          if (level >= MAX_INTERPOLATION_DEPTH) throw new SwiftSyntaxError('string interpolation nested too deep', start);
+          interpolated = true;
+          const end = this.scanCode(j + 1, level + 1);
           value += s.slice(i, end);
           i = end;
           continue;
@@ -202,7 +213,7 @@ class SwiftScan {
       i++;
     }
     this.blank(start, i);
-    if (record) this.strings.push({ start, end: i, value });
+    if (level === 0) this.strings.push({ start, end: i, value, interpolated });
     return i;
   }
 }
@@ -293,12 +304,15 @@ interface ManifestRead {
   packages: PackageCall[];
   /** Lowercased `package:` of each `.product(...)` reference, and whether it sits inside a `.testTarget(`. */
   refs: { pkg: string; test: boolean }[];
+  /** Where a `.package(url:` call's URL is built by string interpolation, which cannot be read. */
+  interpolatedUrls: number[];
 }
 
 function readManifestText(text: string): ManifestRead {
   const scan = new SwiftScan(text);
   const { code, strings } = scan;
   const packages: PackageCall[] = [];
+  const interpolatedUrls: number[] = [];
   for (const call of calls(code, 'package')) {
     const a = args(code, call);
     const arg = (label: string): string | undefined => {
@@ -311,6 +325,11 @@ function readManifestText(text: string): ManifestRead {
     if (exact === undefined) {
       const ex = a.find((x) => x.label === undefined && /^\s*\.exact\s*\(/.test(code.slice(x.start, x.end)));
       if (ex) exact = stringIn(strings, ex.start, ex.end);
+    }
+    const urlArg = a.find((x) => x.label === 'url');
+    if (urlArg && strings.find((t) => t.start >= urlArg.start && t.start < urlArg.end)?.interpolated) {
+      interpolatedUrls.push(call.at);
+      continue;
     }
     const url = arg('url');
     const id = arg('id');
@@ -336,7 +355,7 @@ function readManifestText(text: string): ManifestRead {
     if (pkg === undefined) continue;
     refs.push({ pkg: pkg.trim().toLowerCase(), test: tests.some((t) => call.at > t.argStart && call.at < t.argEnd) });
   }
-  return { packages, refs };
+  return { packages, refs, interpolatedUrls };
 }
 
 // ---- Package.resolved ------------------------------------------------------------------------
@@ -365,7 +384,7 @@ class Pins {
       this.notices.push(`${rel}: could not be read; versions from it are unavailable`);
     } else {
       try {
-        const data: unknown = JSON.parse(text);
+        const data: unknown = JSON.parse(text.replace(/^\ufeff/, ''));
         out = new Map();
         // Format 1 nests the pins under `object` and names the URL `repositoryURL`; formats 2 and 3 carry `identity` and `location`.
         const pins = isObj(data) ? (isObj(data['object']) ? data['object']['pins'] : data['pins']) : undefined;
@@ -527,8 +546,15 @@ export function readSwiftPm(root: string, files: string[]): ReaderResult {
   let devSkipped = 0;
   const pins = new Pins(root, notices);
 
+  // The pins files of one manifest are found once, not once per dependency.
+  const pinFiles = new Map<string, string[]>();
   const versionOf = (rel: string, identity: string, exact: string | undefined): string | undefined => {
-    for (const r of resolvedFor(root, rel)) {
+    let found = pinFiles.get(rel);
+    if (found === undefined) {
+      found = resolvedFor(root, rel);
+      pinFiles.set(rel, found);
+    }
+    for (const r of found) {
       const map = pins.load(r);
       if (map?.has(identity)) return map.get(identity) ?? undefined;
     }
@@ -560,6 +586,7 @@ export function readSwiftPm(root: string, files: string[]): ReaderResult {
         else throw e;
         continue;
       }
+      for (const at of read.interpolatedUrls) notices.push(`${rel}:${lines.lineAt(at)}: a package URL built by string interpolation is not read`);
       for (const p of read.packages) {
         const uses = read.refs.filter((r) => p.aliases.includes(r.pkg));
         if (uses.length > 0 && uses.every((r) => r.test)) {

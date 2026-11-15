@@ -33,6 +33,11 @@ export interface ParsedPbxproj {
 /** Characters of a bare (unquoted) string, as Xcode and Foundation's OpenStep reader accept them. */
 const BARE = /[A-Za-z0-9_$/:.\-+]/;
 const HEX = /[0-9A-Fa-f]/;
+/**
+ * Deepest nesting of dictionaries and arrays read. A real project nests about six deep; the cap keeps a
+ * crafted file from exhausting the stack, so it is a syntax error (a notice) rather than a RangeError.
+ */
+export const MAX_PBX_DEPTH = 256;
 
 function hasOwn(o: object, k: string): boolean {
   return Object.prototype.hasOwnProperty.call(o, k);
@@ -47,6 +52,7 @@ class Parser {
   private i = 0;
   private line = 1;
   private lineStart = 0;
+  private depth = 0;
   /** The line of each key of each dictionary, recorded as it is read. */
   readonly keyLines = new WeakMap<PbxDict, Map<string, number>>();
 
@@ -89,8 +95,12 @@ class Parser {
   value(): PbxValue {
     this.ws();
     const c = this.s[this.i];
-    if (c === '{') return this.dict();
-    if (c === '(') return this.array();
+    if (c === '{' || c === '(') {
+      if (++this.depth > MAX_PBX_DEPTH) this.fail('nested too deep');
+      const v = c === '{' ? this.dict() : this.array();
+      this.depth--;
+      return v;
+    }
     if (c === '<') return this.data();
     if (c === '"' || c === "'") return this.quoted();
     if (c !== undefined && BARE.test(c)) return this.bare();

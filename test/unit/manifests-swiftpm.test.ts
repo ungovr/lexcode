@@ -231,6 +231,56 @@ describe('readSwiftPm', () => {
     expect(r.notices[1]).toBe(UNRESOLVED(1));
   });
 
+  it('string interpolation nested past the cap is a notice, never a throw', () => {
+    let lit = '"x"';
+    for (let i = 0; i < 3000; i++) lit = `"\\(${lit})"`;
+    const text = ['import PackageDescription', `let deep = ${lit}`, manifest(['.package(url: "https://github.com/a/A", from: "1.0.0")'], [])].join('\n');
+    const root = tree({ 'Package.swift': text });
+    let r: ReturnType<typeof readSwiftPm> | undefined;
+    expect(() => {
+      r = readSwiftPm(root, ['Package.swift']);
+    }).not.toThrow();
+    expect(r?.deps).toEqual([]);
+    expect(r?.notices).toEqual(['Package.swift: did not parse (string interpolation nested too deep at line 2); skipped']);
+  });
+
+  it('interpolation under the cap is read', () => {
+    let lit = '"x"';
+    for (let i = 0; i < 100; i++) lit = `"\\(${lit})"`;
+    const text = [`let deep = ${lit}`, manifest(['.package(url: "https://github.com/a/A", exact: "1.0.0")'], [])].join('\n');
+    const root = tree({ 'Package.swift': text });
+    expect(readSwiftPm(root, ['Package.swift']).deps.map((d) => d.name)).toEqual(['github.com/a/A']);
+  });
+
+  it('a package URL built by string interpolation is not a row, and a notice names it', () => {
+    const text = manifest(['.package(url: "\\(base)/b/B", from: "1.0.0")', '.package(url: "https://github.com/a/weird(1).git", exact: "2.0.0")'], []);
+    const root = tree({ 'Package.swift': text });
+    const r = readSwiftPm(root, ['Package.swift']);
+    expect(r.deps).toEqual([{ ecosystem: 'swift', name: 'github.com/a/weird(1)', version: '2.0.0', manifest: `Package.swift:${lineOf(text, 'weird(1)')}` }]);
+    expect(r.notices).toEqual([`Package.swift:${lineOf(text, '(base)')}: a package URL built by string interpolation is not read`]);
+  });
+
+  it('a Package.resolved with a byte-order mark is read', () => {
+    const text = manifest(['.package(url: "https://github.com/a/A", from: "1.0.0")'], []);
+    const root = tree({ 'Package.swift': text, 'Package.resolved': `\ufeff${resolved([{ identity: 'a', location: 'https://github.com/a/A', state: { version: '1.4.0' } }])}` });
+    const r = readSwiftPm(root, ['Package.swift']);
+    expect(r.deps.map((d) => d.version)).toEqual(['1.4.0']);
+    expect(r.notices).toEqual([]);
+  });
+
+  it('the Xcode pins fallback reads a bundle in the manifest directory itself, and at the repository root', () => {
+    const text = manifest(['.package(url: "https://github.com/a/Lib", from: "1.0.0")'], []);
+    const pin = (v: string): string => resolved([{ identity: 'lib', location: 'https://github.com/a/Lib', state: { version: v } }]);
+    const own = tree({
+      'App/Package.swift': text,
+      'App/App.xcworkspace/xcshareddata/swiftpm/Package.resolved': pin('1.1.0'),
+      'Root.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved': pin('9.0.0'),
+    });
+    expect(readSwiftPm(own, ['App/Package.swift']).deps.map((d) => d.version)).toEqual(['1.1.0']);
+    const atRoot = tree({ 'Package.swift': text, 'Root.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved': pin('1.2.0') });
+    expect(readSwiftPm(atRoot, ['Package.swift']).deps.map((d) => d.version)).toEqual(['1.2.0']);
+  });
+
   it('an unterminated .package( call is a notice naming the manifest', () => {
     const text = ['import PackageDescription', 'let package = Package(', '  dependencies: [', '    .package(url: "https://github.com/a/A", from: "1.0.0"', ''].join('\n');
     const root = tree({ 'Package.swift': text });
@@ -392,6 +442,17 @@ describe('readSwiftPm: Xcode projects', () => {
       ['github.com/nalexn/ViewInspector', '0.10.1'],
     ]);
     expect(r.devSkipped).toBe(0);
+  });
+
+  it('a pbxproj nested past the cap is a notice naming it, never a throw', () => {
+    const root = tree({ 'App.xcodeproj/project.pbxproj': `// !$*UTF8*$!\n{ a = ${'('.repeat(20000)}x${')'.repeat(20000)}; }\n` });
+    let r: ReturnType<typeof readSwiftPm> | undefined;
+    expect(() => {
+      r = readSwiftPm(root, ['App.xcodeproj/project.pbxproj']);
+    }).not.toThrow();
+    expect(r?.deps).toEqual([]);
+    expect(r?.notices).toHaveLength(1);
+    expect(r?.notices[0]).toMatch(/^App\.xcodeproj\/project\.pbxproj: did not parse \(invalid OpenStep plist at line 2, column \d+\); skipped$/);
   });
 
   it('a pbxproj that does not parse is a notice naming it', () => {
