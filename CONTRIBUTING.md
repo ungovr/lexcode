@@ -323,7 +323,17 @@ fast as the bare rule's for the 10x file, or that takes more than five times the
 bare rule's time on 900 KB, and every rule the engine failed on. It names its
 two test files with 12 characters or more on purpose, because of the Swift
 scanner fault in "Swift pattern notes"; a Swift time taken on a shorter name is
-not a parse time.
+not a parse time. That fault also follows the rule loaded, so a Swift rule over
+a bound is timed again on a second filler of plain classes with no modifier,
+which the fault cannot slow, and those figures decide only what that filler can
+show: a rule over on it is over, and a rule within bounds on it is cleared only
+when its file names no modifier or attribute (`final`, `open`, `public`,
+`internal`, `private`, `fileprivate`, `@...`) outside a `pattern-not`, read
+conservatively: the word anywhere in a pattern or a regex (`\bfinal` included),
+and an `@` before a letter, `\w`, `(` or `[`. A rule that does is listed as not
+cleared, because the plain filler gives it nothing to match, and a person
+decides. `node scripts/rule-cost-check.mjs` checks all three
+outcomes on the engine.
 
 ### Kotlin pattern notes
 
