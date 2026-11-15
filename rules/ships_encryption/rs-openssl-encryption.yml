@@ -1,0 +1,42 @@
+# Encryption through the openssl crate: its symmetric ciphers (symm's encrypt, decrypt, the AEAD forms,
+# Crypter and CipherCtx), public-key encryption (Encrypter and Decrypter, and an Rsa key's
+# public_encrypt and private_decrypt), envelopes (Seal and Open) and key agreement (Deriver).
+#
+# The crate is a binding to OpenSSL, which on most systems is the operating system's own library
+# (`features = ["vendored"]` compiles a copy in, and no code rule can tell the two apart). The same
+# binding is the platform's in the other languages: Ruby's OpenSSL::Cipher and an RSA key's
+# public_encrypt are negatives of rb-library-encryption, and PHP's openssl_encrypt is a negative of
+# php-library-encryption. So a match is a question, a signal, not evidence. For the same reason the
+# crate's TLS (SslConnector, SslAcceptor) and native-tls, which hands TLS to the system's stack, are not
+# read at all, while rustls, compiled into the app, is read as evidence by rs-bundled-tls.
+rules:
+  - id: lexcode.crypto.rs-openssl-encryption
+    languages: [rust]
+    severity: INFO
+    message: Encrypts data or agrees keys through the openssl crate, a binding to OpenSSL that is usually the system's own library, which may be shipping encryption and is worth a look (ships_encryption).
+    pattern-either:
+      - pattern: openssl::symm::encrypt(...)
+      - pattern: openssl::symm::decrypt(...)
+      - pattern: openssl::symm::encrypt_aead(...)
+      - pattern: openssl::symm::decrypt_aead(...)
+      - pattern: openssl::symm::Crypter::new(...)
+      - pattern: openssl::cipher_ctx::CipherCtx::new()
+      - pattern: openssl::encrypt::Encrypter::new(...)
+      - pattern: openssl::encrypt::Decrypter::new(...)
+      - pattern: openssl::envelope::Seal::new(...)
+      - pattern: openssl::envelope::Open::new(...)
+      - pattern: openssl::derive::Deriver::new(...)
+      # An Rsa key's own methods, read in a file with a `use openssl` line, so an app's own method of
+      # the same name elsewhere is not read.
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+openssl\b).*'
+          - pattern-either:
+              - pattern: $R.public_encrypt(...)
+              - pattern: $R.private_decrypt(...)
+    metadata:
+      activity: ships_encryption
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/glossary#ships-encryption
+      provenance: ungovr-original
+      license: MIT
