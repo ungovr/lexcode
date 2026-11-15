@@ -86,6 +86,49 @@ describe('hostOfLiteral', () => {
     expect(urlLiteral('"""https://$host/v1""".trimIndent()')).toEqual({ literal: false });
   });
 
+  // A Swift string with `\(...)` in its host part names its host at run time, as a JavaScript
+  // template's `${...}` does: it is code, never a literal (#13199). Before, `"\(base)/x"` read as a
+  // literal with no host, which buildRecord drops as an own-host fetch, and `"https://\(h)/x"` as the
+  // host `\(h)`.
+  it('reads a Swift string whose host part holds an interpolation as code', () => {
+    expect(urlLiteral('"\\(base)/x"')).toEqual({ literal: false });
+    expect(urlLiteral('"https://\\(h)/x"')).toEqual({ literal: false });
+    expect(urlLiteral('"\\(base)"')).toEqual({ literal: false });
+    expect(urlLiteral('"https://api.\\(region).example.com/x"')).toEqual({ literal: false });
+    expect(urlLiteral('"https://\\(h):8080/x"')).toEqual({ literal: false });
+    expect(urlLiteral('"api\\(region).example.com/x"')).toEqual({ literal: false });
+    expect(urlLiteral('"//\\(h)/x"')).toEqual({ literal: false });
+    expect(urlLiteral('"\\(scheme)://api.example.com/x"')).toEqual({ literal: false });
+    expect(urlLiteral('"""\n    https://\\(h)/x\n    """')).toEqual({ literal: false });
+    expect(hostOfLiteral('"https://\\(h)/x"')).toBeNull();
+  });
+
+  it('keeps the host of a Swift string whose interpolation is past the host, and of a plain one', () => {
+    expect(urlLiteral('"https://api.example.com/x"')).toEqual({ literal: true, host: 'api.example.com' });
+    expect(urlLiteral('"https://api.example.com/v1/items/\\(id)"')).toEqual({ literal: true, host: 'api.example.com' });
+    expect(urlLiteral('"https://api.example.com/search?q=\\(q)"')).toEqual({ literal: true, host: 'api.example.com' });
+    // a relative path names no host whatever follows it
+    expect(urlLiteral('"/v1/items/\\(id)"')).toEqual({ literal: true, host: null });
+  });
+
+  // What the pinned engine (opengrep 1.33.1) prints for a Swift `$URL` bound to an interpolated string:
+  // the `\(` and `)` are dropped and a quote is added in front, so `"\(base)/x"` comes back as
+  // `""base/x"`. The doubled quote reads as two literals joined, so each is code; these pin that, since
+  // the printed text alone would give the host `h` for `"https://\(h)/x"`.
+  it('reads the engine-printed form of a Swift interpolated string as code', () => {
+    for (const printed of [
+      '""base/x"', // "\(base)/x"
+      '""https://h/x"', // "https://\(h)/x"
+      '""https://api.example.com/v1/id"', // "https://api.example.com/v1/\(id)"
+      '""base"', // "\(base)"
+      '""/v1/id"', // "/v1/\(id)"
+      'URL(string""https://h/catalog")!', // URL(string: "https://\(h)/catalog")!
+      '""""""\n        https://h/multi\n        """', // a multi-line string with `\(h)`
+    ]) {
+      expect(urlLiteral(printed), printed).toEqual({ literal: false });
+    }
+  });
+
   it('returns null for a literal with no host, such as a relative path', () => {
     expect(hostOfLiteral(`'/v1/items'`)).toBeNull();
     expect(urlLiteral(`'/v1/items'`)).toEqual({ literal: true, host: null });

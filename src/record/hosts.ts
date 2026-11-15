@@ -94,6 +94,21 @@ function literalText(text: string): string | null {
   return inner;
 }
 
+/**
+ * True when a Swift string interpolation (`\(...)`) is in the part of a literal's text that names the host:
+ * the scheme and authority (`"\(scheme)://..."`, `"https://\(h)/x"`, `"https://api.\(region).example.com"`), or
+ * the text before the first `/`, `?` or `#` when there is no scheme (`"\(base)/x"`, `"api\(env).example.com/x"`).
+ * Such a host is chosen at run time, as a JavaScript template's `${...}` or a Rust `format!` argument chooses
+ * it, so the string is code, not a literal (#13199). An interpolation past the host (`".../items/\(id)"`)
+ * leaves the host literal, and a relative path (`"/v1/\(id)"`) still names none.
+ */
+function swiftInterpolatedHost(s: string): boolean {
+  if (!s.includes('\\(')) return false;
+  const afterScheme = s.replace(/^[a-z][a-z0-9+.-]*:\/\//i, '').replace(/^\/\//, '');
+  const hostPart = /^[^/?#]*/.exec(afterScheme)?.[0] ?? '';
+  return hostPart.includes('\\(');
+}
+
 export type UrlLiteral = { literal: false } | { literal: true; host: string | null };
 
 /**
@@ -104,6 +119,7 @@ export function urlLiteral(text: string): UrlLiteral {
   const inner = literalText(text);
   if (inner === null) return { literal: false };
   const s = inner.trim();
+  if (swiftInterpolatedHost(s)) return { literal: false };
   if (/^file:/i.test(s)) return { literal: true, host: LOCALHOST };
   const scheme = /^[a-z][a-z0-9+.-]*:\/\/([^/?#]*)/i.exec(s);
   const proto = scheme ?? /^\/\/([^/?#]*)/.exec(s);
