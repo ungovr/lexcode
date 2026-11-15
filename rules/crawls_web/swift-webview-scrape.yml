@@ -32,7 +32,7 @@ rules:
     # engine compares a callback's name and parameter types, not its argument labels, so
     # `didCommit` reads as `didFinish` does. A script held in a variable is not read.
     patterns:
-      - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+\s+)*import\s+(?:\w+\s+)?WebKit\b).*'
+      - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?WebKit\b).*'
       # The file feeds the web view itself: a load that takes the next address off the front of a
       # list (a crawl queue; taking it off the end, `history.removeLast()`, is how an in-app browser
       # goes back a page), or a `for` loop that builds a request from its own element.

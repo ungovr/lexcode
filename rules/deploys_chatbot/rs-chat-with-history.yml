@@ -29,7 +29,7 @@ rules:
           - pattern-either:
               - pattern: cli_chatbot(...)
               - pattern: ChatBotBuilder::new()
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+rig\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+rig\b).*'
       - patterns:
           - pattern-either:
               - pattern: $AG.chat($Q, $HIST)
@@ -39,7 +39,7 @@ rules:
           - metavariable-regex:
               metavariable: $HIST
               regex: '(?s)^(?!\s*(&\s*(mut\s+)?)?(vec!\s*\[\s*\]|Vec::new\(\s*\))\s*$).*$'
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+rig\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+rig\b).*'
     metadata:
       activity: deploys_chatbot
       mentioned: performs

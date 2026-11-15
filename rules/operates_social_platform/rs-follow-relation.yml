@@ -52,7 +52,7 @@ rules:
           - pattern-either:
               - pattern: diesel::insert_into($TBL)
               - patterns:
-                  - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+diesel\b).*'
+                  - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+diesel\b).*'
                   - pattern: insert_into($TBL)
           - metavariable-regex:
               metavariable: $TBL

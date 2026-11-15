@@ -23,7 +23,7 @@ rules:
     # and is not outreach (see swift-send-in-loop).
     pattern-either:
       - patterns:
-          - pattern-regex: '(?s)\bimport\s+(APNS|APNSCore|APNSwift|VaporAPNS)\b.*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?(?:APNS|APNSCore|APNSwift|VaporAPNS)\b).*'
           - pattern-either:
               - pattern: $C.sendAlertNotification(...)
               - pattern: $A.apns.send(...)
@@ -31,7 +31,7 @@ rules:
           - pattern-either:
               - pattern: AWSSNS.PublishInput($...ARGS)
               - patterns:
-                  - pattern-regex: '(?s)\bimport\s+SotoSNS\b.*'
+                  - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?SotoSNS\b).*'
                   - pattern: $C.publish(.init($...ARGS))
           - metavariable-regex:
               metavariable: $...ARGS
@@ -41,7 +41,7 @@ rules:
               regex: '(?is)^(?!.*(code|otp|verif|passcode|password|\bpin\b))'
       - pattern-regex: 'api\.twilio\.com/2010-04-01/Accounts/[^"\n/]*/(Messages|Calls)(\.json)?(?=["?])'
       - patterns:
-          - pattern-regex: '(?s)\bimport\s+(DiscordBM|DiscordHTTP)\b.*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?(?:DiscordBM|DiscordHTTP)\b).*'
           - pattern: $C.createDm(...)
     metadata:
       activity: automated_outreach

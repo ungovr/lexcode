@@ -190,6 +190,17 @@ only where the literal matched. What the test passes still has the reach, so a
 scan says in a notice how many files it handed the engine are over 1,000,000
 bytes in a language with such a rule.
 
+A Swift or Rust check that the file imports a module or uses a crate has one
+shape, which reads an import or use line and never a comment or a string:
+`'(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?OpenAI\b).*'`
+for Swift, and
+`'(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+async_openai\b).*'`
+for Rust. Several modules go in one non-capturing group in the name's place
+(`(?:Fluent|FluentKit)`). A Rust guard may also name the item on the use line
+(`use\s+ring::[^;]*\bUnboundKey\b`) when a comment says which same-name false
+match that prevents. `\x{FEFF}?` lets a first line saved with a byte order mark
+count. A second import on the same line (`import A; import B`) is not read.
+
 A scan hands the engine only the rules that have a file to read and only the
 files those rules read (#12997): every config parse costs time, about 2.6 s
 for the PHP rules alone, and a `generic` rule with no limit makes every file in

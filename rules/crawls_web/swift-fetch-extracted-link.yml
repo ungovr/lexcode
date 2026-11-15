@@ -10,7 +10,7 @@ rules:
     # not a source, and one library's import never admits another's call.
     pattern-sources:
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+\s+)*import\s+(?:\w+\s+)?SwiftSoup\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?SwiftSoup\b).*'
           - pattern-either:
               - pattern: $E.attr($A)
               - pattern: $E.absUrl($A)
@@ -18,11 +18,11 @@ rules:
               metavariable: $A
               regex: '^"(abs:)?(href|src)"$'
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+\s+)*import\s+(?:\w+\s+)?Kanna\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?Kanna\b).*'
           - pattern: $E[$A]
           - metavariable-regex: *link_attribute
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+\s+)*import\s+(?:\w+\s+)?Fuzi\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?Fuzi\b).*'
           - pattern-either:
               - pattern: $E[$A]
               - pattern: $E.attr($A)

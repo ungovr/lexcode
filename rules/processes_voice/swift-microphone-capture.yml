@@ -26,7 +26,7 @@ rules:
       # AVFoundation, AVFAudio or Speech (whose recognition requests take the tap's buffers).
       # Symbolic propagation follows `let input = engine.inputNode` to `input.installTap(...)`.
       - patterns:
-          - pattern-regex: '(?sm)^[ \t]*(?:@\w+[ \t]+)*import[ \t]+(?:AVFoundation|AVFAudio|Speech)\b.*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?(?:AVFoundation|AVFAudio|Speech)\b).*'
           - pattern: $E.inputNode.installTap(...)
       # The microphone as a capture device, for a capture session that records sound (a video
       # with its audio, or audio alone). The camera device is not matched.

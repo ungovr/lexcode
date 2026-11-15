@@ -33,12 +33,12 @@ rules:
               - metavariable-regex:
                   metavariable: $B
                   regex: '(?s)^(\w+::)*ChatCompletionRequestAssistantMessageArgs::default\(\)'
-              - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+async_openai\b).*'
+              - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+async_openai\b).*'
           # ollama-rs, by crate path, and the short form in a file whose use line names the crate.
           - pattern: ollama_rs::generation::chat::ChatMessage::assistant($X)
           - patterns:
               - pattern: ChatMessage::assistant($X)
-              - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+ollama_rs\b).*'
+              - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+ollama_rs\b).*'
       - metavariable-regex:
           metavariable: $X
           regex: '(?s)^(?!\s*(r#*)?"|\s*String::from\(\s*(r#*)?").*$'

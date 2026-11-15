@@ -11,7 +11,7 @@ rules:
     # call; a type-annotated `let policy: LAPolicy = .deviceOwner...` is not followed (probed).
     pattern-either:
       - patterns:
-          - pattern-regex: '(?sm)^[ \t]*(?:@\w+[ \t]+)*import[ \t]+LocalAuthentication\b.*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?LocalAuthentication\b).*'
           - pattern-either:
               - pattern: $C.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, ...)
               - pattern: $C.evaluatePolicy(LocalAuthentication.LAPolicy.deviceOwnerAuthenticationWithBiometrics, ...)

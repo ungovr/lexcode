@@ -17,8 +17,8 @@ rules:
       # Without them every Swift file is parsed, and penny-bot's generated API client (190 KB) took
       # about 80 s to parse in a worker at --jobs 16 (measured).
       - pattern-either:
-          - pattern-regex: '(?s)\A(?=.*import\s+Vapor).*'
-          - pattern-regex: '(?s)\A(?=.*import\s+Hummingbird).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?Vapor\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?Hummingbird\b).*'
       - pattern-either:
           - pattern-inside: |
               import Vapor

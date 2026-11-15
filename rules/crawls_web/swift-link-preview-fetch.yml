@@ -17,7 +17,7 @@ rules:
     # the file's `import LinkPresentation` stands in for the type (amendment 2). Both the callback
     # form and the `try await` form of `startFetchingMetadata(for:)` are read.
     patterns:
-      - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+\s+)*import\s+(?:\w+\s+)?LinkPresentation\b).*'
+      - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?LinkPresentation\b).*'
       - pattern: '$P.startFetchingMetadata(for: $URL, ...)'
       # Not a literal address, a loopback host, or a file.
       - metavariable-regex:

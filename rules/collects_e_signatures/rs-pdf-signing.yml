@@ -13,7 +13,7 @@ rules:
     message: Applies a digital signature to a PDF with a key (the pdf_signing crate, or a signature dictionary written with lopdf), which may be collecting electronic signatures and is worth a look (collects_e_signatures).
     pattern-either:
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+pdf_signing\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+pdf_signing\b).*'
           - pattern: $D.sign_document(...)
       - pattern-regex: 'b?"SubFilter"\s*(?:=>|,)\s*(?:[\w:]+\(\s*)?b?"(?:adbe\.pkcs7\.(?:detached|sha1)|adbe\.x509\.rsa_sha1|ETSI\.CAdES\.detached)"'
     metadata:

@@ -13,24 +13,24 @@ rules:
       # channel to a file. The device test (startRecordingDeviceTest) records no call and is a
       # different name.
       - patterns:
-          - pattern-regex: '(?sm)^[ \t]*(?:@\w+[ \t]+)*import[ \t]+(?:AgoraRtcKit|AgoraRtcEngineKit)\b.*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?(?:AgoraRtcKit|AgoraRtcEngineKit)\b).*'
           - pattern: $E.startAudioRecording(...)
       # Zoom Video SDK: cloud recording of the session, through its recording helper.
       - patterns:
-          - pattern-regex: '(?sm)^[ \t]*(?:@\w+[ \t]+)*import[ \t]+ZoomVideoSDK\b.*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?ZoomVideoSDK\b).*'
           - pattern: $H.startCloudRecording(...)
       # Daily's call client: recording of the call.
       - patterns:
-          - pattern-regex: '(?sm)^[ \t]*(?:@\w+[ \t]+)*import[ \t]+Daily\b.*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?Daily\b).*'
           - pattern: $C.startRecording(...)
       # The AWS SDK for Swift: a Chime SDK media capture pipeline records a meeting, and Amazon
       # Connect records a contact in flight. Transcribe Call Analytics is in
       # swift-transcription-api (processes_voice), where every other language keeps it.
       - patterns:
-          - pattern-regex: '(?sm)^[ \t]*(?:@\w+[ \t]+)*import[ \t]+AWSChimeSDKMediaPipelines\b.*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?AWSChimeSDKMediaPipelines\b).*'
           - pattern: $C.createMediaCapturePipeline(...)
       - patterns:
-          - pattern-regex: '(?sm)^[ \t]*(?:@\w+[ \t]+)*import[ \t]+AWSConnect\b.*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?AWSConnect\b).*'
           - pattern: $C.startContactRecording(...)
       # Named in a string: Twilio call recordings, recording a Twilio Video room (unless the line
       # turns it off), Zoom cloud recordings, and notetaker bots (Recall.ai, MeetingBaaS, Attendee).

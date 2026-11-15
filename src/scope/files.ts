@@ -189,6 +189,22 @@ const XCODE_TEST_TARGET = /Tests$/;
  */
 const BUNDLED_NAME =
   /(?:\.min\.(?:js|mjs|cjs)|\.bundle\.js|\.vendor\.js|\.g(?:\.i)?\.cs|\.generated\.swift|\+Generated\.swift|\.pb\.swift|\.grpc\.swift)$|^vendor\.[^/]+\.js$/;
+/**
+ * Directories of generated code, at any depth, skipped by a git listing and a walk alike and counted with the
+ * bundled files above. swift-openapi-generator writes `Sources/<Target>/GeneratedSources/*.swift` (penny-bot's
+ * `Lambdas/GitHubAPI/GeneratedSources/Types.swift` cost about 80 s of engine time under the Swift rules). The name is
+ * matched case-sensitively, as the generator writes it.
+ */
+const GENERATED_DIRS = new Set(['GeneratedSources']);
+
+/** True when a directory segment of `rel` (never the file name) is a generated-code directory. */
+function underGeneratedDir(rel: string): boolean {
+  const parts = rel.split('/');
+  for (let i = 0; i < parts.length - 1; i++) {
+    if (GENERATED_DIRS.has(parts[i] as string)) return true;
+  }
+  return false;
+}
 
 /** A POSIX relative path from a path built with the platform's own separator. */
 export function toPosix(p: string, flavor: Pick<typeof path, 'sep'> = path): string {
@@ -379,7 +395,7 @@ export function listFiles(root: string, spec: ScopeSpec): ListFilesResult {
   for (const rel of listed) {
     if (underSkippedDir(rel, spec.includeTests)) continue;
     if (viaGit !== null && underRestoreDir(rel)) continue;
-    if (BUNDLED_NAME.test(rel.slice(rel.lastIndexOf('/') + 1))) {
+    if (BUNDLED_NAME.test(rel.slice(rel.lastIndexOf('/') + 1)) || underGeneratedDir(rel)) {
       skippedBundled++;
       continue;
     }

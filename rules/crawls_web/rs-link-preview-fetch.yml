@@ -17,8 +17,8 @@ rules:
     message: Downloads the page of a link it was given to build a preview (its title, description and image), which is fetching pages from sites the operator does not run (crawls_web).
     patterns:
       - pattern-either:
-          - pattern-regex: (?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+webpage\b).*
-          - pattern-regex: (?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+opengraph\b).*
+          - pattern-regex: (?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+webpage\b).*
+          - pattern-regex: (?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+opengraph\b).*
           - pattern-regex: (?ms)\A(?=.*^(?![ \t]*[/*])[^\n]*\bSelector::parse\(\s*(?:r#*)?"[^\n]*(?:og|twitter):(?:title|description|image)).*
       - pattern-either:
           - pattern: reqwest::get($URL)

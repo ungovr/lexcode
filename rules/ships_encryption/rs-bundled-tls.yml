@@ -41,20 +41,20 @@ rules:
               metavariable: $M
               regex: ^from_(?:pem|pem_file|pem_chain_file|der|config)$
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+tokio_rustls::[^;]*\bServerConfig\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+tokio_rustls::[^;]*\bServerConfig\b).*'
           - pattern: ServerConfig::$M(...)
           - metavariable-regex:
               metavariable: $M
               regex: ^(?:builder|builder_with_provider|builder_with_protocol_versions|new)$
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+tokio_rustls::[^;]*\bClientConfig\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+tokio_rustls::[^;]*\bClientConfig\b).*'
           - pattern: ClientConfig::$M(...)
           - metavariable-regex:
               metavariable: $M
               regex: ^(?:builder|builder_with_provider|builder_with_protocol_versions|new)$
       - pattern: poem::listener::RustlsConfig::new()
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+poem::[^;]*\bRustlsConfig\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+poem::[^;]*\bRustlsConfig\b).*'
           - pattern: RustlsConfig::new()
       - pattern: warp::serve($R).tls()
       - pattern: hyper_rustls::HttpsConnectorBuilder::new()

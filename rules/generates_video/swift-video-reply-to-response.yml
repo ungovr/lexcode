@@ -18,7 +18,7 @@ rules:
     pattern-sources:
       - pattern-either:
           - patterns:
-              - pattern-regex: '(?s)\A(?=.*\bimport\s+AWSBedrockRuntime\b).*'
+              - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?AWSBedrockRuntime\b).*'
               - pattern-either:
                   - pattern-regex: '(?s)\A(?=.*"amazon\.nova-reel).*'
                   - pattern-regex: '(?s)\A(?=.*"luma\.ray).*'
@@ -26,7 +26,7 @@ rules:
                   - pattern: '$C.startAsyncInvoke(input: $I)'
       - pattern-either:
           - patterns:
-              - pattern-regex: '(?s)\A(?=.*\bimport\s+AWSBedrockRuntime\b).*'
+              - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?AWSBedrockRuntime\b).*'
               - pattern-either:
                   - pattern-regex: '(?s)\A(?=.*"amazon\.nova-reel).*'
                   - pattern-regex: '(?s)\A(?=.*"luma\.ray).*'
@@ -44,7 +44,7 @@ rules:
                   - pattern: $X
       - pattern-either:
           - patterns:
-              - pattern-regex: '(?s)\A(?=.*\bimport\s+AWSBedrockRuntime\b).*'
+              - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?AWSBedrockRuntime\b).*'
               - pattern-either:
                   - pattern-regex: '(?s)\A(?=.*"amazon\.nova-reel).*'
                   - pattern-regex: '(?s)\A(?=.*"luma\.ray).*'
@@ -160,8 +160,8 @@ rules:
       - pattern: 'AVFoundation.AVPlayer(playerItem: $X)'
       - patterns:
           - pattern-either:
-              - pattern-regex: '(?s)\A(?=.*\bimport\s+Vapor\b).*'
-              - pattern-regex: '(?s)\A(?=.*\bimport\s+Hummingbird\b).*'
+              - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?Vapor\b).*'
+              - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?Hummingbird\b).*'
           - pattern-either:
               - patterns:
                   - pattern-either:
@@ -191,8 +191,8 @@ rules:
           - focus-metavariable: $X
       - patterns:
           - pattern-either:
-              - pattern-regex: '(?s)\A(?=.*\bimport\s+Vapor\b).*'
-              - pattern-regex: '(?s)\A(?=.*\bimport\s+Hummingbird\b).*'
+              - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?Vapor\b).*'
+              - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?Hummingbird\b).*'
           - pattern-either:
               - pattern: 'Response(..., body: $X, ...)'
               - pattern: 'HBResponse(..., body: $X, ...)'

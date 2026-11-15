@@ -43,7 +43,7 @@ rules:
           - pattern: $A.apns.send(...)
           - pattern: 'AWSSNS.PublishInput(..., phoneNumber: $P, ...)'
           - patterns:
-              - pattern-regex: '(?s)\bimport\s+(DiscordBM|DiscordHTTP)\b.*'
+              - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?(?:DiscordBM|DiscordHTTP)\b).*'
               - pattern: $DMC.createDm(...)
       # Literal anchor inside the match: it lets the engine skip files with no send call.
       - pattern-regex: '(\bsend\w*\s*\(|\.send\s*\(|phoneNumber\s*:|\.createDm\s*\()'

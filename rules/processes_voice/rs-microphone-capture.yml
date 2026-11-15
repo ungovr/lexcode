@@ -15,12 +15,12 @@ rules:
           - pattern-either:
               - pattern: $D.build_input_stream(...)
               - pattern: $D.build_input_stream_raw(...)
-          - pattern-regex: (?sm)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+cpal\b).*
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+cpal\b).*'
       - patterns:
           - pattern-either:
               - pattern: $PA.default_input_stream_params(...)
               - pattern: $PA.default_input_stream_params::<$T>(...)
-          - pattern-regex: (?sm)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+portaudio\b).*
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+portaudio\b).*'
       - pattern: portaudio::InputStreamSettings::new(...)
     metadata:
       activity: processes_voice

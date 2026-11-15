@@ -17,13 +17,13 @@ rules:
       - pattern: self_update::backends::gitea::Update::configure()
       - pattern: self_update::backends::s3::Update::configure()
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+self_update\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+self_update\b).*'
           - pattern: Update::configure()
       # The Tauri updater: the Tauri 2 plugin registered or used, and Tauri 1's built-in updater.
       - pattern: tauri_plugin_updater::Builder::new()
       - pattern: tauri::updater::builder(...)
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+tauri_plugin_updater\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+tauri_plugin_updater\b).*'
           - pattern-either:
               - pattern: $APP.updater()
               - pattern: $APP.updater_builder()
@@ -31,7 +31,7 @@ rules:
       - pattern: velopack::VelopackApp::build()
       - pattern: velopack::UpdateManager::new(...)
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+velopack\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+velopack\b).*'
           - pattern-either:
               - pattern: VelopackApp::build()
               - pattern: UpdateManager::new(...)

@@ -15,7 +15,7 @@ rules:
       - pattern: AWSLexRuntimeService.PostTextInput(...)
       - pattern: AWSLexRuntimeService.PostContentInput(...)
       - patterns:
-          - pattern-regex: '(?s)\bimport\s+AWSLexRuntimeV2\b.*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?AWSLexRuntimeV2\b).*'
           - pattern-either:
               - pattern: '$C.recognizeText(input: .init(...))'
               - pattern: '$C.recognizeUtterance(input: .init(...))'

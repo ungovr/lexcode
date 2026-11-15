@@ -24,7 +24,7 @@ rules:
       - pattern: tch::nn::sgd(...).build(...)
       - pattern: tch::nn::rms_prop(...).build(...)
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+tch\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+tch\b).*'
           - pattern-either:
               - pattern: $OPT.backward_step(...)
               - pattern: $LOSS.backward()
@@ -36,7 +36,7 @@ rules:
       - pattern: candle_nn::optim::AdamW::new_lr(...)
       - pattern: candle_nn::optim::SGD::new(...)
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+candle(?:_core|_nn)?\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+candle(?:_core|_nn)?\b).*'
           - pattern-either:
               - pattern: $OPT.backward_step(...)
               - pattern: $LOSS.backward()
@@ -50,7 +50,7 @@ rules:
       - pattern: burn::train::LearnerBuilder::new(...)
       - pattern: burn::optim::GradientsParams::from_grads(...)
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+burn\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+burn\b).*'
           - pattern-either:
               - pattern: AdamConfig::new()
               - pattern: AdamWConfig::new()

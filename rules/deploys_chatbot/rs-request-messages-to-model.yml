@@ -57,7 +57,7 @@ rules:
               - pattern: $AG.chat($Q, $X)
               - pattern: $AG.stream_chat($Q, $X)
               - pattern: $PR.with_history($X)
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+rig\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+rig\b).*'
           - focus-metavariable: $X
     metadata:
       activity: deploys_chatbot

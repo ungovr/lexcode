@@ -85,7 +85,7 @@ rules:
           # whole download list plus its own call: on Opengrep 1.33.1 a body sub-pattern of one
           # vendor call cost about 24 s on a 902 KB file and this shape about 7 s, a bare rule 3.8 s.
           - patterns:
-              - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+\s+)*import\s+(?:\w+\s+)?AsyncHTTPClient\b).*'
+              - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?AsyncHTTPClient\b).*'
               - pattern-either: *parsers
               - patterns:
                   - pattern-inside: |
@@ -102,7 +102,7 @@ rules:
                                     metavariable: $T
                                     regex: '^HTTPClientRequest$'
           - patterns:
-              - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+\s+)*import\s+(?:\w+\s+)?Alamofire\b).*'
+              - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?Alamofire\b).*'
               - pattern-either: *parsers
               - patterns:
                   - pattern-inside: |
