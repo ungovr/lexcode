@@ -35,7 +35,7 @@ rules:
               - pattern: $HTTP.get($URL)
           - metavariable-regex:
               metavariable: $URL
-              regex: '^&?(?:format!\(\s*)?"https://(?:generativelanguage\.googleapis\.com/[^"]*:(?:stream)?[gG]enerateContent|[^"]*aiplatform\.googleapis\.com/[^"]*:(?:stream)?[gG]enerateContent)'
+              regex: '^&?(?:format!\(\s*)?"https://(?:generativelanguage\.googleapis\.com/[^"]*:(?:stream)?[gG]enerateContent|[^"]*aiplatform\.googleapis\.com/[^"]*:(?:stream)?[gG]enerateContent)[?"]'
     pattern-propagators:
       # Output gathered into a string, a buffer or a list is sent on with it.
       - pattern: $S.push_str($X)

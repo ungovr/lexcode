@@ -52,7 +52,7 @@ rules:
               - pattern: $HTTP.get($URL)
           - metavariable-regex:
               metavariable: $URL
-              regex: '^&?(?:format!\(\s*)?"https://(?:api\.openai\.com/v1/audio/speech|api\.elevenlabs\.io/v1/(?:text-to-speech|sound-generation|music))'
+              regex: '^&?(?:format!\(\s*)?"https://(?:api\.openai\.com/v1/audio/speech|api\.elevenlabs\.io/v1/(?:text-to-speech/[^"?/]+(?:/stream)?|sound-generation|music(?:/stream)?))[?"]'
       # A stream from one of the calls above, read with `while let`: the engine does not carry
       # taint from a `while let` scrutinee into the names it binds (it does for `if let`), so
       # those names are a source of their own inside the loop, in a file whose use lines name one

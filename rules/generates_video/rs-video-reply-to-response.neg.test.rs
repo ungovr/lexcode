@@ -41,6 +41,33 @@ pub async fn list(State(state): State<AppState>) -> Json<Vec<String>> {
     Json(videos.data.into_iter().map(|v| v.id).collect())
 }
 
+// Addresses under the video vendors' prefixes that make no clip: Luma's image generation, and a
+// Sora job's status.
+pub async fn luma_image(State(state): State<AppState>, http: reqwest::Client, body: serde_json::Value) -> Json<serde_json::Value> {
+    let generation = http
+        .post("https://api.lumalabs.ai/dream-machine/v1/generations/image")
+        .json(&body)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    Json(generation)
+}
+
+pub async fn clip_status(http: reqwest::Client, Path(id): Path<String>) -> Json<serde_json::Value> {
+    let status = http
+        .get(format!("https://api.openai.com/v1/videos/{}", id))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    Json(status)
+}
+
 // The video endpoint's address on a settings page.
 pub async fn settings() -> Json<String> {
     Json("https://api.openai.com/v1/videos".to_string())

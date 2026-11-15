@@ -79,7 +79,7 @@ rules:
               - pattern: $HTTP.get($URL)
           - metavariable-regex:
               metavariable: $URL
-              regex: '^&?(?:format!\(\s*)?"https://(?:api\.openai\.com/v1/images/(?:generations|edits|variations)|api\.stability\.ai/v(?:1/generation|2beta/stable-image/(?:generate|edit|control)))'
+              regex: '^&?(?:format!\(\s*)?"https://(?:api\.openai\.com/v1/images/(?:generations|edits|variations)|api\.stability\.ai/v1/generation/[^"?/]+/(?:text-to-image|image-to-image(?:/[\w-]+)?)|api\.stability\.ai/v2beta/stable-image/(?:generate|edit|control)/[\w-]+)[?"]'
       # A stream from one of the calls above, read with `while let`: the engine does not carry
       # taint from a `while let` scrutinee into the names it binds (it does for `if let`), so
       # those names are a source of their own inside the loop, in a file whose use lines name one

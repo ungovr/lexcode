@@ -68,6 +68,33 @@ pub async fn ask_name(term: Terminal) -> Json<String> {
     Json(name)
 }
 
+// Endpoints under a chat model's address that write nothing: Anthropic's token counter, and the
+// inputs OpenAI stored for an earlier response.
+pub async fn count_tokens(http: reqwest::Client, body: serde_json::Value) -> Json<serde_json::Value> {
+    let counted = http
+        .post("https://api.anthropic.com/v1/messages/count_tokens")
+        .json(&body)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    Json(counted)
+}
+
+pub async fn stored_inputs(http: reqwest::Client, id: String) -> Json<serde_json::Value> {
+    let inputs = http
+        .get(format!("https://api.openai.com/v1/responses/{}/input_items", id))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    Json(inputs)
+}
+
 // Text a person wrote, only trimmed.
 pub async fn save_note(Json(note): Json<String>) -> Json<String> {
     Json(note.trim().to_string())

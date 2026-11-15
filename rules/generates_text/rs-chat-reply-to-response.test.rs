@@ -1,6 +1,7 @@
-// lexcode-expect: 16
+// lexcode-expect: 22
 // Text a model wrote, sent back to the person who asked, one source per handler: async-openai,
-// rig, ollama-rs, genai, mistral.rs, llama.cpp and AWS Bedrock, reached through grouped use lines.
+// rig, ollama-rs, genai, mistral.rs, llama.cpp, AWS Bedrock and reqwest to a chat endpoint, reached
+// through grouped use lines.
 // The engine resolves a group one level deep (`use a::b::{C, D}`); an item written with a path
 // inside a group (`use a::{b::C}`) is not resolved (rules/README.md), so the crate items the rule
 // names are imported at their own level here.
@@ -158,4 +159,84 @@ pub async fn bedrock_stream(client: BedrockClient, message: aws_sdk_bedrockrunti
     while let Ok(Some(event)) = stream.recv().await {
         tx.send(Event::default().data(read_delta(event))).await.unwrap();
     }
+}
+
+// A chat model called over HTTP with reqwest, one per vendor family.
+
+pub async fn openai_http(State(http): State<reqwest::Client>, body: serde_json::Value) -> Json<serde_json::Value> {
+    let reply = http
+        .post("https://api.openai.com/v1/chat/completions")
+        .json(&body)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    Json(reply)
+}
+
+pub async fn openai_responses_http(State(http): State<reqwest::Client>, body: serde_json::Value, store: bool) -> Json<serde_json::Value> {
+    let reply = http
+        .post(format!("https://api.openai.com/v1/responses?store={}", store))
+        .json(&body)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    Json(reply)
+}
+
+pub async fn anthropic_http(State(http): State<reqwest::Client>, body: serde_json::Value) -> Json<serde_json::Value> {
+    let reply = http
+        .post("https://api.anthropic.com/v1/messages")
+        .json(&body)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    Json(reply)
+}
+
+pub async fn mistral_http(State(http): State<reqwest::Client>, body: serde_json::Value) -> Json<serde_json::Value> {
+    let reply = http
+        .post("https://api.mistral.ai/v1/chat/completions")
+        .json(&body)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    Json(reply)
+}
+
+pub async fn groq_http(State(http): State<reqwest::Client>, body: serde_json::Value) -> Json<serde_json::Value> {
+    let reply = http
+        .post("https://api.groq.com/openai/v1/chat/completions")
+        .json(&body)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    Json(reply)
+}
+
+pub async fn deepseek_http(State(http): State<reqwest::Client>, body: serde_json::Value) -> Json<serde_json::Value> {
+    let reply = http
+        .post("https://api.deepseek.com/chat/completions")
+        .json(&body)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    Json(reply)
 }

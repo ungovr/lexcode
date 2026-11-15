@@ -145,7 +145,7 @@ rules:
               - pattern: $HTTP.get($URL)
           - metavariable-regex:
               metavariable: $URL
-              regex: '^&?(?:format!\(\s*)?"https://(?:api\.openai\.com/v1/(?:chat/completions|completions|responses)|api\.anthropic\.com/v1/messages|api\.mistral\.ai/v1/chat/completions|api\.groq\.com/openai/v1/chat/completions|api\.deepseek\.com/(?:v1/)?chat/completions)'
+              regex: '^&?(?:format!\(\s*)?"https://(?:api\.openai\.com/v1/(?:chat/completions|completions|responses)|api\.anthropic\.com/v1/messages|api\.mistral\.ai/v1/chat/completions|api\.groq\.com/openai/v1/chat/completions|api\.deepseek\.com/(?:v1/)?chat/completions)[?"]'
       # A stream from one of the calls above, read with `while let`: the engine does not carry
       # taint from a `while let` scrutinee into the names it binds (it does for `if let`), so
       # those names are a source of their own inside the loop, in a file whose use lines name one

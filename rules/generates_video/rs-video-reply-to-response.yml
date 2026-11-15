@@ -73,7 +73,7 @@ rules:
               - pattern: $HTTP.get($URL)
           - metavariable-regex:
               metavariable: $URL
-              regex: '^&?(?:format!\(\s*)?"https://(?:api\.openai\.com/v1/videos|generativelanguage\.googleapis\.com/[^"]*:predictLongRunning|[^"]*aiplatform\.googleapis\.com/[^"]*veo[^"]*:predictLongRunning|api\.(?:dev\.)?runwayml\.com/v1/(?:text|image)_to_video|api\.lumalabs\.ai/dream-machine/v1/generations)'
+              regex: '^&?(?:format!\(\s*)?"https://(?:api\.openai\.com/v1/videos(?:/[^"?/]+/(?:content|remix))?|generativelanguage\.googleapis\.com/[^"]*:predictLongRunning|[^"]*aiplatform\.googleapis\.com/[^"]*veo[^"]*:predictLongRunning|api\.(?:dev\.)?runwayml\.com/v1/(?:text|image)_to_video|api\.lumalabs\.ai/dream-machine/v1/generations(?:/video)?)[?"]'
     pattern-propagators:
       # Output gathered into a string, a buffer or a list is sent on with it.
       - pattern: $S.push_str($X)
