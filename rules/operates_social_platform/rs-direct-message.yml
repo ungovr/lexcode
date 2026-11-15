@@ -1,0 +1,51 @@
+# The struct, sender and recipient regular expressions repeat between the two field patterns, and
+# the recipient names again in the SQL arm. Edit every copy together, or an arm drifts. Each field
+# pattern carries the struct and field names itself, so the engine drops other structs and fields
+# before the two are joined (#13009). The match is the struct's name, one per message type.
+# The creator counts as the sender: Lemmy's private message names its author creator_id, as the
+# Java and C# post rules count a creator as a post's author.
+rules:
+  - id: lexcode.social.rs-direct-message
+    languages: [rust]
+    severity: INFO
+    message: Stores a message addressed from one user account to another (a direct or private message struct with a sender and a recipient, or an SQL insert into a direct message table that names the recipient), which is how people talk on a social platform (operates_social_platform).
+    # Constant propagation is off so that a const statement is matched once, where it is written,
+    # and not again at each call that passes it.
+    options:
+      constant_propagation: false
+    pattern-either:
+      - patterns:
+          - patterns:
+              - pattern: |
+                  struct $S { ..., $F: $T, ... }
+              - metavariable-regex:
+                  metavariable: $S
+                  regex: '^(?!.*(Email|Mail|Sms|Notification|Log|Event|Contact|Audit|Queue|Kafka)).*(DirectMessage|PrivateMessage|ChatMessage|UserMessage|InboxMessage|Dm|DM)(\w*Form|Row|Record|Model|Entity)?$'
+              - metavariable-regex:
+                  metavariable: $F
+                  regex: '^(recipient|receiver|recipient_id|receiver_id|to_(user|customer|member|account|profile|person)(_id)?)$'
+          - patterns:
+              - pattern: |
+                  struct $S { ..., $G: $T2, ... }
+              - metavariable-regex:
+                  metavariable: $S
+                  regex: '^(?!.*(Email|Mail|Sms|Notification|Log|Event|Contact|Audit|Queue|Kafka)).*(DirectMessage|PrivateMessage|ChatMessage|UserMessage|InboxMessage|Dm|DM)(\w*Form|Row|Record|Model|Entity)?$'
+              - metavariable-regex:
+                  metavariable: $G
+                  regex: '^(sender|sender_id|author|author_id|creator|creator_id|from_(user|customer|member|account|profile|person)(_id)?)$'
+          - focus-metavariable: $S
+      # SQL text, wherever the string sits (an sqlx query or macro, Diesel's sql_query, a const):
+      # an insert into a direct, private or chat message table whose column list names the
+      # recipient.
+      - patterns:
+          - pattern: '"$SQL"'
+          - metavariable-regex:
+              metavariable: $SQL
+              regex: '(?is)^.*?\binsert\s+into\s+[`"]?(\w+\.)?(?!\w*(email|mail|sms|notification|log|audit|queue))(\w+_)?(direct_?messages?|private_?messages?|chat_?messages?|user_?messages?|inbox_?messages?|dms?)[`"]?\s*\((?:[^()]*?[\s,`"])?(recipient|receiver|recipient_id|receiver_id|to_(user|customer|member|account|profile|person)(_id)?)[`"]?\s*[,)]'
+    metadata:
+      activity: operates_social_platform
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/operates-social-platform
+      provenance: ungovr-original
+      license: MIT

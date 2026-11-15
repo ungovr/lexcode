@@ -1,0 +1,33 @@
+# The framework guards are one line-anchored use check per crate (#13199 amendment): a crate named
+# only in a comment does not admit a file. The engine matches a parameter's type on its last path
+# segment whatever its path (web::Form, axum::extract::Form and an app's own Form alike), so the
+# guard is what ties Form to a web framework; an app's own Form type in a file that uses one of
+# these crates is a known gap. The name expression is the selector: a sign-in, an admin's form and
+# a publishing form are not read.
+rules:
+  - id: lexcode.consumer.rs-signup-form
+    languages: [rust]
+    severity: INFO
+    message: Handles a public sign-up posted from a browser form (an actix-web, axum, Rocket, Poem or Loco handler named for registering an account or subscribing that takes a Form body), a sign-up flow that members of the public use to reach a service (ships_consumer_interface).
+    patterns:
+      - pattern-either:
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+actix_web\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+axum\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+axum_extra\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+rocket\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+poem\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+loco_rs\b).*'
+      # One shape reads a plain or async fn, with or without a return type, and a method.
+      - pattern: |
+          fn $F(..., $P: Form<$T>, ...) { ... }
+      - metavariable-regex:
+          metavariable: $F
+          regex: '^(handle_|post_|submit_|process_)?(sign_?up|register|registration|create_account|new_account|subscribe|subscribe_to_newsletter|newsletter_(sign_?up|subscribe))(_(user|account|member|customer|form|post|submit|handler|page|action))?$'
+      - focus-metavariable: $F
+    metadata:
+      activity: ships_consumer_interface
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/ships-consumer-interface
+      provenance: ungovr-original
+      license: MIT
