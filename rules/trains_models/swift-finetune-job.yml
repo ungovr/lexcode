@@ -1,0 +1,43 @@
+rules:
+  - id: lexcode.train.swift-finetune-job
+    languages: [swift]
+    severity: INFO
+    message: Starts a hosted training or fine-tuning job (OpenAI through SwiftOpenAI, or Amazon SageMaker or Amazon Bedrock through the AWS SDK for Swift or Soto) that adapts a model to the caller's data, which is training models (trains_models).
+    # The receivers are clients whose type the engine cannot see (Swift has no typed metavariables),
+    # so each call is guarded by its vendor's import, one branch per vendor so that one import cannot
+    # admit another's call. Listing, reading, cancelling or describing a job, and calling a model,
+    # are not matched. MacPaw's OpenAI client has no fine-tuning call.
+    pattern-either:
+      # SwiftOpenAI (jamesrochabrun/SwiftOpenAI): `service.createFineTuningJob(parameters:)`.
+      - patterns:
+          - pattern: '$S.createFineTuningJob(parameters: $P)'
+          - pattern-inside: |
+              import SwiftOpenAI
+              ...
+      # Amazon SageMaker: the AWS SDK for Swift takes `input:`, Soto an unlabeled request (or its
+      # members spelled out), so the arguments are left open.
+      - patterns:
+          - pattern: $C.createTrainingJob(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import AWSSageMaker
+                  ...
+              - pattern-inside: |
+                  import SotoSageMaker
+                  ...
+      # Amazon Bedrock model customization (fine-tuning or continued pre-training).
+      - patterns:
+          - pattern: $C.createModelCustomizationJob(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import AWSBedrock
+                  ...
+              - pattern-inside: |
+                  import SotoBedrock
+                  ...
+    metadata:
+      activity: trains_models
+      mentioned: performs
+      definition: https://lexlint.io/activities/trains-models
+      provenance: ungovr-original
+      license: MIT

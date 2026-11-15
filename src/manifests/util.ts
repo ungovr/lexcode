@@ -178,3 +178,67 @@ function locate(e: unknown, text: string): string | undefined {
   }
   return undefined;
 }
+
+// ---- Ruby manifests (Gemfile, Podfile) ---------------------------------------------------------
+
+/** Cut a trailing `# comment` from a line of Ruby, leaving a `#` inside a quoted string alone. */
+export function stripRubyComment(line: string): string {
+  let quote = '';
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i] as string;
+    if (quote) {
+      if (c === '\\') i++;
+      else if (c === quote) quote = '';
+    } else if (c === '"' || c === "'") quote = c;
+    else if (c === '#') return line.slice(0, i);
+  }
+  return line;
+}
+
+/** Does this logical line of Ruby open a block that a later `end` closes? One-line forms and modifiers do not. */
+export function opensRubyBlock(code: string): boolean {
+  if (/\bend$/.test(code)) return false;
+  if (/\bdo(?:\s*\|[^|]*\|)?$/.test(code)) return true;
+  if (/^def\s+[^\s(]+(?:\([^)]*\))?\s*=[^=~]/.test(code)) return false;
+  if (/^(?:if|unless|case|begin|while|until|for|def|class|module)\b/.test(code)) return true;
+  return /[=(]\s*(?:if|unless|case|begin)\b/.test(code);
+}
+
+/**
+ * The logical lines of a Ruby manifest (a Gemfile or a Podfile), read and never evaluated. Comments are cut;
+ * blank lines, `=begin`/`=end` blocks and heredoc bodies are skipped; and a call whose code matches `joined`
+ * and runs on over several lines, each but the last ending in a comma or a backslash, is joined into one.
+ * `line` is the 1-based line where the logical line starts.
+ */
+export function* rubyLines(text: string, joined: RegExp): Generator<{ code: string; line: number }> {
+  const lines = text.split(/\r?\n/);
+  let heredoc: string | undefined;
+  let blockComment = false;
+  for (let i = 0; i < lines.length; i++) {
+    const raw = lines[i] as string;
+    const line = i + 1;
+    if (heredoc !== undefined) {
+      if (raw.trim() === heredoc) heredoc = undefined;
+      continue;
+    }
+    if (blockComment) {
+      if (/^=end\b/.test(raw)) blockComment = false;
+      continue;
+    }
+    if (/^=begin\b/.test(raw)) {
+      blockComment = true;
+      continue;
+    }
+    let code = stripRubyComment(raw).trim();
+    if (code === '') continue;
+    if (joined.test(code)) {
+      while (/[,\\]$/.test(code) && i + 1 < lines.length) {
+        i++;
+        code = `${code.replace(/\\$/, '')} ${stripRubyComment(lines[i] as string).trim()}`.trim();
+      }
+    }
+    const hd = /<<[~-]?(["']?)([A-Za-z_]\w*)\1/.exec(code);
+    if (hd) heredoc = hd[2];
+    yield { code, line };
+  }
+}

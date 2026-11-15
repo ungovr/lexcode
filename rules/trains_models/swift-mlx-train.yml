@@ -1,0 +1,29 @@
+rules:
+  - id: lexcode.train.swift-mlx-train
+    languages: [swift]
+    severity: INFO
+    message: Trains or fine-tunes a model with MLX Swift (the loss-and-gradient function of a network, an optimizer step that updates its weights, or a LoRA fine-tune of a language model), which is training models (trains_models).
+    # MLX Swift is Apple's array framework for Apple silicon (ml-explore/mlx-swift); mlx-swift-examples
+    # trains networks with it and fine-tunes language models with LoRA. Loading a model and generating
+    # with it, or a forward pass, is using a model and is not matched.
+    pattern-either:
+      # valueAndGrad(model:_:) is MLXNN's, written module-qualified: the engine resolves the import.
+      - pattern: 'MLXNN.valueAndGrad(model: $M, ...)'
+      # The optimizer's step. Its receiver's type is not visible to the engine (Swift has no typed
+      # metavariables), so the call is guarded by MLXOptimizers' import, which a file needs to name
+      # or build an optimizer.
+      - patterns:
+          - pattern: '$O.update(model: $M, gradients: $G)'
+          - pattern-inside: |
+              import MLXOptimizers
+              ...
+      # LoRA fine-tuning. LoRATrain has lived in MLXLLM and in MLXLMCommon, so both are written;
+      # a file that imports both gives one match.
+      - pattern: MLXLLM.LoRATrain.train(...)
+      - pattern: MLXLMCommon.LoRATrain.train(...)
+    metadata:
+      activity: trains_models
+      mentioned: performs
+      definition: https://lexlint.io/activities/trains-models
+      provenance: ungovr-original
+      license: MIT

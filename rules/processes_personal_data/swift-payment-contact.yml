@@ -1,0 +1,50 @@
+rules:
+  - id: lexcode.personal.swift-payment-contact
+    languages: [swift]
+    severity: INFO
+    message: Asks the payer for their name, email, phone number or postal address in a payment sheet (Apple Pay's required billing or shipping contact fields, or Stripe's PaymentSheet billing details), or hands Stripe the person's details, which is processing personal data (processes_personal_data).
+    # The property names are the frameworks' own, and each branch needs the framework's import
+    # (the engine has no typed metavariable for Swift). An empty set of contact fields asks for
+    # nothing, and Stripe's .never or .automatic leaves the details out, so neither is matched.
+    pattern-either:
+      # Apple Pay (PassKit).
+      - patterns:
+          - pattern-either:
+              - pattern: $R.requiredBillingContactFields = $F
+              - pattern: $R.requiredShippingContactFields = $F
+          - pattern-not: $R.requiredBillingContactFields = []
+          - pattern-not: $R.requiredShippingContactFields = []
+          - pattern-not: $R.requiredBillingContactFields = Set()
+          - pattern-not: $R.requiredShippingContactFields = Set()
+          - pattern-inside: |
+              import PassKit
+              ...
+      # Stripe PaymentSheet: billing details the sheet collects, or prefills from the app.
+      - patterns:
+          - pattern-either:
+              - patterns:
+                  - pattern: $C.billingDetailsCollectionConfiguration.$K = $V
+                  - metavariable-regex:
+                      metavariable: $K
+                      regex: ^(name|email|phone|address)$
+                  - metavariable-regex:
+                      metavariable: $V
+                      regex: ^\.(always|full)$
+              - patterns:
+                  - pattern: $C.defaultBillingDetails.$K = $V
+                  - metavariable-regex:
+                      metavariable: $K
+                      regex: ^(name|email|phone|address)$
+          - pattern-either:
+              - pattern-inside: |
+                  import StripePaymentSheet
+                  ...
+              - pattern-inside: |
+                  import Stripe
+                  ...
+    metadata:
+      activity: processes_personal_data
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-personal-data
+      provenance: ungovr-original
+      license: MIT

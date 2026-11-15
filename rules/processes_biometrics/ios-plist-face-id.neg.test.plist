@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- lexcode-expect: 0 -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<!-- A photo is not biometric data: the camera and the photo library are left out. -->
+	<key>NSCameraUsageDescription</key>
+	<string>Take a profile photo.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Choose a profile photo.</string>
+	<!-- A commented-out key is not a key. -->
+	<!-- <key>NSFaceIDUsageDescription</key><string>Unlock your vault.</string> -->
+	<key>RemovedKeys</key>
+	<array>
+		<string>NSFaceIDUsageDescription</string>
+	</array>
+</dict>
+</plist>

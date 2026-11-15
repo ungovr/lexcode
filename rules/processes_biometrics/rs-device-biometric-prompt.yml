@@ -1,0 +1,29 @@
+# Signal strength, as every other language's device prompt is: asking the operating system to confirm
+# the user with a fingerprint or face. The OS compares the trait on the device and hands the app only
+# a yes or no, so the app never holds biometric data; the definition names "a face-unlock feature,
+# a fingerprint login" all the same, so it is a row worth a look rather than evidence.
+# - Tauri's biometric plugin (`tauri_plugin_biometric`): registering it, and the Rust-side
+#   `biometric().authenticate(..)` on the app handle (the `BiometricExt` trait);
+# - LocalAuthentication through objc2 (`objc2_local_authentication`) with the biometrics-only policy.
+#   A policy that also accepts the device passcode (`DeviceOwnerAuthentication`) is not
+#   biometrics-only and is left out, as is Windows Hello's `UserConsentVerifier`, which accepts a PIN.
+# Crate items are written by their crate path. The `biometric()` call counts only in a file that
+# names the plugin, since an app may name its own accessor `biometric`.
+rules:
+  - id: lexcode.biometric.rs-device-biometric-prompt
+    languages: [rust]
+    severity: INFO
+    message: Asks the device to confirm the user with a fingerprint or face, which may be using biometric data (processes_biometrics).
+    pattern-either:
+      - pattern: tauri_plugin_biometric::init()
+      - patterns:
+          - pattern: $A.biometric().authenticate(...)
+          - pattern-regex: (?s)\A(?=.*\btauri_plugin_biometric\b).*
+      - pattern: objc2_local_authentication::LAPolicy::DeviceOwnerAuthenticationWithBiometrics
+    metadata:
+      activity: processes_biometrics
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/processes-biometrics
+      provenance: ungovr-original
+      license: MIT

@@ -1,0 +1,31 @@
+rules:
+  - id: lexcode.personal.xcprivacy-linked-data
+    languages: [generic]
+    severity: INFO
+    message: Declares in an Apple privacy manifest that the app collects a data type linked to the person's identity (NSPrivacyCollectedDataTypeLinked true), which is processing personal data (processes_personal_data).
+    # One match per NSPrivacyCollectedDataTypes entry whose linked value is true, at the entry's data-type
+    # key. Apple's "collected" is data that leaves the device, and "linked" is data the developer can tie
+    # to the person. An entry that is not linked is left out: it is the definition's anonymous exclusion.
+    # The entry is one <dict> with no dict inside it; the lookahead finds the linked value anywhere in it,
+    # before or after the type, and \K starts the match at the type. The engine's xml rules do not read a
+    # .xcprivacy file, so this is a generic rule.
+    pattern-regex: '<dict>(?=(?:(?!</?dict>)[\s\S])*?<key>NSPrivacyCollectedDataTypeLinked</key>\s*+<true\s*/>)(?:(?!</?dict>)[\s\S])*?\K<key>NSPrivacyCollectedDataType</key>\s*+<string>[^<]*+</string>'
+    paths:
+      include:
+        - "*.xcprivacy"
+        - "xcprivacy-linked-data.*"
+      exclude:
+        - "**/example/**"
+        - "**/examples/**"
+        - "**/sample/**"
+        - "**/samples/**"
+        - "**/demo/**"
+        - "**/demos/**"
+        - "**/Tests/**"
+        - "**/UITests/**"
+    metadata:
+      activity: processes_personal_data
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-personal-data
+      provenance: ungovr-original
+      license: MIT

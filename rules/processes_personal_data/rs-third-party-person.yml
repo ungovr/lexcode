@@ -1,0 +1,29 @@
+rules:
+  - id: lexcode.personal.rs-third-party-person
+    languages: [rust]
+    severity: INFO
+    message: Sends a person's identity to a third-party service (a user set on Sentry's scope, Sentry told to send request IPs and user data, or a customer created at Stripe), which is processing personal data (processes_personal_data).
+    pattern-either:
+      # Sentry: a user attached to the scope, so every event names the person. Clearing it
+      # (`set_user(None)`) is not matched.
+      - patterns:
+          - pattern-either:
+              - pattern-inside: sentry::configure_scope(...)
+              - pattern-inside: sentry::with_scope(...)
+          - pattern: $S.set_user(Some(...))
+      # Sentry: send_default_pii, which attaches the request's IP address and user data to each
+      # event. A Rust struct literal cannot be an engine pattern with `...` in it (probed: a
+      # parse error), so the field is matched on its text inside the init call.
+      - patterns:
+          - pattern-inside: sentry::init(...)
+          - pattern-regex: \bsend_default_pii\s*:\s*true\b
+      # Stripe (async-stripe): a customer created or updated, which carries the person's email,
+      # name and address to Stripe.
+      - pattern: stripe::Customer::create(...)
+      - pattern: stripe::Customer::update(...)
+    metadata:
+      activity: processes_personal_data
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-personal-data
+      provenance: ungovr-original
+      license: MIT

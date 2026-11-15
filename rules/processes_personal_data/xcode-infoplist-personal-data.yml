@@ -1,0 +1,30 @@
+rules:
+  - id: lexcode.personal.xcode-infoplist-personal-data
+    languages: [generic]
+    severity: INFO
+    message: Sets INFOPLIST_KEY_$KEY in an Xcode project, the build setting Xcode writes into the generated Info.plist as the permission prompt shown before the app reads the person's location, contacts or health data, which may be processing personal data (processes_personal_data).
+    # The build-setting copy of the keys lexcode.personal.ios-plist-personal-data reads: a project that sets
+    # GENERATE_INFOPLIST_FILE keeps them here and has no Info.plist of its own. A setting may carry an SDK
+    # condition (`"INFOPLIST_KEY_...[sdk=iphoneos*]"`). An empty value declares nothing and is left out. Each
+    # build configuration (Debug, Release) that sets a key is its own match.
+    pattern-regex: '(?m)^[ \t]*+"?INFOPLIST_KEY_(?<KEY>NSLocation(?:WhenInUse|Always|AlwaysAndWhenInUse)?UsageDescription|NSContactsUsageDescription|NSHealth(?:Share|Update)UsageDescription)(?:\[[^\]\n]*+\])?"?[ \t]*+=[ \t]*+(?!""[ \t]*+;|;)'
+    paths:
+      include:
+        - "project.pbxproj"
+        - "xcode-infoplist-personal-data.*"
+      exclude:
+        - "**/example/**"
+        - "**/examples/**"
+        - "**/sample/**"
+        - "**/samples/**"
+        - "**/demo/**"
+        - "**/demos/**"
+        - "**/Tests/**"
+        - "**/UITests/**"
+    metadata:
+      activity: processes_personal_data
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/processes-personal-data
+      provenance: ungovr-original
+      license: MIT

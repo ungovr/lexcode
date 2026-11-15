@@ -1,0 +1,38 @@
+rules:
+  - id: lexcode.personal.ios-plist-personal-data
+    languages: [xml]
+    severity: INFO
+    message: Declares $K in an Apple app's Info.plist, the permission prompt the system shows before the app reads the person's location, contacts or health data, which may be processing personal data (processes_personal_data).
+    # A usage description is the text the system shows when the app asks for the permission, and an app
+    # carries one only for an API it calls: without it the call is refused or the app is stopped. The
+    # location keys (the current ones and the legacy NSLocationUsageDescription), the address book and
+    # HealthKit's read, write and clinical-records keys are each information about an identifiable person.
+    # The camera, the photo library, calendars, motion and Bluetooth are left out: a photo, an event or a
+    # step count is not, by the key alone, information about a person.
+    patterns:
+      - pattern: <key>$K</key>
+      - metavariable-regex:
+          metavariable: $K
+          regex: ^(NSLocation(WhenInUse|Always|AlwaysAndWhenInUse)?UsageDescription|NSContactsUsageDescription|NSHealth(Share|Update|ClinicalHealthRecordsShare)UsageDescription)$
+    paths:
+      # Xcode's older templates name the file <Target>-Info.plist.
+      include:
+        - "Info.plist"
+        - "*-Info.plist"
+        - "ios-plist-personal-data.*"
+      exclude:
+        - "**/example/**"
+        - "**/examples/**"
+        - "**/sample/**"
+        - "**/samples/**"
+        - "**/demo/**"
+        - "**/demos/**"
+        - "**/Tests/**"
+        - "**/UITests/**"
+    metadata:
+      activity: processes_personal_data
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/processes-personal-data
+      provenance: ungovr-original
+      license: MIT

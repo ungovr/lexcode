@@ -1,0 +1,90 @@
+# A timer or a cron job runs with no person asking: a send inside one is a message the software
+# initiates. The timers: a tokio interval ticked in a loop, a tokio-cron-scheduler job, and a
+# clokwerk schedule. A polling loop that only sleeps (`tokio::time::sleep`) is not a timer here,
+# because a retry loop that backs off between attempts at ONE message has the same shape.
+#
+# A send in the error branch of the job (`if let Err(e) = run_job().await { send_alert_email(..) }`)
+# mails an operator about the failure, which is an alert and not outreach; it is left out, as the
+# Java and Kotlin rules leave out a send in a catch block. The same send in a `match` arm
+# (`Err(e) => send_alert_email(..)`) is not left out: on Opengrep 1.33.1 a `match` with an `Err`
+# arm does not parse as a Rust pattern, so that form is a known residual.
+#
+# The sends are rs-send-in-loop's. tokio-cron-scheduler's Job is written by its crate path, which
+# the engine resolves through `use tokio_cron_scheduler::{Job, JobScheduler}` and an alias; a
+# `use` whose group nests a path is not resolved on Opengrep 1.33.1. A send inside a macro body is
+# not seen (rules/README.md).
+rules:
+  - id: lexcode.outreach.rs-send-in-scheduled-job
+    languages: [rust]
+    severity: INFO
+    message: Sends an email, text, call, push notification or direct message from a timer or cron job that no user action triggers, which is sending automated outreach (automated_outreach).
+    patterns:
+      - pattern-either:
+          - pattern-inside: |
+              loop {
+                ...
+                $TICKER.tick().await;
+                ...
+              }
+          - pattern-inside: tokio_cron_scheduler::Job::new(...)
+          - pattern-inside: tokio_cron_scheduler::Job::new_async(...)
+          - pattern-inside: tokio_cron_scheduler::Job::new_repeated(...)
+          - pattern-inside: tokio_cron_scheduler::Job::new_repeated_async(...)
+          - pattern-inside: tokio_cron_scheduler::Job::new_cron_job(...)
+          - pattern-inside: tokio_cron_scheduler::Job::new_cron_job_async(...)
+          - pattern-inside: $SCHED.every($EVERY).at($AT).run(...)
+          - pattern-inside: $SCHED.every($EVERY).run(...)
+      # The exclusion's range is the whole `if let`, condition included, so a scrutinee that is
+      # itself a send (`if let Err(e) = mailer.send(msg).await { log(e) }`: the timer sends and
+      # only logs a failure) keeps the match: the term applies only when the scrutinee names no
+      # send. A send in an `else` after such a branch stays excluded, a smaller residual.
+      - pattern-not-inside:
+          patterns:
+            - pattern: |
+                if let Err($ERR) = $RES { ... }
+            - metavariable-regex:
+                metavariable: $RES
+                regex: '(?is)^(?!.*(send|mail|smtp|sms|push|notif|remind|digest|newsletter|alert)).*$'
+      - pattern-either:
+          - patterns:
+              - pattern: $T.send(...)
+              - metavariable-regex:
+                  metavariable: $T
+                  regex: '(?i)^&?(\w+\.)*(?!\w*mailbox)\w*(mail|smtp)\w*$'
+          - patterns:
+              - pattern: $SG.send(...)
+              - metavariable-regex:
+                  metavariable: $SG
+                  regex: '(?i)^&?(\w+\.)*(sg|\w*sendgrid\w*)$'
+          - pattern: $C.send_email()
+          - pattern: $R.emails.send(...)
+          - patterns:
+              - pattern-either:
+                  - pattern: $N(...)
+                  - pattern: $X.$N(...)
+              - metavariable-regex:
+                  metavariable: $N
+                  regex: ^send_(\w+_)?(email|mail|sms|text_message|push|push_notification|notification|reminder|digest|newsletter|alert)s?$
+          - pattern: twilio::OutboundMessage::new(...)
+          - pattern: twilio::OutboundCall::new(...)
+          - pattern: web_push::WebPushMessageBuilder::new(...)
+          - pattern: a2::DefaultNotificationBuilder::new()
+          - pattern: fcm::MessageBuilder::new(...)
+          - pattern: $C.publish().phone_number(...)
+          - patterns:
+              - pattern: $H.post($URL)
+              - metavariable-regex:
+                  metavariable: $URL
+                  regex: (?is)^r?#*".*(api\.resend\.com/emails|api\.sendgrid\.com/v3/mail/send|api\.postmarkapp\.com/email|api\.mailgun\.net/v3|mandrillapp\.com/api|api\.brevo\.com/v3/smtp/email|api\.twilio\.com/.*/(Messages|Calls)).*
+          - patterns:
+              - pattern: $BOT.send_message($CHAT, ...)
+              - metavariable-regex:
+                  metavariable: $BOT
+                  regex: '(?i)^&?(self\.)?\w*bot$'
+          - pattern: $U.direct_message(...)
+    metadata:
+      activity: automated_outreach
+      mentioned: performs
+      definition: https://lexlint.io/activities/automated-outreach
+      provenance: ungovr-original
+      license: MIT
