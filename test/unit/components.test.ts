@@ -116,6 +116,29 @@ describe('matchComponents', () => {
     expect(matchComponents([d], [], [entry({ ecosystem: 'maven', match: 'awssdk.rekognition', enables: ['x'] })]).components).toEqual([]);
   });
 
+  it('matches a crate, and its evidence rule reads lexcode.manifest.cargo', () => {
+    const d: Dependency = { ecosystem: 'cargo', name: 'async-openai', version: '0.25.0', manifest: 'crates/app/Cargo.toml:8' };
+    const r = matchComponents([d], [], [entry({ ecosystem: 'cargo', match: 'async-openai', enables: ['generative_ai'] })]);
+    expect(r.components[0]?.purl).toBe('pkg:cargo/async-openai@0.25.0');
+    expect(r.evidence[0]?.ev.rule).toBe('lexcode.manifest.cargo');
+    expect(r.evidence[0]?.ev.where).toBe('crates/app/Cargo.toml:8');
+    expect(matchComponents([d], [], [entry({ ecosystem: 'npm', match: 'async-openai', enables: ['x'] })]).components).toEqual([]);
+  });
+
+  it('matches a Swift package by host/owner/repo case-insensitively, and its evidence rule reads lexcode.manifest.swift', () => {
+    const d: Dependency = { ecosystem: 'swift', name: 'github.com/Alamofire/Alamofire', version: '5.10.2', manifest: 'Package.swift:12' };
+    const r = matchComponents([d], [], [entry({ ecosystem: 'swift', match: 'github.com/alamofire/alamofire', enables: ['x'] })]);
+    expect(r.components[0]?.purl).toBe('pkg:swift/github.com/Alamofire/Alamofire@5.10.2');
+    expect(r.evidence[0]?.ev.rule).toBe('lexcode.manifest.swift');
+  });
+
+  it('matches a CocoaPods subspec case-insensitively, and its evidence rule reads lexcode.manifest.cocoapods', () => {
+    const d: Dependency = { ecosystem: 'cocoapods', name: 'Firebase/Analytics', version: '10.29.0', manifest: 'Podfile.lock:20' };
+    const r = matchComponents([d], [], [entry({ ecosystem: 'cocoapods', match: 'firebase/analytics', enables: ['x'] })]);
+    expect(r.components[0]?.purl).toBe('pkg:cocoapods/Firebase@10.29.0#Analytics');
+    expect(r.evidence[0]?.ev.rule).toBe('lexcode.manifest.cocoapods');
+  });
+
   it('matches PyPI names after PEP 503 normalization on both sides', () => {
     const d: Dependency = {
       ecosystem: 'pypi',

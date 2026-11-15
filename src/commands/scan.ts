@@ -10,6 +10,7 @@ import { pathPresent } from '../fsread.js';
 import { ensureEngine } from '../engine/fetch.js';
 import { ENGINE_PIN } from '../engine/pin.js';
 import { runEngine } from '../engine/run.js';
+import { isCargoManifest, readCargo } from '../manifests/cargo.js';
 import { readGo } from '../manifests/go.js';
 import { readNpm } from '../manifests/npm.js';
 import { isRequirementsFile, readPypi } from '../manifests/pypi.js';
@@ -80,7 +81,8 @@ export function readAppScope(root: string): ScopeSpec | undefined {
   return s ? { include: s.include, exclude: s.exclude, includeTests: false } : undefined;
 }
 
-function ecosystemsFound(files: string[]): Set<string> {
+/** The ecosystems whose component-map entries a scan of these files counts as run. */
+export function ecosystemsFound(files: string[]): Set<string> {
   const found = new Set<string>();
   for (const f of files) {
     const base = baseName(f);
@@ -90,6 +92,9 @@ function ecosystemsFound(files: string[]): Set<string> {
     else if (base === 'pom.xml' || base === 'build.gradle' || base === 'build.gradle.kts') found.add('maven');
     else if (base === 'composer.json') found.add('composer');
     else if (isNugetManifest(f)) found.add('nuget');
+    else if (isCargoManifest(f)) found.add('cargo');
+    else if (base === 'Package.swift' || base === 'Package.resolved' || base === 'project.pbxproj') found.add('swift');
+    else if (base === 'Podfile' || base === 'Podfile.lock') found.add('cocoapods');
     else if (base === 'pyproject.toml' || isRequirementsFile(f)) found.add('pypi');
   }
   return found;
@@ -167,7 +172,7 @@ export async function scan(o: ScanOptions): Promise<EvidenceRecord> {
   }
 
   // Manifests: what the code enables.
-  const readers = [readNpm(root, files), readPypi(root, files), readGo(root, files), readRuby(root, files), readMaven(root, files), readGradle(root, files), readComposer(root, files), readNuget(root, files)];
+  const readers = [readNpm(root, files), readPypi(root, files), readGo(root, files), readRuby(root, files), readMaven(root, files), readGradle(root, files), readComposer(root, files), readNuget(root, files), readCargo(root, files)];
   const deps: Dependency[] = readers.flatMap((r) => r.deps);
   const devSkipped = readers.reduce((n, r) => n + r.devSkipped, 0);
   for (const r of readers) notices.push(...r.notices);
