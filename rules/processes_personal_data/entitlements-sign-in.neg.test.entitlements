@@ -9,6 +9,11 @@
 		<string>applinks:example.com</string>
 		<string>activitycontinuation:example.com</string>
 	</array>
+	<!-- A webcredentials string in another key's array is not an associated domain. -->
+	<key>com.example.migration-notes</key>
+	<array>
+		<string>webcredentials:old.example.com</string>
+	</array>
 	<!-- Sign in with Apple, switched off: the capability with no value. -->
 	<key>com.apple.developer.applesignin</key>
 	<array/>

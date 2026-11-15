@@ -1,5 +1,5 @@
 // !$*UTF8*$!
-// lexcode-expect: 2
+// lexcode-expect: 3
 {
 	archiveVersion = 1;
 	classes = {
@@ -23,6 +23,7 @@
 			buildSettings = {
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSUserTrackingUsageDescription = AdsThatFit;
+				"INFOPLIST_KEY_NSUserTrackingUsageDescription[sdk=iphoneos*]" = "Ads that fit your interests.";
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.news;
 				SDKROOT = iphoneos;
 			};

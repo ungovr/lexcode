@@ -4,8 +4,9 @@ rules:
     severity: INFO
     message: Declares ITSAppUsesNonExemptEncryption true in an Apple app's Info.plist, the developer's own statement to App Store Connect that the app uses encryption outside the export exemptions, which is shipping encryption (ships_encryption).
     # True means the app carries encryption beyond the exempt uses (the system's HTTPS among them). False
-    # is the exemption and is left out. The xml patterns pair the key with the <true/> that directly
-    # follows it in the same dict, and do not read comments. The export documentation code App Store
+    # is the exemption and is left out. The pattern-inside asks for a dict where the key is directly
+    # followed by <true/>, and xml patterns do not read comments. A dict that held the key twice would
+    # match both copies, which a valid plist cannot do. The export documentation code App Store
     # Connect issues is a separate key that always comes with this one set to true, so it is not matched.
     patterns:
       - pattern: <key>ITSAppUsesNonExemptEncryption</key>

@@ -18,9 +18,15 @@ rules:
     # (its productType) comes before the XCBuildConfiguration section that holds the settings, and the
     # range covers each target. The greedy `.*` searches from the end of the file, where the settings
     # are; only the small XCConfigurationList and package sections follow them, so the engine's
-    # backtracking limit (about 1 MB) is not reached (Wikipedia's 1.3 MB project has its last setting
-    # 43 KB from the end). A `\A(?=` lookahead in a generic rule would make every file over 1 MB in a
-    # repository count in the large-file notice, since a generic rule reads every extension.
+    # backtracking limit (about 1 MB) is not reached (a 1.3 MB project file measured had its last setting
+    # 43 KB from the end). A last setting more than about 1 MB from the end would lose the match with no
+    # error. A `\A(?=` lookahead in a generic rule would make every file over 1 MB in a repository count
+    # in the large-file notice, since a generic rule reads every extension.
+    #
+    # Because the platform is read from the file, a project that holds an iOS target also counts its
+    # other `...application` targets: a single-target watchOS app (Xcode 14 and later), a tvOS or a
+    # visionOS app. The activity is still found; the count and a line can be off. A project with no iOS
+    # setting at all is never matched.
     patterns:
       - pattern-either:
           - pattern-regex: '(?s)\A.*\n[ \t]*+SDKROOT[ \t]*+=[ \t]*+iphoneos[\d.]*+;'

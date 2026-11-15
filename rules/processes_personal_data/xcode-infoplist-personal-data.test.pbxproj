@@ -1,5 +1,5 @@
 // !$*UTF8*$!
-// lexcode-expect: 6
+// lexcode-expect: 7
 {
 	archiveVersion = 1;
 	classes = {
@@ -17,6 +17,7 @@
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Save your rides as workouts.";
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Tell you when your stop is close.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Find stops near you.";
+				INFOPLIST_KEY_NSLocationUsageDescription = "Find stops near you.";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.transit;
 				SDKROOT = iphoneos;

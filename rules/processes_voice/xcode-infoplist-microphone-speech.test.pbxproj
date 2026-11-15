@@ -1,5 +1,5 @@
 // !$*UTF8*$!
-// lexcode-expect: 2
+// lexcode-expect: 3
 {
 	archiveVersion = 1;
 	classes = {
@@ -14,6 +14,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Record a voice note.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Turn your voice note into text.";
+				"INFOPLIST_KEY_NSMicrophoneUsageDescription[sdk=iphoneos*]" = "Record a voice note on iPhone.";
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.notes;
 				SDKROOT = iphoneos;
 			};
