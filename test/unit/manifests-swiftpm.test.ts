@@ -75,6 +75,44 @@ describe('readSwiftPm', () => {
     expect(r.deps).toEqual([{ ecosystem: 'swift', name: 'github.com/apple/swift-log', version: '1.6.4', manifest: `Packages/Core/Package.swift:${lineOf(text, '.package(')}` }]);
   });
 
+  it("a local package inside an Xcode app with no resolved file of its own takes the app's workspace pins", () => {
+    const text = manifest(['.package(url: "https://github.com/SDWebImage/SDWebImage.git", from: "5.19.0")'], ['.target(name: "Components", dependencies: [.product(name: "SDWebImage", package: "SDWebImage")])']);
+    const root = tree({
+      'App/Components/Package.swift': text,
+      'App/App.xcodeproj/project.pbxproj': '// !$*UTF8*$!\n{\n\tobjects = {\n\t};\n}\n',
+      'App/App.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved': resolved([{ identity: 'sdwebimage', location: 'https://github.com/SDWebImage/SDWebImage.git', state: { revision: '2053b12', version: '5.21.3' } }], 3),
+    });
+    const r = readSwiftPm(root, ['App/Components/Package.swift']);
+    expect(r.deps).toEqual([{ ecosystem: 'swift', name: 'github.com/SDWebImage/SDWebImage', version: '5.21.3', manifest: `App/Components/Package.swift:${lineOf(text, '.package(')}` }]);
+    expect(r.notices).toEqual([]);
+  });
+
+  it('the Xcode pins fallback takes the nearest directory, and the first bundle in sorted order there', () => {
+    const text = manifest(['.package(url: "https://github.com/a/Lib", from: "1.0.0")'], []);
+    const pin = (v: string): string => resolved([{ identity: 'lib', location: 'https://github.com/a/Lib', state: { version: v } }]);
+    const root = tree({
+      'ios/Pkgs/Lib/Package.swift': text,
+      'ios/B.xcworkspace/xcshareddata/swiftpm/Package.resolved': pin('2.0.0'),
+      'ios/A.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved': pin('1.0.0'),
+      // A bundle with no pins file is passed over.
+      'ios/0.xcworkspace/contents.xcworkspacedata': '<Workspace/>',
+      'Z.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved': pin('9.0.0'),
+    });
+    expect(readSwiftPm(root, ['ios/Pkgs/Lib/Package.swift']).deps.map((d) => d.version)).toEqual(['1.0.0']);
+  });
+
+  it('the Xcode pins fallback is not used when a Package.resolved sits at or above the manifest', () => {
+    const text = manifest(['.package(url: "https://github.com/a/Lib", from: "1.0.0")'], []);
+    const root = tree({
+      'App/Lib/Package.swift': text,
+      'Package.resolved': resolved([{ identity: 'other', location: 'https://github.com/a/Other', state: { version: '3.0.0' } }]),
+      'App/App.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved': resolved([{ identity: 'lib', location: 'https://github.com/a/Lib', state: { version: '1.2.0' } }]),
+    });
+    const r = readSwiftPm(root, ['App/Lib/Package.swift']);
+    expect(r.deps.map((d) => d.version)).toEqual([undefined]);
+    expect(r.notices).toEqual([UNRESOLVED(1)]);
+  });
+
   it('ssh URLs, exact versions and branch pins', () => {
     const text = manifest(
       [

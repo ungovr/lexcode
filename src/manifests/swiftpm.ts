@@ -22,7 +22,10 @@ import { ancestorDirs, baseName, describeParseError, dirOf, fileExists, joinRel,
  * the `Package.resolved` beside the `Package.swift` (for a project, the one in its
  * `project.xcworkspace/xcshareddata/swiftpm/`); the pin in the nearest ancestor directory's
  * `Package.resolved` (for a project, the first `*.xcworkspace` beside the `.xcodeproj`, in sorted order);
- * an exact requirement. A pin is matched by identity, the URL's last path segment lowercased without
+ * for a `Package.swift` with no `Package.resolved` at or above it, the first Xcode pins file
+ * (`*.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/` or `*.xcworkspace/xcshareddata/swiftpm/`, in
+ * sorted order) in its own directory or the nearest ancestor that has one, since a local package inside an
+ * Xcode app resolves through the app's workspace; an exact requirement. A pin is matched by identity, the URL's last path segment lowercased without
  * `.git`. A pin with no `version` (a branch or revision pin) gives no version.
  */
 
@@ -389,16 +392,21 @@ class Pins {
   }
 }
 
-/** The `*.xcworkspace` directories directly inside `dir`, sorted by name. */
-function workspacesIn(root: string, dir: string): string[] {
+/** The directories directly inside `dir` whose names end with one of `suffixes`, sorted by name. */
+function bundlesIn(root: string, dir: string, suffixes: string[]): string[] {
   try {
     return readdirSync(join(root, ...(dir ? dir.split('/') : [])), { withFileTypes: true })
-      .filter((e) => e.isDirectory() && e.name.endsWith('.xcworkspace'))
+      .filter((e) => e.isDirectory() && suffixes.some((x) => e.name.endsWith(x)))
       .map((e) => e.name)
       .sort();
   } catch {
     return [];
   }
+}
+
+/** The pins file inside an `.xcodeproj` or `.xcworkspace` bundle directory. */
+function bundlePins(dir: string, bundle: string): string {
+  return joinRel(joinRel(dir, bundle), bundle.endsWith('.xcodeproj') ? PROJECT_PINS : WORKSPACE_PINS);
 }
 
 /** The `Package.resolved` files to look in, in order, for a `Package.swift` or a `project.pbxproj`. */
@@ -415,12 +423,25 @@ function resolvedFor(root: string, rel: string): string[] {
         break;
       }
     }
+    // No Package.resolved at or above it: a local package inside an Xcode app resolves through the
+    // app's workspace, so take the first Xcode pins file in its own directory or the nearest ancestor.
+    if (out.length === 0) {
+      search: for (const d of ancestorDirs(dir)) {
+        for (const bundle of bundlesIn(root, d, ['.xcodeproj', '.xcworkspace'])) {
+          const pins = bundlePins(d, bundle);
+          if (fileExists(root, pins)) {
+            out.push(pins);
+            break search;
+          }
+        }
+      }
+    }
   } else {
     const own = joinRel(dir, PROJECT_PINS);
     if (fileExists(root, own)) out.push(own);
     const parent = dirOf(dir);
-    for (const ws of workspacesIn(root, parent)) {
-      const pins = joinRel(joinRel(parent, ws), WORKSPACE_PINS);
+    for (const ws of bundlesIn(root, parent, ['.xcworkspace'])) {
+      const pins = bundlePins(parent, ws);
       if (fileExists(root, pins)) {
         out.push(pins);
         break;
