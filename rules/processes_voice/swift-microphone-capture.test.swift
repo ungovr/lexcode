@@ -1,4 +1,4 @@
-// lexcode-expect: 7
+// lexcode-expect: 10
 import AVFoundation
 
 final class VoiceMemoRecorder {
@@ -43,6 +43,16 @@ final class VoiceMemoRecorder {
                                                  position: .unspecified) {
             print(builtIn.localizedName)
         }
+    }
+
+    // The media type spelled out, and the initializer called by name
+    func addMicrophoneSpelledOut(to session: AVCaptureSession, memo url: URL) throws {
+        if let mic = AVCaptureDevice.default(for: AVMediaType.audio) {
+            session.addInput(try AVCaptureDeviceInput(device: mic))
+        }
+        _ = AVCaptureDevice.default(.builtInMicrophone, for: AVMediaType.audio, position: .front)
+        let memo = try AVAudioRecorder.init(url: url, settings: [:])
+        memo.record()
     }
 
     func startMemoAsync(to url: URL) async throws {

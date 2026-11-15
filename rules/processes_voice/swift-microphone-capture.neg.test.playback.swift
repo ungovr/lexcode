@@ -40,7 +40,15 @@ final class Playback {
         AVAudioRecorder()
     }
 
+    func placeholderByName() -> AVAudioRecorder {
+        AVAudioRecorder.init()
+    }
+
     func camera() -> AVCaptureDevice? {
         AVCaptureDevice.default(for: .video)
+    }
+
+    func cameraSpelledOut() -> AVCaptureDevice? {
+        AVCaptureDevice.default(.builtInWideAngleCamera, for: AVMediaType.video, position: .back)
     }
 }

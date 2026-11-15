@@ -12,7 +12,7 @@ final class RemoteAudioCapture: NSObject, AudioRenderer, RoomDelegate {
     func attach(to publication: RemoteTrackPublication) async throws {
         try await publication.set(subscribed: true)
         guard let track = publication.track as? RemoteAudioTrack else { return }
-        await track.add(audioRenderer: self)
+        await MainActor.run { track.add(audioRenderer: self) }
     }
 
     func render(pcmBuffer: AVAudioPCMBuffer) {

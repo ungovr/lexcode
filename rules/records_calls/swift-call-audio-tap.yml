@@ -15,8 +15,12 @@ rules:
                   - pattern-either:
                       - pattern: AVFoundation.AVAudioRecorder(...)
                       - pattern: AVFAudio.AVAudioRecorder(...)
+                      - pattern: AVFoundation.AVAudioRecorder.init(...)
+                      - pattern: AVFAudio.AVAudioRecorder.init(...)
                   - pattern-not: AVFoundation.AVAudioRecorder()
                   - pattern-not: AVFAudio.AVAudioRecorder()
+                  - pattern-not: AVFoundation.AVAudioRecorder.init()
+                  - pattern-not: AVFAudio.AVAudioRecorder.init()
               - pattern: $E.inputNode.installTap(...)
       # LiveKit's Swift SDK: an audio renderer added to a track gets its PCM buffers.
       - patterns:

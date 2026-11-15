@@ -15,8 +15,12 @@ rules:
           - pattern-either:
               - pattern: AVFoundation.AVAudioRecorder(...)
               - pattern: AVFAudio.AVAudioRecorder(...)
+              - pattern: AVFoundation.AVAudioRecorder.init(...)
+              - pattern: AVFAudio.AVAudioRecorder.init(...)
           - pattern-not: AVFoundation.AVAudioRecorder()
           - pattern-not: AVFAudio.AVAudioRecorder()
+          - pattern-not: AVFoundation.AVAudioRecorder.init()
+          - pattern-not: AVFAudio.AVAudioRecorder.init()
       # The engine's input node is the microphone. The engine has no typed metavariable for Swift,
       # so the tap is matched by AVAudioEngine's own property name in a file that imports
       # AVFoundation, AVFAudio or Speech (whose recognition requests take the tap's buffers).
@@ -28,6 +32,8 @@ rules:
       # with its audio, or audio alone). The camera device is not matched.
       - pattern: 'AVFoundation.AVCaptureDevice.default(for: .audio)'
       - pattern: 'AVFoundation.AVCaptureDevice.default($T, for: .audio, ...)'
+      - pattern: 'AVFoundation.AVCaptureDevice.default(for: AVFoundation.AVMediaType.audio)'
+      - pattern: 'AVFoundation.AVCaptureDevice.default($T, for: AVFoundation.AVMediaType.audio, ...)'
     options:
       symbolic_propagation: true
     metadata:

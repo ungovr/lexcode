@@ -1,4 +1,4 @@
-// lexcode-expect: 6
+// lexcode-expect: 10
 import AWSRekognition
 import Foundation
 
@@ -22,6 +22,20 @@ struct FaceCheck {
     func whoIs(photo: Data, collection: String) async throws {
         _ = try await client
             .searchFacesByImage(input: SearchFacesByImageInput(collectionId: collection, image: RekognitionClientTypes.Image(bytes: photo)))
+    }
+
+    func sameAsEnrolled(faceID: String, collection: String) async throws {
+        _ = try await client.searchFaces(input: SearchFacesInput(collectionId: collection, faceId: faceID))
+    }
+
+    // A user vector: faces attached to one person, then searched by that user.
+    func enrollUser(userID: String, faceIDs: [String], collection: String) async throws {
+        _ = try await client.associateFaces(input: AssociateFacesInput(collectionId: collection, faceIds: faceIDs, userId: userID))
+        _ = try await client.searchUsers(input: SearchUsersInput(collectionId: collection, userId: userID))
+    }
+
+    func searchVideo(collection: String, video: RekognitionClientTypes.Video) async throws {
+        _ = try await client.startFaceSearch(input: StartFaceSearchInput(collectionId: collection, video: video))
     }
 
     func findUser(photo: Data, collection: String) async throws {

@@ -7,7 +7,7 @@ final class CallSession: NSObject {
     private var agoraKit: AgoraRtcEngineKit?
     private let callClient = CallClient()
 
-    // Agora 4.x: the channel's mixed audio to a file
+    // Agora 3.4 and later: the channel's mixed audio to a file, with a configuration
     func recordChannel(to path: String) {
         let config = AgoraAudioRecordingConfiguration()
         config.filePath = path

@@ -12,6 +12,14 @@ final class Node {
     func installTap(onBus bus: Int, bufferSize: Int, format: String?, block: (Data, Int) -> Void) {}
 }
 
+enum AVMediaType {
+    case audio
+}
+
+final class AVCaptureDevice {
+    static func `default`(for type: AVMediaType) -> AVCaptureDevice? { AVCaptureDevice() }
+}
+
 final class PatchBay {
     let inputNode = Node()
 }
@@ -21,6 +29,10 @@ final class SynthPatch {
 
     func makeRecorder(url: URL) throws -> AVAudioRecorder {
         try AVAudioRecorder(url: url, settings: [:])
+    }
+
+    func inputJack() -> AVCaptureDevice? {
+        AVCaptureDevice.default(for: .audio)
     }
 
     func meter() {

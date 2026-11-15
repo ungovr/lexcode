@@ -1,4 +1,4 @@
-// lexcode-expect: 7
+// lexcode-expect: 9
 import LocalAuthentication
 import Security
 
@@ -43,5 +43,12 @@ final class UnlockGate {
                                                   [.biometryAny, .privateKeyUsage],
                                                   nil)
         return current ?? any
+    }
+
+    // The flags' names before iOS 11.3
+    func legacyItemAccess() -> SecAccessControl? {
+        let any = SecAccessControlCreateWithFlags(nil, kSecAttrAccessibleWhenUnlocked, .touchIDAny, nil)
+        let current = SecAccessControlCreateWithFlags(nil, kSecAttrAccessibleWhenUnlocked, .touchIDCurrentSet, nil)
+        return any ?? current
     }
 }

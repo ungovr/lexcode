@@ -1,4 +1,4 @@
-// lexcode-expect: 6
+// lexcode-expect: 7
 import Foundation
 
 // Call and meeting recordings reached over HTTP, whichever client sends the request.
@@ -25,4 +25,5 @@ struct RecordingEndpoints {
 
     let recallBots = URL(string: "https://us-east-1.recall.ai/api/v1/bot/")!
     let meetingBaaS = URL(string: "https://api.meetingbaas.com/bots")!
+    let attendee = URL(string: "https://app.attendee.dev/api/v1/bots")!
 }
