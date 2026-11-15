@@ -1,0 +1,89 @@
+rules:
+  - id: lexcode.crypto.swift-library-encryption
+    languages: [swift]
+    severity: INFO
+    message: Encrypts data or agrees keys with a cryptography library the product bundles (swift-crypto, CryptoSwift, libsodium, the Signal protocol, ObjectivePGP, JOSESwift encryption or OpenSSL), which is shipping encryption (ships_encryption).
+    # The platform's own cryptography (CryptoKit, CommonCrypto's CCCrypt, the Security framework's
+    # SecKey encryption, the system's TLS through URLSession) is not evidence, as javax.crypto and
+    # System.Security.Cryptography are not. swift-crypto (module `Crypto`) is a package in the
+    # dependency tree, as golang.org/x/crypto is for Go: on Linux it bundles BoringSSL. Its API
+    # mirrors CryptoKit's, so each call is written qualified by `Crypto` and the engine resolves it
+    # only under `import Crypto` (also inside `#if canImport(CryptoKit) ... #else import Crypto`),
+    # never under `import CryptoKit` alone. HMAC, digests and signatures are not encryption and are
+    # not read. Library types whose short names carry no vendor name (AES, ChaCha20, Encrypter) are
+    # written module-qualified only (Decision 8); swift-sodium's and libsignal's calls on an
+    # untyped receiver or a free function are read only in a file that imports the library.
+    pattern-either:
+      # swift-crypto: AEAD seal and open, key wrapping, HPKE and key agreement
+      - pattern: Crypto.AES.GCM.seal(...)
+      - pattern: Crypto.AES.GCM.open(...)
+      - pattern: Crypto.ChaChaPoly.seal(...)
+      - pattern: Crypto.ChaChaPoly.open(...)
+      - pattern: Crypto.AES.KeyWrap.wrap(...)
+      - pattern: Crypto.HPKE.Sender(...)
+      - pattern: Crypto.HPKE.Recipient(...)
+      - patterns:
+          - pattern: '$K.sharedSecretFromKeyAgreement(with: $P)'
+          - pattern-inside: |
+              import Crypto
+              ...
+      # swift-crypto's _CryptoExtras: RSA encryption keys and the unauthenticated AES modes
+      - pattern: _CryptoExtras._RSA.Encryption.PublicKey(...)
+      - pattern: _CryptoExtras._RSA.Encryption.PrivateKey(...)
+      - pattern: _CryptoExtras.AES._CBC.encrypt(...)
+      - pattern: _CryptoExtras.AES._CBC.decrypt(...)
+      - pattern: _CryptoExtras.AES._CTR.encrypt(...)
+      - pattern: _CryptoExtras.AES._CTR.decrypt(...)
+      # CryptoSwift: a cipher built (its encrypt and decrypt run on that value) and the AEAD calls
+      - pattern: CryptoSwift.AES(...)
+      - pattern: CryptoSwift.ChaCha20(...)
+      - pattern: CryptoSwift.Blowfish(...)
+      - pattern: CryptoSwift.Rabbit(...)
+      - pattern: CryptoSwift.AEADChaCha20Poly1305.encrypt(...)
+      - pattern: CryptoSwift.AEADChaCha20Poly1305.decrypt(...)
+      - pattern: CryptoSwift.AEADXChaCha20Poly1305.encrypt(...)
+      - pattern: CryptoSwift.AEADXChaCha20Poly1305.decrypt(...)
+      # libsodium through swift-sodium: secret-key and public-key boxes, AEAD, secret streams and
+      # key exchange
+      - patterns:
+          - pattern-either:
+              - pattern: $S.secretBox.seal(...)
+              - pattern: $S.secretBox.open(...)
+              - pattern: $S.box.seal(...)
+              - pattern: $S.box.open(...)
+              - pattern: $S.aead.xchacha20poly1305ietf.encrypt(...)
+              - pattern: $S.aead.xchacha20poly1305ietf.decrypt(...)
+              - pattern: $S.secretStream.xchacha20poly1305.initPush(...)
+              - pattern: $S.secretStream.xchacha20poly1305.initPull(...)
+              - pattern: $S.keyExchange.sessionKeyPair(...)
+          - pattern-inside: |
+              import Sodium
+              ...
+      # End-to-end messaging: the Signal protocol (libsignal's Swift client)
+      - patterns:
+          - pattern-either:
+              - pattern: signalEncrypt(...)
+              - pattern: signalDecrypt(...)
+              - pattern: sealedSenderEncrypt(...)
+              - pattern: groupEncrypt(...)
+          - pattern-inside: |
+              import LibSignalClient
+              ...
+      # OpenPGP (ObjectivePGP; the class carries the product's name)
+      - pattern: ObjectivePGP.encrypt(...)
+      - pattern: ObjectivePGP.decrypt(...)
+      # JOSE encryption (a JWE, not a JWS): JOSESwift's encrypter and decrypter exist only for a JWE
+      - pattern: JOSESwift.Encrypter(...)
+      - pattern: JOSESwift.Decrypter(...)
+      # OpenSSL or BoringSSL's EVP cipher API, which no Apple framework offers
+      - pattern: EVP_EncryptInit_ex(...)
+      - pattern: EVP_DecryptInit_ex(...)
+      - pattern: EVP_CipherInit_ex(...)
+      - pattern: EVP_SealInit(...)
+      - pattern: EVP_PKEY_encrypt(...)
+    metadata:
+      activity: ships_encryption
+      mentioned: performs
+      definition: https://lexlint.io/glossary#ships-encryption
+      provenance: ungovr-original
+      license: MIT

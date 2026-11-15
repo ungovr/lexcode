@@ -1,0 +1,52 @@
+rules:
+  - id: lexcode.esign.swift-signature-record
+    languages: [swift]
+    severity: INFO
+    message: Stores a signature a person drew or gave on the record of an agreement, waiver or consent, which is collecting electronic signatures (collects_e_signatures).
+    # The record the signature hangs on must be an agreement of some kind: an agreement word as a
+    # CamelCase segment of the type's name, anywhere in it (EventWaiver, LeaseAgreement,
+    # ParentalConsentForm), never as the start of a longer word (ContractorProfile, Leaseholder).
+    # A webhook, a release artifact and a user profile carry a "signature" too, and none of them is
+    # a person signing a document. Authorization is left out of the agreement words (the Kotlin
+    # rule has it): in Swift it is the name of request-signing types (an AWS SigV4 authorization,
+    # an App Store Connect token), whose signature is a key's. A computed property, a static
+    # property and a local variable in a method or initializer are not a record's stored field and
+    # are not read. A stored property of a
+    # struct or class covers plain Codable records, SwiftData @Model classes and Fluent models
+    # (the property wrapper does not change the shape the engine reads).
+    patterns:
+      - pattern-regex: (?is)\A(?=.*signature).*
+      - patterns:
+          - pattern-either:
+              - pattern: 'var $SIG: $T'
+              - pattern: 'var $SIG: $T = $V'
+              - pattern: 'let $SIG: $T'
+              - pattern: 'let $SIG: $T = $V'
+          - metavariable-regex:
+              metavariable: $SIG
+              regex: '(?i)^(?:(?:customer|client|guest|patient|participant|signee|signer|tenant|guarantor|applicant|borrower|buyer|seller|witness|guardian|parent|drawn|handwritten|electronic|e)_?)?signature(?:_?(?:image|img|png|svg|data|file|photo|scan|drawing|base64))?$'
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  struct $C { ... }
+              - pattern-inside: |
+                  class $C { ... }
+          - metavariable-regex:
+              metavariable: $C
+              regex: '(?s).*(?:Waiver|Agreement|Contract|Consent|Lease|Acknowledg(?:e)?ment|Attestation|Disclosure|Confidentiality|(?:Liability|Medical|Photo)Release|Sign[Oo]ff|E[Ss]ign|Signature(?:Request|Form|Pad)|WorkOrder|PermissionSlip|Enrol+ment|Approval)s?(?![a-z])'
+      - pattern-not: 'var $SIG: $T { ... }'
+      - pattern-not: 'static var $SIG: $T'
+      - pattern-not: 'static var $SIG: $T = $V'
+      - pattern-not: 'static let $SIG: $T'
+      - pattern-not: 'static let $SIG: $T = $V'
+      - pattern-not-inside: |
+          func $M(...) { ... }
+      - pattern-not-inside: |
+          init(...) { ... }
+      - focus-metavariable: $SIG
+    metadata:
+      activity: collects_e_signatures
+      mentioned: performs
+      definition: https://lexlint.io/glossary#collects-electronic-signatures
+      provenance: ungovr-original
+      license: MIT

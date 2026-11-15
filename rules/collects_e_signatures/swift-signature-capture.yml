@@ -1,0 +1,59 @@
+rules:
+  - id: lexcode.esign.swift-signature-capture
+    languages: [swift]
+    severity: INFO
+    message: Reads back a signature a person drew (a PencilKit canvas kept for a signature, SwiftSignatureView or YPDrawSignatureView), which is collecting electronic signatures (collects_e_signatures).
+    # PencilKit is a general drawing canvas, so a drawing read back as an image or as data counts
+    # only when the canvas or the type that holds it is named for a signature (signatureCanvas,
+    # SignaturePadView); a sketch exported from a drawing app is not read, and neither is a
+    # signature canvas that is shown and cleared but never read back. Reading the drawing back is
+    # the step that keeps the signature, as the Kotlin and JavaScript signature-pad rules read it.
+    # The two pad libraries are read only in a file that names the pad's class (its import, or a
+    # property of its type when the source file was copied into the app), so a release tool's own
+    # getSignature() is not read.
+    pattern-either:
+      # A PencilKit canvas named for a signature
+      - patterns:
+          - pattern-either:
+              - pattern: $PAD.drawing.image(...)
+              - pattern: $PAD.drawing.dataRepresentation()
+          - pattern-inside: |
+              import PencilKit
+              ...
+          - metavariable-regex:
+              metavariable: $PAD
+              regex: (?s).*(?i:signature)
+      # A PencilKit canvas in a type named for a signature
+      - patterns:
+          - pattern-either:
+              - pattern: $PAD.drawing.image(...)
+              - pattern: $PAD.drawing.dataRepresentation()
+          - pattern-inside: |
+              import PencilKit
+              ...
+          - pattern-either:
+              - pattern-inside: |
+                  struct $T { ... }
+              - pattern-inside: |
+                  class $T { ... }
+              - pattern-inside: |
+                  extension $T { ... }
+          - metavariable-regex:
+              metavariable: $T
+              regex: (?s).*(?:Signature|Sign(?:ing)?(?:Pad|Canvas))
+      - patterns:
+          - pattern-either:
+              - pattern: $PAD.signature
+              - pattern: $PAD.getCroppedSignature(...)
+          - pattern-regex: (?s)\A(?=.*SwiftSignatureView).*
+      - patterns:
+          - pattern-either:
+              - pattern: $PAD.getSignature(...)
+              - pattern: $PAD.getCroppedSignature(...)
+          - pattern-regex: (?s)\A(?=.*YPDrawSignatureView).*
+    metadata:
+      activity: collects_e_signatures
+      mentioned: performs
+      definition: https://lexlint.io/glossary#collects-electronic-signatures
+      provenance: ungovr-original
+      license: MIT

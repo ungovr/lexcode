@@ -1,0 +1,46 @@
+rules:
+  - id: lexcode.identity.swift-idv-sdk
+    languages: [swift]
+    severity: INFO
+    message: Checks who a person is with an identity-verification SDK (Persona, Onfido, Jumio, Veriff, Stripe Identity or Sumsub), or reads and checks the chip of a person's passport or ID card, which is relying on a digital identity (relies_on_digital_identity).
+    # Each vendor type whose short name carries no vendor name (Persona's Inquiry, Jumio's SDK,
+    # Stripe's IdentityVerificationSheet, Sumsub's SNSMobileSDK, NFCPassportReader's reader) is
+    # written module-qualified only (Decision 8): the engine resolves the vendor's import, and an
+    # app's own type of that name in a file without it is not read. OnfidoFlow and VeriffSdk carry
+    # the vendor's own name, so their short forms are also read with no import, for a file reached
+    # through an `@_exported import` elsewhere. Veriff's call is matched head-first (its shared
+    # instance inside the call), which the engine resolves under `try` and `await`. OpenID Connect
+    # (AppAuth), Google sign-in and Sign in with Apple link an account and are not read.
+    pattern-either:
+      # Persona (Persona2, and the earlier Persona module)
+      - pattern: Persona2.Inquiry.from(...)
+      - pattern: Persona2.Inquiry(...)
+      - pattern: Persona.Inquiry(...)
+      # Onfido
+      - pattern: Onfido.OnfidoFlow(...)
+      - pattern: OnfidoFlow(...)
+      # Jumio
+      - pattern: Jumio.SDK(...)
+      # Veriff
+      - patterns:
+          - pattern-either:
+              - pattern: Veriff.VeriffSdk.shared
+              - pattern: VeriffSdk.shared
+          - pattern-inside: $X.startAuthentication(...)
+      # Stripe Identity
+      - pattern: StripeIdentity.IdentityVerificationSheet(...)
+      # Sumsub
+      - pattern: IdensicMobileSDK.SNSMobileSDK(...)
+      # An ePassport or ID card chip read over NFC, with the issuing state's signature checked
+      # (passive authentication), by NFCPassportReader
+      - patterns:
+          - pattern: $R.readPassport(...)
+          - pattern-inside: |
+              import NFCPassportReader
+              ...
+    metadata:
+      activity: relies_on_digital_identity
+      mentioned: performs
+      definition: https://lexlint.io/glossary#relies-on-a-digital-identity
+      provenance: ungovr-original
+      license: MIT
