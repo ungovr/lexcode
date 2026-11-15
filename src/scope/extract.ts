@@ -1,6 +1,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { ToolError } from '../errors.js';
+import { textHasLongLine } from './longlines.js';
 
 // Opengrep has no Vue or Svelte parser (design section 6.10), so a JS or TS
 // rule never reads those files, nor the scripts inside an HTML or Jinja page,
@@ -137,17 +138,25 @@ function parseStartTag(text: string, from: number): { attrs: Attrs; next: number
 }
 
 /**
- * `text` with only A-Z lowercased, one UTF-16 unit for one, so its offsets are `text`'s. `toLowerCase()` will
- * not do: a character whose lowercase is longer (Turkish "İ", U+0130, becomes two units) moves every later
- * offset, and a block after it was dropped. HTML matches tag names in ASCII only, so this is also the match
- * HTML makes.
+ * True when `text` holds `word`, a run of lowercase ASCII letters, at `at`, each letter in either case and nothing
+ * else: HTML matches tag names in ASCII only. Setting bit 0x20 maps only A-Z onto a-z among the characters that can
+ * land on a letter, so a long s (U+017F) or a dotless i (U+0131) never matches. Nothing is lowercased, so the
+ * offsets are `text`'s (`toLowerCase()` turns a Turkish "İ", U+0130, into two units and moves every later one).
  */
-function asciiLower(text: string): string {
-  return text.replace(/[A-Z]+/g, (m) => m.toLowerCase());
+function letterWordAt(text: string, at: number, word: string): boolean {
+  for (let k = 0; k < word.length; k++) {
+    if ((text.charCodeAt(at + k) | 0x20) !== word.charCodeAt(k)) return false;
+  }
+  return true;
 }
 
+/**
+ * Finds `</script` in either case. Without the `u` flag a case-insensitive pattern compares by uppercase and never
+ * lets a character above U+007F match an ASCII one, so this is the ASCII-only match `letterWordAt` makes.
+ */
+const SCRIPT_CLOSE = /<\/script/gi;
+
 function findScriptBlocks(text: string): ScriptBlock[] {
-  const lower = asciiLower(text);
   const blocks: ScriptBlock[] = [];
   let i = 0;
   // Once a search for "-->" fails, no later one can succeed: without this, a file of nothing but "<!--" searched
@@ -165,7 +174,7 @@ function findScriptBlocks(text: string): ScriptBlock[] {
       noMoreCommentEnds = true;
       // An unterminated comment is not treated as one: a stray "<!--" must not hide the rest of the file.
     }
-    if (lower.startsWith('<script', lt) && isTagEnd(text[lt + 7])) {
+    if (letterWordAt(text, lt + 1, 'script') && isTagEnd(text[lt + 7])) {
       const tag = parseStartTag(text, lt + 7);
       if (tag.selfClosing) {
         blocks.push({ start: tag.next, end: tag.next, attrs: tag.attrs });
@@ -175,7 +184,8 @@ function findScriptBlocks(text: string): ScriptBlock[] {
       let close = tag.next;
       let found = -1;
       while (close < text.length) {
-        const at = lower.indexOf('</script', close);
+        SCRIPT_CLOSE.lastIndex = close;
+        const at = SCRIPT_CLOSE.exec(text)?.index ?? -1;
         if (at === -1) break;
         if (isTagEnd(text[at + 8])) {
           found = at;
@@ -1125,6 +1135,15 @@ export function razorCSharp(text: string): string | null {
   return joined + (joined.endsWith('\n') ? '}' : '\n}');
 }
 
+/** One copy `extractScripts` made, or judged and did not write. */
+export interface ExtractedCopy {
+  /** Where the copy is, or would be: `<tmpDir>/<originalPath>.lexcode.<ext>`. */
+  tempPath: string;
+  originalPath: string;
+  /** The copy has a line over `MAX_LINE_CHARS`, so it was not written: the engine never reads such a file. */
+  longLine: boolean;
+}
+
 interface TemplateOptions {
   erb?: boolean;
   jsp?: boolean;
@@ -1156,11 +1175,22 @@ function blankTemplateTags(body: string, opts: TemplateOptions): string {
  * every length, so the offsets agree.
  */
 export function blankOutsideScripts(text: string, opts: TemplateOptions = {}): { text: string; lang: 'ts' | 'js' } | null {
+  const found = qualifyingScripts(text, opts);
+  return found === null ? null : { text: blankAround(text, found.blocks, opts), lang: found.lang };
+}
+
+/** The qualifying script blocks of `text` and the language of its copy, or null when no block qualifies. */
+function qualifyingScripts(text: string, opts: TemplateOptions): { blocks: ScriptBlock[]; lang: 'ts' | 'js' } | null {
   // No "<script" at all, as in a PHP class file: nothing to find, and no PHP region to walk.
   if (!/<script/i.test(text)) return null;
   const searched = opts.php === true || opts.blade === true ? blankPhpRegions(text) : text;
   const blocks = findScriptBlocks(searched).filter((b) => qualifies(b, searched));
   if (blocks.length === 0) return null;
+  return { blocks, lang: blocks.some(isTypeScript) ? 'ts' : 'js' };
+}
+
+/** `text` with the bodies of `blocks` kept (their template syntax blanked) and every other character blanked. */
+function blankAround(text: string, blocks: ScriptBlock[], opts: TemplateOptions): string {
   let out = '';
   let cursor = 0;
   for (const b of blocks) {
@@ -1168,8 +1198,7 @@ export function blankOutsideScripts(text: string, opts: TemplateOptions = {}): {
     out += blankTemplateTags(text.slice(b.start, b.end), opts);
     cursor = b.end;
   }
-  out += blank(text.slice(cursor));
-  return { text: out, lang: blocks.some(isTypeScript) ? 'ts' : 'js' };
+  return out + blank(text.slice(cursor));
 }
 
 /**
@@ -1182,13 +1211,13 @@ export function blankOutsideScripts(text: string, opts: TemplateOptions = {}): {
  * whose text begins with `<?php`, and `<tmpDir>/<originalPath>.lexcode.cs` (`razorCSharp`) for a `.cshtml` or
  * `.razor` file with an `@code` or `@functions` block. A Razor file can give both a script copy and a C# copy,
  * so the pairs are one per copy, not one per file. `files` are POSIX paths relative to `root`.
+ *
+ * A copy with a line over `MAX_LINE_CHARS` is judged from its text in memory, and is neither blanked nor written:
+ * the scan never hands the engine such a file (#13251). Its pair is still returned, with `longLine` true, so the
+ * scan counts it as it counts every copy (`scope.extracted`, and the long-line notice when a rule would read it).
  */
-export function extractScripts(
-  root: string,
-  files: string[],
-  tmpDir: string,
-): { tempPath: string; originalPath: string }[] {
-  const pairs: { tempPath: string; originalPath: string }[] = [];
+export function extractScripts(root: string, files: string[], tmpDir: string): ExtractedCopy[] {
+  const pairs: ExtractedCopy[] = [];
   const tmpRoot = path.resolve(tmpDir);
   for (const originalPath of files) {
     const ext = path.posix.extname(originalPath).toLowerCase();
@@ -1205,36 +1234,43 @@ export function extractScripts(
     } catch {
       continue; // gone since it was listed
     }
-    // One file can give two copies: a Razor file's script blocks and its C# code.
-    const copies: { kept: string; suffix: string }[] = [];
+    // One file can give two copies: a Razor file's script blocks and its C# code. A copy's text is made only
+    // when it will be written.
+    const copies: { suffix: string; longLine: boolean; kept: () => string }[] = [];
     if (wholeRuby) {
-      copies.push({ kept: text, suffix: 'rb' });
+      copies.push({ suffix: 'rb', longLine: textHasLongLine(text), kept: () => text });
     } else if (wholePhp) {
       if (!PHP_OPENING.test(text)) continue; // an `.inc` in C, Pascal or assembler
-      copies.push({ kept: text, suffix: 'php' });
+      copies.push({ suffix: 'php', longLine: textHasLongLine(text), kept: () => text });
     } else {
       const blade = originalPath.toLowerCase().endsWith(BLADE_SUFFIX);
       const razor = RAZOR_EXTENSIONS.has(ext);
-      const blanked = blankOutsideScripts(text, {
+      const opts: TemplateOptions = {
         erb: ext === '.erb',
         jsp: JSP_EXTENSIONS.has(ext),
         php: !blade && PHP_VIEW_EXTENSIONS.has(ext),
         blade,
         twig: ext === '.twig',
         razor,
-      });
-      if (blanked !== null) copies.push({ kept: blanked.text, suffix: blanked.lang });
+      };
+      const found = qualifyingScripts(text, opts);
+      // Blanking changes no line's length (each character becomes one, line breaks stay), so the copy's lines
+      // are the file's, and the file's text answers for the copy.
+      if (found !== null) copies.push({ suffix: found.lang, longLine: textHasLongLine(text), kept: () => blankAround(text, found.blocks, opts) });
+      // The C# copy adds a class header and rewrites directive lines, so it answers for itself.
       const cs = razor ? razorCSharp(text) : null;
-      if (cs !== null) copies.push({ kept: cs, suffix: 'cs' });
+      if (cs !== null) copies.push({ suffix: 'cs', longLine: textHasLongLine(cs), kept: () => cs });
     }
-    for (const { kept, suffix } of copies) {
+    for (const { suffix, longLine, kept } of copies) {
       const tempPath = path.join(tmpRoot, ...segments) + `.lexcode.${suffix}`;
       if (!tempPath.startsWith(tmpRoot + path.sep)) {
         throw new ToolError(`refusing to extract "${originalPath}": it is outside the repository.`);
       }
-      mkdirSync(path.dirname(tempPath), { recursive: true });
-      writeFileSync(tempPath, kept);
-      pairs.push({ tempPath, originalPath });
+      if (!longLine) {
+        mkdirSync(path.dirname(tempPath), { recursive: true });
+        writeFileSync(tempPath, kept());
+      }
+      pairs.push({ tempPath, originalPath, longLine });
     }
   }
   return pairs;

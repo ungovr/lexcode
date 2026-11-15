@@ -14,6 +14,7 @@ import {
   extractScripts,
   razorCSharp,
 } from '../../src/scope/extract.js';
+import { hasLongLine } from '../../src/scope/longlines.js';
 import { expectNearLinear, measureScaling } from '../helpers/scaling.js';
 
 const made: string[] = [];
@@ -151,6 +152,18 @@ describe('blankOutsideScripts', () => {
     const r = blankOutsideScripts('<SCRIPT LANG="ts" data-x="a > b">q();</SCRIPT>')!;
     expect(r.lang).toBe('ts');
     expect(r.text.trim()).toBe('q();');
+  });
+
+  it('matches the tag names in ASCII letters only, in either case, as HTML does (#13251)', () => {
+    // A long s (U+017F) and a dotless i (U+0131) uppercase to S and I: neither is a letter of "script".
+    expect(blankOutsideScripts('<\u017Fcript>a();</\u017Fcript>')).toBeNull();
+    expect(blankOutsideScripts('<scr\u0131pt>a();</scr\u0131pt>')).toBeNull();
+    const r = blankOutsideScripts('<ScRiPt>a();</\u017Fcript>b();</SCRIPT\n><scrIPT>c();</sCrIpT>')!;
+    expect(r.text.replace(/ /g, '')).toBe('a();</\u017Fcript>b();\nc();');
+    expect(blankOutsideScripts('<SCRIPT/>')).toBeNull();
+    // A tag name cut off by the end of the file.
+    expect(blankOutsideScripts('<p></p><scrip')).toBeNull();
+    expect(blankOutsideScripts('<script>a();</scrip')!.text.trim()).toBe('a();</scrip');
   });
 
   it('does not take <script> inside an HTML comment, and does not take <scripts> or <scriptx>', () => {
@@ -576,6 +589,7 @@ describe('PHP files the engine will not take', () => {
       {
         originalPath: 'modules/custom/my_module/my_module.module',
         tempPath: path.join(path.resolve(out), 'modules', 'custom', 'my_module', 'my_module.module.lexcode.php'),
+        longLine: false,
       },
     ]);
     const copy = readFileSync(pairs[0]!.tempPath, 'utf8');
@@ -1601,5 +1615,163 @@ describe('Razor views and components', () => {
       });
       expectNearLinear(m, 'razorCSharp');
     });
+  });
+});
+
+describe('a copy with a line over 100,000 characters (#13251)', () => {
+  function write(root: string, rel: string, body: string | Buffer): void {
+    const full = path.join(root, ...rel.split('/'));
+    mkdirSync(path.dirname(full), { recursive: true });
+    writeFileSync(full, body);
+  }
+  const SCRIPT = '<script>a()</script>\n';
+
+  it('does not blank or write a script copy whose page has a long line, and still returns it', () => {
+    const root = tmp();
+    const out = tmp();
+    write(root, 'web/long.html', `<p>${'a'.repeat(100_001)}</p>\n${SCRIPT}`);
+    const pairs = extractScripts(root, ['web/long.html'], out);
+    expect(pairs).toEqual([{ originalPath: 'web/long.html', tempPath: path.join(path.resolve(out), 'web', 'long.html.lexcode.js'), longLine: true }]);
+    expect(existsSync(pairs[0]!.tempPath)).toBe(false);
+  });
+
+  it('writes a script copy whose longest line is exactly 100,000 characters, and says it has no long line', () => {
+    const root = tmp();
+    const out = tmp();
+    write(root, 'web/limit.html', `${'a'.repeat(100_000)}\n${SCRIPT}`);
+    const pairs = extractScripts(root, ['web/limit.html'], out);
+    expect(pairs.map((p) => p.longLine)).toEqual([false]);
+    expect(hasLongLine(pairs[0]!.tempPath)).toBe(false);
+    expect(lines(readFileSync(pairs[0]!.tempPath, 'utf8'))[1]).toBe(`${' '.repeat('<script>'.length)}a()${' '.repeat('</script>'.length)}`);
+  });
+
+  it('judges a long line inside a script body as it judges one in the markup', () => {
+    const root = tmp();
+    const out = tmp();
+    write(root, 'web/gen.vue', `<script lang="ts">const s = "${'b'.repeat(100_001)}"</script>\n`);
+    const pairs = extractScripts(root, ['web/gen.vue'], out);
+    expect(pairs.map((p) => [path.basename(p.tempPath), p.longLine])).toEqual([['gen.vue.lexcode.ts', true]]);
+    expect(existsSync(pairs[0]!.tempPath)).toBe(false);
+  });
+
+  it('does not write a whole-file Ruby or PHP copy with a long line, and still returns it', () => {
+    const root = tmp();
+    const out = tmp();
+    write(root, 'Rakefile', `x = "${'a'.repeat(100_001)}"\n`);
+    write(root, 'lib/tasks/short.rake', 'task :a do\nend\n');
+    write(root, 'web/gen.module', `<?php\n$s = "${'a'.repeat(100_001)}";\n`);
+    const pairs = extractScripts(root, ['Rakefile', 'lib/tasks/short.rake', 'web/gen.module'], out);
+    expect(pairs.map((p) => [p.originalPath, p.longLine, existsSync(p.tempPath)])).toEqual([
+      ['Rakefile', true, false],
+      ['lib/tasks/short.rake', false, true],
+      ['web/gen.module', true, false],
+    ]);
+  });
+
+  it("judges a Razor file's C# copy on its own text: the class header can make its first line long when the page's is not", () => {
+    const root = tmp();
+    const out = tmp();
+    // The C# copy opens its class on the first line, in front of that line's blanked markup.
+    write(root, 'Pages/Gen.razor', [`<div>${'a'.repeat(99_990 - '<div></div>'.length)}</div>`, '<script>a()</script>', '@code { int x; }', ''].join('\n'));
+    const pairs = extractScripts(root, ['Pages/Gen.razor'], out);
+    expect(pairs.map((p) => [path.basename(p.tempPath), p.longLine, existsSync(p.tempPath)])).toEqual([
+      ['Gen.razor.lexcode.js', false, true],
+      ['Gen.razor.lexcode.cs', true, false],
+    ]);
+  });
+
+  it('judges a long line in every view kind from the page, and writes the copy of a page at the limit', () => {
+    // Each script body holds that kind's template syntax, over two lines, so its blanker runs on the written copy.
+    const views: [string, string][] = [
+      ['page.html', '{{ a }}'],
+      ['view.html.erb', '<%= a\n %>'],
+      ['view.jsp', '${a\n}'],
+      ['view.php', '<?= $a\n ?>'],
+      ['view.blade.php', '{{ $a\n }}'],
+      ['view.twig', '{{ a\n }}'],
+      ['View.cshtml', '@(a\n)'],
+    ];
+    for (const [rel, syntax] of views) {
+      for (const [chars, long] of [[100_000, false], [100_001, true]] as const) {
+        const root = tmp();
+        const out = tmp();
+        write(root, rel, `${'a'.repeat(chars)}\n<script>var x = ${syntax};</script>\n`);
+        const pairs = extractScripts(root, [rel], out);
+        expect(pairs.map((p) => p.longLine), `${rel} at ${chars}`).toEqual([long]);
+        expect(existsSync(pairs[0]!.tempPath), `${rel} at ${chars}`).toBe(!long);
+        if (!long) expect(hasLongLine(pairs[0]!.tempPath), rel).toBe(false);
+      }
+    }
+  });
+
+  it("keeps every line's length in every view kind, over seeded random pages: the invariant the in-memory answer rests on", () => {
+    const fragments = [
+      '<script>', '</script>', '<SCRIPT lang="ts">', '</Script >', '<script type="text/template">', '<!--', '-->',
+      '<% x %>', '<%= y\n%>', '<%# z %>', '<?php a(); ?>', '<?= $b ?>', '<?php', '?>', '{{ c }}', '{!! d !!}', '{{--', '--}}',
+      '@if ($e)', '@endif', '{% f %}', '{# g #}', '${h}', '<%-- i --%>', '<jsp:k/>', '@Model.X', '@(m)', '@{ var q = 1; }',
+      '@* n *@', '@code {', '@functions {', '}', '{', '(', ')', '"', "'", '`', '/*', '*/', '//', '\n', '\r\n', '\r',
+      'text ', '\u0130', '\u017F', '\u{1F600}', '\uFEFF', '\uD800', '\t',
+    ];
+    let seed = 13251;
+    const random = (): number => {
+      // mulberry32
+      seed = (seed + 0x6d2b79f5) | 0;
+      let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+    const kinds: Parameters<typeof blankOutsideScripts>[1][] = [{}, { erb: true }, { jsp: true }, { php: true }, { blade: true }, { twig: true }, { razor: true }];
+    let checked = 0;
+    for (let n = 0; n < 1500; n++) {
+      let src = '<script>';
+      const count = Math.floor(random() * 40);
+      for (let k = 0; k < count; k++) src += fragments[Math.floor(random() * fragments.length)];
+      for (const opts of kinds) {
+        const r = blankOutsideScripts(src, opts);
+        if (r === null) continue;
+        checked++;
+        expect(r.text.split('\n').map((l) => l.length), `${JSON.stringify(opts)} ${JSON.stringify(src)}`).toEqual(src.split('\n').map((l) => l.length));
+      }
+    }
+    expect(checked).toBeGreaterThan(5000);
+  });
+
+  describe('the answer taken in memory is the one hasLongLine gives on the written copy', () => {
+    /** Line bodies, as bytes, at the limit and one character past it, by what makes characters and bytes differ. */
+    const cases: [string, Buffer, Buffer][] = [
+      ['CRLF line ends', Buffer.from(`${'a'.repeat(99_999)}\r\n`), Buffer.from(`${'a'.repeat(100_000)}\r\n`)],
+      ['characters outside the Basic Multilingual Plane', Buffer.from(`${'\u{1F600}'.repeat(50_000)}\n`), Buffer.from(`${'\u{1F600}'.repeat(50_000)}a\n`)],
+      ['a byte-order mark', Buffer.from(`﻿${'a'.repeat(99_999)}\n`), Buffer.from(`﻿${'a'.repeat(100_000)}\n`)],
+      ['invalid UTF-8, a byte to a character', Buffer.alloc(100_000, 0xff), Buffer.alloc(100_001, 0xff)],
+      [
+        'invalid UTF-8, a cut-off sequence to a character',
+        Buffer.concat(Array.from({ length: 50_000 }, () => Buffer.from([0xe2, 0x82, 0x41]))),
+        Buffer.concat(Array.from({ length: 50_001 }, () => Buffer.from([0xe2, 0x82, 0x41]))),
+      ],
+    ];
+    /** What the copy would hold, written the way extraction writes it. */
+    function writtenCopy(source: string, kept: string): string {
+      const file = path.join(tmp(), path.basename(source));
+      writeFileSync(file, kept);
+      return file;
+    }
+
+    for (const [name, atLimit, past] of cases) {
+      it(name, () => {
+        for (const [body, long] of [[atLimit, false], [past, true]] as const) {
+          const root = tmp();
+          const out = tmp();
+          // The line first, so a byte-order mark opens the file; a script copy and a whole-file copy of the same line.
+          write(root, 'page.html', Buffer.concat([body, Buffer.from(`\n${SCRIPT}`)]));
+          write(root, 'Rakefile', body);
+          const pairs = extractScripts(root, ['page.html', 'Rakefile'], out);
+          const page = readFileSync(path.join(root, 'page.html'), 'utf8');
+          const rake = readFileSync(path.join(root, 'Rakefile'), 'utf8');
+          expect(hasLongLine(writtenCopy('page.html', blankOutsideScripts(page)!.text)), `${name}: script copy`).toBe(long);
+          expect(hasLongLine(writtenCopy('Rakefile', rake)), `${name}: whole copy`).toBe(long);
+          expect(pairs.map((p) => p.longLine), name).toEqual([long, long]);
+        }
+      });
+    }
   });
 });

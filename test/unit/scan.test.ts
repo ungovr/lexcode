@@ -134,6 +134,24 @@ describe('scan with a stand-in engine', () => {
     expect(rec.notices).toContain('skipped 2 files with a line over 100,000 characters (generated or minified code); the engine did not read them');
   });
 
+  it('counts an extracted copy with a long line in scope.extracted, and in the notice only when a rule would read it (#13251)', async () => {
+    const files = {
+      'src/a.py': 'x = 1\n',
+      'web/gen.vue': `<script lang="ts">const s = "${'b'.repeat(100_001)}"</script>\n`,
+      'web/ok.vue': VUE,
+    };
+    const read = await scan({ root: tree(files), rulesDirs: [], rs: stubRuleSet(), enginePath: STUB, includeTests: false, snippets: false });
+    expect(read.scope.extracted).toBe(2);
+    expect(read.notices).toContain('skipped 1 file with a line over 100,000 characters (generated or minified code); the engine did not read it');
+    const targets = readFileSync(argvLog, 'utf8').trim().split('\n').flatMap((l) => (JSON.parse(l) as { targets: string[] }).targets);
+    expect(targets.some((t) => t.includes('ok.vue.lexcode.ts'))).toBe(true);
+    expect(targets.some((t) => t.includes('gen.vue'))).toBe(false);
+
+    const unread = await scan({ root: tree(files), rulesDirs: [], rs: stubRuleSet('python'), enginePath: STUB, includeTests: false, snippets: false });
+    expect(unread.scope.extracted).toBe(2);
+    expect(unread.notices.some((n) => n.includes('with a line over'))).toBe(false);
+  });
+
   it('counts the bundled, minified and generated files it skipped by name in one notice', async () => {
     const root = tree({ 'src/a.py': 'x = 1\n', 'web/jquery.min.js': 'x\n', 'src/App/Routes.g.cs': 'x\n', 'src/App/Main.g.i.cs': 'x\n' });
     const rec = await scan({ root, rulesDirs: [], rs: stubRuleSet(), enginePath: STUB, includeTests: false, snippets: false });
