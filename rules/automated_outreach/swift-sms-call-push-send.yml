@@ -1,0 +1,51 @@
+rules:
+  - id: lexcode.outreach.swift-sms-call-push-send
+    languages: [swift]
+    severity: INFO
+    message: Sends a text, places a call, pushes a notification or opens a direct message from a server, where the code does not show whether a person just asked for it, which may be sending automated outreach (automated_outreach).
+    # Signal strength, as in the other languages' rules: a text or a push is often the transactional
+    # kind. Email is not in this rule (a single email is mostly transactional); the loop, timer and
+    # job rules take the mass shapes. The sends:
+    # - an APNs alert push from a server: APNSwift's `sendAlertNotification` (a name only that library
+    #   uses) and the Vapor APNs `send`. A background, Live Activity or VoIP push carries no message
+    #   to read and is not matched.
+    # - an Amazon SNS text: the AWS SDK for Swift's PublishInput (module-qualified only, Decision 8)
+    #   and Soto's `publish(.init(...))` under `import SotoSNS`, each only with a `phoneNumber`, so a
+    #   publish to a topic does not count. A one-time code, a verification or a password is left out
+    #   by the words in the arguments.
+    # - Twilio has no Swift SDK, so its REST Messages and Calls addresses are read as strings. Twilio
+    #   Verify (verify.twilio.com) is not matched.
+    # - a Discord direct-message channel opened by a bot (DiscordBM's `createDm`, under its import).
+    #   A bot also opens one to answer a person's command, so it is a signal; in a loop or a timer it
+    #   is evidence (swift-send-in-loop, swift-send-in-scheduled-job).
+    # A local notification (UserNotifications) is drawn on the person's own device and sent to no one,
+    # and is not outreach (see swift-send-in-loop).
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: $C.sendAlertNotification(...)
+              - pattern: $A.apns.send(...)
+          - pattern-regex: '\.(sendAlertNotification|send)\s*\('
+      - patterns:
+          - pattern-either:
+              - pattern: AWSSNS.PublishInput($...ARGS)
+              - patterns:
+                  - pattern-regex: '(?s)\bimport\s+SotoSNS\b.*'
+                  - pattern: $C.publish(.init($...ARGS))
+          - metavariable-regex:
+              metavariable: $...ARGS
+              regex: '(?s)^.*\bphoneNumber\s*:'
+          - metavariable-regex:
+              metavariable: $...ARGS
+              regex: '(?is)^(?!.*(code|otp|verif|passcode|password|\bpin\b))'
+      - pattern-regex: 'api\.twilio\.com/2010-04-01/Accounts/[^"\n]*/(Messages|Calls)(\.json)?'
+      - patterns:
+          - pattern-regex: '(?s)\bimport\s+(DiscordBM|DiscordHTTP)\b.*'
+          - pattern: $C.createDm(...)
+    metadata:
+      activity: automated_outreach
+      mentioned: performs
+      definition: https://lexlint.io/activities/automated-outreach
+      provenance: ungovr-original
+      license: MIT
+      strength: signal

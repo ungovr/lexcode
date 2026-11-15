@@ -1,0 +1,72 @@
+rules:
+  - id: lexcode.chatbot.swift-history-turns
+    languages: [swift]
+    severity: INFO
+    message: Appends the person's message to a running transcript, asks a language model, and appends the reply to the same transcript, which is deploying a chatbot (deploys_chatbot).
+    # Same order as the Kotlin, Java, Python, Go and Ruby history rules: the user's turn is appended,
+    # the model is called, then the reply is appended back. A prompt built in steps and sent once, and
+    # few-shot examples appended before the call, push no reply after the call and do not match.
+    # Swift's on-device and Gemini sessions keep the history themselves, so the model call need not
+    # take the transcript: the shape is the transcript the app keeps around the call. Each vendor is
+    # its own branch with its own import guard (the regular expression is also the pre-filter), so a
+    # generic method name (`respond`, `sendMessage`) on an app's own service in a file without the
+    # SDK's import does not match: MacPaw's OpenAI (`chats`, `chatsStream`), SwiftOpenAI
+    # (`startChat`, `startStreamedChat`), Apple's Foundation Models (`respond`, `streamResponse`)
+    # and the Gemini SDKs (Firebase AI Logic, Firebase Vertex AI, the Firebase umbrella and Google's
+    # generative-ai-swift: `sendMessage`, `sendMessageStream`, `generateContent`). A file that gets
+    # the SDK through an `@_exported import` elsewhere is a known gap.
+    # The user's turn is named by a role written in it: an implicit `.user` member (not `self.user`),
+    # a "user" string, or an isUser / isFromUser / fromUser flag set to true.
+    patterns:
+      - pattern-either:
+          - patterns:
+              - pattern-regex: '(?s)\bimport\s+OpenAI\b.*'
+              - pattern-either:
+                  - pattern: '$C.chats(query: $Q)'
+                  - pattern: '$C.chatsStream(query: $Q)'
+          - patterns:
+              - pattern-regex: '(?s)\bimport\s+SwiftOpenAI\b.*'
+              - pattern-either:
+                  - pattern: '$C.startChat(parameters: $Q)'
+                  - pattern: '$C.startStreamedChat(parameters: $Q)'
+          - patterns:
+              - pattern-regex: '(?s)\bimport\s+FoundationModels\b.*'
+              - pattern-either:
+                  - pattern: $S.respond(...)
+                  - pattern: $S.streamResponse(...)
+          - patterns:
+              - pattern-regex: '(?s)\bimport\s+(FirebaseAI|FirebaseVertexAI|Firebase|GoogleGenerativeAI)\b.*'
+              - pattern-either:
+                  - pattern: $S.sendMessage(...)
+                  - pattern: $S.sendMessageStream(...)
+                  - pattern: $S.generateContent(...)
+                  - pattern: $S.generateContentStream(...)
+      - pattern-either:
+          - pattern-inside: |
+              $H.append($U)
+              ...
+              $H.append($Z)
+          - pattern-inside: |
+              $H += [$U]
+              ...
+              $H += [$Z]
+          - pattern-inside: |
+              $H.append($U)
+              ...
+              $H += [$Z]
+          - pattern-inside: |
+              $H += [$U]
+              ...
+              $H.append($Z)
+      - metavariable-regex:
+          metavariable: $U
+          regex: '(?s)^.*((?<![\w)\]])\.user\b|"user"|\b(is|isFrom|from)User\s*:\s*true).*$'
+      - metavariable-regex:
+          metavariable: $Z
+          regex: '(?s)^(?!.*((?<![\w)\]])\.user\b|"user"|\b(is|isFrom|from)User\s*:\s*true)).*$'
+    metadata:
+      activity: deploys_chatbot
+      mentioned: performs
+      definition: https://lexlint.io/activities/deploys-chatbot
+      provenance: ungovr-original
+      license: MIT

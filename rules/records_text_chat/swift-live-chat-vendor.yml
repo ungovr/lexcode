@@ -1,0 +1,33 @@
+rules:
+  - id: lexcode.chat.swift-live-chat-vendor
+    languages: [swift]
+    severity: INFO
+    message: Starts a live-chat or in-app messaging SDK, so the vendor receives what people type to support or to each other, which is a text chat that is kept (records_text_chat).
+    # The iOS counterparts of kt-live-chat-vendor: Intercom, Zendesk Messaging, Freshchat, Sendbird
+    # (Chat SDK and UIKit), Stream Chat, Crisp and Twilio Conversations. The definition names a
+    # live-chat window whose vendor keeps the transcript and a chat-widget vendor among its
+    # counterparties, so starting one is evidence, not a signal.
+    # Short forms (Decision 8): Intercom, Zendesk, Freshchat, SendbirdChat, SendbirdUI, CrispSDK and
+    # TwilioConversationsClient are the vendors' own names, so they are also read with no import (a
+    # file reached through an `@_exported import` or a bridging header). Each is pinned to the
+    # vendor's own argument labels (`setApiKey(_:forAppId:)`, `initialize(withChannelKey:...)`,
+    # `configure(websiteID:)`), so a door-entry app's own `Intercom` type does not match.
+    # Stream's ChatClient is a generic name, so it is written module-qualified only and an app's own
+    # ChatClient in a file without `import StreamChat` does not match. A help-center viewer,
+    # analytics and crash reporting are not matched.
+    pattern-either:
+      - pattern: 'Intercom.setApiKey($K, forAppId: $A)'
+      - pattern: Intercom.presentMessenger(...)
+      - pattern: 'Zendesk.initialize(withChannelKey: $K, ...)'
+      - pattern: Freshchat.sharedInstance().initWith(...)
+      - pattern: 'SendbirdChat.initialize(params: $P, ...)'
+      - pattern: 'SendbirdUI.initialize(applicationId: $A, ...)'
+      - pattern: 'StreamChat.ChatClient(config: $C)'
+      - pattern: 'CrispSDK.configure(websiteID: $W)'
+      - pattern: 'TwilioConversationsClient.conversationsClient(withToken: $T, ...)'
+    metadata:
+      activity: records_text_chat
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-text-chat
+      provenance: ungovr-original
+      license: MIT
