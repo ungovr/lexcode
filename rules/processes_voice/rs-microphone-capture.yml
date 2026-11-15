@@ -1,0 +1,30 @@
+# Opening an audio input to capture sound: cpal's input stream (`build_input_stream` and its raw
+# form, a method of cpal's `DeviceTrait` with no counterpart on an output device) and PortAudio's
+# input stream settings. These are the Rust counterparts of the C#, Java and Kotlin microphone rules,
+# which are evidence too: an input stream records whatever is said near the microphone. Output
+# streams (playback, rodio, `build_output_stream`) are left out.
+rules:
+  - id: lexcode.voice.rs-microphone-capture
+    languages: [rust]
+    severity: INFO
+    message: Opens the microphone to capture sound, which is recording a human voice (processes_voice).
+    pattern-either:
+      # cpal's methods are trait methods, so a file that calls them has a `use cpal` line bringing
+      # `DeviceTrait` in; the guard costs no file and keeps an app's own `build_input_stream` out.
+      - patterns:
+          - pattern-either:
+              - pattern: $D.build_input_stream(...)
+              - pattern: $D.build_input_stream_raw(...)
+          - pattern-regex: (?sm)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+cpal\b).*
+      - patterns:
+          - pattern-either:
+              - pattern: $PA.default_input_stream_params(...)
+              - pattern: $PA.default_input_stream_params::<$T>(...)
+          - pattern-regex: (?sm)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+portaudio\b).*
+      - pattern: portaudio::InputStreamSettings::new(...)
+    metadata:
+      activity: processes_voice
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-voice
+      provenance: ungovr-original
+      license: MIT

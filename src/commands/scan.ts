@@ -18,6 +18,7 @@ import { isRequirementsFile, readPypi } from '../manifests/pypi.js';
 import { readGradle } from '../manifests/gradle.js';
 import { readComposer } from '../manifests/composer.js';
 import { isNugetManifest, readNuget } from '../manifests/nuget.js';
+import { readSwiftPm } from '../manifests/swiftpm.js';
 import { readMaven } from '../manifests/maven.js';
 import { readRuby } from '../manifests/ruby.js';
 import { baseName } from '../manifests/util.js';
@@ -173,7 +174,7 @@ export async function scan(o: ScanOptions): Promise<EvidenceRecord> {
   }
 
   // Manifests: what the code enables.
-  const readers = [readNpm(root, files), readPypi(root, files), readGo(root, files), readRuby(root, files), readMaven(root, files), readGradle(root, files), readComposer(root, files), readNuget(root, files), readCargo(root, files), readCocoapods(root, files)];
+  const readers = [readNpm(root, files), readPypi(root, files), readGo(root, files), readRuby(root, files), readMaven(root, files), readGradle(root, files), readComposer(root, files), readNuget(root, files), readCargo(root, files), readSwiftPm(root, files), readCocoapods(root, files)];
   const deps: Dependency[] = readers.flatMap((r) => r.deps);
   const devSkipped = readers.reduce((n, r) => n + r.devSkipped, 0);
   for (const r of readers) notices.push(...r.notices);

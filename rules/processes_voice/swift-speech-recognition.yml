@@ -1,0 +1,25 @@
+rules:
+  - id: lexcode.voice.swift-speech-recognition
+    languages: [swift]
+    severity: INFO
+    message: Turns speech into text with Apple's Speech framework (a speech recognizer and its live-audio or recorded-file requests, or the SpeechAnalyzer with a transcriber), which is transcribing human voices (processes_voice).
+    # The Speech framework comes only from its own import, so each type is written module-qualified:
+    # the engine resolves `import Speech`, and an app's own SFSpeechRecognizer or SpeechTranscriber
+    # in a file without the import is not read as Apple's. Checking or asking for the speech
+    # recognition permission alone is not matched, and neither is AVSpeechSynthesizer, which reads
+    # typed text aloud.
+    pattern-either:
+      - pattern: Speech.SFSpeechRecognizer(...)
+      - pattern: Speech.SFSpeechAudioBufferRecognitionRequest(...)
+      - pattern: Speech.SFSpeechURLRecognitionRequest(...)
+      # The SpeechAnalyzer API (iOS 26, macOS 26): the analyzer and the modules that transcribe.
+      # SpeechDetector only finds where speech is, and runs inside an analyzer that is matched.
+      - pattern: Speech.SpeechAnalyzer(...)
+      - pattern: Speech.SpeechTranscriber(...)
+      - pattern: Speech.DictationTranscriber(...)
+    metadata:
+      activity: processes_voice
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-voice
+      provenance: ungovr-original
+      license: MIT
