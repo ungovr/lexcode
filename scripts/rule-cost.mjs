@@ -17,9 +17,9 @@
 //           30 s on a slower machine.
 // Each size is timed in an engine run of its own, and each time is the lowest of up to three runs, because load
 // on the machine only adds time; a rule within both bounds after its first run is not run again. A Swift rule over a
-// bound is measured again on a second filler the engine's Swift scanner bug cannot touch (`plain`, below), and its
-// figures there decide. The script names every rule over a bound, and every rule the engine failed on, and exits 1
-// if there is any.
+// bound is measured again on a second filler the engine's Swift scanner bug cannot touch (`plain`, below); a rule
+// within bounds there is cleared only if it names no modifier or attribute (BARE_HIT, MODIFIER). The script names
+// every rule over a bound, every rule not cleared, and every rule the engine failed on, and exits 1 if there is any.
 //
 // It needs the built CLI for the engine's path (`npm run build`, then `lexcode engine fetch` once), or
 // LEXCODE_ENGINE=<path>. Rules for build and config files (Gradle, Maven, Composer, package manifests) are
@@ -30,6 +30,7 @@ import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'n
 import { tmpdir } from 'node:os';
 import { basename, dirname, extname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { parse as parseYaml } from 'yaml';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const RULES = join(ROOT, 'rules');
@@ -58,11 +59,30 @@ const LARGE_NAME = 'unit-900kb';
  * parse 77.9 s, match 0), so `parse_time` is not used. What the bug needs is a class with a modifier or attribute
  * (`final class`, `public class`, `@objc class`); a plain `class` is never slowed. So a Swift rule over a bound on
  * the filler below is measured again on LANGS['.swift'].plain, a filler of plain classes with no modifier at all,
- * against a bare rule on that filler, and those figures decide: a rule slowed only by the bug is within its bounds
- * there, and a rule that is itself slow is over on both. A bare Swift rule whose 900 KB time is over BARE_HIT times
- * its 90 KB time (a clean parse grows about 10x) stops the script: every Swift ratio divides by it.
+ * against a bare rule on that filler. Those figures can show only what that filler exercises:
+ * - over on the plain filler: the rule is over (it is slow on plain declarations);
+ * - within bounds there, and the rule's file names no modifier or attribute outside a `pattern-not` (MODIFIER): the
+ *   rule is cleared, since its first-filler time was the bug;
+ * - within bounds there, but the rule names a modifier or attribute: not cleared. The plain filler gives such a rule
+ *   nothing to match, so it cannot tell a rule slowed by the bug from one that is slow on modified declarations
+ *   itself; the script names it and exits 1, and a person decides.
+ * A bare Swift rule whose 900 KB time is over BARE_HIT times its 90 KB time (a clean parse grows about 10x) stops the
+ * script: every Swift ratio divides by it.
  */
 const BARE_HIT = 40;
+/**
+ * A Swift declaration modifier or an attribute, as a rule's positive patterns would name one. A dotted or called name
+ * (`$X.open(...)`) and a label (`private:`) are not one; neither is the `@\w+` of a regex, which has no letter after
+ * the `@`.
+ */
+const MODIFIER = /(?<![.\w$])(?:final|open|public|internal|private|fileprivate)\b(?!\s*[(:])|@[A-Za-z_]\w*/g;
+/** The shared Swift import guard, whose `@...` is an attribute before an import, not a declaration's. */
+const IMPORT_GUARD = /\\A\(\?=\.\*\^.*import\\s\+/;
+/**
+ * Keys whose text is not a positive pattern: exclusions, sanitizers, what is not a pattern at all, and a
+ * metavariable's regex or comparison, which tests text a pattern already bound (a path, a name), not a declaration.
+ */
+const NOT_POSITIVE = /^(?:pattern-not.*|pattern-sanitizers|metavariable-regex|metavariable-comparison|metadata|message|id|languages|severity|paths|options|fix)$/;
 /** One engine run on the two files; far above any rule worth keeping, so a runaway rule fails instead of hanging. */
 const SCAN_CAP_MS = 15 * 60 * 1000;
 
@@ -233,6 +253,24 @@ async function baselines(engine, exts) {
   return base;
 }
 
+/** The modifiers and attributes a rule file names in its positive patterns (MODIFIER), without repeats. */
+function namedModifiers(ruleFile) {
+  const found = new Set();
+  const walk = (node, key) => {
+    if (key !== undefined && NOT_POSITIVE.test(key)) return;
+    if (typeof node === 'string') {
+      if (key === 'pattern-regex' && IMPORT_GUARD.test(node)) return;
+      for (const m of node.matchAll(MODIFIER)) found.add(m[0]);
+    } else if (Array.isArray(node)) {
+      for (const v of node) walk(v, key);
+    } else if (node !== null && typeof node === 'object') {
+      for (const [k, v] of Object.entries(node)) walk(v, k);
+    }
+  };
+  walk(parseYaml(readFileSync(ruleFile, 'utf8')));
+  return [...found];
+}
+
 async function measure(engine, base, { rule, fixture }) {
   const ext = extname(fixture);
   const l = LANGS[ext];
@@ -257,7 +295,12 @@ async function measure(engine, base, { rule, fixture }) {
     if (p.error) return { rule, failed: `${p.error} (plain filler)` };
     if (p.notRun) return { rule, small: r.small, large: r.large, ...q, over: true };
     const pq = ratios(p, base[ext].plain);
-    return { rule, small: p.small, large: p.large, ...pq, over: !within(pq), first: { small: r.small, large: r.large } };
+    const first = { small: r.small, large: r.large };
+    if (within(pq)) {
+      const named = namedModifiers(rule);
+      if (named.length > 0) return { rule, notCleared: named, plain: { small: p.small, large: p.large, ...pq }, first };
+    }
+    return { rule, small: p.small, large: p.large, ...pq, over: !within(pq), first };
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -303,9 +346,19 @@ const notRun = results.filter((r) => r.notRun);
 if (notRun.length) process.stdout.write(`not run (the rule's paths keep the engine off the file): ${notRun.map((r) => relative(RULES, r.rule)).join(', ')}\n`);
 const failed = results.filter((r) => r.failed);
 for (const r of failed) process.stdout.write(`FAILED ${relative(RULES, r.rule)}: ${r.failed}\n`);
+const notCleared = results.filter((r) => r.notCleared);
+for (const r of notCleared) {
+  process.stdout.write(
+    `NOT CLEARED ${relative(RULES, r.rule)}: the plain filler does not exercise it (it names ${r.notCleared.join(', ')}); ` +
+      `first filler ${r.first.small.toFixed(2)} -> ${r.first.large.toFixed(2)} s, plain ${r.plain.small.toFixed(2)} -> ${r.plain.large.toFixed(2)} s\n`,
+  );
+}
 const over = timed.filter((r) => r.over);
+const retimed = timed.filter((r) => r.first).length + notCleared.length;
 process.stdout.write(
   `${timed.length} rules timed; ${over.length} over a bound (growth over ${GROWTH_MAX}x the bare parse's, or weight over ${WEIGHT_MAX}x it); ` +
-    `${failed.length} failed; ${timed.filter((r) => r.first).length} measured again on the plain Swift filler (${timed.filter((r) => r.first && !r.over).length} within bounds there)\n`,
+    `${failed.length} failed` +
+    (retimed > 0 ? `; ${retimed} timed again on the plain Swift filler (${timed.filter((r) => r.first && !r.over).length} cleared, ${notCleared.length} not cleared)` : '') +
+    '\n',
 );
-process.exit(over.length || failed.length ? 1 : 0);
+process.exit(over.length || failed.length || notCleared.length ? 1 : 0);

@@ -13,10 +13,12 @@ waits for a reviewer to approve the `npm` environment.
 1. The rule set's gate passes: `LEXCODE_GATE=1 npm test` (every
    evidence-class activity has a rule with positive and negative fixtures).
 2. On a quiet machine, `npm run build`, then `node scripts/rule-cost-check.mjs`
-   (about two minutes) and `node scripts/rule-cost.mjs` (about an hour with the
-   Swift and Rust rules). Every rule it names, over a bound or failed, is fixed or
-   has an open issue that the release's issue links. The bounds and why they
-   matter are in CONTRIBUTING.md, Cost.
+   (about three minutes) and `node scripts/rule-cost.mjs` (about an hour with
+   the Swift and Rust rules). Every rule it names, over a bound or failed, is
+   fixed or has an open issue that the release's issue links; a Swift rule it
+   names as not cleared is timed by hand on real Swift with that rule's modifiers
+   or attributes, and the result is recorded in the release's issue. The bounds
+   and why they matter are in CONTRIBUTING.md, Cost.
 3. The truth sets pass with zero false FAIL, and the recall table in
    `rules/README.md` is refreshed with its date. The truth sets and their
    runner live with LexLint's own code; the maintainers run them.
