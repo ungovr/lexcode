@@ -185,6 +185,15 @@ rules:
         to: $X
     pattern-sinks:
       - patterns:
+          - pattern-inside:
+              patterns:
+                - pattern: |
+                    func $SCOPE(...) -> $SCOPET {
+                      $...BODY
+                    }
+                - metavariable-regex:
+                    metavariable: $...BODY
+                    regex: (?s).*\b(?:images|imageEdits|imageVariations|createImages|legacyCreateImages|legacyEditImage|legacyCreateImageVariations|generateImages|invokeModel)\b
           - pattern: |
               func $F(...) -> $T {
                 ...

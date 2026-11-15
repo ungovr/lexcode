@@ -248,6 +248,15 @@ rules:
         to: $X
     pattern-sinks:
       - patterns:
+          - pattern-inside:
+              patterns:
+                - pattern: |
+                    func $SCOPE(...) -> $SCOPET {
+                      $...BODY
+                    }
+                - metavariable-regex:
+                    metavariable: $...BODY
+                    regex: (?s).*\b(?:chats|chatsStream|completions|completionsStream|createResponse|createResponseStreaming|startChat|startStreamedChat|responseCreate|responseCreateStream|respond|streamResponse|converse|converseStream)\b
           - pattern: |
               func $F(...) -> $T {
                 ...
