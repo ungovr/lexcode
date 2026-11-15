@@ -1,0 +1,21 @@
+rules:
+  - id: lexcode.crypto.cs-data-protection
+    languages: [csharp]
+    severity: INFO
+    message: Encrypts data with ASP.NET Core Data Protection (a protector the app creates for its own purpose), which may be shipping encryption and is worth a look (ships_encryption).
+    # ASP.NET Core ships in the .NET runtime's shared framework, so its encryption API stands nearer the
+    # platform's own cryptography (not evidence) than a library the app bundles; a match is a question.
+    # Configuring the key ring (AddDataProtection) is the framework protecting its own cookies and
+    # antiforgery tokens and is not read. The provider and protector are injected, so they are read by
+    # their declared type; the standalone provider by its fully qualified name.
+    pattern-either:
+      - pattern: (Microsoft.AspNetCore.DataProtection.IDataProtectionProvider $P).CreateProtector(...)
+      - pattern: (Microsoft.AspNetCore.DataProtection.IDataProtector $P).CreateProtector(...)
+      - pattern: Microsoft.AspNetCore.DataProtection.DataProtectionProvider.Create(...)
+    metadata:
+      activity: ships_encryption
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/glossary#ships-encryption
+      provenance: ungovr-original
+      license: MIT

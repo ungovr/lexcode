@@ -1,0 +1,36 @@
+rules:
+  - id: lexcode.tracking.cs-advertising-id
+    languages: [csharp]
+    severity: INFO
+    message: Reads an identifier that follows one device (the advertising id on Android, iOS or Windows, the IMEI, MEID or subscriber id, or the hardware serial), or asks iOS for permission to track, which is tracking devices (tracks_devices).
+    # Every type here is a platform binding written fully qualified: the engine resolves `using`
+    # and aliases, so an app's own class of the same short name is not read as the platform's.
+    pattern-either:
+      # Android (.NET for Android with the Google Play services binding): the advertising id.
+      - pattern: Android.Gms.Ads.Identifier.AdvertisingIdClient.GetAdvertisingIdInfo(...)
+      # Android: hardware and subscriber identifiers.
+      # (The property and method names are kept apart: a method's name is also a member access.)
+      - patterns:
+          - pattern: (Android.Telephony.TelephonyManager $T).$P
+          - metavariable-regex:
+              metavariable: $P
+              regex: ^(Imei|Meid|DeviceId|SubscriberId|SimSerialNumber)$
+      - patterns:
+          - pattern: (Android.Telephony.TelephonyManager $T).$P(...)
+          - metavariable-regex:
+              metavariable: $P
+              regex: ^(GetImei|GetMeid|GetDeviceId)$
+      - pattern: Android.OS.Build.GetSerial()
+      - pattern: Android.OS.Build.Serial
+      # iOS: the advertising identifier, and the App Tracking Transparency request.
+      - pattern: AdSupport.ASIdentifierManager.SharedManager.AdvertisingIdentifier
+      - pattern: AppTrackingTransparency.ATTrackingManager.RequestTrackingAuthorization(...)
+      - pattern: AppTrackingTransparency.ATTrackingManager.RequestTrackingAuthorizationAsync(...)
+      # Windows: the advertising id.
+      - pattern: Windows.System.UserProfile.AdvertisingManager.AdvertisingId
+    metadata:
+      activity: tracks_devices
+      mentioned: performs
+      definition: https://lexlint.io/activities/tracks-devices
+      provenance: ungovr-original
+      license: MIT

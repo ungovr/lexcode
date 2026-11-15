@@ -1,0 +1,42 @@
+rules:
+  - id: lexcode.personal.cs-device-location
+    languages: [csharp]
+    severity: INFO
+    message: Reads the person's precise location from the device (.NET MAUI or Xamarin.Essentials geolocation, the Android location manager, Core Location on iOS, or the Windows geolocator), which is processing personal data (processes_personal_data).
+    pattern-either:
+      # .NET MAUI. Its SDK imports Microsoft.Maui.Devices.Sensors implicitly (a MAUI file calls
+      # Geolocation with no using), so the short form is matched beside the fully qualified one.
+      # The method names are pinned to the reading calls, so an app's own Geolocation class with
+      # other members is not read as MAUI's.
+      - patterns:
+          - pattern-either:
+              - pattern: Microsoft.Maui.Devices.Sensors.Geolocation.$M(...)
+              - pattern: Microsoft.Maui.Devices.Sensors.Geolocation.Default.$M(...)
+              - pattern: Geolocation.$M(...)
+              - pattern: Geolocation.Default.$M(...)
+              - pattern: (Microsoft.Maui.Devices.Sensors.IGeolocation $G).$M(...)
+              - pattern: (IGeolocation $G).$M(...)
+              - pattern: Xamarin.Essentials.Geolocation.$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(GetLocationAsync|GetLastKnownLocationAsync|StartListeningForegroundAsync)$
+      # Android (.NET for Android): the platform location manager, injected or held in a field.
+      - patterns:
+          - pattern: (Android.Locations.LocationManager $L).$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(RequestLocationUpdates|GetLastKnownLocation|RequestSingleUpdate|GetCurrentLocation)$
+      # iOS and Mac Catalyst: Core Location.
+      - patterns:
+          - pattern: (CoreLocation.CLLocationManager $L).$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(StartUpdatingLocation|RequestLocation|StartMonitoringSignificantLocationChanges)$
+      # Windows: the WinRT geolocator.
+      - pattern: (Windows.Devices.Geolocation.Geolocator $G).GetGeopositionAsync(...)
+    metadata:
+      activity: processes_personal_data
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-personal-data
+      provenance: ungovr-original
+      license: MIT

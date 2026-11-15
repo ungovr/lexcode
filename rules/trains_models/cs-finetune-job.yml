@@ -1,0 +1,47 @@
+rules:
+  - id: lexcode.train.cs-finetune-job
+    languages: [csharp]
+    severity: INFO
+    message: Starts a hosted fine-tuning or training job (OpenAI or Azure OpenAI, Amazon SageMaker, Amazon Bedrock or Vertex AI) that adapts a model to the caller's data, which is training models (trains_models).
+    # Library types are written in full: the engine resolves `using` lines and aliases, so an app's own
+    # FineTuningClient or CreateTrainingJobRequest in another namespace is not matched.
+    pattern-either:
+      # OpenAI (and Azure.AI.OpenAI, which hands out the same client): the call that creates a job, on
+      # a FineTuningClient that is injected, a field, built, or a local declared with its type, or
+      # chained on GetFineTuningClient(). Listing, reading or cancelling jobs is not matched. A `var`
+      # local assigned from GetFineTuningClient() is not typed by the engine and is missed.
+      - patterns:
+          - pattern-either:
+              - pattern: (OpenAI.FineTuning.FineTuningClient $C).$M(...)
+              - pattern: (OpenAI.OpenAIClient $X).GetFineTuningClient().$M(...)
+              - pattern: (Azure.AI.OpenAI.AzureOpenAIClient $X).GetFineTuningClient().$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(FineTune|CreateFineTuningJob)(Async)?$
+      # AWS SDK for .NET: the request objects of a SageMaker training job and a Bedrock customization
+      # job. `new T(...) { ... }` also matches a construction with no initializer.
+      - pattern: new Amazon.SageMaker.Model.CreateTrainingJobRequest(...) { ... }
+      - pattern: Amazon.SageMaker.Model.CreateTrainingJobRequest $V = new(...) { ... };
+      - pattern: new Amazon.Bedrock.Model.CreateModelCustomizationJobRequest(...) { ... }
+      - pattern: Amazon.Bedrock.Model.CreateModelCustomizationJobRequest $V = new(...) { ... };
+      # Vertex AI (Google.Cloud.AIPlatform.V1): a training pipeline is created on the client, or built
+      # as the object the create call sends. A client from PipelineServiceClient.Create() is found by
+      # the pipeline object, since the engine does not follow a factory's return type; an object built
+      # inside the create call on a typed client is that call's match and is not counted again.
+      - patterns:
+          - pattern: (Google.Cloud.AIPlatform.V1.PipelineServiceClient $C).$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^CreateTrainingPipeline(Async)?$
+      - patterns:
+          - pattern-either:
+              - pattern: new Google.Cloud.AIPlatform.V1.TrainingPipeline(...) { ... }
+              - pattern: Google.Cloud.AIPlatform.V1.TrainingPipeline $V = new(...) { ... };
+          - pattern-not-inside: (Google.Cloud.AIPlatform.V1.PipelineServiceClient $C).CreateTrainingPipeline(...)
+          - pattern-not-inside: (Google.Cloud.AIPlatform.V1.PipelineServiceClient $C).CreateTrainingPipelineAsync(...)
+    metadata:
+      activity: trains_models
+      mentioned: performs
+      definition: https://lexlint.io/activities/trains-models
+      provenance: ungovr-original
+      license: MIT

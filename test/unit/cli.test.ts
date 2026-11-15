@@ -30,7 +30,7 @@ afterEach(() => {
 describe('lexcode version', () => {
   it('prints the package, rule set, engine and registry versions', async () => {
     expect(await main(['version'], io())).toBe(0);
-    expect(out.join('')).toBe(`lexcode ${PKG.version}\nrules 1.3.0\nengine opengrep 1.33.1\nregistry 1.15\n`);
+    expect(out.join('')).toBe(`lexcode ${PKG.version}\nrules 1.4.0\nengine opengrep 1.33.1\nregistry 1.15\n`);
   });
 
   it('has no effect on import and answers --version like version', async () => {
@@ -168,6 +168,17 @@ describe('lexcode explain', () => {
       out.length = 0;
       // The vendor alone is not the package.
       expect(await runExplainCommand(['pkg:composer/twilio', '--json'], io(), { rs: composer })).toBe(0);
+      expect(JSON.parse(out.join('')).enables).toEqual([]);
+    });
+
+    it('reads a NuGet purl as its package Id, matched case-insensitively', async () => {
+      const nuget = makeRuleSet();
+      nuget.components = [{ ecosystem: 'nuget', match: 'twilio', enables: ['automated_outreach'], says: 'a', source: 'https://example.org' }];
+      const purl = 'pkg:nuget/Twilio@7.4.0';
+      expect(await runExplainCommand([purl, '--json'], io(), { rs: nuget })).toBe(0);
+      expect(JSON.parse(out.join(''))).toEqual({ purl, enables: ['automated_outreach'] });
+      out.length = 0;
+      expect(await runExplainCommand(['pkg:nuget/twilio.sdk', '--json'], io(), { rs: nuget })).toBe(0);
       expect(JSON.parse(out.join('')).enables).toEqual([]);
     });
 

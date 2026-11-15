@@ -60,7 +60,25 @@ describe('LEXCODE_RULES_HOME', () => {
       },
     ]);
     vi.stubEnv('LEXCODE_RULES_HOME', tree({ ...base, 'components/cargo.yml': composer.replace('ecosystem: composer', 'ecosystem: cargo') }));
-    expect(() => loadRuleSet()).toThrow(/ecosystem must be one of npm, pypi, golang, gem, maven, composer, files/);
+    expect(() => loadRuleSet()).toThrow(/ecosystem must be one of npm, pypi, golang, gem, maven, composer, nuget, files/);
+  });
+
+  it('takes a nuget component map', () => {
+    const copy = (f: string): string => readFileSync(resolve(RULES_HOME, f), 'utf8');
+    const base = { 'classes.yml': copy('classes.yml'), 'registry.snapshot.json': copy('registry.snapshot.json'), 'ruleset.yml': copy('ruleset.yml') };
+    const nuget = [
+      'ecosystem: nuget',
+      'entries:',
+      '  - match: "Twilio"',
+      '    enables: [automated_outreach]',
+      '    says: "The official Twilio C# helper library."',
+      '    source: https://www.nuget.org/packages/Twilio',
+      '',
+    ].join('\n');
+    vi.stubEnv('LEXCODE_RULES_HOME', tree({ ...base, 'components/nuget.yml': nuget }));
+    expect(loadRuleSet().components).toEqual([
+      { ecosystem: 'nuget', match: 'Twilio', enables: ['automated_outreach'], says: 'The official Twilio C# helper library.', source: 'https://www.nuget.org/packages/Twilio' },
+    ]);
   });
 
   it('is an error that names the missing file when the directory is not a rules home', () => {

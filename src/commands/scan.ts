@@ -15,6 +15,7 @@ import { readNpm } from '../manifests/npm.js';
 import { isRequirementsFile, readPypi } from '../manifests/pypi.js';
 import { readGradle } from '../manifests/gradle.js';
 import { readComposer } from '../manifests/composer.js';
+import { isNugetManifest, readNuget } from '../manifests/nuget.js';
 import { readMaven } from '../manifests/maven.js';
 import { readRuby } from '../manifests/ruby.js';
 import { baseName } from '../manifests/util.js';
@@ -23,7 +24,7 @@ import { toSarif } from '../record/sarif.js';
 import { loadRuleSet, writeMergedConfig } from '../rules/load.js';
 import { extractScripts } from '../scope/extract.js';
 import { listFiles } from '../scope/files.js';
-import { hasLongLine, MAX_LINE_CHARS } from '../scope/longlines.js';
+import { longLineFiles, MAX_LINE_CHARS } from '../scope/longlines.js';
 import { loadSidecar } from '../config/sidecar.js';
 import type { Dependency, EngineMatch, Evidence, EvidenceRecord, RuleSet, ScopeSpec, Sidecar } from '../types.js';
 import { defaultIo, flag, parseFlags, str, strList, type Io } from './args.js';
@@ -78,6 +79,7 @@ function ecosystemsFound(files: string[]): Set<string> {
     else if (base === 'Gemfile' || base === 'gems.rb' || base.endsWith('.gemspec')) found.add('gem');
     else if (base === 'pom.xml' || base === 'build.gradle' || base === 'build.gradle.kts') found.add('maven');
     else if (base === 'composer.json') found.add('composer');
+    else if (isNugetManifest(f)) found.add('nuget');
     else if (base === 'pyproject.toml' || isRequirementsFile(f)) found.add('pypi');
   }
   return found;
@@ -90,13 +92,13 @@ function pathMapper(pairs: { tempPath: string; originalPath: string }[]): (repor
   for (const p of pairs) {
     const posix = p.tempPath.replace(/\\/g, '/');
     exact.set(posix, p.originalPath);
-    const ext = /\.lexcode\.(?:ts|js|rb|php)$/.exec(posix)?.[0] ?? '';
+    const ext = /\.lexcode\.(?:ts|js|rb|php|cs)$/.exec(posix)?.[0] ?? '';
     tails.push({ tail: `/${p.originalPath}${ext}`, original: p.originalPath });
   }
   return (reported) => {
     const hit = exact.get(reported);
     if (hit !== undefined) return hit;
-    if (!/\.lexcode\.(?:ts|js|rb|php)$/.test(reported)) return reported;
+    if (!/\.lexcode\.(?:ts|js|rb|php|cs)$/.test(reported)) return reported;
     return tails.find((t) => reported.endsWith(t.tail))?.original ?? reported;
   };
 }
@@ -130,7 +132,9 @@ export async function scan(o: ScanOptions): Promise<EvidenceRecord> {
     notices.push(`skipped ${listed.skippedSymlinks} symbolic ${listed.skippedSymlinks === 1 ? 'link' : 'links'}; lexcode does not follow them`);
   }
   if (listed.skippedBundled > 0) {
-    notices.push(`skipped ${listed.skippedBundled} bundled or minified ${listed.skippedBundled === 1 ? 'file' : 'files'} (named *.min.js, *.bundle.js, vendor.*.js or *.vendor.js)`);
+    notices.push(
+      `skipped ${listed.skippedBundled} bundled, minified or generated ${listed.skippedBundled === 1 ? 'file' : 'files'} (named *.min.js, *.bundle.js, vendor.*.js, *.vendor.js, *.g.cs or *.g.i.cs)`,
+    );
   }
   if (listed.skippedLarge > 0) {
     notices.push(`skipped ${listed.skippedLarge} ${listed.skippedLarge === 1 ? 'file' : 'files'} over 5 MB`);
@@ -153,7 +157,7 @@ export async function scan(o: ScanOptions): Promise<EvidenceRecord> {
   }
 
   // Manifests: what the code enables.
-  const readers = [readNpm(root, files), readPypi(root, files), readGo(root, files), readRuby(root, files), readMaven(root, files), readGradle(root, files), readComposer(root, files)];
+  const readers = [readNpm(root, files), readPypi(root, files), readGo(root, files), readRuby(root, files), readMaven(root, files), readGradle(root, files), readComposer(root, files), readNuget(root, files)];
   const deps: Dependency[] = readers.flatMap((r) => r.deps);
   const devSkipped = readers.reduce((n, r) => n + r.devSkipped, 0);
   for (const r of readers) notices.push(...r.notices);
@@ -166,12 +170,23 @@ export async function scan(o: ScanOptions): Promise<EvidenceRecord> {
   try {
     const pairs = rs.rules.length > 0 ? extractScripts(root, files, join(tmp, 'scripts')) : [];
     let countedFiles = [...files, ...pairs.map((p) => p.tempPath)];
+    // Each file's size, taken once: the long-line check, the pre-filter reach notice, the engine's lane count and
+    // its deal all ask (#13251).
+    const pathOf = (f: string): string => (isAbsolute(f) ? f : join(root, ...f.split('/')));
+    const sizes = new Map<string, number>();
+    const bytesOf = (f: string): number => {
+      let n = sizes.get(f);
+      if (n === undefined) sizes.set(f, (n = fileBytes(pathOf(f))));
+      return n;
+    };
     // Only the rules with a file to read, and only the files they read, go to the engine (#12997).
     let plan = enginePlan(rs.rules, countedFiles);
     if (plan.targets.length > 0) {
       // A file with a line over 100,000 characters is generated code, and the engine can spend ten
-      // minutes on one such line: it is not handed over, and not counted as read.
-      const long = new Set(plan.targets.filter((f) => hasLongLine(isAbsolute(f) ? f : join(root, ...f.split('/')))));
+      // minutes on one such line: it is not handed over, and not counted as read. Extraction has judged its
+      // copies already, and wrote none that has such a line (#13251).
+      const judged = new Map(pairs.map((p) => [p.tempPath, p.longLine]));
+      const long = longLineFiles(plan.targets, { pathOf, bytesOf, judged });
       if (long.size > 0) {
         countedFiles = countedFiles.filter((f) => !long.has(f));
         plan = enginePlan(rs.rules, countedFiles);
@@ -191,13 +206,6 @@ export async function scan(o: ScanOptions): Promise<EvidenceRecord> {
       const configFile = join(tmp, 'rules.yml');
       const { targets } = plan;
       // A whole-file pre-filter can stop matching in a file over about 1 MB; the engine records nothing, so say so.
-      // Read once per file: the reach notice, the engine's lane count and its deal all ask.
-      const sizes = new Map<string, number>();
-      const bytesOf = (f: string): number => {
-        let n = sizes.get(f);
-        if (n === undefined) sizes.set(f, (n = fileBytes(isAbsolute(f) ? f : join(root, ...f.split('/')))));
-        return n;
-      };
       const reach = prefilterReachNotice(largePrefilteredFiles(plan.rules, targets, bytesOf));
       if (reach !== undefined) notices.push(reach);
       if (targets.length > 0) {

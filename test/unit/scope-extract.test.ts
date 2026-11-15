@@ -9,9 +9,12 @@ import {
   blankOutsideScripts,
   blankPhpRegions,
   blankPhpTags,
+  blankRazorTags,
   blankTwigTags,
   extractScripts,
+  razorCSharp,
 } from '../../src/scope/extract.js';
+import { hasLongLine } from '../../src/scope/longlines.js';
 import { expectNearLinear, measureScaling } from '../helpers/scaling.js';
 
 const made: string[] = [];
@@ -149,6 +152,18 @@ describe('blankOutsideScripts', () => {
     const r = blankOutsideScripts('<SCRIPT LANG="ts" data-x="a > b">q();</SCRIPT>')!;
     expect(r.lang).toBe('ts');
     expect(r.text.trim()).toBe('q();');
+  });
+
+  it('matches the tag names in ASCII letters only, in either case, as HTML does (#13251)', () => {
+    // A long s (U+017F) and a dotless i (U+0131) uppercase to S and I: neither is a letter of "script".
+    expect(blankOutsideScripts('<\u017Fcript>a();</\u017Fcript>')).toBeNull();
+    expect(blankOutsideScripts('<scr\u0131pt>a();</scr\u0131pt>')).toBeNull();
+    const r = blankOutsideScripts('<ScRiPt>a();</\u017Fcript>b();</SCRIPT\n><scrIPT>c();</sCrIpT>')!;
+    expect(r.text.replace(/ /g, '')).toBe('a();</\u017Fcript>b();\nc();');
+    expect(blankOutsideScripts('<SCRIPT/>')).toBeNull();
+    // A tag name cut off by the end of the file.
+    expect(blankOutsideScripts('<p></p><scrip')).toBeNull();
+    expect(blankOutsideScripts('<script>a();</scrip')!.text.trim()).toBe('a();</scrip');
   });
 
   it('does not take <script> inside an HTML comment, and does not take <scripts> or <scriptx>', () => {
@@ -574,6 +589,7 @@ describe('PHP files the engine will not take', () => {
       {
         originalPath: 'modules/custom/my_module/my_module.module',
         tempPath: path.join(path.resolve(out), 'modules', 'custom', 'my_module', 'my_module.module.lexcode.php'),
+        longLine: false,
       },
     ]);
     const copy = readFileSync(pairs[0]!.tempPath, 'utf8');
@@ -1120,5 +1136,642 @@ describe('PHP, Blade and Twig views', () => {
       expectNearLinear(m, 'blankOutsideScripts on a PHP class file');
       expect(m.result).toBeNull();
     });
+  });
+});
+
+describe('Razor views and components', () => {
+  function write(root: string, rel: string, body: string): void {
+    const full = path.join(root, ...rel.split('/'));
+    mkdirSync(path.dirname(full), { recursive: true });
+    writeFileSync(full, body);
+  }
+  /** What an expression becomes: `_` padded with spaces to its length. */
+  const pad = (s: string): string => '_' + ' '.repeat(s.length - 1);
+  /** What any other Razor syntax becomes: spaces of its length. */
+  const sp = (s: string): string => ' '.repeat(s.length);
+  function extractOne(rel: string, body: string): { originalPath: string; tempPath: string; text: string }[] {
+    const root = tmp();
+    const out = tmp();
+    write(root, rel, body);
+    return extractScripts(root, [rel], out).map((p) => ({ ...p, text: readFileSync(p.tempPath, 'utf8') }));
+  }
+
+  describe('script blocks', () => {
+    it('extracts a script from a Razor view with an implicit expression', () => {
+      const src = ['<div>@Model.Title</div>', "<script>gtag('config', '@Model.GaId');</script>", ''].join('\n');
+      const copies = extractOne('Views/Shared/_Layout.cshtml', src);
+      expect(copies.map((c) => path.basename(c.tempPath))).toEqual(['_Layout.cshtml.lexcode.js']);
+      expect(copies[0]!.originalPath).toBe('Views/Shared/_Layout.cshtml');
+      sameShape(src, copies[0]!.text);
+      const line = lines(copies[0]!.text)[1]!;
+      expect(line).toBe(sp('<script>') + `gtag('config', '${pad('@Model.GaId')}');` + sp('</script>'));
+      expect(pad('@Model.GaId')).toHaveLength(11);
+      // A .razor component's script is read the same way.
+      expect(extractOne('Pages/Index.razor', src)[0]!.tempPath.endsWith('Index.razor.lexcode.js')).toBe(true);
+    });
+
+    it('explicit and call expressions', () => {
+      const raw = '@Html.Raw(Json.Serialize(Model.Config))';
+      expect(blankRazorTags(`var d = ${raw};`)).toBe(`var d = ${pad(raw)};`);
+      expect(blankRazorTags('var n = @(Model.A + 1);')).toBe(`var n = ${pad('@(Model.A + 1)')};`);
+      const call = '@await Component.InvokeAsync("X")';
+      expect(blankRazorTags(`var h = '${call}';`)).toBe(`var h = '${pad(call)}';`);
+      // Indexers and member chains run on; a trailing period or a space ends the expression.
+      expect(blankRazorTags('t = "@Localizer["Hi"].Value";')).toBe(`t = "${pad('@Localizer["Hi"].Value')}";`);
+      expect(blankRazorTags("s = '@Model.Name.';")).toBe(`s = '${pad('@Model.Name')}.';`);
+      expect(blankRazorTags("s = '@Model.Name (x)';")).toBe(`s = '${pad('@Model.Name')} (x)';`);
+      expect(blankRazorTags('u = "@Url.Action("Index", "Home")";')).toBe(`u = "${pad('@Url.Action("Index", "Home")')}";`);
+    });
+
+    it('an email address is not an expression', () => {
+      expect(blankRazorTags("const to = 'support@example.com';")).toBe("const to = 'support@example.com';");
+      const view = ['<script>', "  const to = 'support@example.com';", '  var d = @Html.Raw(Json.Serialize(Model));', '</script>', ''].join('\n');
+      const r = blankOutsideScripts(view, { razor: true })!;
+      sameShape(view, r.text);
+      expect(lines(r.text)[1]).toBe("  const to = 'support@example.com';");
+      expect(lines(r.text)[2]).toBe(`  var d = ${pad('@Html.Raw(Json.Serialize(Model))')};`);
+    });
+
+    it('comments, code blocks and escapes', () => {
+      expect(blankRazorTags('a(); @* note *@ b();')).toBe(`a(); ${sp('@* note *@')} b();`);
+      expect(blankRazorTags('@{ var x = 1; } a();')).toBe(`${sp('@{ var x = 1; }')} a();`);
+      expect(blankRazorTags("h = '@@handle';")).toBe("h = ' @handle';");
+      // A Razor comment can hold anything, quotes and braces included.
+      expect(blankRazorTags("a(); @* it's } *@ b();")).toBe(`a(); ${sp("@* it's } *@")} b();`);
+    });
+
+    it('a control block keeps only text and @: content', () => {
+      const body = ['@if (Model.On) {', "<text>fbq('init', '@Model.Pixel');</text>", '} else {', "@:gtag('a');", '}'].join('\n');
+      const out = lines(blankRazorTags(body));
+      expect(out).toHaveLength(5);
+      expect(out[0]).toBe(sp('@if (Model.On) {'));
+      expect(out[1]).toBe(sp('<text>') + `fbq('init', '${pad('@Model.Pixel')}');` + sp('</text>'));
+      expect(out[2]).toBe(sp('} else {'));
+      expect(out[3]).toBe(`  gtag('a');`);
+      expect(out[4]).toBe(' ');
+    });
+
+    it('every control keyword, chained else, catch and finally, and do ... while', () => {
+      for (const head of ['@foreach (var p in Model.Pixels)', '@for (var i = 0; i < 3; i++)', '@while (more)', '@switch (x)', '@using (Html.BeginForm())', '@lock (gate)']) {
+        expect(blankRazorTags(`${head} { <text>a();</text> } b();`)).toBe(`${sp(head)}${sp(' { <text>')}a();${sp('</text> }')} b();`);
+      }
+      const chain = '@if (a) { x; } else if (b) { y; } else { <text>c();</text> }';
+      expect(blankRazorTags(`${chain} d();`)).toBe(`${sp('@if (a) { x; } else if (b) { y; } else { <text>')}c();${sp('</text> }')} d();`);
+      const tryBlock = '@try { x(); } catch (Exception e) { y(); } finally { <text>z();</text> }';
+      expect(blankRazorTags(`${tryBlock} w();`)).toBe(`${sp('@try { x(); } catch (Exception e) { y(); } finally { <text>')}z();${sp('</text> }')} w();`);
+      expect(blankRazorTags('@do { <text>a();</text> } while (more); b();')).toBe(`${sp('@do { <text>')}a();${sp('</text> } while (more);')} b();`);
+      // Code inside a control block is blanked, nested braces and all.
+      expect(blankRazorTags('@if (a) { if (b) { c(); } } d();')).toBe(`${sp('@if (a) { if (b) { c(); } }')} d();`);
+      // A text element nested in plain C# inside the block is kept too.
+      expect(blankRazorTags('@if (a) { if (b) { <text>c();</text> } } d();')).toBe(`${sp('@if (a) { if (b) { <text>')}c();${sp('</text> } }')} d();`);
+      // A keyword that only starts an identifier is an implicit expression.
+      expect(blankRazorTags("v = '@iframeUrl';")).toBe(`v = '${pad('@iframeUrl')}';`);
+    });
+
+    it('a text element holding a control block with a text element of its own ends at its own closing tag', () => {
+      // nopCommerce's _PickupPoints.cshtml: the inner </text> must not end the outer element.
+      const body = [
+        '@foreach (var p in Model.Points) {',
+        '<text>',
+        '  m.set("@p");',
+        '  @if (first) {',
+        '    <text>c(m);</text>',
+        '  }',
+        '  g();',
+        '</text>',
+        '}',
+        'h();',
+      ].join('\n');
+      const out = lines(blankRazorTags(body));
+      expect(out[0]!.trim()).toBe('');
+      expect(out[1]!.trim()).toBe('');
+      expect(out[2]).toBe(`  m.set("${pad('@p')}");`);
+      expect(out[3]!.trim()).toBe('');
+      expect(out[4]).toBe(`    ${sp('<text>')}c(m);${sp('</text>')}`);
+      expect(out[5]!.trim()).toBe('');
+      expect(out[6]).toBe('  g();');
+      expect(out[7]!.trim()).toBe('');
+      expect(out[8]!.trim()).toBe('');
+      expect(out[9]).toBe('h();');
+    });
+
+    it('a quoted brace does not end a block', () => {
+      expect(blankRazorTags('@{ var s = "}"; } a();')).toBe(`${sp('@{ var s = "}"; }')} a();`);
+      expect(blankRazorTags("@{ var c = '}'; } a();")).toBe(`${sp("@{ var c = '}'; }")} a();`);
+      // A verbatim string ends at a lone quote, a backslash escapes nothing, and "" is a quote.
+      expect(blankRazorTags('@{ var p = @"C:\\}"""; } a();')).toBe(`${sp('@{ var p = @"C:\\}"""; }')} a();`);
+      // An interpolated string's holes are code, and may hold strings of their own.
+      expect(blankRazorTags('@{ var s = $"{(on ? "}" : "{")}"; } a();')).toBe(`${sp('@{ var s = $"{(on ? "}" : "{")}"; }')} a();`);
+      // A raw string literal.
+      expect(blankRazorTags('@{ var r = """ } """; } a();')).toBe(`${sp('@{ var r = """ } """; }')} a();`);
+      // A comment.
+      expect(blankRazorTags('@{ // }\n} a();')).toBe(`${sp('@{ // }')}\n  a();`);
+      // A quoted ) does not end an explicit expression or a call.
+      expect(blankRazorTags('v = @(f(")")); a();')).toBe(`v = ${pad('@(f(")"))')}; a();`);
+      expect(blankRazorTags('v = @F(")"); a();')).toBe(`v = ${pad('@F(")")')}; a();`);
+      // An apostrophe in markup inside a control block is not a char literal.
+      expect(blankRazorTags("@if (a) { <p>It's here</p> } b();")).toBe(`${sp("@if (a) { <p>It's here</p> }")} b();`);
+    });
+
+    it('blanks an expression or block that never ends to the end of the body', () => {
+      expect(blankRazorTags('a(); @(f(')).toBe(`a(); ${pad('@(f(')}`);
+      expect(blankRazorTags('a(); @{ b();')).toBe(`a(); ${sp('@{ b();')}`);
+      expect(blankRazorTags('a(); @* b();')).toBe(`a(); ${sp('@* b();')}`);
+      expect(blankRazorTags('a(); @if (x) { b();')).toBe(`a(); ${sp('@if (x) { b();')}`);
+      // A control keyword with no block blanks only its keyword and header.
+      expect(blankRazorTags('@if (x) a();')).toBe(`${sp('@if (x)')} a();`);
+      // An "@" that starts nothing is left.
+      expect(blankRazorTags("s.split('@'); t = '@ x';")).toBe("s.split('@'); t = '@ x';");
+    });
+
+    it('keeps line numbers across a multi-line code block', () => {
+      const src = [
+        '<script>',
+        '  @{',
+        '    var id = Model.Id;',
+        '    var label = "}";',
+        '  }',
+        "  gtag('config', '@id');",
+        '  @(Model',
+        '    .Name)',
+        '</script>',
+        '',
+      ].join('\n');
+      const copies = extractOne('Views/Home/Index.cshtml', src);
+      expect(copies).toHaveLength(1);
+      sameShape(src, copies[0]!.text);
+      const out = lines(copies[0]!.text);
+      for (const i of [1, 2, 3, 4]) expect(out[i]!.trim()).toBe('');
+      expect(out[5]).toBe(`  gtag('config', '${pad('@id')}');`);
+      expect(out[6]).toBe(`  ${pad('@(Model')}`);
+      expect(out[7]).toBe(' '.repeat('    .Name)'.length));
+      // CRLF line breaks are kept.
+      const crlf = src.replace(/\n/g, '\r\n');
+      const c = extractOne('Views/Home/Crlf.cshtml', crlf)[0]!.text;
+      sameShape(crlf, c);
+      expect(c.split('\r\n')[5]).toBe(`  gtag('config', '${pad('@id')}');`);
+    });
+
+    it('blanks Razor syntax only in .cshtml and .razor files', () => {
+      const src = "<script>gtag('config', '@Model.GaId');</script>";
+      expect(extractOne('tpl/page.html', src)[0]!.text).toContain('@Model.GaId');
+      expect(extractOne('Views/X.CSHTML', src)[0]!.text).not.toContain('@Model');
+    });
+  });
+
+  describe('the C# copy of @code and @functions blocks', () => {
+    const component = [
+      '@using Microsoft.Extensions.AI',
+      '@page "/chat"',
+      '@inject IChatClient Chat',
+      '',
+      '<h3>Chat</h3>',
+      '<input @bind="prompt" />',
+      '<button @onclick="Send">Send</button>',
+      '<p>@reply</p>',
+      '',
+      '@code {',
+      '    private string prompt = "";',
+      '    private string reply = "";',
+      '    private async Task Send() {',
+      '        var r = await Chat.GetResponseAsync(prompt);',
+      '        reply = r.Text;',
+      '    }',
+      '}',
+      '',
+    ].join('\n');
+
+    it("a Razor component's code becomes one class", () => {
+      const copies = extractOne('Components/Pages/Chat.razor', component);
+      expect(copies.map((c) => path.basename(c.tempPath))).toEqual(['Chat.razor.lexcode.cs']);
+      expect(copies[0]!.originalPath).toBe('Components/Pages/Chat.razor');
+      const text = copies[0]!.text;
+      const out = lines(text);
+      expect(out[0]).toBe('using Microsoft.Extensions.AI;');
+      // @page is a directive of the leading block: it becomes spaces, and the header goes on the next line.
+      expect(out[1]!.trim()).toBe('');
+      expect(out[2]!.startsWith('class __RazorCode {')).toBe(true);
+      expect(out[2]!.slice('class __RazorCode {'.length)).toBe('        IChatClient Chat;');
+      for (const i of [3, 4, 5, 6, 7, 8, 9]) expect(out[i]!.trim()).toBe('');
+      expect(out[10]).toBe('    private string prompt = "";');
+      expect(out[13]).toBe('        var r = await Chat.GetResponseAsync(prompt);');
+      expect(out[15]).toBe('    }');
+      expect(out[16]!.trim()).toBe('');
+      expect(text.endsWith('}')).toBe(true);
+      // Only the header and the field's semicolon add characters; every other line keeps its length.
+      expect(text.slice(0, -1)).toHaveLength(component.length + 'class __RazorCode {'.length + 1);
+      expect(razorCSharp(component)).toBe(text);
+    });
+
+    it('a routable component: @page and @rendermode before the usings do not take the header (amended Decision 9)', () => {
+      const src = ['@page "/chat"', '@rendermode InteractiveServer', '@using Microsoft.Extensions.AI', '@inject IChatClient Chat', '@code { }', ''].join('\n');
+      const out = lines(razorCSharp(src)!);
+      expect(out[0]!.trim()).toBe('');
+      expect(out[1]!.trim()).toBe('');
+      expect(out[2]).toBe('using Microsoft.Extensions.AI;');
+      expect(out[3]!.startsWith('class __RazorCode {')).toBe(true);
+      expect(out[3]).toContain('IChatClient Chat;');
+      // Every listed directive belongs to the leading block, a byte order mark before the first one too.
+      const all = [
+        '﻿@model IndexModel',
+        '@layout MainLayout',
+        '@attribute [Authorize]',
+        '@implements IDisposable',
+        '@inherits LayoutComponentBase',
+        '@namespace App.Pages',
+        '@typeparam TItem',
+        '@preservewhitespace true',
+        '@using App.Ai',
+        '',
+        '@functions { int A; }',
+      ].join('\n');
+      const a = lines(razorCSharp(all)!);
+      for (let i = 0; i < 8; i++) expect(a[i]!.replace('﻿', '').trim()).toBe('');
+      expect(a[8]).toBe('using App.Ai;');
+      expect(a[10]!.startsWith('class __RazorCode {')).toBe(true);
+      expect(a[10]).toContain(' int A; ');
+    });
+
+    it('no C# copy without a code block', () => {
+      const page = ['@page "/"', '@inject IChatClient Chat', '<p>@Chat</p>', '<p>mail me@code{x}</p>', '@* @code { a(); } *@', ''].join('\n');
+      expect(razorCSharp(page)).toBeNull();
+      expect(extractOne('Pages/Plain.razor', page)).toEqual([]);
+    });
+
+    it('@functions in a .cshtml gives a copy', () => {
+      const view = [
+        '@using System.Net.Http',
+        '@model IndexModel',
+        '@functions {',
+        '    string Pick(string s) { return s == "}" ? "a" : s; }',
+        '}',
+        '<p>@Pick("x")</p>',
+        '@functions',
+        '{',
+        '    int N() => 1;',
+        '}',
+      ].join('\n');
+      const copies = extractOne('Views/Home/Index.cshtml', view);
+      expect(copies.map((c) => path.basename(c.tempPath))).toEqual(['Index.cshtml.lexcode.cs']);
+      const out = lines(copies[0]!.text);
+      expect(out[0]).toBe('using System.Net.Http;');
+      expect(out[1]!.trim()).toBe('');
+      expect(out[2]!.startsWith('class __RazorCode {')).toBe(true);
+      expect(out[2]!.slice('class __RazorCode {'.length).trim()).toBe('');
+      expect(out[3]).toBe('    string Pick(string s) { return s == "}" ? "a" : s; }');
+      expect(out[4]!.trim()).toBe('');
+      expect(out[5]!.trim()).toBe('');
+      expect(out[8]).toBe('    int N() => 1;');
+      expect(out[9]!.trim()).toBe('');
+      expect(out[10]).toBe('}');
+      expect(out).toHaveLength(11);
+    });
+
+    it('a using after the header stays spaces, and an @using control block is not a using', () => {
+      const src = ['', '@using (Html.BeginForm()) {', '}', '@using Late.Namespace', '@code { int A; }', ''].join('\n');
+      const out = lines(razorCSharp(src)!);
+      expect(out[0]).toBe('');
+      expect(out[1]!.startsWith('class __RazorCode {')).toBe(true);
+      expect(out[1]).not.toContain('using');
+      expect(out[3]!.trim()).toBe('');
+      expect(out[4]).toBe('        int A;  ');
+      expect(out).toHaveLength(6);
+      // A line that is only a Razor comment (a licence header, a commented-out @using) counts as blank: it is not
+      // read and does not take the header, so the usings after it are kept.
+      const commented = lines(razorCSharp(['@* licence *@', '@* @using Commented.Out *@', '@using Kept', '@*', '  multi-line', '*@', '@code { }'].join('\n'))!);
+      for (const i of [0, 1, 3, 4, 5]) expect(commented[i]!.trim()).toBe('');
+      expect(commented[2]).toBe('using Kept;');
+      expect(commented[6]!.startsWith('class __RazorCode {')).toBe(true);
+      // A comment followed by code on its line is not only a comment: it takes the header.
+      const mixed = lines(razorCSharp(['@* c *@ <p>x</p>', '@using Late', '@code { }'].join('\n'))!);
+      expect(mixed[0]!.startsWith('class __RazorCode {')).toBe(true);
+      expect(mixed[1]!.trim()).toBe('');
+    });
+
+    it('an HTML comment line before the code counts as blank, and a directive after a comment on its line is read', () => {
+      const src = [
+        '<!-- Copyright (c) Example. Licensed under MIT. -->', // 0: an HTML comment line
+        '<!--',
+        '  @using Commented.Html',
+        '-->',
+        '@* a *@ @using After.Comment', // 4: a Razor comment, then a using
+        '@*', // 5
+        '*@ @page "/x"', // 6: a multi-line comment closes, then a leading directive
+        '<!-- x --> @inject IChatClient Chat', // 7: an HTML comment, then the first code-bearing directive
+        '@code { int A; }',
+      ].join('\n');
+      const out = lines(razorCSharp(src)!);
+      for (const i of [0, 1, 2, 3, 5, 6]) expect(out[i]!.trim()).toBe('');
+      expect(out[4]).toBe('        using After.Comment;');
+      expect(out[7]).toBe(`class __RazorCode {${' '.repeat('<!-- x --> @inject'.length)} IChatClient Chat;`);
+      expect(out[8]).toBe('        int A;  ');
+      expect(out[9]).toBe('}');
+      expect(out.join('\n')).not.toContain('Commented');
+    });
+
+    it('an unclosed HTML comment before the code block runs to the block, whose line takes the header', () => {
+      const out = lines(razorCSharp(['<!-- licence', '@using Hidden', '@code { int A; }'].join('\n'))!);
+      expect(out[0]!.trim()).toBe('');
+      expect(out[1]!.trim()).toBe('');
+      expect(out[2]!.startsWith('class __RazorCode {')).toBe(true);
+      expect(out[2]).toContain(' int A; ');
+      expect(out[3]).toBe('}');
+      // A Razor comment that never closes swallows the block as well: no code is left, so there is no copy.
+      expect(razorCSharp(['@* licence', '@using Hidden', '@code { int A; }'].join('\n'))).toBeNull();
+    });
+
+    it('a file of only directives and blank lines around its code block gets one well-formed class', () => {
+      for (const src of [
+        ['@page "/"', '', '@using A', '@rendermode InteractiveServer @code {', '  int B;', '}', ''].join('\n'),
+        ['', '@using A', '', '@code {', '  int B;', '}'].join('\n'),
+        '@code{int B;}',
+      ]) {
+        const out = razorCSharp(src)!;
+        expect(out.match(/class __RazorCode \{/g), src).toHaveLength(1);
+        expect(out.endsWith('}'), src).toBe(true);
+        expect(out).toContain('int B;');
+        expect(lines(out)).toHaveLength(lines(src).length + (src.endsWith('\n') ? 0 : 1));
+        // The class opens before the body: the header's line is at or before the line holding `int B;`.
+        const ls = lines(out);
+        expect(ls.findIndex((l) => l.includes('class __RazorCode {'))).toBeLessThanOrEqual(ls.findIndex((l) => l.includes('int B;')));
+      }
+    });
+
+    it('a code block on a leading directive line still gets the class header', () => {
+      // Every non-blank line is a leading directive, and the block starts on one of them.
+      const out = lines(razorCSharp(['@using A', '@layout MainLayout @code { int A; }', ''].join('\n'))!);
+      expect(out[0]).toBe('using A;');
+      expect(out[1]!.startsWith('class __RazorCode {')).toBe(true);
+      expect(out[1]).toContain(' int A; ');
+      expect(out.join('\n').endsWith('}')).toBe(true);
+      // The block opens on a using line itself.
+      const own = lines(razorCSharp('@using A @code {\n  int B;\n}')!);
+      expect(own.some((l) => l.includes('class __RazorCode {'))).toBe(true);
+      expect(own[1]).toBe('  int B;');
+    });
+
+    it('@inject takes a space before its semicolon', () => {
+      const out = lines(razorCSharp(['@inject ILogger<Foo> Logger ;', '@code { }'].join('\n'))!);
+      expect(out[0]).toBe(`class __RazorCode {${' '.repeat('@inject'.length)} ILogger<Foo> Logger;`);
+    });
+
+    it('a Razor file can give both copies', () => {
+      const src = component.replace('<p>@reply</p>', "<p>@reply</p><script>gtag('config', '@Model.Id');</script>");
+      const copies = extractOne('Components/Pages/Chat.razor', src);
+      expect(copies.map((c) => path.basename(c.tempPath))).toEqual(['Chat.razor.lexcode.js', 'Chat.razor.lexcode.cs']);
+      expect(copies.every((c) => c.originalPath === 'Components/Pages/Chat.razor')).toBe(true);
+      expect(lines(copies[0]!.text)[7]).toContain(`gtag('config', '${pad('@Model.Id')}');`);
+      expect(lines(copies[1]!.text)[13]).toBe('        var r = await Chat.GetResponseAsync(prompt);');
+    });
+  });
+
+  describe('on hostile input', () => {
+    it('blankRazorTags grows near-linearly over openers that never close', () => {
+      for (const unit of ['@(', '@{', '@if (', '@*', "@a('", '@if (x) { <text>', '@{ $"{']) {
+        const m = measureScaling({
+          small: 20_000,
+          large: 200_000,
+          setup: (n) => unit.repeat(Math.ceil(n / unit.length)),
+          run: (text) => blankRazorTags(text),
+        });
+        expectNearLinear(m, `blankRazorTags over ${unit}`);
+      }
+    });
+
+    it('blankRazorTags grows near-linearly over blocks and expressions that close', () => {
+      const m = measureScaling({
+        small: 20_000,
+        large: 200_000,
+        setup: (n) => '@if (a) { <text>x(@b.c);</text> } @{ var s = "}"; } '.repeat(n / 50),
+        run: (text) => blankRazorTags(text),
+      });
+      expectNearLinear(m, 'blankRazorTags');
+    });
+
+    it('razorCSharp grows near-linearly over a long run of white space in an @using or @inject line', () => {
+      // A using or inject pattern ending in two adjacent white-space quantifiers backtracks cubically or
+      // quadratically over a run of spaces that ends in a character it rejects. The sizes are small because a
+      // cubic regression takes minutes at 20,000 spaces; 10x the input still shows it as 1,000x the time.
+      for (const [name, line] of [
+        ['@using', (n: number) => `@using x${' '.repeat(n)}(`],
+        ['@using, tabs then a semicolon', (n: number) => `@using x${' \t'.repeat(n / 2)};!`],
+        ['@inject', (n: number) => `@inject a b${' '.repeat(n)}!`],
+        ['@inject, spaces around a semicolon', (n: number) => `@inject a b${' '.repeat(n / 2)};${' '.repeat(n / 2)}!`],
+      ] as const) {
+        const m = measureScaling({
+          small: 500,
+          large: 5_000,
+          setup: (n) => `${line(n)}\n@inject I X\n@code { }\n`,
+          run: (text) => razorCSharp(text),
+        });
+        expectNearLinear(m, `razorCSharp over ${name}`);
+      }
+    });
+
+    it('razorCSharp grows near-linearly over each worst-case line shape no other ratio test covers', () => {
+      // FIX_BASE took 6 s on a using line of 4,000 spaces then `(` (cubic). Each shape is a long run that ends in
+      // a character the pattern rejects; a quadratic or cubic scan shows as 100x or 1,000x the time for 10x the
+      // input; the sizes are small, as above, so a cubic regression fails in seconds. (The @using and @inject
+      // space runs are timed above, and a run of $ below.)
+      for (const [name, text] of [
+        ['@inject, many words then !', (n: number) => `@inject I X\n@inject${' a'.repeat(n / 2)}!\n@code { }\n`],
+        ['@code, spaces then no brace', (n: number) => `@code${' '.repeat(n)}x\n@code { }\n`],
+        ['a leading directive, spaces', (n: number) => `@page${' '.repeat(n)}\n@code { }\n`],
+        ['a run of $@ in a code block', (n: number) => `@code { ${'$@'.repeat(n / 2)} }\n`],
+        ['markup comments that open', (n: number) => `${'<!--'.repeat(n / 4)}\n@code { }\n`],
+      ] as const) {
+        const m = measureScaling({ small: 500, large: 5_000, setup: text, run: (t) => razorCSharp(t) });
+        expect(m.result, name).not.toBeNull();
+        expectNearLinear(m, `razorCSharp over ${name}`);
+      }
+    });
+
+    it('blankRazorTags grows near-linearly over each worst-case shape no other ratio test covers', () => {
+      for (const [name, body] of [
+        ['a run of $ in an expression', (n: number) => `@( ${'$'.repeat(n)} )`],
+        ['await then spaces', (n: number) => `@await${' '.repeat(n)}!`],
+        ['else then spaces', (n: number) => `@if (a) { } else${' '.repeat(n)}!`],
+      ] as const) {
+        const m = measureScaling({ small: 500, large: 5_000, setup: body, run: (t) => blankRazorTags(t) });
+        expect(m.result, name).toHaveLength(body(5_000).length);
+        expectNearLinear(m, `blankRazorTags over ${name}`);
+      }
+    });
+
+    it('razorCSharp and blankRazorTags grow near-linearly over a run of $ in code', () => {
+      // Each `$` used to look for a string over the whole run that follows it, quadratic over a long run.
+      const csharp = measureScaling({ small: 20_000, large: 200_000, setup: (n) => `@code { ${'$'.repeat(n)} }`, run: (t) => razorCSharp(t) });
+      expectNearLinear(csharp, 'razorCSharp over a run of $');
+      const tags = measureScaling({ small: 20_000, large: 200_000, setup: (n) => `@{ ${'$'.repeat(n)} }`, run: (t) => blankRazorTags(t) });
+      expectNearLinear(tags, 'blankRazorTags over a run of $');
+    });
+
+    it('razorCSharp grows near-linearly over code blocks and over an unclosed one', () => {
+      const m = measureScaling({
+        small: 20_000,
+        large: 200_000,
+        setup: (n) => '@code { int A() { return 1; } }\n'.repeat(n / 32) + '@code { {{{{',
+        run: (text) => razorCSharp(text),
+      });
+      expectNearLinear(m, 'razorCSharp');
+    });
+  });
+});
+
+describe('a copy with a line over 100,000 characters (#13251)', () => {
+  function write(root: string, rel: string, body: string | Buffer): void {
+    const full = path.join(root, ...rel.split('/'));
+    mkdirSync(path.dirname(full), { recursive: true });
+    writeFileSync(full, body);
+  }
+  const SCRIPT = '<script>a()</script>\n';
+
+  it('does not blank or write a script copy whose page has a long line, and still returns it', () => {
+    const root = tmp();
+    const out = tmp();
+    write(root, 'web/long.html', `<p>${'a'.repeat(100_001)}</p>\n${SCRIPT}`);
+    const pairs = extractScripts(root, ['web/long.html'], out);
+    expect(pairs).toEqual([{ originalPath: 'web/long.html', tempPath: path.join(path.resolve(out), 'web', 'long.html.lexcode.js'), longLine: true }]);
+    expect(existsSync(pairs[0]!.tempPath)).toBe(false);
+  });
+
+  it('writes a script copy whose longest line is exactly 100,000 characters, and says it has no long line', () => {
+    const root = tmp();
+    const out = tmp();
+    write(root, 'web/limit.html', `${'a'.repeat(100_000)}\n${SCRIPT}`);
+    const pairs = extractScripts(root, ['web/limit.html'], out);
+    expect(pairs.map((p) => p.longLine)).toEqual([false]);
+    expect(hasLongLine(pairs[0]!.tempPath)).toBe(false);
+    expect(lines(readFileSync(pairs[0]!.tempPath, 'utf8'))[1]).toBe(`${' '.repeat('<script>'.length)}a()${' '.repeat('</script>'.length)}`);
+  });
+
+  it('judges a long line inside a script body as it judges one in the markup', () => {
+    const root = tmp();
+    const out = tmp();
+    write(root, 'web/gen.vue', `<script lang="ts">const s = "${'b'.repeat(100_001)}"</script>\n`);
+    const pairs = extractScripts(root, ['web/gen.vue'], out);
+    expect(pairs.map((p) => [path.basename(p.tempPath), p.longLine])).toEqual([['gen.vue.lexcode.ts', true]]);
+    expect(existsSync(pairs[0]!.tempPath)).toBe(false);
+  });
+
+  it('does not write a whole-file Ruby or PHP copy with a long line, and still returns it', () => {
+    const root = tmp();
+    const out = tmp();
+    write(root, 'Rakefile', `x = "${'a'.repeat(100_001)}"\n`);
+    write(root, 'lib/tasks/short.rake', 'task :a do\nend\n');
+    write(root, 'web/gen.module', `<?php\n$s = "${'a'.repeat(100_001)}";\n`);
+    const pairs = extractScripts(root, ['Rakefile', 'lib/tasks/short.rake', 'web/gen.module'], out);
+    expect(pairs.map((p) => [p.originalPath, p.longLine, existsSync(p.tempPath)])).toEqual([
+      ['Rakefile', true, false],
+      ['lib/tasks/short.rake', false, true],
+      ['web/gen.module', true, false],
+    ]);
+  });
+
+  it("judges a Razor file's C# copy on its own text: the class header can make its first line long when the page's is not", () => {
+    const root = tmp();
+    const out = tmp();
+    // The C# copy opens its class on the first line, in front of that line's blanked markup.
+    write(root, 'Pages/Gen.razor', [`<div>${'a'.repeat(99_990 - '<div></div>'.length)}</div>`, '<script>a()</script>', '@code { int x; }', ''].join('\n'));
+    const pairs = extractScripts(root, ['Pages/Gen.razor'], out);
+    expect(pairs.map((p) => [path.basename(p.tempPath), p.longLine, existsSync(p.tempPath)])).toEqual([
+      ['Gen.razor.lexcode.js', false, true],
+      ['Gen.razor.lexcode.cs', true, false],
+    ]);
+  });
+
+  it('judges a long line in every view kind from the page, and writes the copy of a page at the limit', () => {
+    // Each script body holds that kind's template syntax, over two lines, so its blanker runs on the written copy.
+    const views: [string, string][] = [
+      ['page.html', '{{ a }}'],
+      ['view.html.erb', '<%= a\n %>'],
+      ['view.jsp', '${a\n}'],
+      ['view.php', '<?= $a\n ?>'],
+      ['view.blade.php', '{{ $a\n }}'],
+      ['view.twig', '{{ a\n }}'],
+      ['View.cshtml', '@(a\n)'],
+    ];
+    for (const [rel, syntax] of views) {
+      for (const [chars, long] of [[100_000, false], [100_001, true]] as const) {
+        const root = tmp();
+        const out = tmp();
+        write(root, rel, `${'a'.repeat(chars)}\n<script>var x = ${syntax};</script>\n`);
+        const pairs = extractScripts(root, [rel], out);
+        expect(pairs.map((p) => p.longLine), `${rel} at ${chars}`).toEqual([long]);
+        expect(existsSync(pairs[0]!.tempPath), `${rel} at ${chars}`).toBe(!long);
+        if (!long) expect(hasLongLine(pairs[0]!.tempPath), rel).toBe(false);
+      }
+    }
+  });
+
+  it("keeps every line's length in every view kind, over seeded random pages: the invariant the in-memory answer rests on", () => {
+    const fragments = [
+      '<script>', '</script>', '<SCRIPT lang="ts">', '</Script >', '<script type="text/template">', '<!--', '-->',
+      '<% x %>', '<%= y\n%>', '<%# z %>', '<?php a(); ?>', '<?= $b ?>', '<?php', '?>', '{{ c }}', '{!! d !!}', '{{--', '--}}',
+      '@if ($e)', '@endif', '{% f %}', '{# g #}', '${h}', '<%-- i --%>', '<jsp:k/>', '@Model.X', '@(m)', '@{ var q = 1; }',
+      '@* n *@', '@code {', '@functions {', '}', '{', '(', ')', '"', "'", '`', '/*', '*/', '//', '\n', '\r\n', '\r',
+      'text ', '\u0130', '\u017F', '\u{1F600}', '\uFEFF', '\uD800', '\t',
+    ];
+    let seed = 13251;
+    const random = (): number => {
+      // mulberry32
+      seed = (seed + 0x6d2b79f5) | 0;
+      let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+    const kinds: Parameters<typeof blankOutsideScripts>[1][] = [{}, { erb: true }, { jsp: true }, { php: true }, { blade: true }, { twig: true }, { razor: true }];
+    let checked = 0;
+    for (let n = 0; n < 1500; n++) {
+      let src = '<script>';
+      const count = Math.floor(random() * 40);
+      for (let k = 0; k < count; k++) src += fragments[Math.floor(random() * fragments.length)];
+      for (const opts of kinds) {
+        const r = blankOutsideScripts(src, opts);
+        if (r === null) continue;
+        checked++;
+        expect(r.text.split('\n').map((l) => l.length), `${JSON.stringify(opts)} ${JSON.stringify(src)}`).toEqual(src.split('\n').map((l) => l.length));
+      }
+    }
+    expect(checked).toBeGreaterThan(5000);
+  });
+
+  describe('the answer taken in memory is the one hasLongLine gives on the written copy', () => {
+    /** Line bodies, as bytes, at the limit and one character past it, by what makes characters and bytes differ. */
+    const cases: [string, Buffer, Buffer][] = [
+      ['CRLF line ends', Buffer.from(`${'a'.repeat(99_999)}\r\n`), Buffer.from(`${'a'.repeat(100_000)}\r\n`)],
+      ['characters outside the Basic Multilingual Plane', Buffer.from(`${'\u{1F600}'.repeat(50_000)}\n`), Buffer.from(`${'\u{1F600}'.repeat(50_000)}a\n`)],
+      ['a byte-order mark', Buffer.from(`﻿${'a'.repeat(99_999)}\n`), Buffer.from(`﻿${'a'.repeat(100_000)}\n`)],
+      ['invalid UTF-8, a byte to a character', Buffer.alloc(100_000, 0xff), Buffer.alloc(100_001, 0xff)],
+      [
+        'invalid UTF-8, a cut-off sequence to a character',
+        Buffer.concat(Array.from({ length: 50_000 }, () => Buffer.from([0xe2, 0x82, 0x41]))),
+        Buffer.concat(Array.from({ length: 50_001 }, () => Buffer.from([0xe2, 0x82, 0x41]))),
+      ],
+    ];
+    /** What the copy would hold, written the way extraction writes it. */
+    function writtenCopy(source: string, kept: string): string {
+      const file = path.join(tmp(), path.basename(source));
+      writeFileSync(file, kept);
+      return file;
+    }
+
+    for (const [name, atLimit, past] of cases) {
+      it(name, () => {
+        for (const [body, long] of [[atLimit, false], [past, true]] as const) {
+          const root = tmp();
+          const out = tmp();
+          // The line first, so a byte-order mark opens the file; a script copy and a whole-file copy of the same line.
+          write(root, 'page.html', Buffer.concat([body, Buffer.from(`\n${SCRIPT}`)]));
+          write(root, 'Rakefile', body);
+          const pairs = extractScripts(root, ['page.html', 'Rakefile'], out);
+          const page = readFileSync(path.join(root, 'page.html'), 'utf8');
+          const rake = readFileSync(path.join(root, 'Rakefile'), 'utf8');
+          expect(hasLongLine(writtenCopy('page.html', blankOutsideScripts(page)!.text)), `${name}: script copy`).toBe(long);
+          expect(hasLongLine(writtenCopy('Rakefile', rake)), `${name}: whole copy`).toBe(long);
+          expect(pairs.map((p) => p.longLine), name).toEqual([long, long]);
+        }
+      });
+    }
   });
 });

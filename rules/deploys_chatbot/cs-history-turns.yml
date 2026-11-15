@@ -1,0 +1,81 @@
+rules:
+  - id: lexcode.chatbot.cs-history-turns
+    languages: [csharp]
+    severity: INFO
+    message: Adds the language model's reply back to the running conversation that the next user turn is sent with, which is deploying a chatbot (deploys_chatbot).
+    # The other languages' rules read the user's turn, the model call and the reply in one statement
+    # sequence. The C# rule reads the one statement that makes a prompt a conversation: the reply put
+    # back into the history. A prompt built in steps and sent once never adds the reply back, and
+    # few-shot examples add assistant turns that are fixed text, so a string literal (plain, verbatim,
+    # interpolated or raw) is left out. Leaving out the `...` sequence keeps the rule off the expensive
+    # shape measured under #12745; the cost is that an assistant turn built from data (a few-shot
+    # example read from a file) still matches.
+    #
+    # Microsoft.Extensions.AI: AddMessages is its extension on a message list, taking a response or
+    # streamed updates. On Opengrep 1.33.1 a generic type (`IList<ChatMessage>`) cannot be a typed
+    # metavariable, so the list is named for a conversation and the argument for a reply, which keeps
+    # out an app's own AddMessages (form errors, a validation result added to a list of messages). A
+    # list's AddRange is not read: a queue poller adds a ReceiveMessageResponse's Messages the same way.
+    # A ChatMessage in the assistant role (constructed, target-typed, or with an initializer) is matched
+    # by its fully qualified name, which the engine resolves through a using or an alias. Semantic Kernel:
+    # ChatHistory is a typed metavariable (a local, a target-typed new(), a field or a parameter), so an
+    # app's own ChatHistory class does not match. The OpenAI SDK's AssistantChatMessage has a
+    # constructor that takes the ChatCompletion for exactly this, and Azure.AI.OpenAI 1.x has
+    # ChatRequestAssistantMessage. Each branch carries a literal anchor inside the match, so the engine
+    # skips files that cannot match; none is a whole-file lookahead, so no C# rule has its reach limit.
+    pattern-either:
+      - patterns:
+          - pattern: $H.AddMessages($R)
+          - metavariable-regex:
+              metavariable: $H
+              # A list held by a session or state object (`chat.Messages`, `state.History`) counts: the
+              # conversation name is checked on the last segment.
+              regex: (?i)^(\w+\.)*_?\w*(messages|history|conversation|chat|turns|thread|transcript)$
+          - metavariable-regex:
+              metavariable: $R
+              regex: ^((?i:response|reply|result|completion|answer|updates?)|\w*(Response|Reply|Completion|Updates))$
+          - pattern-regex: '\.AddMessages\('
+      - patterns:
+          - pattern-either:
+              - pattern: $H.Add(new Microsoft.Extensions.AI.ChatMessage(Microsoft.Extensions.AI.ChatRole.Assistant, $X))
+              - pattern: $H.Add(new Microsoft.Extensions.AI.ChatMessage(Microsoft.Extensions.AI.ChatRole.Assistant, $X, ...))
+              - pattern: $H.Add(new Microsoft.Extensions.AI.ChatMessage(Microsoft.Extensions.AI.ChatRole.Assistant, $X) { ... })
+              - pattern: $H.Add(new(Microsoft.Extensions.AI.ChatRole.Assistant, $X))
+              - pattern: $H.Add(new(Microsoft.Extensions.AI.ChatRole.Assistant, $X) { ... })
+          - metavariable-regex:
+              metavariable: $X
+              regex: ^(?![$@]*")
+          - pattern-regex: 'ChatRole\.Assistant'
+      - patterns:
+          - pattern-either:
+              - pattern: (Microsoft.SemanticKernel.ChatCompletion.ChatHistory $H).AddAssistantMessage($X)
+              - pattern: (Microsoft.SemanticKernel.ChatCompletion.ChatHistory $H).AddMessage(Microsoft.SemanticKernel.ChatCompletion.AuthorRole.Assistant, $X, ...)
+          - metavariable-regex:
+              metavariable: $X
+              regex: ^(?![$@]*")
+          - pattern-regex: '\.(AddAssistantMessage|AddMessage)\('
+      - patterns:
+          - pattern-either:
+              - pattern: (Microsoft.SemanticKernel.ChatCompletion.ChatHistory $H).AddMessage($R.Role, ...)
+              - patterns:
+                  - pattern: (Microsoft.SemanticKernel.ChatCompletion.ChatHistory $H).Add($R)
+                  - metavariable-regex:
+                      metavariable: $R
+                      regex: (?i)^\w*(response|reply|result|completion|answer)$
+          - pattern-regex: '\.(AddMessage|Add)\('
+      - patterns:
+          - pattern-either:
+              - pattern: new OpenAI.Chat.AssistantChatMessage($X)
+              - pattern: OpenAI.Chat.AssistantChatMessage $V = new($X);
+              - pattern: OpenAI.Chat.ChatMessage.CreateAssistantMessage($X)
+              - pattern: new Azure.AI.OpenAI.ChatRequestAssistantMessage($X)
+          - metavariable-regex:
+              metavariable: $X
+              regex: ^(?![$@]*")
+          - pattern-regex: '(AssistantChatMessage|CreateAssistantMessage|ChatRequestAssistantMessage)\b'
+    metadata:
+      activity: deploys_chatbot
+      mentioned: performs
+      definition: https://lexlint.io/activities/deploys-chatbot
+      provenance: ungovr-original
+      license: MIT

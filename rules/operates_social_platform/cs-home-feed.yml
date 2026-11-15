@@ -1,0 +1,30 @@
+# The follow and friend expression (with its follow-up exclusion) repeats in every arm. Edit every
+# copy together, or an arm drifts from the others.
+rules:
+  - id: lexcode.social.cs-home-feed
+    languages: [csharp]
+    severity: INFO
+    message: Selects posts written by the accounts a user follows or befriends (a LINQ filter or join, or SQL text, keyed on followed or friend accounts), which builds a feed of other users' posts for a social platform (operates_social_platform).
+    pattern-either:
+      # posts.Where(p => followingIds.Contains(p.AuthorId)) in LINQ to objects or EF Core.
+      - patterns:
+          - pattern: $FOL.Contains($P.$PROP)
+          - metavariable-regex:
+              metavariable: $PROP
+              regex: '^(Author|Poster|Creator|Owner|User)(Id)?$'
+          - metavariable-regex:
+              metavariable: $FOL
+              regex: '(?is).*(follow(?!_?ups?(\b|_|[A-Z]))|friend)'
+      # LINQ query syntax joining posts to the follow or friendship set on the post's author.
+      - pattern-regex: '(?i)\bjoin\s+\w+\s+in\s+[\w.]*(follow(?!_?ups?(\b|_|[A-Z]))|friend)\w*\s+on\s+[^\n]{0,120}\.(author|user|owner|creator|poster)(id)?\b'
+      # SQL text: an author IN (... followed or friend accounts ...) condition, or posts joined to
+      # the follow or friendship table.
+      - pattern-regex: '(?i)["''][^"''\n]{0,300}\b(author|user|owner|creator|poster)\w*(\.id|_id)?\s+in\s*\([^"''\n]{0,300}\b(follow(?!_?ups?(\b|_|[A-Z]))|friend)'
+      - pattern-regex: '(?is)["''][^"'']{0,300}\bfrom\s+\{?\w*(post|status|tweet)\w*\}?[^"'']{0,300}\bjoin\s+\{?\w*(follow(?!_?ups?(\b|_|[A-Z]))|friend)'
+    metadata:
+      activity: operates_social_platform
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/operates-social-platform
+      provenance: ungovr-original
+      license: MIT

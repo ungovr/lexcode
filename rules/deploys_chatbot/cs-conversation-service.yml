@@ -1,0 +1,72 @@
+rules:
+  - id: lexcode.chatbot.cs-conversation-service
+    languages: [csharp]
+    severity: INFO
+    message: Answers what a person typed in a bot framework handler, or sends it to a hosted dialogue service (Amazon Lex, Dialogflow), which is deploying a chatbot (deploys_chatbot).
+    # A class whose base is the Bot Framework's ActivityHandler, TeamsActivityHandler or IBot, or the
+    # Microsoft 365 Agents SDK's AgentApplication, is a bot by construction. Each is matched by its
+    # fully qualified name, which the engine resolves through a using or an alias, so an app's own
+    # ActivityHandler in another namespace does not match. A generic base is written without its type
+    # arguments: on Opengrep 1.33.1 the fully qualified `X<$T>` form does not match, and the bare form
+    # matches the generic base under its import.
+    #
+    # Amazon Lex V2 is matched by the runtime client's calls, its client a typed metavariable (the
+    # injected interface, a constructed or target-typed client, an alias), so recognizeText on an OCR
+    # engine does not match, and neither does the model-building client. Dialogflow (V2 and CX) is
+    # matched where its sessions client is created or built, and by its calls where it is injected:
+    # created with a static Create the local is not typed for the engine, and the client exists only to
+    # detect intents in a conversation.
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: |
+                  class $K : Microsoft.Bot.Builder.ActivityHandler { ... }
+              - pattern: |
+                  class $K : Microsoft.Bot.Builder.Teams.TeamsActivityHandler { ... }
+              - pattern: |
+                  class $K : Microsoft.Bot.Builder.IBot { ... }
+              - pattern: |
+                  class $K : Microsoft.Agents.Builder.App.AgentApplication { ... }
+              # A base called from a primary constructor needs the `X(...)` form.
+              - pattern: |
+                  class $K : Microsoft.Bot.Builder.ActivityHandler(...) { ... }
+              - pattern: |
+                  class $K : Microsoft.Bot.Builder.Teams.TeamsActivityHandler(...) { ... }
+              - pattern: |
+                  class $K : Microsoft.Agents.Builder.App.AgentApplication(...) { ... }
+          - focus-metavariable: $K
+      - patterns:
+          - pattern-either:
+              - pattern: (Amazon.LexRuntimeV2.IAmazonLexRuntimeV2 $L).$M(...)
+              - pattern: (Amazon.LexRuntimeV2.AmazonLexRuntimeV2Client $L).$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(RecognizeText|RecognizeUtterance|StartConversation)(Async)?$
+          - pattern-regex: '\.(RecognizeText|RecognizeUtterance|StartConversation)\w*\('
+      - patterns:
+          - pattern-either:
+              - pattern: Google.Cloud.Dialogflow.V2.SessionsClient.Create(...)
+              - pattern: Google.Cloud.Dialogflow.V2.SessionsClient.CreateAsync(...)
+              # `new X(...) { ... }` matches a plain constructor, a bare initializer and a constructor with
+              # an initializer; `X $V = new(...) { ... };` matches target-typed with and without one.
+              - pattern: new Google.Cloud.Dialogflow.V2.SessionsClientBuilder(...) { ... }
+              - pattern: Google.Cloud.Dialogflow.V2.SessionsClientBuilder $V = new(...) { ... };
+              - pattern: Google.Cloud.Dialogflow.Cx.V3.SessionsClient.Create(...)
+              - pattern: Google.Cloud.Dialogflow.Cx.V3.SessionsClient.CreateAsync(...)
+              - pattern: new Google.Cloud.Dialogflow.Cx.V3.SessionsClientBuilder(...) { ... }
+              - pattern: Google.Cloud.Dialogflow.Cx.V3.SessionsClientBuilder $V = new(...) { ... };
+          - pattern-regex: 'SessionsClient'
+      - patterns:
+          - pattern-either:
+              - pattern: (Google.Cloud.Dialogflow.V2.SessionsClient $S).$M(...)
+              - pattern: (Google.Cloud.Dialogflow.Cx.V3.SessionsClient $S).$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(DetectIntent|StreamingDetectIntent)(Async)?$
+          - pattern-regex: '\.(DetectIntent|StreamingDetectIntent)\w*\('
+    metadata:
+      activity: deploys_chatbot
+      mentioned: performs
+      definition: https://lexlint.io/activities/deploys-chatbot
+      provenance: ungovr-original
+      license: MIT

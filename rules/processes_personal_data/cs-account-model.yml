@@ -1,0 +1,29 @@
+rules:
+  - id: lexcode.personal.cs-account-model
+    languages: [csharp]
+    severity: INFO
+    message: Declares user accounts and sign-in with ASP.NET Core Identity (an Identity user or database context, accounts created or signed in through its user and sign-in managers, or its registration and endpoints), which is processing personal data (processes_personal_data).
+    pattern-either:
+      # The Identity user and its store. The engine resolves `using` and aliases for a fully
+      # qualified name, so these also match the short and aliased forms (and IdentityUser<TKey>),
+      # and never the app's own class of the same short name in another namespace.
+      - pattern: 'class $C : Microsoft.AspNetCore.Identity.IdentityUser { ... }'
+      - pattern: 'class $C : Microsoft.AspNetCore.Identity.EntityFrameworkCore.IdentityDbContext { ... }'
+      # A person's account created, or a person signed in, through the injected managers.
+      - pattern: (Microsoft.AspNetCore.Identity.UserManager $M).CreateAsync(...)
+      - pattern: (Microsoft.AspNetCore.Identity.SignInManager $S).PasswordSignInAsync(...)
+      - pattern: (Microsoft.AspNetCore.Identity.SignInManager $S).ExternalLoginSignInAsync(...)
+      # Identity's registration and endpoint extensions, named with the user type. These are
+      # matched by name and type arguments because an extension call carries no type of its own;
+      # the user type argument keeps an app's own non-generic AddIdentity(...) out.
+      - pattern: $S.AddIdentity<$U, $R>(...)
+      - pattern: $S.AddDefaultIdentity<$U>(...)
+      - pattern: $S.AddIdentityCore<$U>(...)
+      - pattern: $S.AddIdentityApiEndpoints<$U>(...)
+      - pattern: $E.MapIdentityApi<$U>(...)
+    metadata:
+      activity: processes_personal_data
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-personal-data
+      provenance: ungovr-original
+      license: MIT

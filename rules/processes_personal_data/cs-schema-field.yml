@@ -1,0 +1,78 @@
+rules:
+  - id: lexcode.personal.cs-schema-field
+    languages: [csharp]
+    severity: INFO
+    message: Declares a stored column for an email, phone number, date of birth, government identifier or IP address in schema code (an EF Core migration or model configuration, or a FluentMigrator migration), which is processing personal data (processes_personal_data).
+    pattern-either:
+      # EF Core migrations: a column of a table being created (the anonymous object's member
+      # names the column), or a column added to a table. The migration builder is the
+      # parameter of a generated Up or Down method, typed through its `using` (which a generated
+      # migration always writes). A column only counts inside the builder's CreateTable, so an
+      # anonymous object read from another library's row (row.Column<string>("email")) does not.
+      - patterns:
+          - pattern-inside: (Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder $MB).CreateTable(...)
+          - pattern: 'new { ..., $N = $TB.Column<$T>(...), ... }'
+          - metavariable-regex:
+              metavariable: $N
+              regex: (?i)^(e_?mail|email_?(address|addr)?|(user|contact|work|primary|customer|billing|normalized|unconfirmed)_?e_?mail(_?address)?|phone(_?(number|no|num))?|mobile(_?(number|phone|no))?|telephone|date_?of_?birth|dob|birth_?(date|day)|birthday|ssn|social_?security(_?(number|no))?|national_?(id|insurance)(_?number)?|passport(_?(number|no))?|tax_?(id|number)|drivers?_?licen[sc]e(_?(number|no))?|ip_?(address|addr)?|last_?(login_?)?ip(_?address)?|client_?ip(_?address)?|remote_?(addr|ip|address))$
+          - focus-metavariable: $N
+      - patterns:
+          - pattern-either:
+              - pattern: '(Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder $MB).AddColumn<$T>(name: $N, ...)'
+              - pattern: (Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder $MB).AddColumn<$T>($N, ...)
+          - metavariable-regex:
+              metavariable: $N
+              regex: (?i)^@?"(e_?mail|email_?(address|addr)?|(user|contact|work|primary|customer|billing|normalized|unconfirmed)_?e_?mail(_?address)?|phone(_?(number|no|num))?|mobile(_?(number|phone|no))?|telephone|date_?of_?birth|dob|birth_?(date|day)|birthday|ssn|social_?security(_?(number|no))?|national_?(id|insurance)(_?number)?|passport(_?(number|no))?|tax_?(id|number)|drivers?_?licen[sc]e(_?(number|no))?|ip_?(address|addr)?|last_?(login_?)?ip(_?address)?|client_?ip(_?address)?|remote_?(addr|ip|address))"$
+          - focus-metavariable: $N
+      # EF Core model configuration: a property mapped, or indexed, by a lambda naming it. The
+      # builder is reached through chains (modelBuilder.Entity<T>().Property(...)) that carry no
+      # type of their own, so the call must sit inside one reached from a typed builder.
+      - patterns:
+          - pattern-either:
+              # A configuration class's EntityTypeBuilder<T> (typed through its parameter), and
+              # the owned-type builders nested in its calls.
+              - patterns:
+                  - pattern-inside: (Microsoft.EntityFrameworkCore.Metadata.Builders.EntityTypeBuilder $EB).$CALL(...)
+                  - pattern-either:
+                      - pattern: $B.Property($X => $X.$F)
+                      - pattern: $B.HasIndex($X => $X.$F)
+              # A DbContext's ModelBuilder: modelBuilder.Entity<T>().Property(...), and the
+              # builder lambda of modelBuilder.Entity<T>(e => ...).
+              - pattern: (Microsoft.EntityFrameworkCore.ModelBuilder $MB).Entity<$T>().Property($X => $X.$F)
+              - pattern: (Microsoft.EntityFrameworkCore.ModelBuilder $MB).Entity<$T>().HasIndex($X => $X.$F)
+              - patterns:
+                  - pattern-inside: (Microsoft.EntityFrameworkCore.ModelBuilder $MB).Entity<$T>(...)
+                  - pattern-either:
+                      - pattern: $B.Property($X => $X.$F)
+                      - pattern: $B.HasIndex($X => $X.$F)
+          - metavariable-regex:
+              metavariable: $F
+              regex: (?i)^(e_?mail|email_?(address|addr)?|(user|contact|work|primary|customer|billing|normalized|unconfirmed)_?e_?mail(_?address)?|phone(_?(number|no|num))?|mobile(_?(number|phone|no))?|telephone|date_?of_?birth|dob|birth_?(date|day)|birthday|ssn|social_?security(_?(number|no))?|national_?(id|insurance)(_?number)?|passport(_?(number|no))?|tax_?(id|number)|drivers?_?licen[sc]e(_?(number|no))?|ip_?(address|addr)?|last_?(login_?)?ip(_?address)?|client_?ip(_?address)?|remote_?(addr|ip|address))$
+          - focus-metavariable: $F
+      # FluentMigrator: a column of a table being created or altered, named by a string or by
+      # nameof. Its fluent chains carry no type, so the call must sit in a FluentMigrator
+      # migration class, or in a method given FluentMigrator's table builder (the shape of an
+      # entity-builder class that maps a table).
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  class $MC : FluentMigrator.Migration { ... }
+              - pattern-inside: |
+                  class $MC : FluentMigrator.ForwardOnlyMigration { ... }
+              - pattern-inside: |
+                  class $MC : FluentMigrator.AutoReversingMigration { ... }
+              - pattern-inside: |
+                  $RT $MM(..., FluentMigrator.Builders.Create.Table.CreateTableExpressionBuilder $TB, ...) { ... }
+          - pattern-either:
+              - pattern: $T.WithColumn($N)
+              - pattern: $T.AddColumn($N)
+          - metavariable-regex:
+              metavariable: $N
+              regex: (?i)^(@?"|nameof\((\w+\.)*)(e_?mail|email_?(address|addr)?|(user|contact|work|primary|customer|billing|normalized|unconfirmed)_?e_?mail(_?address)?|phone(_?(number|no|num))?|mobile(_?(number|phone|no))?|telephone|date_?of_?birth|dob|birth_?(date|day)|birthday|ssn|social_?security(_?(number|no))?|national_?(id|insurance)(_?number)?|passport(_?(number|no))?|tax_?(id|number)|drivers?_?licen[sc]e(_?(number|no))?|ip_?(address|addr)?|last_?(login_?)?ip(_?address)?|client_?ip(_?address)?|remote_?(addr|ip|address))("|\))$
+          - focus-metavariable: $N
+    metadata:
+      activity: processes_personal_data
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-personal-data
+      provenance: ungovr-original
+      license: MIT

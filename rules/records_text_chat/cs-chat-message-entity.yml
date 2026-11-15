@@ -1,0 +1,56 @@
+rules:
+  - id: lexcode.chat.cs-chat-message-entity
+    languages: [csharp]
+    severity: INFO
+    message: Maps chat messages or conversation turns to a table or a collection, which is keeping a text chat (records_text_chat).
+    # The class is named for a chat message (ChatMessage, ConversationTurn, ChatTranscript), as in the
+    # Java and PHP rules, and is mapped: Entity Framework Core's Table attribute, a DbSet of it in a
+    # DbContext or an Identity context, an Entity<T>() on the model builder, an entity type
+    # configuration, or a MongoDB collection of it. A transfer object with no mapping stores nothing; a
+    # contact message, a ticket and a chat room hold no chat text. Every library type is fully qualified,
+    # so an app's own DbContext or Table attribute in another namespace does not match. On Opengrep
+    # 1.33.1 a property's declared type cannot be a pattern, so the DbSet is read by a regular expression
+    # inside the context class; a generic base is written without its type arguments, and a base
+    # called from a primary constructor (`: DbContext(options)`) needs the `X(...)` form.
+    pattern-either:
+      - patterns:
+          - pattern: |
+              [System.ComponentModel.DataAnnotations.Schema.Table(...)]
+              class $K { ... }
+          - focus-metavariable: $K
+          - metavariable-regex:
+              metavariable: $K
+              regex: ^\w*(Chat(Message|Msg|Turn|Entry|History|Log|Transcript)|Conversation(Message|Turn|Entry|Transcript))s?$
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  class $C : Microsoft.EntityFrameworkCore.DbContext { ... }
+              - pattern-inside: |
+                  class $C : Microsoft.EntityFrameworkCore.DbContext(...) { ... }
+              - pattern-inside: |
+                  class $C : Microsoft.AspNetCore.Identity.EntityFrameworkCore.IdentityDbContext { ... }
+              - pattern-inside: |
+                  class $C : Microsoft.AspNetCore.Identity.EntityFrameworkCore.IdentityDbContext(...) { ... }
+          - pattern-regex: '\bDbSet<\s*(?:\w+\.)*\w*(?:Chat(?:Message|Msg|Turn|Entry|History|Log|Transcript)|Conversation(?:Message|Turn|Entry|Transcript))s?\s*>'
+      - patterns:
+          - pattern: (Microsoft.EntityFrameworkCore.ModelBuilder $MB).Entity<$K>(...)
+          - metavariable-regex:
+              metavariable: $K
+              regex: ^(\w+\.)*\w*(Chat(Message|Msg|Turn|Entry|History|Log|Transcript)|Conversation(Message|Turn|Entry|Transcript))s?$
+          - pattern-regex: '\.Entity<'
+      - patterns:
+          - pattern-inside: |
+              class $C : Microsoft.EntityFrameworkCore.IEntityTypeConfiguration { ... }
+          - pattern-regex: '\bIEntityTypeConfiguration<\s*(?:\w+\.)*\w*(?:Chat(?:Message|Msg|Turn|Entry|History|Log|Transcript)|Conversation(?:Message|Turn|Entry|Transcript))s?\s*>'
+      - patterns:
+          - pattern: (MongoDB.Driver.IMongoDatabase $D).GetCollection<$K>(...)
+          - metavariable-regex:
+              metavariable: $K
+              regex: ^(\w+\.)*\w*(Chat(Message|Msg|Turn|Entry|History|Log|Transcript)|Conversation(Message|Turn|Entry|Transcript))s?$
+          - pattern-regex: '\.GetCollection<'
+    metadata:
+      activity: records_text_chat
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-text-chat
+      provenance: ungovr-original
+      license: MIT

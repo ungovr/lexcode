@@ -1,0 +1,22 @@
+rules:
+  - id: lexcode.audio.cs-platform-tts-speak
+    languages: [csharp]
+    severity: INFO
+    message: Reads text aloud with the platform text-to-speech engine, which may be generating audio that reaches users (generates_audio).
+    # The C# counterpart of the Android TextToSpeech rules. .NET MAUI imports Microsoft.Maui.Media
+    # implicitly, so its TextToSpeech is read in both forms. System.Speech's SpeechSynthesizer shares
+    # its short name with Azure AI Speech's, so it is read qualified only.
+    pattern-either:
+      - pattern: Microsoft.Maui.Media.TextToSpeech.Default.SpeakAsync(...)
+      - pattern: TextToSpeech.Default.SpeakAsync(...)
+      - pattern: (Microsoft.Maui.Media.ITextToSpeech $T).SpeakAsync(...)
+      - pattern: (ITextToSpeech $T).SpeakAsync(...)
+      - pattern: (System.Speech.Synthesis.SpeechSynthesizer $S).Speak(...)
+      - pattern: (System.Speech.Synthesis.SpeechSynthesizer $S).SpeakAsync(...)
+    metadata:
+      activity: generates_audio
+      mentioned: performs
+      definition: https://lexlint.io/activities/generates-audio
+      provenance: ungovr-original
+      license: MIT
+      strength: signal

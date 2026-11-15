@@ -1,0 +1,69 @@
+rules:
+  - id: lexcode.biometric.cs-face-matching-apis
+    languages: [csharp]
+    severity: INFO
+    message: Matches or enrolls faces through a face-matching service (Azure AI Face identify, verify, find-similar or enrollment, Amazon Rekognition face search and comparison, Face++), which is recognizing people from face geometry (processes_biometrics).
+    # The clients are matched by their type, written in full: the engine resolves a file's `using` lines
+    # and aliases and follows a field, a constructor or primary-constructor parameter, or a local built
+    # with `new`, so an app's own FaceClient in another namespace is not taken for Azure's. Detection
+    # alone names no person and is left out.
+    pattern-either:
+      # Azure AI Face (Azure.AI.Vision.Face): matching a face to a group, to another face or to
+      # candidates; a person-group or face-list client for enrollment; liveness checked against a
+      # reference photo.
+      - patterns:
+          - pattern: (Azure.AI.Vision.Face.FaceClient $C).$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(Identify\w*|Verify\w*|FindSimilar\w*|Group(Async)?)$
+      - patterns:
+          - pattern-either:
+              - pattern: (Azure.AI.Vision.Face.LargePersonGroupClient $C).$M(...)
+              - pattern: (Azure.AI.Vision.Face.LargeFaceListClient $C).$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^AddFace(FromUrl)?(Async)?$
+      - patterns:
+          - pattern: (Azure.AI.Vision.Face.FaceAdministrationClient $C).$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^Get(LargePersonGroup|LargeFaceList)Client$
+      - patterns:
+          - pattern: (Azure.AI.Vision.Face.FaceSessionClient $C).$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^CreateLivenessWithVerifySession(Async)?$
+      # The older Face client library (Microsoft.Azure.CognitiveServices.Vision.Face): its operation
+      # groups for matching and for adding faces to person groups and face lists.
+      - patterns:
+          - pattern-either:
+              - pattern: (Microsoft.Azure.CognitiveServices.Vision.Face.IFaceClient $C).$G.$M(...)
+              - pattern: (Microsoft.Azure.CognitiveServices.Vision.Face.FaceClient $C).$G.$M(...)
+          - metavariable-regex:
+              metavariable: $G
+              regex: ^(Face|PersonGroupPerson|LargePersonGroupPerson|FaceList|LargeFaceList)$
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(Identify|VerifyFaceToFace|VerifyFaceToPerson|FindSimilar|Group|AddFaceFromStream|AddFaceFromUrl)Async$
+      # Amazon Rekognition (AWSSDK.Rekognition): face matching and indexing, injected through its
+      # interface or built by the app. The vendor-named short forms also find a client whose namespace
+      # comes from a `global using` in another file. DetectFaces and DetectLabels name no one.
+      - patterns:
+          - pattern-either:
+              - pattern: (Amazon.Rekognition.IAmazonRekognition $C).$M(...)
+              - pattern: (Amazon.Rekognition.AmazonRekognitionClient $C).$M(...)
+              - pattern: (IAmazonRekognition $C).$M(...)
+              - pattern: (AmazonRekognitionClient $C).$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(CompareFaces|IndexFaces|SearchFaces|SearchFacesByImage|SearchUsers|SearchUsersByImage|StartFaceSearch)(Async)?$
+      # The REST endpoints, named in a string: Azure Face matching and enrollment, Face++ and VoiceIt.
+      # Detection endpoints are not in the list.
+      - pattern-regex: |-
+          "[^"\n]*(/face/v1\.\d+(-preview(\.\d+)?)?/(identify|verify|findsimilars|facelists|largefacelists|persongroups|largepersongroups|dynamicpersongroups)\b|\bfaceplusplus\.com/facepp/v3/(compare|search|faceset)|\bapi\.voiceit\.io/(enrollments|verification|identification)/)
+    metadata:
+      activity: processes_biometrics
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-biometrics
+      provenance: ungovr-original
+      license: MIT
