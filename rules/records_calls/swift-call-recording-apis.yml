@@ -1,0 +1,50 @@
+rules:
+  - id: lexcode.calls.swift-call-recording-apis
+    languages: [swift]
+    severity: INFO
+    message: Records or transcribes a call or meeting from Swift (Agora channel audio recording, Zoom Video SDK cloud recording, Daily call recording, an Amazon Chime capture pipeline, Amazon Connect contact recording, Amazon Transcribe Call Analytics), reads recorded calls, or sends a notetaker bot into video meetings, which is recording calls (records_calls).
+    # The engine has no typed metavariable for Swift, so a client's call is matched by the vendor's
+    # own method name in a file that imports the vendor's module (the import line is the guard: an
+    # app's own startAudioRecording in a file without it is not matched). Placing, answering or
+    # carrying a call (CallKit's CXProvider and CXCallController, joining an Agora channel, Twilio
+    # Voice) keeps nothing and reads nothing, and is not matched.
+    pattern-either:
+      # Agora RTC (AgoraRtcKit, AgoraRtcEngineKit before 3.0): records the audio of everyone in the
+      # channel to a file. The device test (startRecordingDeviceTest) records no call and is a
+      # different name.
+      - patterns:
+          - pattern-regex: '(?sm)^[ \t]*(?:@\w+[ \t]+)*import[ \t]+(?:AgoraRtcKit|AgoraRtcEngineKit)\b.*'
+          - pattern: $E.startAudioRecording(...)
+      # Zoom Video SDK: cloud recording of the session, through its recording helper.
+      - patterns:
+          - pattern-regex: '(?sm)^[ \t]*(?:@\w+[ \t]+)*import[ \t]+ZoomVideoSDK\b.*'
+          - pattern: $H.startCloudRecording(...)
+      # Daily's call client: recording of the call.
+      - patterns:
+          - pattern-regex: '(?sm)^[ \t]*(?:@\w+[ \t]+)*import[ \t]+Daily\b.*'
+          - pattern: $C.startRecording(...)
+      # The AWS SDK for Swift: a Chime SDK media capture pipeline records a meeting, Amazon
+      # Connect records a contact in flight, and Transcribe Call Analytics transcribes a call
+      # between an agent and a customer.
+      - patterns:
+          - pattern-regex: '(?sm)^[ \t]*(?:@\w+[ \t]+)*import[ \t]+AWSChimeSDKMediaPipelines\b.*'
+          - pattern: $C.createMediaCapturePipeline(...)
+      - patterns:
+          - pattern-regex: '(?sm)^[ \t]*(?:@\w+[ \t]+)*import[ \t]+AWSConnect\b.*'
+          - pattern: $C.startContactRecording(...)
+      - patterns:
+          - pattern-regex: '(?sm)^[ \t]*(?:@\w+[ \t]+)*import[ \t]+AWSTranscribe\b.*'
+          - pattern: $C.startCallAnalyticsJob(...)
+      - patterns:
+          - pattern-regex: '(?sm)^[ \t]*(?:@\w+[ \t]+)*import[ \t]+AWSTranscribeStreaming\b.*'
+          - pattern: $C.startCallAnalyticsStreamTranscription(...)
+      # Named in a string: Twilio call recordings, recording a Twilio Video room (unless the line
+      # turns it off), Zoom cloud recordings, and notetaker bots (Recall.ai, MeetingBaaS, Attendee).
+      - pattern-regex: |-
+          "[^"\n]*(\bapi\.twilio\.com/[^"\n]*/Calls/[^"\n]*/Recordings\b|\bRecordParticipantsOnConnect\b(?![^\n]{0,30}\bfalse\b)|\bapi\.zoom\.us/v2/(meetings|users|accounts)/[^"\n]*recordings|\brecall\.ai/api/v\d+|\bapi\.meetingbaas\.com/bots|\bapp\.attendee\.dev/api/v\d+/bots)
+    metadata:
+      activity: records_calls
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-calls
+      provenance: ungovr-original
+      license: MIT

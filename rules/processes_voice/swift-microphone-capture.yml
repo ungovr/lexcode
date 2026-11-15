@@ -1,0 +1,38 @@
+rules:
+  - id: lexcode.voice.swift-microphone-capture
+    languages: [swift]
+    severity: INFO
+    message: Opens the microphone to capture sound (an AVAudioRecorder, a tap on an audio engine's input node, or the microphone as a capture device), which is recording a human voice (processes_voice).
+    # AVFoundation's audio types live in AVFAudio, which AVFoundation re-exports, so each type is
+    # written module-qualified under both names: the engine resolves `import AVFoundation` and
+    # `import AVFAudio`, and an app's own AVAudioRecorder in a file without either import is not
+    # read as Apple's. Playing sound, and a tap on the mixer or a player node (what the app plays,
+    # not what the microphone hears), are not matched. Asking for the microphone permission alone
+    # is not matched: the capture is the evidence.
+    pattern-either:
+      # A recorder made with no URL (an error fallback) records nothing and is left out.
+      - patterns:
+          - pattern-either:
+              - pattern: AVFoundation.AVAudioRecorder(...)
+              - pattern: AVFAudio.AVAudioRecorder(...)
+          - pattern-not: AVFoundation.AVAudioRecorder()
+          - pattern-not: AVFAudio.AVAudioRecorder()
+      # The engine's input node is the microphone. The engine has no typed metavariable for Swift,
+      # so the tap is matched by AVAudioEngine's own property name in a file that imports
+      # AVFoundation, AVFAudio or Speech (whose recognition requests take the tap's buffers).
+      # Symbolic propagation follows `let input = engine.inputNode` to `input.installTap(...)`.
+      - patterns:
+          - pattern-regex: '(?sm)^[ \t]*(?:@\w+[ \t]+)*import[ \t]+(?:AVFoundation|AVFAudio|Speech)\b.*'
+          - pattern: $E.inputNode.installTap(...)
+      # The microphone as a capture device, for a capture session that records sound (a video
+      # with its audio, or audio alone). The camera device is not matched.
+      - pattern: 'AVFoundation.AVCaptureDevice.default(for: .audio)'
+      - pattern: 'AVFoundation.AVCaptureDevice.default($T, for: .audio, ...)'
+    options:
+      symbolic_propagation: true
+    metadata:
+      activity: processes_voice
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-voice
+      provenance: ungovr-original
+      license: MIT
