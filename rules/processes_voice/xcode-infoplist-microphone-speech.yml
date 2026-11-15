@@ -2,7 +2,7 @@ rules:
   - id: lexcode.voice.xcode-infoplist-microphone-speech
     languages: [generic]
     severity: INFO
-    message: Sets INFOPLIST_KEY_$KEY in an Xcode project, the build setting Xcode writes into the generated Info.plist as the permission prompt shown before the app records from the microphone or sends speech for recognition, which is processing a human voice (processes_voice).
+    message: Sets INFOPLIST_KEY_$KEY in an Xcode project, the build setting Xcode writes into the generated Info.plist as the permission prompt shown before the app records from the microphone or sends speech for recognition, which may be processing a human voice (processes_voice).
     # The build-setting copy of the keys lexcode.voice.ios-plist-microphone-speech reads. A setting may
     # carry an SDK condition; an empty value declares nothing and is left out. Each build configuration
     # that sets a key is its own match.
@@ -23,6 +23,7 @@ rules:
     metadata:
       activity: processes_voice
       mentioned: performs
+      strength: signal
       definition: https://lexlint.io/activities/processes-voice
       provenance: ungovr-original
       license: MIT

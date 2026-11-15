@@ -2,7 +2,7 @@ rules:
   - id: lexcode.tracking.ios-plist-tracking-request
     languages: [xml]
     severity: INFO
-    message: Declares NSUserTrackingUsageDescription in an Apple app's Info.plist, the App Tracking Transparency prompt an app must show before it reads the advertising identifier or tracks the person across other companies' apps and sites, which is tracking devices (tracks_devices).
+    message: Declares NSUserTrackingUsageDescription in an Apple app's Info.plist, the App Tracking Transparency prompt an app must show before it reads the advertising identifier or tracks the person across other companies' apps and sites, which may be tracking devices (tracks_devices).
     # Apple requires the prompt, and so this key, only for tracking: linking what the app collects with
     # other companies' data for advertising, or sharing it with a data broker. SKAdNetwork attribution
     # (SKAdNetworkItems, NSAdvertisingAttributionReportEndpoint) carries no device identifier and is left out.
@@ -25,6 +25,7 @@ rules:
     metadata:
       activity: tracks_devices
       mentioned: performs
+      strength: signal
       definition: https://lexlint.io/activities/tracks-devices
       provenance: ungovr-original
       license: MIT

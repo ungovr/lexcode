@@ -2,7 +2,7 @@ rules:
   - id: lexcode.voice.ios-plist-microphone-speech
     languages: [xml]
     severity: INFO
-    message: Declares $K in an Apple app's Info.plist, the permission prompt the system shows before the app records from the microphone or sends speech for recognition, which is processing a human voice (processes_voice).
+    message: Declares $K in an Apple app's Info.plist, the permission prompt the system shows before the app records from the microphone or sends speech for recognition, which may be processing a human voice (processes_voice).
     # An app carries a usage description only for an API it calls: without it the call is refused or the
     # app is stopped. Speech recognition transcribes a voice. Microphone capture is recording a voice, as
     # the microphone-capture rules in the other languages hold. Background audio playback, Siri intents
@@ -30,6 +30,7 @@ rules:
     metadata:
       activity: processes_voice
       mentioned: performs
+      strength: signal
       definition: https://lexlint.io/activities/processes-voice
       provenance: ungovr-original
       license: MIT

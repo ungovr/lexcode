@@ -2,7 +2,7 @@ rules:
   - id: lexcode.identity.ios-plist-identity-request
     languages: [xml]
     severity: INFO
-    message: Declares NSIdentityUsageDescription in an Apple app's Info.plist, the prompt the system shows before the app requests data from an identity document in the person's Wallet (Verify with Wallet), which is relying on a digital identity (relies_on_digital_identity).
+    message: Declares NSIdentityUsageDescription in an Apple app's Info.plist, the prompt the system shows before the app requests data from an identity document in the person's Wallet (Verify with Wallet), which may be relying on a digital identity (relies_on_digital_identity).
     # Apple's PassKit identity request fails without this key, and it is used for nothing else. Face ID
     # (it confirms the phone's owner, not an identity document) and NFC tag reading are left out.
     pattern: <key>NSIdentityUsageDescription</key>
@@ -24,6 +24,7 @@ rules:
     metadata:
       activity: relies_on_digital_identity
       mentioned: performs
+      strength: signal
       definition: https://lexlint.io/glossary#relies-on-a-digital-identity
       provenance: ungovr-original
       license: MIT
