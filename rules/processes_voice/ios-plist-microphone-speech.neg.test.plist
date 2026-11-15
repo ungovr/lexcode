@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- lexcode-expect: 0 -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<!-- Playing audio in the background, Siri intents and the music library: none of them gives the app a voice. -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+	</array>
+	<key>NSSiriUsageDescription</key>
+	<string>Start a timer with Siri.</string>
+	<key>NSAppleMusicUsageDescription</key>
+	<string>Play your library during a workout.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Scan a receipt.</string>
+	<!-- A commented-out key is not a key. -->
+	<!-- <key>NSMicrophoneUsageDescription</key><string>Record a voice note.</string> -->
+	<key>RemovedKeys</key>
+	<array>
+		<string>NSSpeechRecognitionUsageDescription</string>
+	</array>
+</dict>
+</plist>

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- lexcode-expect: 1 -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<!-- Several messages, one per use case, in place of the single NSIdentityUsageDescription. -->
+	<key>NSIdentityUsageDescriptionDictionary</key>
+	<dict>
+		<key>AgeCheck</key>
+		<string>Confirm you are old enough to rent a car.</string>
+		<key>AccountOpening</key>
+		<string>Confirm your name and address to open an account.</string>
+	</dict>
+	<key>UILaunchStoryboardName</key>
+	<string>LaunchScreen</string>
+</dict>
+</plist>
