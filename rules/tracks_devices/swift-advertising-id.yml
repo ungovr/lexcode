@@ -1,0 +1,21 @@
+rules:
+  - id: lexcode.tracking.swift-advertising-id
+    languages: [swift]
+    severity: INFO
+    message: Reads the iOS advertising identifier (the IDFA, through AdSupport) or asks the person for permission to track them across other companies' apps and sites (App Tracking Transparency), which is tracking devices (tracks_devices).
+    # Both frameworks come only from their own import, so each type is written module-qualified:
+    # the engine resolves `import AdSupport` and `import AppTrackingTransparency`, and an app's own
+    # ASIdentifierManager or ATTrackingManager in a file without the import is not read as Apple's.
+    # Reading the tracking authorization status alone, with no request and no identifier read, is
+    # not matched.
+    pattern-either:
+      - pattern: AdSupport.ASIdentifierManager.shared().advertisingIdentifier
+      # The request in all three shapes: a trailing closure, a labeled completion handler and
+      # the async form (the engine matches a direct static call under `await`).
+      - pattern: AppTrackingTransparency.ATTrackingManager.requestTrackingAuthorization(...)
+    metadata:
+      activity: tracks_devices
+      mentioned: performs
+      definition: https://lexlint.io/activities/tracks-devices
+      provenance: ungovr-original
+      license: MIT

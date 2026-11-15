@@ -1,0 +1,151 @@
+rules:
+  - id: lexcode.tracking.swift-analytics-calls
+    languages: [swift]
+    severity: INFO
+    message: Sends events or a user id to a third-party analytics, attribution or crash-reporting service that follows the device with its own id (Firebase Analytics and Crashlytics, Mixpanel, Amplitude, Segment, TelemetryDeck, PostHog, AppsFlyer, Adjust, Meta app events, Sentry, Bugsnag or the Google Analytics Measurement Protocol), which is tracking devices (tracks_devices). Starting a crash-reporting SDK on the device counts too, because a crash-reporting service is one of the counterparties this activity names.
+    # Shapes (Decision 8, and the probes in the group report):
+    # - A vendor type whose short name carries no vendor name (Firebase's and Segment's
+    #   Analytics, Meta's AppEvents, TelemetryDeck's older TelemetryManager) is written
+    #   module-qualified only. The engine resolves `import FirebaseAnalytics` and the `import
+    #   Firebase` umbrella when each is written as its own module, and never reads an app's own
+    #   Analytics type in a file without the import.
+    # - A short name that carries the vendor's or product's own name (Mixpanel, Amplitude,
+    #   Crashlytics, TelemetryDeck, PostHogSDK, AppsFlyerLib, Adjust, SentrySDK, Bugsnag) also
+    #   matches with no import, for a file reached through an `@_exported import` elsewhere or
+    #   an Objective-C bridging header.
+    # - The engine does not resolve a module-qualified receiver at the head of a chain under
+    #   `try` or `await` (`try Mixpanel.mainInstance().track(...)`), so a chained call matches
+    #   its head (`Mixpanel.mainInstance()`) inside the call it receives.
+    # - Clearing the user id (nil or "") is the opposite of following the device, and is left out.
+    pattern-either:
+      # Firebase Analytics, from its own module or the Firebase umbrella. appInstanceID reads
+      # Firebase's own per-install identifier.
+      - patterns:
+          - pattern-either:
+              - pattern: FirebaseAnalytics.Analytics.$M(...)
+              - pattern: Firebase.Analytics.$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(logEvent|setUserID|setUserProperty|appInstanceID)$
+          - pattern-not: FirebaseAnalytics.Analytics.setUserID(nil)
+          - pattern-not: Firebase.Analytics.setUserID(nil)
+          - pattern-not: FirebaseAnalytics.Analytics.setUserID("")
+          - pattern-not: Firebase.Analytics.setUserID("")
+      # Crashlytics: a user id set on the crash reporter.
+      - patterns:
+          - pattern-either:
+              - pattern: FirebaseCrashlytics.Crashlytics.crashlytics()
+              - pattern: Firebase.Crashlytics.crashlytics()
+              - pattern: Crashlytics.crashlytics()
+          - pattern-inside: $X.setUserID(...)
+          - pattern-not-inside: $X.setUserID(nil)
+          - pattern-not-inside: $X.setUserID("")
+      # Mixpanel: the client started, and its tracking calls.
+      - pattern: Mixpanel.Mixpanel.initialize(...)
+      - pattern: Mixpanel.initialize(...)
+      # The shared instance's calls, where the file has no `import Mixpanel` (the next branch
+      # reads those files, and both would report the same call).
+      - patterns:
+          - pattern: Mixpanel.mainInstance()
+          - pattern-either:
+              - pattern-inside: $X.track(...)
+              - pattern-inside: $X.identify(...)
+          - pattern-not-inside: |
+              import Mixpanel
+              ...
+      - patterns:
+          - pattern-either:
+              - pattern: '$C.track(event: $E, ...)'
+              - pattern: '$C.identify(distinctId: $D, ...)'
+          - pattern-inside: |
+              import Mixpanel
+              ...
+      # Amplitude: the Swift SDK's client, and the earlier iOS SDK's shared instance.
+      - pattern: AmplitudeSwift.Amplitude(...)
+      - pattern: 'Amplitude(configuration: $C)'
+      - patterns:
+          - pattern: Amplitude.instance()
+          - pattern-either:
+              - pattern-inside: $X.initializeApiKey(...)
+              - pattern-inside: $X.logEvent(...)
+              - pattern-inside: $X.setUserId(...)
+      - patterns:
+          - pattern-either:
+              - pattern: '$C.track(eventType: $E, ...)'
+              - pattern: '$C.track(event: $E, ...)'
+              - pattern: '$C.setUserId(userId: $U)'
+          - pattern-inside: |
+              import AmplitudeSwift
+              ...
+      # Segment: Analytics-Swift's client and the earlier analytics-ios setup, both in module
+      # Segment.
+      - pattern: Segment.Analytics(...)
+      - pattern: Segment.Analytics.setup(...)
+      - patterns:
+          - pattern: Segment.Analytics.shared()
+          - pattern-either:
+              - pattern-inside: $X.track(...)
+              - pattern-inside: $X.identify(...)
+              - pattern-inside: $X.screen(...)
+      - patterns:
+          - pattern-either:
+              - pattern: '$C.track(name: $N, ...)'
+              - pattern: '$C.identify(userId: $U, ...)'
+              - pattern: '$C.screen(title: $T, ...)'
+          - pattern-inside: |
+              import Segment
+              ...
+      # TelemetryDeck, and its earlier TelemetryClient package.
+      - patterns:
+          - pattern-either:
+              - pattern: TelemetryDeck.TelemetryDeck.$M(...)
+              - pattern: TelemetryDeck.$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(initialize|signal)$
+      - patterns:
+          - pattern: TelemetryClient.TelemetryManager.$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(initialize|send)$
+      # PostHog.
+      - patterns:
+          - pattern-either:
+              - pattern: PostHog.PostHogSDK.shared.$M(...)
+              - pattern: PostHogSDK.shared.$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(setup|capture|identify|screen)$
+      # AppsFlyer and Adjust attribution.
+      - patterns:
+          - pattern: AppsFlyerLib.shared()
+          - pattern-either:
+              - pattern-inside: $X.start(...)
+              - pattern-inside: $X.logEvent(...)
+              - pattern-inside: $X.customerUserID = $V
+      - pattern: Adjust.appDidLaunch(...)
+      - pattern: Adjust.initSdk(...)
+      - pattern: Adjust.trackEvent(...)
+      # Meta app events (the Objective-C kit, or the Swift FacebookCore wrapper that re-exports it).
+      - patterns:
+          - pattern-either:
+              - pattern: FBSDKCoreKit.AppEvents.shared.$M(...)
+              - pattern: FacebookCore.AppEvents.shared.$M(...)
+              - pattern: FBSDKCoreKit.AppEvents.$M(...)
+              - pattern: FacebookCore.AppEvents.$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(logEvent|activateApp|setUserID|logPurchase)$
+      # Crash reporting started on the device.
+      - pattern: Sentry.SentrySDK.start(...)
+      - pattern: SentrySDK.start(...)
+      - pattern: Bugsnag.start(...)
+      # Google Analytics Measurement Protocol: a hit sent to the collect endpoint, matched on the
+      # string's text.
+      - pattern-regex: '"(?:https?:)?(?://)?(?:www\.|ssl\.|region1\.)?google-analytics\.com/(?:mp/|g/|debug/mp/)?collect\b'
+    metadata:
+      activity: tracks_devices
+      mentioned: performs
+      definition: https://lexlint.io/activities/tracks-devices
+      provenance: ungovr-original
+      license: MIT

@@ -1,0 +1,31 @@
+rules:
+  - id: lexcode.tracking.swift-device-id-sent
+    languages: [swift]
+    severity: INFO
+    message: Reads the iOS identifier for vendor, which identifies one device to every app from the same developer, and sends it to another host in a request header, a query item, a URL or a request body, which is tracking devices (tracks_devices).
+    # The identifier kept on the device (a Keychain or defaults key, a local cache name) does not
+    # leave it, and is not matched. UIDevice is reached through `import UIKit` and SwiftUI's
+    # umbrella, which the engine does not follow, so it is written as the app writes it; the
+    # property name is Apple's own.
+    mode: taint
+    pattern-sources:
+      - pattern: UIDevice.current.identifierForVendor
+    pattern-sinks:
+      # Each sink is the value itself (focus), so a request that merely holds the identifier
+      # elsewhere does not make every later header on it a sink.
+      # URLRequest headers and body, written with their argument labels.
+      - patterns:
+          - pattern-either:
+              - pattern: '$R.setValue($V, forHTTPHeaderField: $H)'
+              - pattern: '$R.addValue($V, forHTTPHeaderField: $H)'
+              - pattern: $R.httpBody = $V
+              # A query item, or a URL built from the identifier.
+              - pattern: 'URLQueryItem(name: $N, value: $V)'
+              - pattern: 'URL(string: $V)'
+          - focus-metavariable: $V
+    metadata:
+      activity: tracks_devices
+      mentioned: performs
+      definition: https://lexlint.io/activities/tracks-devices
+      provenance: ungovr-original
+      license: MIT
