@@ -1,0 +1,61 @@
+# Face or fingerprint matching with a library inside the app:
+# - dlib-face-recognition's face encoder, which turns a face into a 128-number template;
+# - OpenCV's face recognizers (`opencv::face`'s LBPH, Eigen and Fisher recognizers, which learn and
+#   match identities) and `FaceRecognizerSF` (SFace, which extracts a face feature and matches it);
+# - libfprint (libfprint-rs): enrolling, verifying or identifying a fingerprint, in a file that names
+#   the crate, since the method names are the reader's own words.
+# Crate items are written by their crate path, which the engine resolves through a plain `use`, a
+# single-level grouped `use` (`use opencv::{core, face, prelude::*}`), a glob and `use <crate> as
+# <alias>`. OpenCV's examples also import through nested groups (`use opencv::{objdetect::
+# FaceRecognizerSF, prelude::*}`), which the engine does not resolve, so the recognizer's short form
+# counts in a file whose `use` names opencv.
+#
+# Detection is left out: rustface, dlib's `FaceDetector` and landmark predictor, and OpenCV's
+# `FaceDetectorYN` and cascade classifiers find a face (to crop, blur or frame it) without
+# identifying anyone.
+rules:
+  - id: lexcode.biometric.rs-biometric-libs
+    languages: [rust]
+    severity: INFO
+    message: Matches faces or fingerprints with a biometric library (dlib face encodings, OpenCV face recognizers or SFace, libfprint), which is recognizing people from face geometry or a fingerprint (processes_biometrics).
+    pattern-either:
+      # dlib-face-recognition
+      - pattern: dlib_face_recognition::FaceEncoderNetwork::open(...)
+      - pattern: dlib_face_recognition::FaceEncoderNetwork::default()
+      # OpenCV
+      - pattern: opencv::face::LBPHFaceRecognizer::create(...)
+      - pattern: opencv::face::LBPHFaceRecognizer::create_def()
+      - pattern: opencv::face::EigenFaceRecognizer::create(...)
+      - pattern: opencv::face::EigenFaceRecognizer::create_def()
+      - pattern: opencv::face::FisherFaceRecognizer::create(...)
+      - pattern: opencv::face::FisherFaceRecognizer::create_def()
+      # opencv-rust before 0.66 made these traits: `<dyn face::LBPHFaceRecognizer>::create(..)`
+      - pattern: <dyn opencv::face::LBPHFaceRecognizer>::create(...)
+      - pattern: <dyn opencv::face::EigenFaceRecognizer>::create(...)
+      - pattern: <dyn opencv::face::FisherFaceRecognizer>::create(...)
+      - pattern: opencv::objdetect::FaceRecognizerSF::create(...)
+      - pattern: opencv::objdetect::FaceRecognizerSF::create_def(...)
+      - patterns:
+          - pattern-either:
+              - pattern: LBPHFaceRecognizer::create(...)
+              - pattern: LBPHFaceRecognizer::create_def()
+              - pattern: EigenFaceRecognizer::create(...)
+              - pattern: EigenFaceRecognizer::create_def()
+              - pattern: FisherFaceRecognizer::create(...)
+              - pattern: FisherFaceRecognizer::create_def()
+              - pattern: FaceRecognizerSF::create(...)
+              - pattern: FaceRecognizerSF::create_def(...)
+          - pattern-regex: (?sm)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+opencv\b).*
+      # libfprint-rs
+      - patterns:
+          - pattern-either:
+              - pattern: $D.enroll_sync(...)
+              - pattern: $D.verify_sync(...)
+              - pattern: $D.identify_sync(...)
+          - pattern-regex: (?s)\A(?=.*\blibfprint_rs\b).*
+    metadata:
+      activity: processes_biometrics
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-biometrics
+      provenance: ungovr-original
+      license: MIT
