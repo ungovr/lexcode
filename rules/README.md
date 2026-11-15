@@ -2,12 +2,12 @@
 
 This directory is the rule set lexcode runs: one YAML rule per file, one
 directory per LexLint activity, positive and negative fixtures beside each rule,
-component maps for npm, PyPI, Go, gem, Maven, Composer and NuGet packages under
-`components/`, and `classes.yml`, which gives every activity id in the pinned
-registry snapshot (`registry.snapshot.json`, CC BY 4.0, credit "LexLint
-(UnGovr)") one detection class. Every rule is original to UnGovr and MIT
-licensed. The recall table below is measured against the truth sets, per
-activity.
+component maps for npm, PyPI, Go, gem, Maven, Composer, NuGet, Cargo, Swift and
+CocoaPods packages under `components/`, and `classes.yml`, which gives every
+activity id in the pinned registry snapshot (`registry.snapshot.json`, CC BY
+4.0, credit "LexLint (UnGovr)") one detection class. Every rule is original to
+UnGovr and MIT licensed. The recall table below is measured against the truth
+sets, per activity.
 
 <!-- recall:start -->
 Measured 2026-11-14 over the UnGovr monorepo, 11 pinned starter templates and 4 real apps,
@@ -348,6 +348,166 @@ The scan's notices, as printed: 172 bundled, minified or generated files
 skipped (named `*.min.js`, `*.bundle.js`, `vendor.*.js`, `*.vendor.js`, `*.g.cs`
 or `*.g.i.cs`), 1 file over 5 MB skipped, and the engine could not read 14 files.
 <!-- nopcommerce:end -->
+
+<!-- wikipedia-ios:start -->
+### Wikipedia for iOS, read with Swift, the Xcode project and the Info.plist files
+
+Measured 2026-11-15 over `wikimedia/wikipedia-ios` at commit `0919f3e`
+(its tree is at https://github.com/wikimedia/wikipedia-ios/tree/0919f3eafd0b47492b5dac93b818a90b126ae8aa
+and its license is MIT), with lexcode `v1.5` (branch build at commit
+`cf76768`), against a reading of the same commit by an agent that had not seen
+the Swift rules, checked row by row by a second reader who had not seen them
+either, kept unchanged. The reading includes 6 activities from code, marks 20
+as absent and leaves none unsure. Every figure below is from one run, `lexcode
+scan` and `lexcode check --declaration` with that build: lexcode read 4,208
+files and 2 extracted copies, in 13 seconds (scan) and 13 seconds (check), 0.46
+GB at most, on a shared machine (load average about 5 when the scan started).
+The check reports 0 FAIL and 0 WARN.
+
+**Score: 2 of 6 found at evidence strength, 3 signal only, 1 missed. Family
+credit changes nothing: none of the 6 rows has a parent or a child in the
+registry, so the figures are the same with and without it. No evidence
+lands on a row the reading marks absent, and one signal does (see "Absent
+rows").** The 2 found are `processes_personal_data`, on the location manager and
+the donation form's contact fields only, and `ships_mobile_app`, on the Xcode
+application targets, the Info.plist files and the fastlane upload steps. The 3
+signals are `ships_consumer_interface`, `distributes_software_product` and
+`operates_social_platform`. The miss is `tracks_devices`: the app mints its own
+install ID and sends it with every request and event, and no rule reads an ID
+the app made for itself. Recall is printed, never gated. Paths below are
+relative to the repository root.
+
+| Activity | The reading | lexcode | Verdict |
+|---|---|---|---|
+| `processes_personal_data` | include: sign-in and account creation (`Wikipedia/Code/WMFAccountLoginLogoutFetcher.swift:94` to `:96`, `WMFAccountCreator.swift:162` and `:174`), the Keychain (`WMFKeychainCredentials.swift:132`), the Apple Pay donation payload (`WMFData/Sources/WMFData/Data Controllers/Donor Experience/WMFDonateDataController.swift:204` to `:241`), location (`WMF Framework/LocationManager.swift:78` and `:139`, `Wikipedia/Wikipedia-Info.plist:78` and `:82`), the geosearch call, Core Data page views and talk page posts, 24 lines in all | found, performs, 3 matches; `lexcode.personal.swift-device-location` at `WMF Framework/LocationManager.swift:78` (`startUpdatingLocation()`), and `lexcode.personal.swift-payment-contact` at `WMFComponents/Sources/WMFComponents/Components/Donate Form/WMFDonateViewModel.swift:389` and `:390` (the billing name and postal address, and the email address, the form asks Apple Pay for); 14 further signal rows, among them `Wikipedia/Wikipedia-Info.plist:78` and `:82` | Found, on one line the reading cites (`LocationManager.swift:78`) and on the donation flow in the view model that builds the request the reading follows to the data controller. The 2 plist lines are signals, not evidence. Sign-in, account creation, the Keychain write, the geosearch coordinates, the Core Data history and the talk page posts are not matched |
+| `tracks_devices` | include: the install ID minted with `UUID().uuidString` (`Wikipedia/Code/WMFAppViewController+Extensions.swift:849` and `:850`, `NSUserDefaults+WMFExtensions.swift:92`), sent as the `X-WMF-UUID` header (`WMFData/Sources/WMFData/Service/WMFBasicService.swift:328`) and inside every analytics event (`WMF Framework/Event Platform/EventPlatformClient.swift:799`, `:944`, `:952`, `UserSession.swift:22`), the events endpoint (`EventPlatformClient.swift:193`), the Test Kitchen adapter and the hCaptcha package (`Wikipedia.xcodeproj/project.pbxproj:15742`), 20 lines in all | missed (searched, not found; 44 rules tried) | Missed, with every cited file read by the engine. The nearest rule, `swift-device-id-sent`, follows `identifierForVendor` into a request, and this app never reads it: the ID is a random UUID the app made, saved in its own store. No rule reads a self-made install ID. The scan's component list is empty, and the Swift package map leaves hCaptcha out on purpose, because its description names no activity |
+| `ships_consumer_interface` | include: `Wikipedia/Code/AppDelegate.swift:18`, `SceneDelegate.swift:7`, `WMFAppViewController.swift:49`, `ExploreViewController.swift:9`, `ArticleViewController.swift:11`, `SearchViewController.swift:11`, `HomeViewController.swift:12`, `WMFLoginViewController.swift:9`, `WMFComponents/Sources/WMFComponents/Components/Home/WMFHomeView.swift:4` and `Wikipedia/Wikipedia-Info.plist:130` | signal only, 2 matches; `lexcode.consumer.swift-app-window` at `Wikipedia/Code/SceneDelegate.swift:7` and `lexcode.consumer.swift-signup-screen` at `Wikipedia/Code/WMFAccountCreationViewController.swift:10` | Signal only, by design: the consumer-interface rules are signal class. One match is on a line the reading cites (`SceneDelegate.swift:7`); the other is the account-creation screen, which the reading names only in prose. The Explore, Article and Home view controllers, 3 of the reading's lines, are among the files the engine could not read (see "Files the engine could not read"); the other cited screens were read and drew no match |
+| `ships_mobile_app` | include: the application target and bundle identifier (`Wikipedia.xcodeproj/project.pbxproj:8158` and `:11884`), `Wikipedia/Wikipedia-Info.plist:74`, the TestFlight and App Store lanes (`fastlane/Fastfile:77` and `:302`), `.github/workflows/v2_submit_appstore.yml:1`, `README.md:2` and the extension targets (`project.pbxproj:8048` and `:8197`) | found, performs, 15 matches; `lexcode.mobile.xcode-ios-application` at `Wikipedia.xcodeproj/project.pbxproj:8158`, `:8259` and `:8287`; `lexcode.mobile.ios-info-plist` at `Wikipedia/Wikipedia-Info.plist:38`, `Wikipedia/Alpha-Info.plist:38`, `Wikipedia/Experimental-Info.plist:38` and `Wikipedia/Local-Info.plist:18`; `lexcode.mobile.swift-uikit-app-delegate` at `Wikipedia/Code/AppDelegate.swift:17`; and 7 of `lexcode.mobile.rb-fastlane-store-upload` in `fastlane/Fastfile` (`:77`, `:107`, `:236`, `:277`, `:302`, `:384`, `:421`) | Found, on 3 lines the reading cites (`project.pbxproj:8158`, `Fastfile:77` and `:302`) and in 1 more of its files (`Wikipedia-Info.plist`, where the match is the bundle identifier 36 lines above the reading's `:74`). `project.pbxproj:8259` and `:8287` are 2 further application targets, and the other Fastfile lanes and `AppDelegate.swift:17` (`@main`) are extra evidence. The reading's `:11884`, the extension targets and the workflow file are not matched |
+| `distributes_software_product` | include: `LICENSE.txt:1`, `README.md:1`, `:2` and `:7`, the `Package.swift` of `WMFData`, `WMFComponents` and `WMFTestKitchen` (`:1` each), `Wikipedia/Wikipedia-Info.plist:64` | signal only, 7 matches; `lexcode.distribute.swift-package-product` at `WMFComponents/Package.swift:11`, `WMFData/Package.swift:11`, `:14` and `:16`, `WMFLocalizations/Package.swift:12` and `:15`, `WMFTestKitchen/Package.swift:11` (each a `.library(` product) | Signal only, in 3 files the reading cites, each match 10 or more lines below the reading's `:1`. The reading calls these four local packages the app's own libraries, consumed by the app targets and not published for others, so a signal is the strength the rule gives them. The MIT license, the README and `CFBundleVersion` are not matched |
+| `operates_social_platform` | include: talk page replies and topics (`Wikipedia/Code/TalkPageFetcher.swift:189` and `:211`, `TalkPageDataController.swift:74` and `:82`), the undo edit (`WMFData/Sources/WMFData/Data Controllers/Watchlist/WMFWatchlistDataController.swift:452` and `:466`), thanks (`DiffThanker.swift:22`) and the user impact page (`WMFUserImpactDataController.swift:34`) | signal only, 3 matches; `lexcode.social.swift-post-composer` at `Wikipedia/Code/TalkPageReplyComposeContentView.swift:5`, `TalkPageReplyComposeController.swift:10` and `TalkPageTopicComposeViewController.swift:16` | Signal only, by design: the social rules are signal class. The 3 matches are the compose screens for the same talk page replies and topics the reading cites, in none of the reading's files. The undo, thanks and user impact lines are not matched |
+
+Unsure in the reading: none, so every row above is scored.
+
+**Absent rows.** The reading marks 20 activities absent: `crawls_web`,
+`trains_models`, `generates_content`, `generates_text`, `generates_images`,
+`generates_video`, `generates_audio`, `deploys_chatbot`, `processes_biometrics`,
+`records_calls`, `records_text_chat`, `collects_e_signatures`, `ships_encryption`,
+`operates_app_store`, `statutory_requests`, `publishes_adult_content`,
+`processes_voice`, `automated_outreach`, `aggregates_content` and
+`relies_on_digital_identity`. lexcode reported no evidence for any of them, so
+the check has 0 FAIL. It reported one signal on one of them, read here:
+`lexcode.voice.ios-plist-microphone-speech` at `Wikipedia/Experimental-Info.plist:86`
+(`NSMicrophoneUsageDescription`), under `processes_voice`. The reading's own row
+names those same lines (`Wikipedia/Experimental-Info.plist:78` to `:79` and `:86` to
+`:87`) as the close call it ruled absent: the permission text sits in the
+Experimental build's plist, the internal design-review build, and the production,
+Alpha and Local plists carry neither string, and no recording code exists. Neither
+side looks wrong. The rule reads every Info.plist in the tree and cannot tell
+which configuration ships to the public, which is why it speaks at signal
+strength, and the reading had already weighed the same line.
+
+**Files the engine could not read (known gap).** 18 files, 17 Swift and 1
+JavaScript (`Wikipedia/Code/Properties.js`). The Swift causes are grammar gaps in
+the engine's parser: `#unavailable(...)`, `await` inside an `if let` or `guard
+let` condition, `@objc(selector:)` accessors and `nonisolated(unsafe)`, and one
+file with a raw string (`#"..."#`) that the engine's Swift scanner misreads, a
+known engine fault. Three of the reading's cited lines lie in unread files, all
+under `ships_consumer_interface` (`ExploreViewController.swift`,
+`ArticleViewController.swift` and `HomeViewController.swift`, each unread for
+`#unavailable`). Their evidence, if any, is missing from the record, so that row's
+signal may undercount. No other row cites an unread file.
+
+**Vendored code.** lexcode reads the three libraries under `Wikipedia/Third Party Code/`, which the reading puts out of scope, as the app's own Swift in this phase. Of the record's 45 rows (18 evidence rows and 27 signal rows), 0 lie under that directory, so no row rests on vendored code.
+
+The scan's notices, as printed: skipped 4 symbolic links, 155 C and C++ files and
+125 Objective-C files not read because lexcode has no rules for those languages
+(the reading names no row that rests on Objective-C alone), and the engine could
+not read 18 files.
+<!-- wikipedia-ios:end -->
+
+<!-- lemmy:start -->
+### Lemmy, read with Rust and the Cargo manifests
+
+Measured 2026-11-15 over `LemmyNet/lemmy` at commit `60d1cc3`
+(its tree is at https://github.com/LemmyNet/lemmy/tree/60d1cc36a8d4ebea065d7f5df9294932497a79e4
+and its license is AGPL-3.0), with lexcode `v1.5` (branch build at commit
+`cf76768`), against a reading of the same commit by an agent that had not seen
+the Rust rules, checked row by row by a second reader who had not seen them
+either, kept unchanged. The reading includes 7 activities from code, marks 16
+as absent and leaves 3 unsure. Every figure below is from one run, `lexcode
+scan` and `lexcode check --declaration` with that build: lexcode read 1,479
+files (and skipped 101 development dependencies), in 11 seconds (scan) and 11
+seconds (check), 0.86 GB at most, on a shared machine (load average about 19
+when the scan started). The check reports 0 FAIL and 0 WARN.
+
+**Score: 6 of 7 found at evidence strength, 1 signal only, 0 missed. Family
+credit changes nothing: none of the 7 rows has a parent or a child in the
+registry, so the figures are the same with and without it. No evidence
+lands on a row the reading marks absent, and one signal does (see "Absent
+rows"). Of the 3 unsure rows, none drew evidence or a signal, so none is found
+or missed.** Of the 6 found, 5 have evidence on lines or in files the reading
+cites. The sixth, `distributes_software_product`, is found on 3 member crates'
+manifests that the reading does not cite, so it counts as found by a different
+route than the reading's, and the server binary, the Dockerfile and the release
+script it rests on are not matched. The signal-only row is
+`operates_social_platform`, an activity whose rules are signal class by design.
+Recall is printed, never gated. Paths below are relative to the repository root.
+
+| Activity | The reading | lexcode | Verdict |
+|---|---|---|---|
+| `processes_personal_data` | include: `crates/db_schema/src/source/person.rs:26`, `:36`, `:52`, `local_user.rs:27` and `:28`, `login_token.rs:27` and `:28`, `private_message.rs:28`, `crates/db_schema/src/impls/local_user.rs:41`, `crates/api/api_crud/src/user/create.rs:83`, `crates/api/api/src/local_user/export_data.rs:17` and `crates/api/api_crud/src/user/delete.rs:23`, 12 lines in all | found, performs, 16 matches; 6 of `lexcode.personal.rs-password-hash` (`crates/db_schema/src/impls/local_user.rs:41` and `:87`, `crates/api/api/src/local_user/login.rs:40` and `:56`, `change_password.rs:33`, `crates/api/api_crud/src/user/delete.rs:35`) and 10 of `lexcode.personal.rs-model-field` (`crates/db_schema/src/source/local_user.rs:27`, `:28`, `:91`, `:93`, `:166`, `:167`, `login_token.rs:27` and `:39`, `email_verification.rs:13` and `:22`) | Found, on 4 lines the reading cites (`impls/local_user.rs:41`, `source/local_user.rs:27` and `:28`, `login_token.rs:27`) and in 1 more of its files (`user/delete.rs`, where the match is `:35` and the reading cites `:23`). The person record, the private message, the data export and the registration handler are not matched, and the registration handler (`user/create.rs`) is among the files the engine could not read |
+| `crawls_web` | include: the link-preview fetch (`crates/api/api_utils/src/request.rs:72`, `:90`, `:188`, `:498`), `crates/api/api_utils/Cargo.toml:82`, `crates/api/api_crud/src/post/create.rs:156`, `crates/apub/objects/src/objects/post.rs:326`, the nodeinfo poll (`crates/routes/src/utils/scheduled_tasks.rs:881` and `:920`), the bootstrap fetch (`crates/api/api_crud/src/user/create.rs:729`) and `Cargo.toml:180` | found, performs 2 and enables 1; `lexcode.crawl.rs-link-preview-fetch` at `crates/api/api_utils/src/request.rs:88` and `:576`; `pkg:cargo/webpage@2.1.0` at `crates/api/api_utils/Cargo.toml:82` | Found, on a line the reading cites (`Cargo.toml:82`, the `webpage` crate) and on the GET at `request.rs:88`, the start of the fetch the reading describes at `request.rs:88-96`. The reading calls this row a hard call. The nodeinfo poll and the bootstrap fetch lie in unread files (`scheduled_tasks.rs`, `user/create.rs`), so they were not seen |
+| `aggregates_content` | include: `crates/api/api_utils/src/request.rs:72`, `:247`, `:265`, `:477`, `crates/db_schema/src/source/post.rs:48`, `:50`, `:52`, `crates/api/api/src/post/get_link_metadata.rs:9`, `crates/routes/src/images/download.rs:59` and the migration `migrations/2026-03-03-211442-0000_move_config_pictrs_to_db/up.sql:9` | found, performs, 2 matches; `lexcode.aggregate.rs-link-preview` at `crates/api/api_utils/src/request.rs:269` and `:278` (`HTML::from_string(...)`) | Found, in a file the reading cites and in the function it cites, 4 lines below its `:265`: the parse of the fetched page for title, description and image. The stored embed fields, the thumbnail keeping and the metadata endpoint are not matched |
+| `automated_outreach` | include: `crates/email/src/send.rs:19`, `:32`, `:62`, `crates/email/Cargo.toml:33`, `crates/email/src/notifications.rs:38`, `crates/api/api_utils/src/notify.rs:118`, `:312`, `:361`, `crates/email/src/account.rs:16` and `:40`, `crates/email/src/admin.rs:7` and `:32`, `crates/utils/src/settings/structs.rs:22` | found, performs 2 and enables 1; `lexcode.outreach.rs-send-in-loop` at `crates/api/api_utils/src/notify.rs:118` and `:361`; `pkg:cargo/lettre@0.11.23` at `crates/email/Cargo.toml:33` | Found, on 3 lines the reading cites. The mail itself (`send.rs`, `notifications.rs`, `account.rs`, `admin.rs`) is not matched, and the reading marks the row as needing configuration |
+| `ships_encryption` | include: `Cargo.toml:189` (bcrypt), `crates/db_schema/src/impls/local_user.rs:41` and `:87`, the HS256 token (`crates/api/api_utils/Cargo.toml:84`, `crates/api/api_utils/src/claims.rs:53`), TOTP (`crates/api/api_utils/Cargo.toml:59`, `crates/api/api_utils/src/utils.rs:241`), the RSA key pairs (`crates/api/api_crud/src/user/create.rs:539`, `community/create.rs:103`, `crates/routes/src/utils/setup_local_site.rs:59`, `Cargo.toml:154`) and rustls with ring (`Cargo.toml:217`, `crates/diesel_utils/src/connection.rs:179`), 13 lines in all | found, performs, 2 matches; `lexcode.crypto.rs-bundled-tls` at `crates/api/api_utils/src/request.rs:42` (`rustls::crypto::ring::default_provider().install_default()`) and `crates/diesel_utils/src/connection.rs:181` (`ClientConfig::builder()`); 6 signals of `lexcode.crypto.rs-password-hashing` (the same bcrypt calls as `processes_personal_data`) | Found, on the rustls and ring part of the reading and 2 lines below its `connection.rs:179`; the bcrypt calls, among them the reading's `impls/local_user.rs:41` and `:87`, are signals only. The token signing (`claims.rs:53` was read) and the key pair at `community/create.rs:103` drew no match, and the TOTP code and 2 of the key pair lines lie in unread files (`utils.rs`, `user/create.rs`, `setup_local_site.rs`) |
+| `distributes_software_product` | include: `LICENSE:1`, `README.md:81`, `Cargo.toml:5`, `crates/server/Cargo.toml:2`, `crates/server/src/main.rs:8`, `docker/Dockerfile:46` and `:58`, `docker/docker-compose.yml:25` and `scripts/release.bash:1` | found, performs, 3 matches; `lexcode.distribute.cargo-published` at the `[package]` header, line 1, of `crates/db_views/notification_sql/Cargo.toml`, `crates/db_views/report_combined/Cargo.toml` and `crates/db_views/report_combined_sql/Cargo.toml`; 29 further signals of `lexcode.distribute.cargo-package` in other member crates | Found by a different route, on no line or file the reading cites. The 3 matches are member crates that set `publish = true`, which says a crate is made available to others; the reading rests the row on the server that people install and run themselves, and the binary, Dockerfile, compose file and release script are not matched. The root manifest the reading cites at `Cargo.toml:5` is not matched either |
+| `operates_social_platform` | include: the create handlers for posts, comments, communities and private messages (`crates/api/api_crud/src/post/create.rs:47`, `comment/create.rs:40`, `community/create.rs:50`, `private_message/create.rs:32`), `crates/api/api/src/post/like.rs:27`, `community/follow.rs:14`, the route table (`crates/api/routes/src/lib.rs:280` and `:309`), `crates/api/api_crud/src/user/create.rs:83` and `crates/db_schema/src/source/person.rs:36` | signal only, 4 matches; `lexcode.social.rs-follow-relation` at `crates/apub/activities/src/protocol/following/follow.rs:15` and `crates/db_schema/src/source/person.rs:159`, `lexcode.social.rs-post-model` at `crates/db_schema/src/source/post.rs:28`, `lexcode.social.rs-direct-message` at `crates/db_schema/src/source/private_message.rs:24` | Signal only, by design: the social rules are signal class. One match is in a file the reading cites (`person.rs`, well below its `:36` and `:52`); the others are the follow, post and private message data types. The handlers, the vote and follow actions and the route table are not matched |
+
+Unsure in the reading, and not scored: `records_text_chat`,
+`relies_on_digital_identity` and `publishes_adult_content`. lexcode reported
+nothing for any of them, with no signal, so none is found or missed. The reading
+leaves `records_text_chat` open on whether stored private messages count as a
+chat, `relies_on_digital_identity` on whether sign-in through an administrator's
+OAuth2 provider counts, and `publishes_adult_content` on whether a platform that
+lets users flag and view NSFW posts counts.
+
+**Absent rows.** The reading marks 16 activities absent: `trains_models`,
+`generates_content`, `generates_text`, `generates_images`, `generates_video`,
+`generates_audio`, `deploys_chatbot`, `processes_voice`, `processes_biometrics`,
+`records_calls`, `collects_e_signatures`, `ships_mobile_app`, `operates_app_store`,
+`ships_consumer_interface`, `statutory_requests` and `tracks_devices`. lexcode
+reported no evidence for any of them, so the check has 0 FAIL. It reported one
+signal on one of them, read here: `lexcode.consumer.rs-signup-route` at
+`crates/api/routes/src/lib.rs:344` (`.route("/register", post().to(register))`)
+and `crates/api/routes_v3/src/lib.rs:165` (`resource("/user/register")`), under
+`ships_consumer_interface`. The reading rules the row absent because the tree is
+an HTTP API with no screen of its own, the screens being a separate repository.
+The reading is right by the activity's own wording, which leaves out an API with
+no screen of its own. The rule reads a sign-up path on a router and cannot tell a
+server that renders a page from one that answers in JSON, which is why it speaks
+at signal strength; whether a sign-up route with no front end in the tree should
+be shown at all is a question for the rule, not the key.
+
+**Files the engine could not read (known gap).** 18 files, all Rust: 15 use async
+closures (`async |x| { ... }` or `async move || { ... }`, Rust 2024), 1 has an
+associated-type bound inside a generic parameter list
+(`crates/diesel_utils/src/utils.rs`) and 2 have attributes on generic parameters
+(`crates/db_views/vote/src/impls.rs`, `crates/diesel_utils/src/pagination.rs`).
+One of the 18 is a test file, outside the record in any case. Of the reading's
+cited lines, those in `crates/api/api_crud/src/user/create.rs` (under
+`processes_personal_data`, `crawls_web`, `ships_encryption` and
+`operates_social_platform`), `crates/routes/src/utils/scheduled_tasks.rs`
+(`crawls_web`), `crates/api/api_utils/src/utils.rs` and
+`crates/routes/src/utils/setup_local_site.rs` (`ships_encryption`) are in unread
+files, so the evidence there is missing from the record. No row's verdict
+changes on that account, because each of those rows is found or signalled on
+other lines.
+
+**Vendored code.** Of the record's 70 rows (29 evidence rows and 41 signal rows), 0 lie under a `vendor`, `Pods` or `node_modules` directory, so no row rests on vendored code.
+
+The scan's notices, as printed: skipped 1 symbolic link, and the engine could not
+read 18 files.
+<!-- lemmy:end -->
 
 ## Ruby, ERB views and gems
 
@@ -986,6 +1146,416 @@ The engine sets most of these limits, and the rules' comments point here.
   storefront of Razor components with no sign-up screen shows no
   consumer-interface signal.
 
+## Swift, Rust and the Cargo, Swift package and CocoaPods ecosystems
+
+How lexcode reads Swift, Rust and Apple's configuration files, where the engine
+cannot, and what a Cargo, Swift package or CocoaPods manifest counts. There are
+three ecosystems, and each names a dependency its own way:
+
+| Ecosystem | A dependency is named by | Package URL | Evidence rule id | Component map |
+|---|---|---|---|---|
+| `cargo` | the crate name | `pkg:cargo/<name>@<version>` | `lexcode.manifest.cargo` | `components/cargo.yml` |
+| `swift` | the repository, `host/owner/repo` | `pkg:swift/github.com/apple/swift-crypto@<version>` | `lexcode.manifest.swift` | `components/swift.yml` |
+| `cocoapods` | the pod, as `Podfile.lock` writes it | `pkg:cocoapods/Firebase@10.29.0#Analytics` | `lexcode.manifest.cocoapods` | `components/cocoapods.yml` |
+
+A Swift package's name is its URL without the scheme, any `user@`, the `.git`
+suffix and a trailing `/`, and `git@host:owner/repo` reads as `host/owner/repo`.
+A CocoaPods subspec keeps its path in the name (`Firebase/Analytics`) and puts it
+in the package URL's subpath. Every name is compared without regard to case.
+Nothing is fetched: a package outside the repository is not read, and neither is
+any package cache (`~/.cargo`, SwiftPM's, CocoaPods').
+
+### Cargo
+
+`[dependencies]`, `[dependencies.<name>]` and `[target.<cfg>.dependencies]` hold
+dependencies, in `name = "1.0"`, `name = { version = ... }`, `name.workspace =
+true` and `name = { workspace = true }` forms. A row's manifest line is the line
+of the entry's key, or of its `[dependencies.<name>]` header. A renamed entry
+(`package = "real"`) is named `real`. An entry with a `path` is the workspace's
+own crate, so it is neither a row nor counted; a `git` entry is a row.
+A `workspace = true` entry takes its specification from `[workspace.dependencies]`
+in the nearest ancestor `Cargo.toml` that has a `[workspace]` table, its own
+directory included. `[patch.*]` and `[replace]` are ignored.
+
+Skipped and counted as development: `[dev-dependencies]` and
+`[build-dependencies]`, in every target form.
+
+A version comes from the `Cargo.lock` in the same directory or the nearest
+ancestor that has one. The lock's `[[package]]` entries with the crate's name are
+the candidates. With one candidate the row takes its version. With several, it
+takes the highest version the requirement allows under Cargo's caret rule (the
+same leftmost non-zero component, so `1.2` matches `1.x.y`, `0.4` matches
+`0.4.z` and `0.0.3` matches `0.0.3`), and a tilde (`~1.2`) or exact (`=1.2.3`)
+requirement is read as well; a comparison or a wildcard gives no version when
+there are several candidates. A `git` entry takes the candidate whose `source`
+starts with `git+`. Rows with no version get one notice for all of them: `N Cargo
+dependencies have no resolved version (no Cargo.lock, or a requirement lexcode
+could not match to one locked version); recorded without a version`. A
+`Cargo.toml` or `Cargo.lock` that does not parse gets a notice naming it.
+
+Known Cargo gaps: a crate spelled with a hyphen in one place and an underscore
+in another (`serde_json`, `serde-json`) is looked up by the spelling the manifest
+uses, in the lock and in the component map. A package whose own description says
+it hashes, signs or authenticates, and not that it encrypts, is not mapped to
+`ships_encryption`: the `sha2`, `hmac`, `argon2` and `bcrypt` crates, the signing
+and key-agreement crates, and the Swift package `jwt-kit`. The code rules read
+their calls instead.
+
+### Swift packages
+
+A `Package.swift` holds each `.package(url: ...)` call as a row, at the line of
+`.package(`, with its arguments read by string-aware parenthesis matching. A
+`.package(path: ...)` call is a local package, neither a row nor counted, and a
+`.package(id: "scope.name", ...)` registry call is a row named `scope/name`. A
+`Package@swift-5.9.swift` is an alternate of the same file and is not read, and
+a URL built by string interpolation is not a row: the scan gives a notice with
+its line. In an Xcode project, `project.pbxproj` holds each
+`XCRemoteSwiftPackageReference` as a row, at the line of its `repositoryURL`; an
+`XCLocalSwiftPackageReference` is ignored. The file is an OpenStep property list,
+which lexcode reads itself (nesting past 256 levels is a notice, not a crash); a
+project file that is a binary or XML property list gets a notice naming it.
+
+A package used by both manifests of one app, a `Package.swift` and the Xcode
+project, is two rows, one per file.
+
+A version comes from the first of these that is present: the pin in the
+`Package.resolved` beside a `Package.swift` (for a project file, the one at
+`<X>.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved`); the
+nearest ancestor directory's `Package.resolved`; for a `Package.swift` with none
+of those, the pins of the Xcode project or workspace in its own directory or an
+ancestor's (a local package of an app resolves through the app's workspace);
+and an `exact:` argument, `.exact(...)` or `requirement = { kind = exactVersion; ...}`.
+A pin is matched by the last path segment of the URL, lowercased and without
+`.git`, and `Package.resolved` formats 1, 2 and 3 are all read. A branch or
+revision pin has no version. Rows with no version get one notice: `N Swift
+packages have no resolved version (no Package.resolved, or a branch or revision
+requirement); recorded without a version`.
+
+Skipped and counted as development: a `Package.swift` dependency every
+`.product(name: ..., package: "<identity>")` reference to which sits inside a
+`.testTarget(`, and a project-file dependency used only by unit-test or UI-test
+targets. A package used only through a build plugin, or named by a bare string in
+a target's dependencies, stays a row.
+
+### CocoaPods
+
+Rows come from `Podfile.lock`'s `DEPENDENCIES` list, which holds the direct
+dependencies, at each entry's line. A version is the pod's entry in `PODS`
+(`- Name (1.2.3):`), never the constraint on the `DEPENDENCIES` line (`~> 10.0`,
+`(from ...)`), and a subspec with no entry of its own takes its pod's version. A
+`Podfile` with no lock gives a row for each `pod 'Name'` line, with a version
+only when the second argument is a plain version (`'5.4.3'` or `'= 5.4.3'`).
+Rows with no version get one notice: `N CocoaPods dependencies have no resolved
+version (no Podfile.lock, and no exact version in the Podfile); recorded without
+a version`.
+
+A pod is development when every `pod '<Name>'` line for it in the `Podfile`
+beside the lock sits inside `target '<T>' do` blocks whose name ends in `Tests`
+or `UITests`. The Podfile is never run, so a pod added by a helper method called
+inside a test target, and a one-line `target 'X' do; pod 'Y'; end`, stay rows.
+A root pod declared in an app target keeps all of its subspecs as rows, even one
+that a test target names by its full path.
+
+Carthage's `Cartfile.resolved` is not read, a known gap. One notice per file
+counts its entries: `<path>/Cartfile.resolved names N Carthage dependencies;
+lexcode does not read Carthage, so they are missing from this record`. `Pods/`
+and `Carthage/` are skipped as vendored code in every scan, even where a team
+commits them.
+
+### Swift files
+
+The engine reads `.swift`, which includes `Package.swift`. Skipped as generated:
+`*.generated.swift`, `*+Generated.swift`, `*.pb.swift`, `*.grpc.swift`, and any
+directory named `GeneratedSources` (swift-openapi-generator's output). Xcode test
+targets, a directory whose name ends in `Tests` with a capital T, are test
+directories. Objective-C is not read, and the scan counts its files in the
+notice about other languages: every `.mm` file, and each `.m` file in a scope that
+holds a `project.pbxproj`, a `Podfile` or a `Package.swift` (a `.m` file is also
+MATLAB's). `.h` stays with C and C++. A Swift string interpolation
+(`"https://\(host)/path"`) is not read as a literal host, so an address the code
+builds from a variable is never taken for one of your own hosts. Leaf templates
+(`.leaf`, Vapor's) are not extracted: the one Swift server app measured holds 3,
+all Markdown message bodies with no `<script>` block.
+
+### Rust files
+
+The engine reads `.rs`, including `build.rs` and `examples/`. `benches` is a test
+directory. Unit tests live in the source file, in a `#[cfg(test)]` module, so a
+scan drops every match in a `.rs` file that starts inside one, unless you pass
+`--include-tests`. The module is a `mod <name> { ... }` item with the exact
+attribute `#[cfg(test)]` among its outer attributes (other attributes, comments
+and a visibility such as `pub(crate)` may sit between), found by a tokenizer that
+knows strings, raw strings (`r#"}"#`), character literals and comments, so a
+brace inside one does not end the module. `cfg(not(test))` and
+`cfg(any(test, ...))` are code. Measured over three Rust apps on 2026-11-15, the
+filter dropped 2 findings in Lemmy, 3 in a newsletter service and none in an API
+server, and the default scan holds no finding that `--include-tests` lacks.
+
+Tera templates (`.tera`, so `.html.tera`) join the `<script>` block extraction,
+with Twig's tags blanked (`{{ }}`, `{% %}` and `{# #}`, with `-` whitespace
+control). Askama templates are `.html` and were already read. Handlebars
+(`.hbs`) is not read: it is also Ember's template extension, and adding it would
+change what lexcode finds in JavaScript apps.
+
+### Apple configuration files
+
+Four kinds of Apple file are read. An `Info.plist` is read as XML. The engine's
+`xml` language reads no `.xcprivacy` or `.entitlements` file, and an Xcode
+project is not XML, so those three are read as `generic` text, each rule limited
+to its file name. The rules' names say which file they read:
+
+- `ios-plist-` rules read an `Info.plist` (or an Xcode `<Target>-Info.plist`) as
+  XML, and `xcode-infoplist-` rules read the same keys written as
+  `INFOPLIST_KEY_<key> = ...;` build settings in `project.pbxproj`.
+- `xcprivacy-` rules read `PrivacyInfo.xcprivacy`: `NSPrivacyTracking` set to
+  true, a non-empty `NSPrivacyTrackingDomains`, and collected data types linked to
+  the person.
+- `entitlements-` rules read `*.entitlements` keys (HealthKit, Sign in with
+  Apple and shared web credentials, In App Identity Presentment).
+- `xcode-ios-application` reads an application target in `project.pbxproj`, one
+  whose build settings carry `SDKROOT = iphoneos` or a `SUPPORTED_PLATFORMS` that
+  lists iphoneos, as `ships_mobile_app`, beside `ios-info-plist`.
+
+A usage string or an entitlement shows that the app asks for a permission or a
+capability, not that it does the activity: the same Wikipedia project carries a
+microphone string in a build configuration that has no recording code. So the
+usage-description rules (location, contacts and health, microphone and speech
+recognition, Face ID, App Tracking Transparency, identity requests) and the
+entitlement rules are signals, and the code rules carry the evidence. The
+privacy manifest and the application target are evidence, because they are the
+app's own statements: `NSPrivacyTracking` is the app saying it tracks,
+`ITSAppUsesNonExemptEncryption = true` is the developer's own statement to App
+Store Connect that the app uses encryption outside the export exemptions, and an
+application target is a mobile app. A privacy manifest that lists only collected
+data types that are not linked to the person says nothing the definition counts,
+so only linked entries match.
+
+Known gaps in the configuration rules:
+
+- A binary property list is not text and the engine skips it. One was found in
+  the six apps measured, a resource list (`LibrariesUsed.plist`) that is not an
+  `Info.plist`, privacy manifest or entitlements file, so no evidence is lost; a
+  binary `Info.plist` would be.
+- A rule reads every `Info.plist` in the tree, so it cannot tell which build
+  configuration ships to the public (a design-review build's microphone string
+  speaks at signal strength for that reason).
+- `xcode-ios-application` reads the platform from the whole project file. A
+  project that holds an iOS target also counts its other application targets, a
+  single-target watchOS, tvOS or visionOS app among them, and a project with a
+  Mac app and a separate iOS-only framework target matches. A last `SDKROOT` setting
+  more than about 1 MB from the end of the file loses the match with no notice.
+
+### The Swift and Rust gates
+
+The release test requires every evidence-class activity to have a rule whose
+`languages` include `swift`, and one whose `languages` include `rust`. The Apple
+configuration rules are additional evidence, not Swift, and do not count toward
+the Swift gate. One Rust exemption stands: `distributes_software_product`, whose
+package evidence lives in `Cargo.toml` (`[package]` listing keys, `publish`, a
+release packaging section), is met by a `cargo-` rule, as Java's is met by a
+build-file rule and C#'s by an `msbuild-` rule. No Swift exemption was needed.
+Any other exemption must be argued and ruled before it is added.
+
+### What the Swift and Rust rules decide
+
+- A library type is written module-qualified or by its full crate path, once,
+  and the engine matches it under the file's `import` or `use`, never an app's
+  own type of the same name. A Swift Foundation type (`URLSession`,
+  `URLRequest`, `JSONEncoder`) reaches a file through `import UIKit`,
+  `import SwiftUI`, `import AppKit` or `import Cocoa`, which the engine does not
+  follow, so it is matched in its module-qualified and its short form. A Swift
+  or Rust vendor type gets a short form only when the short name carries the
+  vendor's or product's own name (`FirebaseApp`, `Mixpanel`, `SentrySDK`), or in
+  Rust when the file also names the crate on a `use` line. The engine behavior
+  behind this is in CONTRIBUTING.md, "Swift pattern notes" and "Rust pattern
+  notes".
+- Generation evidence is a direct model call whose result reaches a sink (a
+  response, a view, a stored property, a returned value). A function that
+  returns a model's result with no sink in view is a signal. Rust has no
+  result-returned signals.
+- Apple's own cryptography (CryptoKit, CommonCrypto, the Security framework) and
+  the platform's OpenSSL (TLS through the Rust `openssl` and `native-tls` crates)
+  are left to the platform. A bundled library that encrypts is `ships_encryption`
+  evidence (swift-crypto, which bundles BoringSSL, rustls with ring, RustCrypto
+  ciphers, age, libsodium bindings). A cipher called through the `openssl` crate,
+  and password hashing (bcrypt, argon2, scrypt, Vapor's Bcrypt), are signals for
+  `ships_encryption`. In Rust the same hashing is evidence of
+  `processes_personal_data`, since a password is personal data. A hash or a MAC
+  is not encryption.
+- A Swift package product, `.library(...)` in `Package.swift`, is a signal for
+  `distributes_software_product`: no manifest field separates a published
+  library from a local one. A crate is evidence when its `[package]` table lists
+  `keywords` or `categories`, sets `publish = true` (or a registry list naming
+  crates-io), or has a `[package.metadata.docs.rs]` table, and so is a release
+  packaging section (`cargo-dist`'s `dist-workspace.toml` among them); a crate
+  with a description and a license only is a signal, and a crate with
+  `publish = false` or a proprietary license is neither.
+- `ships_mobile_app` is an iPhone or iPad app, as the definition says: a tvOS,
+  visionOS or watchOS target is left out, and the iPad app on a Mac (Mac
+  Catalyst) stays.
+- A server-side fetch of the page behind a link someone posted, to build a
+  preview, is `crawls_web` evidence: the definition has no scale condition.
+  ActivityPub federation is read as neither crawling nor aggregation.
+- Amazon Transcribe Call Analytics is `processes_voice`, as in C#. A system
+  composer a person sends from (`MessageUI`) is not `automated_outreach`, since
+  the person sends each message.
+- A public sign-up route or screen, a compose-and-publish screen, a direct
+  message, a post or follow model and any SwiftUI or UIKit app window are signals
+  for `ships_consumer_interface` and `operates_social_platform`, never evidence.
+- Opening the microphone (an `AVAudioRecorder`, a tap on an audio engine's input
+  node, cpal's input streams) is `processes_voice` evidence in both languages.
+
+### Known Swift gaps
+
+The engine sets most of these limits, and the rules' comments point here.
+
+- **Engine parse faults.** The engine's Swift grammar does not read `await` or
+  `try await` in an `if let` or `guard let` condition, the typed shorthand `if let
+  x: T {`, `#unavailable(...)`, a `#Predicate<...> { }` expression, an `if` or
+  `switch` used as an expression, `consume`, `& ~Escapable`, `package import`,
+  `@objc(selector:)` accessors or `nonisolated(unsafe)`. A file with one is read
+  in part or not at all, for every rule, and the scan counts it in `the engine
+  could not read N files`. Of the three Swift apps measured on 2026-11-15, 32
+  files were lost: 2 of a SwiftUI reference app, 13 of a Vapor Discord bot (among
+  them its interaction and message handlers) and 17 of Wikipedia for iOS. Two of
+  the 32 are raw-string losses from the scanner fault below, and 30 are grammar
+  gaps.
+- **The engine's Swift scanner.** Its state is allocated with `calloc(0, ...)`,
+  so one field, which counts the `#` of a raw string, starts as whatever the
+  memory held. On some runs it starts above zero, and then a file that declares a
+  class with a modifier or attribute (`final class`, `public class`, `@objc
+  class`) is parsed in time quadratic in its size (900 KB: 57 s, against 2.2 s
+  when the field is clear), and a real raw string (`#"..."#`) is misread, which
+  loses the file. In a run of one file it follows the length of the path (11
+  characters or fewer is slow); in a scan it follows what the process allocated
+  before. It is fixed upstream in tree-sitter-swift (commit `8abb3e8b33`), and
+  Opengrep 1.33.1 still pins the fork without it. Parse time is outside the
+  30-second limit a rule gets per file, so a slow parse is not cut off, and a
+  large Swift file can make a scan slower than its size suggests. The cost
+  script names its Swift test files with 12 or more characters for this reason.
+- **A vendor reached by another file's import.** An `@_exported import` in one
+  file brings a module to a whole target, and the engine does not follow it, so
+  an import-guarded or module-qualified pattern misses a file that gets the
+  vendor only that way, except where the short name carries the vendor's own
+  name. Three files in the Vapor app use it (for an OpenAPI client, a Discord
+  model type and LeafKit), none for a vendor a rule reads. The same holds for an
+  umbrella: a file that imports only `AVKit` (which brings AVFoundation), or only
+  `MapKit`, `SpriteKit`, `WebKit`, `StoreKit` or `PhotosUI` (which bring UIKit),
+  is not read by a rule that guards on AVFoundation or UIKit. A file that builds
+  an `HTTPClientRequest` through Vapor without `import AsyncHTTPClient` is not
+  read by the rule that guards on that import.
+- **Taint and functions.** Taint does not cross a function: a model result
+  returned from a function that calls a helper (`return try await helper.ask(p)`),
+  a result held at file scope and returned from a function that names no call, a
+  page downloaded in one function and parsed in another, and a send called
+  through the app's own function from a loop in another function are not joined.
+  Top-level code (a `main.swift` script) is not seen by the HTML and feed rules,
+  a script held in a variable is not read by the web view rule, and a source
+  inside a `map` closure does not reach its result. Taint passes an optional
+  binding only in part: `guard let a = r.x, let b = f(a)` binds only the first
+  name, and a value derived two steps before the binding is lost.
+- **Not read at all.** Objective-C and C and C++ files (125 and 155 in Wikipedia
+  for iOS, named in the scan's notice), Core Data entities that Xcode generates
+  from a `.xcdatamodeld`, a Sparkle updater created in a nib or storyboard, a
+  SwiftUI `App` with no UIKit delegate (the Xcode project rule finds the app
+  instead), a Mac app with no Sparkle (no Swift evidence of distribution), and
+  Leaf templates (above).
+- **Generation and chat.** Discord posts through DiscordBM, Anthropic's Swift
+  clients, Slack bot messages, Firebase Cloud Messaging from a Swift server,
+  Hummingbird jobs, `BGTaskScheduler` tasks and a Lambda event handler as a job
+  shape, Soto's `SNS.PublishInput` type, a model reached through the app's own
+  wrapper service, and on-device speech models (WhisperKit, whisper.cpp
+  bindings) are not read. A system prompt placed in front of a request's
+  messages (`[sys] + body.messages`) is missed, and a screen that keeps its
+  history only in a Foundation Models `session.transcript` has no rule. The
+  scheduled-job send rule skips a send inside a `do { } catch { }` clause, an
+  alert to the operator, but not one inside a typed clause (`catch let error`,
+  `catch is CancellationError`). Polly
+  audio written to a file and played by URL breaks the flow at the write. With
+  about 1,800 appends in one function the engine drops the history rule's match.
+- **Identity, signatures and encryption.** No Swift rule reads a selfie with an
+  ID document, a verifiable credential or a PDF signature, and identity vendors
+  beyond the six SDKs the rules name reach only the URL rule. End-to-end
+  encryption built on CryptoKit alone is unread, as the JDK's is, and no rule
+  reads a bundled TLS stack.
+- **Data and tracking.** No rule reads a Vapor server's client address or a
+  device fingerprint, and an install ID the app mints for itself (a random UUID
+  kept in its own store and sent with every request) is not read, so
+  `tracks_devices` is missed on an app that does only that. Taint does not follow
+  a class property initialized from a source into a method.
+- **Shipping.** A tvOS-only or visionOS-only app whose delegate file carries no
+  platform cue is matched as a mobile app, an SDK's non-open delegate forwarder
+  is matched, a delegate that conforms in fourth place or later is missed, and a
+  test double is excluded by name only.
+
+### Known Rust gaps
+
+- **Imports the engine does not resolve.** A path inside a `use` group
+  (`use async_openai::{types::Args, Client}`, `use a::{b::Item}`), `self as m`
+  in a group, a glob (`use ring::aead::*;`) and a rename inside a group
+  (`use poem::web::Form as PForm`) are not followed, so a crate-path pattern
+  misses calls on those items. A rule covers a crate whose own examples use
+  nested groups with a short form guarded by a check that the file names the
+  crate on a `use` line, which means an app's own item of the same name in a file
+  that also uses the crate reads as the crate's. A parameter type matches on its
+  last path segment, so a rule that keys on a handler's parameter type also
+  checks that the file uses the crate. A gated method on a client typed in another
+  file, where this file never names the crate, is missed, and so is warp's `path()`
+  called through a grouped `use` or an alias of the crate.
+- **Macro bodies.** The engine does not see a call inside the body of `format!`,
+  `serde_json::json!`, `tokio::select!`, `html!`, `view!`, `rsx!` or a Diesel
+  `table!`, so a handler that returns `Json(json!({ "reply": reply }))` or
+  `Html(format!(...))` is not followed, taint into a log or query macro sees only
+  a bare identifier (not `ip = %addr` or an argument written with a trailing
+  comma), and a regex rule that reads a string still sees the text. Counted over
+  Lemmy, a newsletter service and an API server on 2026-11-15: 4,956 lines hold
+  the name of a call some rule anchors on, and 176 of them sit inside a macro
+  body, nearly all in test assertions or on generic names (`parse`, `contains`,
+  `from`). Of the 1,609 lines that hold a name specific enough to be a rule's
+  own, 1 does, a `select!` in Lemmy that hosts an `insert`.
+- **Test modules.** A `#[cfg(test)] mod tests;` whose module is in another file
+  is not followed (4 in Lemmy), a file-level `#![cfg(test)]` is not honored,
+  `cfg(all(test, ...))` and `cfg(any(test, ...))` are kept as code, a module
+  whose name has a non-ASCII character is not recognized and code on the same line
+  as the attribute is dropped with the module.
+- **Engine parse faults.** The grammar does not read async closures (`async |x| {
+  ... }`, `async move || { ... }`, Rust 2024), an associated-type bound inside a
+  generic parameter list (`CursorKey<C, SqlType: Send>`) or an attribute on a
+  generic parameter (`#[cfg(feature = "ts-rs")] T: TS`). A file with one is read
+  in part, for every rule, and counted in the scan's notice. Of Lemmy's 18
+  unreadable files, 15 use async closures, 1 has the bound and 2 have the
+  attributes, and 1 of the 18 is a test file.
+- **Cost.** The engine gives a rule 30 seconds per file, and a rule that matches
+  thousands of times in one file (about 3,000) does not finish, whatever its
+  shape, so a file of that size loses that rule's matches.
+- **Taint and functions.** A fetch and its HTML parse in two functions, a send
+  called through the app's own function from a worker in another function, a
+  request built in one statement and sent in the next (`let req = c.get(url);
+  req.send()`), a handler that returns the model's output as its tail expression
+  with no response wrapper, a model id or address held in a `const`, and an
+  `mpsc` channel between a generating task and a stream are not joined. A send
+  from a `match` arm on `Err` inside a timer matches, because the rule excludes
+  only `if let Err`. The client-address rule counts a write only when its
+  statement is an INSERT or UPDATE string literal, so a `const` SQL string or a
+  `query(&format!("INSERT ..."))` is missed, and a predicate other than `is_ok`,
+  `is_err`, `is_some` or `is_none` at the end of a write chain (`.is_empty()`,
+  `.is_some_and(...)`) hides the match.
+- **Staff routes.** A route registered in a router built in another function
+  and nested by name (`.nest("/admin", admin_routes())`), a route behind an
+  authentication layer and a handler in a file under `admin/` are not read as
+  staff, and an inline staff-named `mod` is excluded by a text regex, so a brace
+  in a string inside it can end its range early.
+- **Not read.** A serenity (Discord) or teloxide (Telegram) bot is not read as
+  a chatbot, and no Rust rule reads Woodpecker CI (`.woodpecker.yml`), `tauri.conf.json`, `cargo-apk` metadata, a
+  `publish.workspace = true` that the workspace turns on, a Dioxus `launch` with
+  the `mobile` feature, SIP stacks, or a TLS stack chosen only by the `rustls-tls`
+  feature with no call. Twilio calls placed through an OpenAPI-generated client,
+  and voice, face and meeting vendors with no maintained Rust crate (matched by
+  address only, so an address assembled from parts is missed) are not read. A
+  crate's item paths come from its documentation, since nothing is fetched, so a
+  crate that moves an item is missed, never misread.
+- **Not extracted.** Handlebars templates (above).
+
 ## A known gap: a file over 1 MB
 
 Some rules first check the whole file for a name, with a `pattern-regex` of the
@@ -998,7 +1568,7 @@ file. A lazy `.*?` counts from the start and misses a name used only at the end
 from about 1,000 KB, and an alternation tried at every step shortens the reach
 further. lexcode cannot lift the engine's limit, so a scan counts the files it
 hands the engine that are over 1,000,000 bytes and in a language with at least
-one such rule (in this rule set, Java, Kotlin, PHP and Ruby), and says so: `N files
+one such rule (in this rule set, Java, Kotlin, PHP, Ruby, Rust and Swift), and says so: `N files
 handed to the engine are over 1,000,000 bytes (Java); rules that first check a
 whole file for a name can miss matches in a file that large, so evidence in them
 may be missing from this record`. With files in more than one language, the

@@ -1,4 +1,4 @@
-// lexcode-expect: 3
+// lexcode-expect: 6
 // A service that returns pictures made by an image model to its caller.
 import ImagePlayground
 import OpenAI
@@ -24,5 +24,39 @@ struct PictureService {
             return picture.cgImage
         }
         return nil
+    }
+}
+
+// A nested function that returns the picture, under a method with no return type, under a Task in such a
+// method, and under an init: the enclosing body names the call, so the return is in scope.
+extension PictureService {
+    func logPaint(_ query: ImagesQuery) async throws {
+        let result = try await openAI.images(query: query)
+        func firstURL() -> URL? {
+            return URL(string: result.data.first?.url ?? "")
+        }
+        print(firstURL() as Any)
+    }
+
+    func paintLater(_ query: ImagesQuery) {
+        Task {
+            let result = try await openAI.images(query: query)
+            func firstURL() -> URL? {
+                return URL(string: result.data.first?.url ?? "")
+            }
+            print(firstURL() as Any)
+        }
+    }
+}
+
+final class Poster {
+    var url: URL?
+
+    init(service: PictureService, query: ImagesQuery) async throws {
+        let result = try await service.openAI.images(query: query)
+        func firstURL() -> URL? {
+            return URL(string: result.data.first?.url ?? "")
+        }
+        url = firstURL()
     }
 }
