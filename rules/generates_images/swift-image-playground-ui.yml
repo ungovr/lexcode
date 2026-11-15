@@ -1,0 +1,21 @@
+rules:
+  - id: lexcode.image.swift-image-playground-ui
+    languages: [swift]
+    severity: INFO
+    message: Opens Apple's Image Playground inside the app, where the person makes a picture with Apple's image model and the app receives it, which is generating images with AI that reaches users (generates_images).
+    # Image Playground's sheet (SwiftUI) and view controller (UIKit) run Apple's on-device image model in
+    # the app's own window: the picture is made and shown there, and handed to the app's completion
+    # handler. Somebody else's model counts under the definition, so offering the generator is evidence,
+    # not a signal. Both come only with `import ImagePlayground`: the controller is written module-qualified,
+    # and the modifier, which has no module prefix, is guarded by the import.
+    pattern-either:
+      - pattern: ImagePlayground.ImagePlaygroundViewController(...)
+      - patterns:
+          - pattern-regex: '(?s)\A(?=.*\bimport\s+ImagePlayground\b).*'
+          - pattern: $V.imagePlaygroundSheet(...)
+    metadata:
+      activity: generates_images
+      mentioned: performs
+      definition: https://lexlint.io/activities/generates-images
+      provenance: ungovr-original
+      license: MIT
