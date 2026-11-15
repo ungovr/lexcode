@@ -3,8 +3,9 @@ rules:
     languages: [kotlin]
     severity: INFO
     message: Encrypts data or agrees keys with a cryptography library the product bundles (Bouncy Castle, Tink or libsodium), which is shipping encryption (ships_encryption).
-    # The platform's own cryptography (javax.crypto Cipher and KeyAgreement, SecretKeyFactory, the Android
-    # Keystore, MessageDigest, Mac, TLS) is not evidence; a cipher built through a bundled provider is.
+    # A cipher built through the Bouncy Castle provider is read here; one through the platform's own
+    # provider is kt-platform-encryption's, so no call is counted twice. Hashing, MACs, signing and
+    # key derivation in these libraries are not read.
     pattern-either:
       # Bouncy Castle lightweight API, OpenPGP and CMS
       - pattern: GCMBlockCipher(...)
