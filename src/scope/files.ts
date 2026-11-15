@@ -10,8 +10,11 @@ import { globToRegExp, globToRegExpSource } from './globs.js';
 /** A file over this many bytes is not read; the scan counts it. */
 export const MAX_FILE_BYTES = 5_000_000;
 
-/** Directories never read, at any depth. */
-const ALWAYS_SKIPPED = new Set(['node_modules', 'vendor', 'dist', 'build', '.git']);
+/**
+ * Directories never read, at any depth. CocoaPods' `Pods/` and Carthage's `Carthage/` are here, not in WALK_SKIPPED:
+ * teams commit them to git, and what they hold is someone else's code checked out for the build.
+ */
+const ALWAYS_SKIPPED = new Set(['node_modules', 'vendor', 'dist', 'build', '.git', 'Pods', 'Carthage']);
 /**
  * Directories a walk (a directory with no git work tree) also skips, at any depth. Git would have left
  * them out through .gitignore; a walk has no such list, and a third-party library under
@@ -29,8 +32,10 @@ const WALK_SKIPPED = new Set([
   '.svelte-kit',
   'target',
   '.gradle',
-  'Pods',
   '.terraform',
+  // SwiftPM's checkouts and build output, and Xcode's build output when it is kept beside the project.
+  '.build',
+  'DerivedData',
 ]);
 /** Skipped by a walk only when the directory holds a `pyvenv.cfg`, which is what makes it a virtual environment. */
 const VENV_NAMES = new Set(['.venv', 'venv', 'env']);
@@ -143,6 +148,8 @@ const TEST_DIRS = new Set(
     'spec',
     'fixtures',
     'testdata',
+    // Rust benchmarks (`cargo bench`), beside `tests/`.
+    'benches',
     // JVM test source sets: Gradle's `androidTest`, `testFixtures` and `integrationTest`.
     'androidTest',
     'testFixtures',
@@ -165,14 +172,22 @@ const TEST_DIR_SUFFIXES = ['.Tests', '.Test', '.UnitTests', '.IntegrationTests',
   s.toLowerCase(),
 );
 /**
+ * Xcode's test-target directories, `<App>Tests` and `<App>UITests` beside the app's own target (`WikipediaTests/`,
+ * `WikipediaUITests/`). Case-sensitive, unlike TEST_DIRS: Xcode writes the suffix this way, and the character before
+ * it must be a lower-case letter or a digit, so `Contests/` and `Latests/` are read. Skipped unless `includeTests`.
+ */
+const XCODE_TEST_TARGET = /[a-z0-9](?:UI)?Tests$/;
+/**
  * File names of bundled or minified code: someone else's library copied in,
  * never the project's own code, and the costliest files to parse (a vendored
  * jsPDF alone cost 15 CPU-seconds on the UnGovr monorepo). The engine's own
  * minified-file check catches what these names miss. The C# compiler's and the
  * XAML build's generated sources (`*.g.cs`, `*.g.i.cs`) are skipped the same way;
- * a designer's `*.Designer.cs` is the project's own and is read.
+ * a designer's `*.Designer.cs` is the project's own and is read. Swift code generators' output is skipped too:
+ * SwiftGen's and R.swift's (`*.generated.swift`, `*+Generated.swift`) and protoc's and gRPC's (`*.pb.swift`, `*.grpc.swift`).
  */
-const BUNDLED_NAME = /(?:\.min\.(?:js|mjs|cjs)|\.bundle\.js|\.vendor\.js|\.g(?:\.i)?\.cs)$|^vendor\.[^/]+\.js$/;
+const BUNDLED_NAME =
+  /(?:\.min\.(?:js|mjs|cjs)|\.bundle\.js|\.vendor\.js|\.g(?:\.i)?\.cs|\.generated\.swift|\+Generated\.swift|\.pb\.swift|\.grpc\.swift)$|^vendor\.[^/]+\.js$/;
 
 /** A POSIX relative path from a path built with the platform's own separator. */
 export function toPosix(p: string, flavor: Pick<typeof path, 'sep'> = path): string {
@@ -181,7 +196,7 @@ export function toPosix(p: string, flavor: Pick<typeof path, 'sep'> = path): str
 
 function testDir(name: string): boolean {
   const lower = name.toLowerCase();
-  return TEST_DIRS.has(lower) || TEST_DIR_SUFFIXES.some((s) => lower.endsWith(s));
+  return TEST_DIRS.has(lower) || TEST_DIR_SUFFIXES.some((s) => lower.endsWith(s)) || XCODE_TEST_TARGET.test(name);
 }
 
 function skippedDir(name: string, includeTests: boolean): boolean {

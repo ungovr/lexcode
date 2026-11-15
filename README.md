@@ -44,29 +44,32 @@ Files tracked by git or trackable by it, honoring `.gitignore`. Outside a git
 work tree lexcode walks the directory instead, and then also leaves out
 virtual environments (`.venv`, `venv` and `env` where a `pyvenv.cfg` says they
 are one), `site-packages`, `__pycache__`, `.tox`, `.nox`, `.mypy_cache`,
-`.pytest_cache`, `.next`, `.nuxt`, `.svelte-kit`, `target`, `.gradle`, `Pods`,
-`.terraform` and .NET build output (`obj` where it holds a
+`.pytest_cache`, `.next`, `.nuxt`, `.svelte-kit`, `target`, `.gradle`,
+`.terraform`, `.build`, `DerivedData` and .NET build output (`obj` where it holds a
 `project.assets.json`, `bin` where it holds a `Debug` or `Release`
 directory), and applies the simple patterns of the root `.gitignore`: a
 name, `dir/`, a glob such as `*.ext`, and a leading `/`. Negations (`!pattern`)
 are not supported, and neither is a `.gitignore` below the root; the scan says
 so in a notice. Never
-`node_modules`, `vendor`, `dist`, `build` or `.git`, never a legacy NuGet
+`node_modules`, `vendor`, `dist`, `build`, `.git`, `Pods` or `Carthage`, never a legacy NuGet
 restore folder (a `packages` directory whose subdirectories hold a `.nupkg`;
 a `packages/` of your own code is read), never minified or bundled
 files (including any named `*.min.js`, `*.bundle.js`, `vendor.*.js` or
 `*.vendor.js`), never C# the compiler generated (`*.g.cs` and `*.g.i.cs`;
-a `*.Designer.cs` is read), never a file with a line over 100,000 characters
+a `*.Designer.cs` is read), never generated Swift (`*.generated.swift`,
+`*+Generated.swift`, `*.pb.swift` and `*.grpc.swift`), never a file with a line over 100,000 characters
 (generated code, counted in a notice), never symbolic links, never files over
 5 MB, never a file you cannot open for reading (counted in a notice), and never
 directories named `test`, `tests`, `__tests__`, `spec`, `fixtures`, `testdata`,
-`androidTest`, `testFixtures` or `integrationTest`, or the Kotlin Multiplatform
+`benches`, `androidTest`, `testFixtures` or `integrationTest`, or the Kotlin Multiplatform
 test source sets `commonTest`, `jvmTest`, `androidUnitTest`,
 `androidInstrumentedTest`, `iosTest`, `jsTest` or `nativeTest`, or .NET test
 projects (a directory whose name ends in `.Tests`, `.Test`, `.UnitTests`,
 `.IntegrationTests`, `.FunctionalTests`, `.AcceptanceTests` or `.Specs`, so
 `src/MyApp.Tests`), in any case (so Symfony's `Tests` and Magento's `Test`
-too), unless you pass `--include-tests`.
+too), or Xcode test targets (a directory whose name ends in `Tests` or `UITests`
+after a lower-case letter or a digit, so `WikipediaTests` and `WikipediaUITests`
+but not `Contests`; this one is case-sensitive), unless you pass `--include-tests`.
 `app.scope` in `lexlint.yml` narrows the read, as the lint reads it.
 
 Languages: TypeScript, JavaScript (with JSX and TSX), Python, Go, Ruby
@@ -76,8 +79,9 @@ Languages: TypeScript, JavaScript (with JSX and TSX), Python, Go, Ruby
 `<?php`) and C# (`.cs`; `.csx` and `.cake` scripts are not read), plus the
 `<script>` blocks of Vue, Svelte, HTML, Jinja, ERB (`.erb`, so `.html.erb`),
 JSP (`.jsp`, `.jspf`, `.tag`), PHP (`.php`, `.phtml`), Blade (`.blade.php`),
-Twig (`.twig`, so `.html.twig`) and Razor (`.cshtml`, `.razor`) files. In an
-ERB, JSP, Twig or Razor view only the `<script>` blocks are read, as
+Twig (`.twig`, so `.html.twig`), Tera (`.tera`, so `.html.tera`) and Razor
+(`.cshtml`, `.razor`) files. In an
+ERB, JSP, Twig, Tera or Razor view only the `<script>` blocks are read, as
 JavaScript; the Ruby, Java, C# or template code inside the tags is not (the
 tags are blanked, so line numbers hold), except that a Razor file's `@code`
 and `@functions` blocks are also read as C#. A PHP, Blade or `.phtml` view is

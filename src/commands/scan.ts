@@ -1,4 +1,4 @@
-import { statSync } from 'node:fs';
+import { readFileSync, statSync } from 'node:fs';
 import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { isAbsolute, join, resolve } from 'node:path';
@@ -10,6 +10,7 @@ import { pathPresent } from '../fsread.js';
 import { ensureEngine } from '../engine/fetch.js';
 import { ENGINE_PIN } from '../engine/pin.js';
 import { runEngine } from '../engine/run.js';
+import { isCargoManifest, readCargo } from '../manifests/cargo.js';
 import { readGo } from '../manifests/go.js';
 import { readNpm } from '../manifests/npm.js';
 import { isRequirementsFile, readPypi } from '../manifests/pypi.js';
@@ -25,6 +26,7 @@ import { loadRuleSet, writeMergedConfig } from '../rules/load.js';
 import { extractScripts } from '../scope/extract.js';
 import { listFiles } from '../scope/files.js';
 import { hasLongLine, MAX_LINE_CHARS } from '../scope/longlines.js';
+import { dropRustTestMatches } from '../scope/rust-tests.js';
 import { loadSidecar } from '../config/sidecar.js';
 import type { Dependency, EngineMatch, Evidence, EvidenceRecord, RuleSet, ScopeSpec, Sidecar } from '../types.js';
 import { defaultIo, flag, parseFlags, str, strList, type Io } from './args.js';
@@ -58,6 +60,15 @@ function fileBytes(file: string): number {
   }
 }
 
+/** A file's text as UTF-8, or undefined when it cannot be read. */
+function readText(file: string): string | undefined {
+  try {
+    return readFileSync(file, 'utf8');
+  } catch {
+    return undefined;
+  }
+}
+
 function union(...lists: string[][]): string[] {
   return [...new Set(lists.flat())];
 }
@@ -70,7 +81,8 @@ export function readAppScope(root: string): ScopeSpec | undefined {
   return s ? { include: s.include, exclude: s.exclude, includeTests: false } : undefined;
 }
 
-function ecosystemsFound(files: string[]): Set<string> {
+/** The ecosystems whose component-map entries a scan of these files counts as run. */
+export function ecosystemsFound(files: string[]): Set<string> {
   const found = new Set<string>();
   for (const f of files) {
     const base = baseName(f);
@@ -80,6 +92,9 @@ function ecosystemsFound(files: string[]): Set<string> {
     else if (base === 'pom.xml' || base === 'build.gradle' || base === 'build.gradle.kts') found.add('maven');
     else if (base === 'composer.json') found.add('composer');
     else if (isNugetManifest(f)) found.add('nuget');
+    else if (isCargoManifest(f)) found.add('cargo');
+    else if (base === 'Package.swift' || base === 'Package.resolved' || base === 'project.pbxproj') found.add('swift');
+    else if (base === 'Podfile' || base === 'Podfile.lock') found.add('cocoapods');
     else if (base === 'pyproject.toml' || isRequirementsFile(f)) found.add('pypi');
   }
   return found;
@@ -133,7 +148,7 @@ export async function scan(o: ScanOptions): Promise<EvidenceRecord> {
   }
   if (listed.skippedBundled > 0) {
     notices.push(
-      `skipped ${listed.skippedBundled} bundled, minified or generated ${listed.skippedBundled === 1 ? 'file' : 'files'} (named *.min.js, *.bundle.js, vendor.*.js, *.vendor.js, *.g.cs or *.g.i.cs)`,
+      `skipped ${listed.skippedBundled} bundled, minified or generated ${listed.skippedBundled === 1 ? 'file' : 'files'} (named *.min.js, *.bundle.js, vendor.*.js, *.vendor.js, *.g.cs, *.g.i.cs, *.generated.swift, *+Generated.swift, *.pb.swift or *.grpc.swift)`,
     );
   }
   if (listed.skippedLarge > 0) {
@@ -157,7 +172,7 @@ export async function scan(o: ScanOptions): Promise<EvidenceRecord> {
   }
 
   // Manifests: what the code enables.
-  const readers = [readNpm(root, files), readPypi(root, files), readGo(root, files), readRuby(root, files), readMaven(root, files), readGradle(root, files), readComposer(root, files), readNuget(root, files)];
+  const readers = [readNpm(root, files), readPypi(root, files), readGo(root, files), readRuby(root, files), readMaven(root, files), readGradle(root, files), readComposer(root, files), readNuget(root, files), readCargo(root, files)];
   const deps: Dependency[] = readers.flatMap((r) => r.deps);
   const devSkipped = readers.reduce((n, r) => n + r.devSkipped, 0);
   for (const r of readers) notices.push(...r.notices);
@@ -211,6 +226,10 @@ export async function scan(o: ScanOptions): Promise<EvidenceRecord> {
         fileErrors = ran.fileErrors;
         const back = pathMapper(pairs);
         matches = ran.matches.map((m) => ({ ...m, path: back(m.path) }));
+        // Rust's unit tests sit in #[cfg(test)] modules of the source file itself; they are tests, out of
+        // scope unless the scan includes them. Filtered on the original paths the record will carry: an
+        // extracted copy is never .rs, and each .rs file with a match is read once.
+        if (!o.includeTests) matches = dropRustTestMatches(matches, (f) => readText(isAbsolute(f) ? f : join(root, ...f.split('/'))));
       }
       if (!handle.pinned && engineVersion !== ENGINE_PIN.version) {
         notices.push(`the engine is ${engineVersion}, not the pinned ${ENGINE_PIN.version}; the rule fixtures were checked against the pinned version only`);
