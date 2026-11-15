@@ -25,15 +25,26 @@ struct TermsAgreement: Codable {
     var acceptedAt: Date
 }
 
+// Each line below is a name the rule reads, on an agreement type, kept out by one exclusion
+// alone: the computed property, the static properties (typed and inferred), and the locals in a
+// method and an initializer (typed and inferred).
 struct EventWaiver: Codable {
     var participantName: String
     var signature: String { participantName.uppercased() }
-    static var placeholderSignature: String = "Sign here"
-    static let signature = "Sign here"
+    static var customerSignature: String = "Sign here"
+    static let guardianSignature = "Sign here"
+
+    init(participantName: String) {
+        let drawnSignature: String = participantName.lowercased()
+        var signatureData = Data(drawnSignature.utf8)
+        signatureData.removeAll()
+        self.participantName = participantName
+    }
 
     func render() -> String {
-        let signature = "Signed by \(participantName)"
-        return signature
+        let witnessSignature: String = "Signed by \(participantName)"
+        let signatureImage = witnessSignature.uppercased()
+        return signatureImage
     }
 }
 

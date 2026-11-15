@@ -1,4 +1,4 @@
-// lexcode-expect: 10
+// lexcode-expect: 11
 import UIKit
 import Persona2
 import Onfido
@@ -36,6 +36,7 @@ final class VerifyViewController: UIViewController, InquiryDelegate {
         VeriffSdk.shared.startAuthentication(sessionUrl: url, presentingFrom: self)
         try await VeriffSdk.shared
             .startAuthentication(sessionUrl: url)
+        Veriff.VeriffSdk.shared.startAuthentication(sessionUrl: url, presentingFrom: self)
     }
 
     func stripe(secret: String) {

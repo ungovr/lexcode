@@ -21,3 +21,19 @@ struct ReleaseTool {
         return signer.getCroppedSignature()
     }
 }
+
+// A diagram of the signing chain the tool draws for its report, with the app's own drawing
+// type: the same shape as a PencilKit read-back, kept out only by the missing `import PencilKit`.
+struct ChainDiagram {
+    func image(from rect: CGRect, scale: CGFloat) -> Data { Data() }
+    func dataRepresentation() -> Data { Data() }
+}
+
+struct SignatureChainReport {
+    let signatureCanvas = (drawing: ChainDiagram(), bounds: CGRect.zero)
+
+    func export() async throws -> [Data] {
+        [signatureCanvas.drawing.image(from: signatureCanvas.bounds, scale: 2),
+         signatureCanvas.drawing.dataRepresentation()]
+    }
+}

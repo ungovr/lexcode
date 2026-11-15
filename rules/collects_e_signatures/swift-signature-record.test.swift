@@ -1,4 +1,4 @@
-// lexcode-expect: 5
+// lexcode-expect: 7
 import Foundation
 import SwiftData
 
@@ -33,4 +33,11 @@ struct WorkOrder: Codable {
 
 struct MedicalReleaseRecord: Codable {
     let patientSignaturePng: Data
+}
+
+// Stored properties whose type is inferred from the initial value.
+final class RentalWaiver {
+    var renterName = ""
+    var signature = Data()
+    let witnessSignature = ""
 }

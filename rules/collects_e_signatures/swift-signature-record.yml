@@ -11,9 +11,9 @@ rules:
     # rule has it): in Swift it is the name of request-signing types (an AWS SigV4 authorization,
     # an App Store Connect token), whose signature is a key's. A computed property, a static
     # property and a local variable in a method or initializer are not a record's stored field and
-    # are not read. A stored property of a
-    # struct or class covers plain Codable records, SwiftData @Model classes and Fluent models
-    # (the property wrapper does not change the shape the engine reads).
+    # are not read; the negative fixture holds one line per exclusion, typed and inferred. A stored property of a struct or class covers plain Codable records, SwiftData
+    # @Model classes and Fluent models (the property wrapper does not change the shape the engine
+    # reads), with a written type or an inferred one (`var signature = Data()`).
     patterns:
       - pattern-regex: (?is)\A(?=.*signature).*
       - patterns:
@@ -22,6 +22,8 @@ rules:
               - pattern: 'var $SIG: $T = $V'
               - pattern: 'let $SIG: $T'
               - pattern: 'let $SIG: $T = $V'
+              - pattern: 'var $SIG = $V'
+              - pattern: 'let $SIG = $V'
           - metavariable-regex:
               metavariable: $SIG
               regex: '(?i)^(?:(?:customer|client|guest|patient|participant|signee|signer|tenant|guarantor|applicant|borrower|buyer|seller|witness|guardian|parent|drawn|handwritten|electronic|e)_?)?signature(?:_?(?:image|img|png|svg|data|file|photo|scan|drawing|base64))?$'
@@ -39,10 +41,12 @@ rules:
       - pattern-not: 'static var $SIG: $T = $V'
       - pattern-not: 'static let $SIG: $T'
       - pattern-not: 'static let $SIG: $T = $V'
+      - pattern-not: 'static var $SIG = $V'
+      - pattern-not: 'static let $SIG = $V'
+      # The engine reads an initializer as a function, so this also keeps out the locals in an
+      # init (measured: a separate `init(...) { ... }` exclusion changed nothing).
       - pattern-not-inside: |
           func $M(...) { ... }
-      - pattern-not-inside: |
-          init(...) { ... }
       - focus-metavariable: $SIG
     metadata:
       activity: collects_e_signatures

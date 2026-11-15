@@ -1,4 +1,4 @@
-// lexcode-expect: 4
+// lexcode-expect: 5
 import Foundation
 import HummingbirdBcrypt
 import Argon2Swift
@@ -11,6 +11,7 @@ struct PasswordService {
         let argon = try Argon2Swift.hashPasswordString(password: password, salt: Salt.newSalt())
         let pbkdf2 = try PKCS5.PBKDF2(password: Array(password.utf8), salt: Array("salt".utf8), iterations: 4096, keyLength: 32, variant: .sha2(.sha256)).calculate()
         let scrypt = try await Scrypt(password: Array(password.utf8), salt: Array("salt".utf8), dkLen: 64, N: 16384, r: 8, p: 1).calculate()
-        return [bcrypt, argon.encodedString(), pbkdf2.toHexString(), scrypt.toHexString()]
+        let raw = try await Argon2Swift.hashPasswordBytes(password: Data(password.utf8), salt: Salt.newSalt())
+        return [bcrypt, argon.encodedString(), pbkdf2.toHexString(), scrypt.toHexString(), raw.encodedString()]
     }
 }

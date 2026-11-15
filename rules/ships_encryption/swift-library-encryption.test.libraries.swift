@@ -1,4 +1,4 @@
-// lexcode-expect: 15
+// lexcode-expect: 20
 import Foundation
 import CryptoSwift
 import Sodium
@@ -41,6 +41,13 @@ final class SecureNotes {
         try signalEncrypt(message: message, for: address, sessionStore: store, identityStore: store, context: NullContext())
     }
 
+    func signalOthers(message: SignalMessage, data: Data, to address: ProtocolAddress, from sender: SenderCertificate,
+                      distribution: UUID, store: InMemorySignalProtocolStore) async throws {
+        _ = try signalDecrypt(message: message, from: address, sessionStore: store, identityStore: store, context: NullContext())
+        _ = try await sealedSenderEncrypt(message: data, for: address, from: sender, sessionStore: store, identityStore: store, context: NullContext())
+        _ = try groupEncrypt(data, from: address, distributionId: distribution, store: store, context: NullContext())
+    }
+
     func pgp(data: Data, keys: [Key]) async throws -> Data {
         try await ObjectivePGP.encrypt(data, addSignature: false, using: keys)
     }
@@ -62,5 +69,11 @@ final class SecureNotes {
         let ctx = EVP_CIPHER_CTX_new()
         EVP_EncryptInit_ex(ctx, EVP_aes_256_gcm(), nil, key, iv)
         EVP_CIPHER_CTX_free(ctx)
+    }
+
+    func opensslEnvelope(ctx: OpaquePointer?, pkeyCtx: OpaquePointer?, keys: UnsafeMutablePointer<OpaquePointer?>) {
+        _ = EVP_SealInit(ctx, EVP_aes_256_cbc(), nil, nil, nil, keys, 1)
+        var outLength = 0
+        _ = EVP_PKEY_encrypt(pkeyCtx, nil, &outLength, nil, 0)
     }
 }

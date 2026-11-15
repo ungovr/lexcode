@@ -22,7 +22,8 @@ rules:
               - pattern-inside: |
                   import GRDBCipher
                   ...
-      # SQLCipher through SQLite.swift
+      # SQLCipher through SQLite.swift. `key` is a generic name on an untyped receiver, so the file
+      # must also name SQLite.swift's Connection type.
       - patterns:
           - pattern-either:
               - pattern: $DB.key($K)
@@ -30,6 +31,7 @@ rules:
           - pattern-inside: |
               import SQLite
               ...
+          - pattern-regex: (?s)\A(?=.*\bConnection\b).*
       # SQLCipher's C API, which plain SQLite does not have
       - pattern: sqlite3_key(...)
       - pattern: sqlite3_key_v2(...)

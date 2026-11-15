@@ -1,4 +1,4 @@
-// lexcode-expect: 11
+// lexcode-expect: 14
 import Foundation
 import Vapor
 #if canImport(CryptoKit)
@@ -59,5 +59,13 @@ struct TokenVault {
         let a = try AES._CBC.encrypt(data, using: key, iv: iv)
         let b = try await AES._CTR.encrypt(a, using: key, nonce: AES._CTR.Nonce())
         return b
+    }
+
+    // The receiving and decrypting siblings.
+    func receive(mine: Curve25519.KeyAgreement.PrivateKey, encapsulated: Data, der: Data, sealed: Data) async throws -> Data {
+        var recipient = try await HPKE.Recipient(privateKey: mine, ciphersuite: .Curve25519_SHA256_ChachaPoly, info: Data(), encapsulatedKey: encapsulated)
+        let privateKey = try _RSA.Encryption.PrivateKey(derRepresentation: der)
+        let plain = try AES._CBC.decrypt(sealed, using: key, iv: AES._CBC.IV(ivBytes: Array(repeating: 0, count: 16)))
+        return try recipient.open(privateKey.decrypt(plain, padding: .PKCS1_OAEP_SHA256))
     }
 }
