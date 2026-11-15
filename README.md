@@ -61,8 +61,9 @@ generated Swift (`*.generated.swift`, `*+Generated.swift`, `*.pb.swift`,
 where swift-openapi-generator writes its output; the name is case-sensitive),
 never a file with a line over 100,000 characters (generated code, counted in
 a notice), never symbolic links, never files over 5 MB, never a file you
-cannot open for reading (counted in a notice), and never directories named `test`, `tests`, `__tests__`, `spec`, `fixtures`,
-`testdata`, `benches`, `androidTest`, `testFixtures` or `integrationTest`, or
+cannot open for reading (counted in a notice), and never directories named
+`test`, `tests`, `__tests__`, `spec`, `fixtures`, `testdata`, `benches`,
+`androidTest`, `testFixtures` or `integrationTest`, or
 the Kotlin Multiplatform test source sets `commonTest`, `jvmTest`,
 `androidUnitTest`, `androidInstrumentedTest`, `iosTest`, `jsTest` or
 `nativeTest`, or .NET test projects (a directory whose name ends in `.Tests`,

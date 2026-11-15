@@ -27,7 +27,7 @@ rules:
           # whose use line imports a Cookie from a module named cookie (a comment naming one
           # does not count).
           - patterns:
-              - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+[^;]*\bcookie::[^;]*\bCookie\b).*'
+              - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+[^;]*\bcookie::[^;]*\bCookie\b).*'
               - pattern-either:
                   - pattern: Cookie::new($N, $V)
                   - pattern: Cookie::build($N, $V)

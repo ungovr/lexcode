@@ -19,24 +19,24 @@ rules:
       - pattern-either:
           - patterns:
               - pattern-either:
-                  - pattern-regex: (?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+headless_chrome\b).*
+                  - pattern-regex: (?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+headless_chrome\b).*
                   - pattern-regex: (?ms)\A(?=.*^(?![ \t]*[/*])[^\n]*\bheadless_chrome::).*
               - pattern: $T.navigate_to($URL)
           - patterns:
               - pattern-either:
-                  - pattern-regex: (?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+chromiumoxide\b).*
+                  - pattern-regex: (?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+chromiumoxide\b).*
                   - pattern-regex: (?ms)\A(?=.*^(?![ \t]*[/*])[^\n]*\bchromiumoxide::).*
               - pattern-either:
                   - pattern: $B.new_page($URL)
                   - pattern: $P.goto($URL)
           - patterns:
               - pattern-either:
-                  - pattern-regex: (?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+fantoccini\b).*
+                  - pattern-regex: (?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+fantoccini\b).*
                   - pattern-regex: (?ms)\A(?=.*^(?![ \t]*[/*])[^\n]*\bfantoccini::).*
               - pattern: $C.goto($URL)
           - patterns:
               - pattern-either:
-                  - pattern-regex: (?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+thirtyfour\b).*
+                  - pattern-regex: (?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+thirtyfour\b).*
                   - pattern-regex: (?ms)\A(?=.*^(?![ \t]*[/*])[^\n]*\bthirtyfour::).*
               - pattern: $D.goto($URL)
       - metavariable-regex:

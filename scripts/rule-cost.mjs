@@ -36,6 +36,17 @@ const LARGE_KB = 900;
 const GROWTH_MAX = 2;
 const WEIGHT_MAX = 5;
 const ATTEMPTS = 3;
+/**
+ * The two files' names, without the extension. Each is 12 characters or more on purpose: the pinned engine's Swift
+ * scanner (opengrep/semgrep-swift lib/scanner.c) allocates its state with `calloc(0, ...)`, and on the engine's musl
+ * build a target path of 11 characters or fewer frees its C string into the slot the scanner then reads, so a
+ * modified class parses in quadratic time (`large.swift` at 900 KB: 57 s, against 2.2 s under a longer name), and
+ * the bare figure every Swift ratio divides by stops being a parse figure. tree-sitter-swift fixed it upstream in
+ * 8abb3e8b33 (calloc(1, ...)); Opengrep 1.33.1 still pins the unfixed fork. Other languages are not affected, and
+ * use the same names so every figure is taken the same way.
+ */
+const SMALL_NAME = 'unit-090kb';
+const LARGE_NAME = 'unit-900kb';
 /** One engine run on the two files; far above any rule worth keeping, so a runaway rule fails instead of hanging. */
 const SCAN_CAP_MS = 15 * 60 * 1000;
 
@@ -152,12 +163,12 @@ async function baselines(engine, exts) {
     const l = LANGS[ext];
     const dir = mkdtempSync(join(tmpdir(), 'lexcode-cost-'));
     try {
-      writeFileSync(join(dir, `small${ext}`), fill(l.head ?? '', l.unit, SMALL_KB));
-      writeFileSync(join(dir, `large${ext}`), fill(l.head ?? '', l.unit, LARGE_KB));
+      writeFileSync(join(dir, `${SMALL_NAME}${ext}`), fill(l.head ?? '', l.unit, SMALL_KB));
+      writeFileSync(join(dir, `${LARGE_NAME}${ext}`), fill(l.head ?? '', l.unit, LARGE_KB));
       writeFileSync(join(dir, 'bare.yml'), `rules:\n  - id: bare\n    languages: [${l.language}]\n    severity: INFO\n    message: bare\n    pattern: ${l.bare}\n`);
-      const r = await lowest(engine, join(dir, 'bare.yml'), dir, [`small${ext}`, `large${ext}`]);
-      const small = r.best?.[`small${ext}`];
-      const large = r.best?.[`large${ext}`];
+      const r = await lowest(engine, join(dir, 'bare.yml'), dir, [`${SMALL_NAME}${ext}`, `${LARGE_NAME}${ext}`]);
+      const small = r.best?.[`${SMALL_NAME}${ext}`];
+      const large = r.best?.[`${LARGE_NAME}${ext}`];
       if (r.error || small === undefined || large === undefined) {
         process.stderr.write(`the bare ${l.language} rule did not run: ${r.error ?? 'no time for its files'}\n`);
         return undefined;
@@ -175,8 +186,8 @@ async function measure(engine, base, { rule, fixture }) {
   const l = LANGS[ext];
   const head = readFileSync(fixture, 'utf8');
   const dir = mkdtempSync(join(tmpdir(), 'lexcode-cost-'));
-  const small = `small${ext}`;
-  const large = `large${ext}`;
+  const small = `${SMALL_NAME}${ext}`;
+  const large = `${LARGE_NAME}${ext}`;
   const ratios = (t) => ({
     growth: t[large] / Math.max(t[small], 0.01) / base[ext].growth,
     weight: t[large] / base[ext].large,

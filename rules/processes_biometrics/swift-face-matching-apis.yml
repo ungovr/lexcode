@@ -9,7 +9,7 @@ rules:
     # as are the detection endpoints.
     pattern-either:
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?AWSRekognition\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?AWSRekognition\b).*'
           - pattern-either:
               - pattern: $C.compareFaces(...)
               - pattern: $C.indexFaces(...)

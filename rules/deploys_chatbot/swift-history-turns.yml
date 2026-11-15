@@ -20,22 +20,22 @@ rules:
     patterns:
       - pattern-either:
           - patterns:
-              - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?OpenAI\b).*'
+              - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?OpenAI\b).*'
               - pattern-either:
                   - pattern: '$C.chats(query: $Q)'
                   - pattern: '$C.chatsStream(query: $Q)'
           - patterns:
-              - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?SwiftOpenAI\b).*'
+              - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?SwiftOpenAI\b).*'
               - pattern-either:
                   - pattern: '$C.startChat(parameters: $Q)'
                   - pattern: '$C.startStreamedChat(parameters: $Q)'
           - patterns:
-              - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?FoundationModels\b).*'
+              - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?FoundationModels\b).*'
               - pattern-either:
                   - pattern: $S.respond(...)
                   - pattern: $S.streamResponse(...)
           - patterns:
-              - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?(?:FirebaseAI|FirebaseVertexAI|Firebase|GoogleGenerativeAI)\b).*'
+              - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?(?:FirebaseAI|FirebaseVertexAI|Firebase|GoogleGenerativeAI)\b).*'
               # The Firebase umbrella also serves messaging apps: the file must build a Gemini model.
               - pattern-regex: '(?s)\b(generativeModel|GenerativeModel)\b.*'
               - pattern-either:

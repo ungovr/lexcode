@@ -10,27 +10,27 @@ rules:
     pattern-either:
       # MacPaw OpenAI: completion handler, Combine and async forms share the method names.
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?OpenAI\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?OpenAI\b).*'
           - pattern-either:
               - pattern: $C.audioTranscriptions(...)
               - pattern: $C.audioTranslations(...)
       # SwiftOpenAI
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?SwiftOpenAI\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?SwiftOpenAI\b).*'
           - pattern-either:
               - pattern: $C.createTranscription(...)
               - pattern: $C.createTranslation(...)
       # The AWS SDK for Swift: Amazon Transcribe batch jobs and Transcribe Streaming, Call
       # Analytics included (kept here, as in every other language).
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?AWSTranscribe\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?AWSTranscribe\b).*'
           - pattern-either:
               - pattern: $C.startTranscriptionJob(...)
               - pattern: $C.startMedicalTranscriptionJob(...)
               - pattern: $C.startMedicalScribeJob(...)
               - pattern: $C.startCallAnalyticsJob(...)
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?AWSTranscribeStreaming\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?AWSTranscribeStreaming\b).*'
           - pattern-either:
               - pattern: $C.startStreamTranscription(...)
               - pattern: $C.startMedicalStreamTranscription(...)

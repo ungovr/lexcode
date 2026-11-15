@@ -37,7 +37,7 @@ rules:
               - pattern-either:
                   - pattern: actix_web::web::resource($P)
                   - patterns:
-                      - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+actix_web\b).*'
+                      - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+actix_web\b).*'
                       - pattern: resource($P)
               - metavariable-regex:
                   metavariable: $P

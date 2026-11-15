@@ -27,17 +27,17 @@ rules:
           # code line; a comment that names the crate does not count.
           - patterns:
               - pattern-either:
-                  - pattern-regex: (?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+rss\b).*
+                  - pattern-regex: (?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+rss\b).*
                   - pattern-regex: (?ms)\A(?=.*^(?![ \t]*[/*])[^\n]*\brss::Channel\b).*
               - pattern: $X.parse::<rss::Channel>()
           - patterns:
               - pattern-either:
-                  - pattern-regex: (?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+atom_syndication\b).*
+                  - pattern-regex: (?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+atom_syndication\b).*
                   - pattern-regex: (?ms)\A(?=.*^(?![ \t]*[/*])[^\n]*\batom_syndication::Feed\b).*
               - pattern: $X.parse::<atom_syndication::Feed>()
           - patterns:
               - pattern-either:
-                  - pattern-regex: (?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+syndication\b).*
+                  - pattern-regex: (?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+syndication\b).*
                   - pattern-regex: (?ms)\A(?=.*^(?![ \t]*[/*])[^\n]*\bsyndication::Feed\b).*
               - pattern: $X.parse::<syndication::Feed>()
       - metavariable-regex:

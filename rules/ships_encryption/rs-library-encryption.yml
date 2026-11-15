@@ -38,40 +38,40 @@ rules:
       # in a file whose `use` line for the crate names the item, so an app's own type of the same name in
       # a file that uses the crate only for something else is not read.
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+ring::[^;]*\bUnboundKey\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+ring::[^;]*\bUnboundKey\b).*'
           - pattern: UnboundKey::new(...)
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+ring::[^;]*\bLessSafeKey\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+ring::[^;]*\bLessSafeKey\b).*'
           - pattern: LessSafeKey::new(...)
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+ring::[^;]*\bSealingKey\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+ring::[^;]*\bSealingKey\b).*'
           - pattern: SealingKey::new(...)
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+ring::[^;]*\bOpeningKey\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+ring::[^;]*\bOpeningKey\b).*'
           - pattern: OpeningKey::new(...)
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+ring::[^;]*\bEphemeralPrivateKey\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+ring::[^;]*\bEphemeralPrivateKey\b).*'
           - pattern: EphemeralPrivateKey::generate(...)
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+ring::[^;]*\bagree_ephemeral\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+ring::[^;]*\bagree_ephemeral\b).*'
           - pattern: agree_ephemeral(...)
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+aws_lc_rs::[^;]*\bUnboundKey\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+aws_lc_rs::[^;]*\bUnboundKey\b).*'
           - pattern: UnboundKey::new(...)
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+aws_lc_rs::[^;]*\bLessSafeKey\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+aws_lc_rs::[^;]*\bLessSafeKey\b).*'
           - pattern: LessSafeKey::new(...)
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+aws_lc_rs::[^;]*\bSealingKey\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+aws_lc_rs::[^;]*\bSealingKey\b).*'
           - pattern: SealingKey::new(...)
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+aws_lc_rs::[^;]*\bOpeningKey\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+aws_lc_rs::[^;]*\bOpeningKey\b).*'
           - pattern: OpeningKey::new(...)
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+aws_lc_rs::[^;]*\bEphemeralPrivateKey\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+aws_lc_rs::[^;]*\bEphemeralPrivateKey\b).*'
           - pattern: EphemeralPrivateKey::generate(...)
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+aws_lc_rs::[^;]*\bagree_ephemeral\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+aws_lc_rs::[^;]*\bagree_ephemeral\b).*'
           - pattern: agree_ephemeral(...)
       # RustCrypto AEADs and stream ciphers, built from a key (KeyInit's new or new_from_slice), and
       # crypto_box's public-key boxes. A namespace part cannot be a metavariable, so each type is listed.
@@ -129,7 +129,7 @@ rules:
               metavariable: $P
               regex: ^rsa::(?:oaep::)?Oaep::new
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+rsa::[^;]*\bOaep\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+rsa::[^;]*\bOaep\b).*'
           - pattern-either:
               - pattern: $K.encrypt($R, $P, ...)
               - pattern: $K.decrypt($P, ...)
@@ -139,7 +139,7 @@ rules:
       # The rsa crate's newer OAEP methods (its README's `public_key.oaep_encrypt::<Sha256>(data)`), read in
       # a file with a `use` line for rsa, so an app's own method of that name elsewhere is not read.
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+rsa\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+rsa\b).*'
           - pattern-either:
               - pattern: $K.oaep_encrypt::<$H>(...)
               - pattern: $K.oaep_decrypt::<$H>(...)
@@ -194,16 +194,16 @@ rules:
       - pattern: josekit::jwe::deserialize_compact(...)
       # The same calls through a module imported in a nested group (`use josekit::{jwe::{..}, jwt::{self, ..}}`)
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+josekit::[^;]*\bjwt\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+josekit::[^;]*\bjwt\b).*'
           - pattern: jwt::encode_with_encrypter(...)
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+josekit::[^;]*\bjwt\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+josekit::[^;]*\bjwt\b).*'
           - pattern: jwt::decode_with_decrypter(...)
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+josekit::[^;]*\bjwe\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+josekit::[^;]*\bjwe\b).*'
           - pattern: jwe::serialize_compact(...)
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+josekit::[^;]*\bjwe\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+josekit::[^;]*\bjwe\b).*'
           - pattern: jwe::deserialize_compact(...)
       # End-to-end messaging: the Signal protocol, and Olm and Megolm through vodozemac and Matrix's crypto machine
       - pattern: libsignal_protocol::message_encrypt(...)

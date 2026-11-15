@@ -40,8 +40,8 @@ rules:
               - pattern: Whisper::builder()
               - pattern: WhisperBuilder::default()
           - pattern-either:
-              - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+rwhisper\b).*'
-              - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+kalosm\b).*'
+              - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+rwhisper\b).*'
+              - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+kalosm\b).*'
       # sherpa-rs: offline recognizers and diarization. Its examples import the recognizers through a
       # nested group (`use sherpa_rs::{read_audio_file, whisper::{WhisperConfig, WhisperRecognizer}};`),
       # which the engine does not resolve, so the short form counts in a file with a `use sherpa_rs`.
@@ -59,7 +59,7 @@ rules:
               - pattern: SenseVoiceRecognizer::new(...)
               - pattern: ZipFormer::new(...)
               - pattern: Diarize::new(...)
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+sherpa_rs\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+sherpa_rs\b).*'
     metadata:
       activity: processes_voice
       mentioned: performs

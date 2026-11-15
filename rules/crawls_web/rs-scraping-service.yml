@@ -20,7 +20,7 @@ rules:
     message: Asks a scraping service or scraping proxy to fetch, crawl or map pages of other sites, which is crawling the web (crawls_web).
     pattern-either:
       - patterns:
-          - pattern-regex: (?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+firecrawl\b).*
+          - pattern-regex: (?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+firecrawl\b).*
           - pattern-either:
               - pattern: $F.scrape_url(...)
               - pattern: $F.crawl_url(...)

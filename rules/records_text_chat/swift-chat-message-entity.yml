@@ -63,7 +63,7 @@ rules:
               metavariable: $K
               regex: ^\w*(Chat(Message|Msg|Turn|Entry|History|Log|Transcript)|Conversation(Message|Turn|Entry|Transcript))s?(Entity|Table|Document|Row|Record|Model|Object|MO|Item)?$
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?(?:Fluent|FluentKit)\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?(?:Fluent|FluentKit)\b).*'
           - pattern: $DB.schema($NAME)
           - metavariable-regex:
               metavariable: $NAME

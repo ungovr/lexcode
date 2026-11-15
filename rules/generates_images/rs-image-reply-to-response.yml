@@ -27,7 +27,7 @@ rules:
       # with async-openai's own request, built with its Args builder (OPENAI_IMAGE_REQUEST, which
       # no sink accepts). `create` and `create_edit` are the names before 0.29.
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+async_openai\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+async_openai\b).*'
           - pattern-either:
               - pattern: $C.images().generate(...)
               - pattern: $C.images().generate_byot(...)
@@ -43,10 +43,10 @@ rules:
           - pattern: async_openai::types::images::CreateImageRequestArgs::default()
           - pattern: async_openai::types::images::CreateImageEditRequestArgs::default()
           - patterns:
-              - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+async_openai\b[^;]*\bCreateImageRequestArgs\b).*'
+              - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+async_openai\b[^;]*\bCreateImageRequestArgs\b).*'
               - pattern: CreateImageRequestArgs::default()
           - patterns:
-              - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+async_openai\b[^;]*\bCreateImageEditRequestArgs\b).*'
+              - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+async_openai\b[^;]*\bCreateImageEditRequestArgs\b).*'
               - pattern: CreateImageEditRequestArgs::default()
       - requires: OPENAI_IMAGE_REQUEST
         patterns:
@@ -55,15 +55,15 @@ rules:
               - pattern: $C.images().edit(...)
       # rig: an image generation model's request, built and sent.
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+(?:rig|rig_core)\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+(?:rig|rig_core)\b).*'
           - pattern: $M.image_generation_request()
       # mistral.rs: a local diffusion model.
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+mistralrs\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+mistralrs\b).*'
           - pattern: $M.generate_image(...)
       # AWS Bedrock Runtime: InvokeModel with an image model's id (Titan Image, Nova Canvas, Stability).
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+aws_sdk_bedrockruntime\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+aws_sdk_bedrockruntime\b).*'
           - pattern: $B.model_id($ID)
           - metavariable-pattern:
               metavariable: $B
@@ -86,7 +86,7 @@ rules:
       # of the crates. The use check sits outside a nested block: beside the pattern-inside terms
       # at one level it removed every match.
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+async_openai\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+async_openai\b).*'
           - patterns:
               - pattern-inside: |
                   let $STREAM = $OPEN;
@@ -212,28 +212,28 @@ rules:
       # so an app's own `Message` or reqwest's `Body` in a file that imports other things from axum
       # is not a response.
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+(?:axum|rocket|poem|poem_openapi)\b[^;]*\bJson\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+(?:axum|rocket|poem|poem_openapi)\b[^;]*\bJson\b).*'
           - pattern: Json(...)
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+(?:axum|poem|poem_openapi)\b[^;]*\bHtml\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+(?:axum|poem|poem_openapi)\b[^;]*\bHtml\b).*'
           - pattern: Html(...)
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+poem_openapi\b[^;]*\bPlainText\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+poem_openapi\b[^;]*\bPlainText\b).*'
           - pattern: PlainText(...)
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+poem_openapi\b[^;]*\bBinary\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+poem_openapi\b[^;]*\bBinary\b).*'
           - pattern: Binary(...)
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+rocket\b[^;]*\bRawHtml\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+rocket\b[^;]*\bRawHtml\b).*'
           - pattern: RawHtml(...)
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+rocket\b[^;]*\bRawText\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+rocket\b[^;]*\bRawText\b).*'
           - pattern: RawText(...)
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+rocket\b[^;]*\bRawJson\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+rocket\b[^;]*\bRawJson\b).*'
           - pattern: RawJson(...)
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+(?:axum|rocket|poem)\b[^;]*\bEvent\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+(?:axum|rocket|poem)\b[^;]*\bEvent\b).*'
           - pattern-either:
               - pattern: Event::default().data(...)
               - pattern: Event::default().json_data(...)
@@ -241,21 +241,21 @@ rules:
               - pattern: Event::json(...)
               - pattern: Event::message(...)
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+axum\b[^;]*\bSse\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+axum\b[^;]*\bSse\b).*'
           - pattern: Sse::new(...)
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+(?:axum|hyper|poem)\b[^;]*\bBody\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+(?:axum|hyper|poem)\b[^;]*\bBody\b).*'
           - pattern: Body::from(...)
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+(?:axum|tungstenite|tokio_tungstenite)\b[^;]*\bMessage\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+(?:axum|tungstenite|tokio_tungstenite)\b[^;]*\bMessage\b).*'
           - pattern-either:
               - pattern: Message::Text(...)
               - pattern: Message::Binary(...)
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+(?:axum|hyper|http|poem)\b[^;]*\bResponse\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+(?:axum|hyper|http|poem)\b[^;]*\bResponse\b).*'
           - pattern: Response::new(...)
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+(?:axum|hyper|http|poem)\b[^;]*\bResponse\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+(?:axum|hyper|http|poem)\b[^;]*\bResponse\b).*'
           - pattern: $B.body($X)
           - metavariable-pattern:
               metavariable: $B
@@ -276,7 +276,7 @@ rules:
           - pattern: Ok($X)
           - focus-metavariable: $X
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+(?:tauri|socketioxide)\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+(?:tauri|socketioxide)\b).*'
           - pattern-either:
               - pattern: $W.emit($EVENT, $X)
               - pattern: $W.emit_all($EVENT, $X)

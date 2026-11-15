@@ -35,7 +35,7 @@ rules:
       - pattern: dioxus_mobile::launch(...)
       - pattern: dioxus_mobile::launch_cfg(...)
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+dioxus\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+dioxus\b).*'
           - pattern: LaunchBuilder::mobile()
     metadata:
       activity: ships_mobile_app

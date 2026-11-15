@@ -11,18 +11,18 @@ rules:
     # the inference client.
     pattern-either:
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+async_openai\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+async_openai\b).*'
           - pattern: $C.fine_tuning().create(...)
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+openai_api_rs\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+openai_api_rs\b).*'
           - pattern: $C.create_fine_tuning_job(...)
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+aws_sdk_sagemaker\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+aws_sdk_sagemaker\b).*'
           - pattern-either:
               - pattern: $C.create_training_job()
               - pattern: $C.create_hyper_parameter_tuning_job()
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+aws_sdk_bedrock\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+aws_sdk_bedrock\b).*'
           - pattern: $C.create_model_customization_job()
     metadata:
       activity: trains_models

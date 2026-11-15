@@ -21,7 +21,7 @@ rules:
     # so the exclusion also refuses the bare `fit`; the type's binding still carries a model's fit.
     pattern-either:
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+linfa_(?:logistic|trees|svm|clustering|bayes|linear|elasticnet|pls|ftrl|ensemble)\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+linfa_(?:logistic|trees|svm|clustering|bayes|linear|elasticnet|pls|ftrl|ensemble)\b).*'
           - pattern-either:
               - pattern: $M.fit(...)
               - pattern: $M.fit_with(...)
@@ -29,7 +29,7 @@ rules:
               metavariable: $M
               regex: ^(?!(?:\w+::)*(?:LinearScaler|NormScaler|Whitener|CountVectorizer|TfIdfVectorizer|Pca|FastIca|DiffusionMap|GaussianRandomProjection|SparseRandomProjection|PlsSvd|Tsne(?:Params)?|TSneParams)\b|fit$)
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+smartcore::(?:ensemble|linear|tree|svm|neighbors|naive_bayes|cluster)\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+smartcore::(?:ensemble|linear|tree|svm|neighbors|naive_bayes|cluster)\b).*'
           - pattern: $M.fit(...)
           - metavariable-regex:
               metavariable: $M

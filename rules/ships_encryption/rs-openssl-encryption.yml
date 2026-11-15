@@ -29,7 +29,7 @@ rules:
       # An Rsa key's own methods, read in a file with a `use openssl` line, so an app's own method of
       # the same name elsewhere is not read.
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+openssl\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+openssl\b).*'
           - pattern-either:
               - pattern: $R.public_encrypt(...)
               - pattern: $R.private_decrypt(...)

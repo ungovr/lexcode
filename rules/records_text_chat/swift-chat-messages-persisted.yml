@@ -18,7 +18,7 @@ rules:
     pattern-either:
       # SwiftData
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?SwiftData\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?SwiftData\b).*'
           - pattern-either:
               - patterns:
                   - pattern: $CTX.insert($T(...))
@@ -35,7 +35,7 @@ rules:
                       regex: ^(\.(user|assistant|model|bot)|"(user|assistant|model|ai|bot)")$
       # Core Data
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?CoreData\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?CoreData\b).*'
           - pattern-either:
               - patterns:
                   - pattern: '$T(context: $CTX)'
@@ -49,7 +49,7 @@ rules:
                       regex: ^"\w*(Chat(Message|Msg|Turn|Entry|History|Log|Transcript)|Conversation(Message|Turn|Entry|Transcript))s?(Entity|Record|Model|Object|MO|Item)?"$
       # Fluent
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?(?:Fluent|FluentKit)\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?(?:Fluent|FluentKit)\b).*'
           - pattern-either:
               - patterns:
                   - pattern-either:
@@ -70,7 +70,7 @@ rules:
                       regex: '(?s)^(await\s+)?(\w*(Chat(Message|Msg|Turn|Entry|History|Log|Transcript)|Conversation(Message|Turn|Entry|Transcript))s?(Entity|Record|Model|Object|MO|Item)?\(.*|\w*(Message|Turn|Chat|Conversation|Transcript)\w*\(.*\brole:\s*(\.(user|assistant|model|bot)|"(user|assistant|model|ai|bot)")(?!\w).*)\)$'
       # Realm
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?RealmSwift\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?RealmSwift\b).*'
           - pattern: $R.add($T(...), ...)
           - metavariable-regex:
               metavariable: $T
@@ -79,7 +79,7 @@ rules:
       # (`db.collection("x").addDocument(...)`) differently from the same chain without it, so the
       # write is matched by its last call and the collection path is read from its receiver's text.
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?(?:FirebaseFirestore|Firebase)\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?(?:FirebaseFirestore|Firebase)\b).*'
           - pattern-either:
               - pattern: $Y.addDocument(...)
               - pattern: $Y.setData(...)

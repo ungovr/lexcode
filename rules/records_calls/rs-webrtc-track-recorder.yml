@@ -21,7 +21,7 @@ rules:
               - pattern: OggWriter::create(...)
               - pattern: H264Writer::new(...)
               - pattern: IVFWriter::new(...)
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+webrtc\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+webrtc\b).*'
     metadata:
       activity: records_calls
       mentioned: performs

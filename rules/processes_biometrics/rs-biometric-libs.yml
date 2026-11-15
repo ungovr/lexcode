@@ -45,7 +45,7 @@ rules:
               - pattern: FisherFaceRecognizer::create_def()
               - pattern: FaceRecognizerSF::create(...)
               - pattern: FaceRecognizerSF::create_def(...)
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+opencv\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+opencv\b).*'
       # libfprint-rs
       - patterns:
           - pattern-either:
