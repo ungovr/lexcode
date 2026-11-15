@@ -1,0 +1,79 @@
+rules:
+  - id: lexcode.personal.swift-entity-field
+    languages: [swift]
+    severity: INFO
+    message: Declares a stored field for a person's name, email, phone number, date of birth, postal address, government identifier or IP address on a persistent model (SwiftData, Core Data or Fluent), or adds such a column in a Fluent migration, which is processing personal data (processes_personal_data).
+    # A field the store is told to skip (SwiftData's @Transient), a computed property and a local
+    # variable in a model's method are not stored, and are not matched.
+    pattern-either:
+      # SwiftData: a stored property of a @Model class. @Model is a macro from SwiftData, so the
+      # file imports it; an app's own Model macro elsewhere is not read.
+      - patterns:
+          - pattern-either:
+              - pattern: 'var $F: $T'
+              - pattern: 'var $F: $T = $V'
+          - pattern-inside: |
+              @Model
+              class $C { ... }
+          - pattern-inside: |
+              import SwiftData
+              ...
+          - pattern-not: |
+              @Transient var $F: $T
+          - pattern-not: |
+              @Transient var $F: $T = $V
+          - pattern-not: 'var $F: $T { ... }'
+          - pattern-not-inside: |
+              func $M(...) { ... }
+          - pattern-not-inside: |
+              init(...) { ... }
+          - metavariable-regex:
+              metavariable: $F
+              regex: &personal-field (?i)^(e_?mail|email_?(address|addr)?|(user|contact|work|primary|customer)_?e_?mail|phone(_?(number|no|num))?|mobile(_?(number|phone|no))?|telephone|date_?of_?birth|dob|birth_?(date|day)|birthday|(first|last|given|family|middle|legal)_?name|surname|(street|postal|home|mailing|billing|shipping)_?address|ssn|social_?security(_?(number|no))?|national_?(id|insurance)(_?number)?|passport(_?(number|no))?|tax_?(id|number)|drivers?_?licen[sc]e(_?(number|no))?|ip_?(address|addr)?|last_?ip(_?address)?|client_?ip|remote_?(addr|ip|address))$
+          - focus-metavariable: $F
+      # Core Data: an @NSManaged property is a stored attribute of an entity by definition.
+      - patterns:
+          - pattern: |
+              @NSManaged var $F: $T
+          - metavariable-regex:
+              metavariable: $F
+              regex: *personal-field
+          - focus-metavariable: $F
+      # Fluent (Vapor): a model field, in a file that imports Fluent or FluentKit.
+      - patterns:
+          - pattern-either:
+              - pattern: |
+                  @Field(key: $K) var $F: $T
+              - pattern: |
+                  @OptionalField(key: $K) var $F: $T
+          - pattern-either:
+              - pattern-inside: |
+                  import Fluent
+                  ...
+              - pattern-inside: |
+                  import FluentKit
+                  ...
+          - metavariable-regex:
+              metavariable: $F
+              regex: *personal-field
+          - focus-metavariable: $F
+      # Fluent migration: a column added to a schema, keyed by its string name.
+      - patterns:
+          - pattern: $S.field($K, ...)
+          - pattern-either:
+              - pattern-inside: |
+                  import Fluent
+                  ...
+              - pattern-inside: |
+                  import FluentKit
+                  ...
+          - metavariable-regex:
+              metavariable: $K
+              regex: (?i)^"(e_?mail|email_?(address|addr)?|(user|contact|work|primary|customer)_?e_?mail|phone(_?(number|no|num))?|mobile(_?(number|phone|no))?|telephone|date_?of_?birth|dob|birth_?(date|day)|birthday|(first|last|given|family|middle|legal)_?name|surname|(street|postal|home|mailing|billing|shipping)_?address|ssn|social_?security(_?(number|no))?|national_?(id|insurance)(_?number)?|passport(_?(number|no))?|tax_?(id|number)|drivers?_?licen[sc]e(_?(number|no))?|ip_?(address|addr)?|last_?ip(_?address)?|client_?ip|remote_?(addr|ip|address))"$
+          - focus-metavariable: $K
+    metadata:
+      activity: processes_personal_data
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-personal-data
+      provenance: ungovr-original
+      license: MIT

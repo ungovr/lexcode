@@ -289,7 +289,7 @@ describe('buildRecord', () => {
 
   describe('a repository lexcode cannot read (S4)', () => {
     const rs = ruleSetWith([{ id: 'lexcode.voice.whisper', activity: 'processes_voice' }]);
-    const noRead = /no file in scope is in a language lexcode reads \(TypeScript, JavaScript, Python, Go, Ruby, Java, Kotlin, PHP and C#, and script blocks in HTML, Vue, Svelte, Jinja, ERB, JSP, PHP, Blade, Twig, Tera and Razor views\); nothing was looked at/;
+    const noRead = /no file in scope is in a language lexcode reads \(TypeScript, JavaScript, Python, Go, Ruby, Java, Kotlin, PHP, C#, Swift and Rust, and script blocks in HTML, Vue, Svelte, Jinja, ERB, JSP, PHP, Blade, Twig, Tera and Razor views\); nothing was looked at/;
 
     it('adds a notice when no code rule had a file to read', () => {
       const rulesRun = countRulesRun(rs, rs.rules, ['app.rb', 'README.md'], new Set());
@@ -308,10 +308,10 @@ describe('buildRecord', () => {
       expect(buildRecord({ ...base, rs: withJson, rulesRun }).notices.join('\n')).toMatch(noRead);
     });
 
-    it('the notice names every language and view type lexcode reads, Ruby, Java, Kotlin, PHP, C#, ERB, JSP, Blade, Twig, Tera and Razor included', () => {
+    it('the notice names every language and view type lexcode reads, Ruby, Java, Kotlin, PHP, C#, Swift, Rust, ERB, JSP, Blade, Twig, Tera and Razor included', () => {
       const rulesRun = countRulesRun(rs, rs.rules, ['app.rb', 'README.md'], new Set());
       const text = buildRecord({ ...base, rs, rulesRun }).notices.find((n) => noRead.test(n)) ?? '';
-      for (const name of ['TypeScript', 'JavaScript', 'Python', 'Go', 'Ruby', 'Java', 'Kotlin', 'PHP', 'C#', 'HTML', 'Vue', 'Svelte', 'Jinja', 'ERB', 'JSP', 'Blade', 'Twig', 'Tera', 'Razor']) {
+      for (const name of ['TypeScript', 'JavaScript', 'Python', 'Go', 'Ruby', 'Java', 'Kotlin', 'PHP', 'C#', 'Swift', 'Rust', 'HTML', 'Vue', 'Svelte', 'Jinja', 'ERB', 'JSP', 'Blade', 'Twig', 'Tera', 'Razor']) {
         expect(text).toMatch(namedIn(name));
       }
     });
@@ -327,6 +327,8 @@ describe('buildRecord', () => {
         kotlin: 'Kotlin',
         php: 'PHP',
         csharp: 'C#',
+        swift: 'Swift',
+        rust: 'Rust',
       };
       // settings formats and build-file readers are not source languages
       const notSource = new Set(['json', 'yaml', 'yml', 'xml', 'generic', 'regex']);
@@ -498,6 +500,16 @@ describe('enginePlan (#12997)', () => {
     expect(m.result.targets.some((t) => /\.(?:jpg|png|md)$/.test(t))).toBe(false);
     expect(m.result.targets.filter((t) => /\.(?:py|ts)$/.test(t))).toHaveLength((50_000 / 8) * 2);
     expect(m.result.targets).toContain('pyproject.toml');
+  });
+
+  it("hands the bundled iOS Info.plist rule Xcode's <Target>-Info.plist, and not any other plist", () => {
+    // Xcode names a target's plist after the target (Wikipedia-Info.plist), and wikipedia-ios has no bare Info.plist (#13199).
+    const rules = loadRuleSet().rules.filter((r) => r.id === 'lexcode.mobile.ios-info-plist');
+    expect(rules).toHaveLength(1);
+    expect(enginePlan(rules, ['Wikipedia/Wikipedia-Info.plist', 'App/Info.plist', 'Other/Settings.plist']).targets).toEqual([
+      'Wikipedia/Wikipedia-Info.plist',
+      'App/Info.plist',
+    ]);
   });
 
   it('reads paths.include from a rule file, and leaves a list it cannot use unset', () => {

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- lexcode-expect: 0 -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<!-- The exemption: the app uses no encryption beyond what the exemptions cover (HTTPS through the system, for one). -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<!-- The next key's true belongs to it, not to the encryption key above. -->
+	<key>UIFileSharingEnabled</key>
+	<true/>
+	<!-- A commented-out declaration is not one. -->
+	<!-- <key>ITSAppUsesNonExemptEncryption</key><true/> -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<false/>
+	</dict>
+</dict>
+</plist>

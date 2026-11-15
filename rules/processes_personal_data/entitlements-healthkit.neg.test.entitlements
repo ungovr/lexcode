@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- lexcode-expect: 0 -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- HomeKit controls accessories; HealthKit switched off is no access. -->
+	<key>com.apple.developer.homekit</key>
+	<true/>
+	<key>com.apple.developer.healthkit</key>
+	<false/>
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.com.example.lights</string>
+	</array>
+	<!-- A longer key that starts with the HealthKit key's name is another key. -->
+	<key>com.apple.developer.healthkit.background-delivery</key>
+	<true/>
+</dict>
+</plist>

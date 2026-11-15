@@ -1,0 +1,53 @@
+rules:
+  - id: lexcode.tracking.swift-device-id-sent
+    languages: [swift]
+    severity: INFO
+    message: Reads the iOS identifier for vendor, which identifies one device to every app from the same developer, and sends it to another host in a request (its URL, a header or the body), which is tracking devices (tracks_devices).
+    # The identifier kept on the device does not leave it, and is not matched: a Keychain or
+    # defaults key, a local cache or file name, or an app-scheme deep link opened on the phone.
+    # A URL or query item that holds it is not by itself a send; the sink is the request or URL
+    # session call it reaches. UIDevice (UIKit, which SwiftUI re-exports) and URLRequest
+    # (Foundation) are reached through umbrella imports the engine does not follow, so each is
+    # written in its module-qualified and short forms (Decision 8). An app's own type named
+    # UIDevice or URLRequest therefore matches too: there is no same-name lookalike in the
+    # negative fixture, by the same decision.
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+          - pattern: UIKit.UIDevice.current.identifierForVendor
+          - pattern: UIDevice.current.identifierForVendor
+    # A query item puts the identifier into the components' URL (`components.queryItems = [...]`
+    # or an append), so the components carry it to the request built from their `url`.
+    pattern-propagators:
+      - pattern: $C.queryItems = $V
+        from: $V
+        to: $C
+      - pattern: $C.queryItems?.append($V)
+        from: $V
+        to: $C
+      - pattern: $C.queryItems.append($V)
+        from: $V
+        to: $C
+    pattern-sinks:
+      # Each sink is the value itself (focus), so a request that holds the identifier elsewhere
+      # does not make every later header on it a sink.
+      - patterns:
+          - pattern-either:
+              # A request's URL, headers and body.
+              - pattern: 'Foundation.URLRequest(url: $V, ...)'
+              - pattern: 'URLRequest(url: $V, ...)'
+              - pattern: '$R.setValue($V, forHTTPHeaderField: $H)'
+              - pattern: '$R.addValue($V, forHTTPHeaderField: $H)'
+              - pattern: $R.httpBody = $V
+              # A URL session call given the URL or the body directly.
+              - pattern: '$S.data(from: $V, ...)'
+              - pattern: '$S.dataTask(with: $V, ...)'
+              - pattern: '$S.download(from: $V, ...)'
+              - pattern: '$S.upload(for: $R, from: $V, ...)'
+          - focus-metavariable: $V
+    metadata:
+      activity: tracks_devices
+      mentioned: performs
+      definition: https://lexlint.io/activities/tracks-devices
+      provenance: ungovr-original
+      license: MIT

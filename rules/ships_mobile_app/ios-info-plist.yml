@@ -28,6 +28,7 @@ rules:
     paths:
       include:
         - "Info.plist"
+        - "*-Info.plist"
         - "ios-info-plist.*"
       exclude:
         - "**/example/**"

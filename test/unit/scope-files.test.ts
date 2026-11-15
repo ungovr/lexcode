@@ -323,13 +323,18 @@ describe('the skip list', () => {
   });
 
   it('Xcode test targets are test directories', () => {
-    // Xcode names a test target <App>Tests or <App>UITests, beside the app's own target (#13199).
+    // Xcode names a test target <App>Tests or <App>UITests, beside the app's own target (#13199), and a bare
+    // UITests or an acronym before Tests (APITests, iOSTests) is a test target too.
     const files = [
       'WikipediaTests/A.swift',
       'WikipediaUITests/B.swift',
       'Modules/Feed/FeedTests/E.swift',
+      'UITests/F.swift',
+      'APITests/G.swift',
+      'iOSTests/H.swift',
       'Contests/C.swift',
       'Latests/F.swift',
+      'src/Latest/x.js',
       'Wikipedia/App.swift',
       'benches/d.rs',
       'crates/core/benches/e.rs',
@@ -344,13 +349,15 @@ describe('the skip list', () => {
       'Wikipedia/App.swift',
       'build.rs',
       'examples/demo.rs',
+      'src/Latest/x.js',
       'src/main.rs',
     ]);
     expect(listFiles(root, { ...plain, includeTests: true }).files).toEqual([...files].sort());
   });
 
   it('the Xcode test-target pattern is case-sensitive, unlike the test directory names', () => {
-    // `UITests` alone is not a target name (`[a-z0-9]` before it), and `appTESTS` is not Xcode's spelling.
+    // `AppUITESTS` and `appTESTS` are not Xcode's spelling of the suffix, so they are read; `Foo2Tests` is a target,
+    // and `TESTS` is skipped as a test directory name in any case.
     const files = ['AppUITESTS/A.swift', 'appTESTS/B.swift', 'Foo2Tests/C.swift', 'TESTS/D.swift', 'App/E.swift'];
     const root = repo(files);
     expect(listFiles(root, plain).files).toEqual(['App/E.swift', 'AppUITESTS/A.swift', 'appTESTS/B.swift']);

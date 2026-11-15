@@ -1,0 +1,28 @@
+// !$*UTF8*$!
+// lexcode-expect: 0
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin XCBuildConfiguration section */
+		4887343E2CDCA2DD00B400A3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				GENERATE_INFOPLIST_FILE = YES;
+				/* Siri and the music library give the app no voice. */
+				INFOPLIST_KEY_NSSiriUsageDescription = "Start a timer with Siri.";
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Play your library during a workout.";
+				/* An empty description declares nothing the app would show. */
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "";
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.timer;
+				SDKROOT = iphoneos;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+	};
+	rootObject = 4887340F2CDCA2DB00B400A3 /* Project object */;
+}

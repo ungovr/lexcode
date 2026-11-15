@@ -1,0 +1,42 @@
+// !$*UTF8*$!
+// lexcode-expect: 1
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXNativeTarget section */
+		A10000012D00000000000001 /* Recipes */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A10000012D00000000000009 /* Build configuration list for PBXNativeTarget "Recipes" */;
+			buildPhases = (
+				A10000012D00000000000002 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Recipes;
+			productName = Recipes;
+			productReference = A10000012D00000000000003 /* Recipes.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin XCBuildConfiguration section */
+		A10000012D00000000000004 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.recipes;
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "macosx iphoneos iphonesimulator";
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+	};
+	rootObject = A10000012D00000000000000 /* Project object */;
+}
