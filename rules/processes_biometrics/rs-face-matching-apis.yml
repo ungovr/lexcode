@@ -1,0 +1,39 @@
+# Matching or enrolling faces through a face-matching service from Rust:
+# - Amazon Rekognition (the AWS SDK for Rust): comparing two faces, searching a collection by face or
+#   by image, indexing faces into a collection, searching users by face, associating faces with a
+#   user, and a face search over a stored video. Each is a builder started from the client, so it is
+#   matched by its zero-argument start. The three names an app could also use for its own search
+#   (`search_faces`, `search_users`, `associate_faces`) count only in a file that names the
+#   `aws_sdk_rekognition` crate;
+#   the others are Rekognition's own words.
+# - the REST endpoints written in a string: Azure AI Face matching and enrollment, and Face++
+#   compare, search and face sets. The string check reads the source text, so an address in
+#   `format!` is found too.
+# Detection names no one and is left out: Rekognition `detect_faces()` and `detect_labels()`, the
+# liveness session, and Azure's `/detect`. A face found only to crop or blur a photo is not a
+# biometric template.
+rules:
+  - id: lexcode.biometric.rs-face-matching-apis
+    languages: [rust]
+    severity: INFO
+    message: Matches or enrolls faces through a face-matching service (Amazon Rekognition face comparison, search or indexing, Azure AI Face identify, verify or enrollment, Face++), which is recognizing people from face geometry (processes_biometrics).
+    pattern-either:
+      - pattern: $C.compare_faces()
+      - pattern: $C.search_faces_by_image()
+      - pattern: $C.index_faces()
+      - pattern: $C.search_users_by_image()
+      - pattern: $C.start_face_search()
+      - patterns:
+          - pattern-either:
+              - pattern: $C.search_faces()
+              - pattern: $C.search_users()
+              - pattern: $C.associate_faces()
+          - pattern-regex: (?s)\A(?=.*\baws_sdk_rekognition\b).*
+      - pattern-regex: |-
+          "[^"\n]*(/face/v1\.\d+(-preview(\.\d+)?)?/(identify|verify|findsimilars|facelists|largefacelists|persongroups|largepersongroups|dynamicpersongroups)\b|\bfaceplusplus\.com/facepp/v3/(compare|search|faceset))
+    metadata:
+      activity: processes_biometrics
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-biometrics
+      provenance: ungovr-original
+      license: MIT

@@ -1,0 +1,23 @@
+rules:
+  - id: lexcode.biometric.swift-face-geometry
+    languages: [swift]
+    severity: INFO
+    message: Measures the geometry of a person's face (Vision face landmarks, or ARKit face tracking with its face mesh), which may be handling face geometry (processes_biometrics).
+    # A signal: landmarks and a face mesh are the face geometry the definition names, but the call
+    # alone matches no face to a person. Finding where a face is (VNDetectFaceRectanglesRequest,
+    # DetectFaceRectanglesRequest), to crop or blur a picture, measures no geometry and names no
+    # one, and is not matched; nor is VNDetectFaceCaptureQualityRequest, which scores the picture.
+    # Both frameworks come only from their own import, so each type is written module-qualified:
+    # an app's own type of the same short name in a file without the import is not read as Apple's.
+    pattern-either:
+      - pattern: Vision.VNDetectFaceLandmarksRequest(...)
+      # The Swift-only Vision API (iOS 18, macOS 15)
+      - pattern: Vision.DetectFaceLandmarksRequest(...)
+      - pattern: ARKit.ARFaceTrackingConfiguration(...)
+    metadata:
+      activity: processes_biometrics
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/processes-biometrics
+      provenance: ungovr-original
+      license: MIT

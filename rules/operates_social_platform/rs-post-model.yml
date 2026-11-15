@@ -1,0 +1,62 @@
+# The struct, reaction, author and comment regular expressions repeat across the arms. Edit every
+# copy together, or an arm drifts from the others. Each field pattern carries the struct and field
+# names itself, so the engine drops other structs and fields before two field patterns are joined
+# (pairing every field with every other in a large struct is the cost on a large app, #13009).
+# The match is the struct's name, so a post with votes and comments is one match, not one per
+# field. The whole-file checks let the engine skip a file that names none of the post types.
+rules:
+  - id: lexcode.social.rs-post-model
+    languages: [rust]
+    severity: INFO
+    message: Declares a post that a user writes and other users react to (a post, tweet or reply struct with likes, votes or reactions, or with an author and comments or replies), which is how content is shared on a social platform (operates_social_platform).
+    patterns:
+      - pattern-either:
+          - pattern-regex: '(?s)\A(?=.*Post\b).*'
+          - pattern-regex: '(?s)\A(?=.*Tweet\b).*'
+          - pattern-regex: '(?s)\A(?=.*Toot\b).*'
+          - pattern-regex: '(?s)\A(?=.*Reply\b).*'
+          - pattern-regex: '(?s)\A(?=.*StatusUpdate\b).*'
+      - pattern-either:
+          # Likes, votes or reactions: a field of the struct.
+          - patterns:
+              - pattern: |
+                  struct $S { ..., $L: $T, ... }
+              - metavariable-regex:
+                  metavariable: $S
+                  regex: '^(\w*[a-z0-9])?(Post|Tweet|Toot|Reply|ForumPost|WallPost|StatusUpdate)$'
+              - metavariable-regex:
+                  metavariable: $L
+                  regex: '^(likes?|like_count|likes_count|num_likes|number_of_likes|liked_by|reactions?|reaction_count|reactions_count|upvotes?|upvote_count|upvotes_count|downvotes?|downvote_count|downvotes_count|votes|vote_count|votes_count|share_count|shares_count|retweet_count|retweets|reblogs_count|boosts|boost_count|favorites|favourites|favorites_count|favourites_count)$'
+          # An author and comments or replies: two fields of the same struct. The comments field
+          # is a collection or a count, so a single text field named comments (an editor's note
+          # on the entry) is not read as replies from other users.
+          - patterns:
+              - patterns:
+                  - pattern: |
+                      struct $S { ..., $M: $T, ... }
+                  - metavariable-regex:
+                      metavariable: $S
+                      regex: '^(\w*[a-z0-9])?(Post|Tweet|Toot|Reply|ForumPost|WallPost|StatusUpdate)$'
+                  - metavariable-regex:
+                      metavariable: $M
+                      regex: '^(comments|replies|comment_count|comments_count|num_comments|number_of_comments|reply_count|replies_count)$'
+                  - metavariable-regex:
+                      metavariable: $T
+                      regex: '(?s)^(Option\s*<\s*)?([iu](8|16|32|64|128|size)\b|(\w+::)*(Vec|VecDeque|HashSet|BTreeSet|HashMap|BTreeMap|IndexMap|IndexSet)\s*<|\[)'
+              - patterns:
+                  - pattern: |
+                      struct $S { ..., $A: $T2, ... }
+                  - metavariable-regex:
+                      metavariable: $S
+                      regex: '^(\w*[a-z0-9])?(Post|Tweet|Toot|Reply|ForumPost|WallPost|StatusUpdate)$'
+                  - metavariable-regex:
+                      metavariable: $A
+                      regex: '^(author|author_id|creator|creator_id|poster|poster_id|owner|owner_id|user|user_id|created_by|account_id)$'
+      - focus-metavariable: $S
+    metadata:
+      activity: operates_social_platform
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/operates-social-platform
+      provenance: ungovr-original
+      license: MIT

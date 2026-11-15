@@ -1,0 +1,17 @@
+rules:
+  - id: lexcode.train.swift-coreml-update-task
+    languages: [swift]
+    severity: INFO
+    message: Retrains an updatable Core ML model on the device with new examples (an MLUpdateTask), which is training models (trains_models).
+    # Core ML comes from `import CoreML`, so the type is written module-qualified: the engine resolves
+    # the import, and an app's own MLUpdateTask in a file without it is not Core ML's. Loading a
+    # model, compiling it and asking it for predictions use a model and are not matched. Probed: the
+    # pattern matches the completion-handler, progress-handler and trailing-closure forms, and the
+    # call under `try` and inside an awaited call.
+    pattern: CoreML.MLUpdateTask(...)
+    metadata:
+      activity: trains_models
+      mentioned: performs
+      definition: https://lexlint.io/activities/trains-models
+      provenance: ungovr-original
+      license: MIT

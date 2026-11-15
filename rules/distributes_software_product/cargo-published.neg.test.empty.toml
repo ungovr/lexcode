@@ -1,0 +1,12 @@
+# lexcode-expect: 0
+# An empty registry list is publish = false in another spelling.
+[package]
+name = "ops-tasks"
+version = "0.2.0"
+description = "Operator scripts for the cluster"
+license = "MIT"
+categories = ["command-line-utilities"]
+publish = [ ]
+
+[dependencies]
+tokio = "1"

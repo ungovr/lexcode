@@ -1,0 +1,83 @@
+# The screen-name expression repeats across the component arms, and the sign-up path and template
+# name expressions across the template and form arms. Edit every copy together, or an arm drifts
+# from the others. Each framework arm carries its own line-anchored use check (#13199 amendment),
+# so one crate's import cannot admit another's shape: #[component] and an Element return belong to
+# Leptos and Dioxus, #[function_component] and the Component trait to Yew, and render calls to the
+# template engines. A component, template or form named for an admin, or under an admin path, is
+# a staff screen and is not read.
+rules:
+  - id: lexcode.consumer.rs-signup-screen
+    languages: [rust]
+    severity: INFO
+    message: Declares a sign-up screen (a Leptos, Dioxus or Yew component, an askama, Tera, Handlebars, MiniJinja or Rocket template, or an HTML or maud form that posts to a sign-up path), a screen that members of the public use to reach a service (ships_consumer_interface).
+    pattern-either:
+      # Leptos and Dioxus components.
+      - patterns:
+          - pattern-either:
+              - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+leptos\b).*'
+              - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+dioxus\b).*'
+          - pattern-either:
+              - pattern: |
+                  #[component]
+                  fn $F(...) { ... }
+              - pattern: |
+                  #[leptos::component]
+                  fn $F(...) { ... }
+              - pattern: |
+                  #[dioxus::prelude::component]
+                  fn $F(...) { ... }
+              - pattern: |
+                  fn $F(...) -> Element { ... }
+          - metavariable-regex:
+              metavariable: $F
+              regex: '^(User|Account|Customer|Member|New|Self)?(SignUp|Signup|Register|Registration|CreateAccount)(Page|View|Form|Component|Dialog|Screen|Modal)?$'
+          - focus-metavariable: $F
+      # Yew: a function component named by its function, and a struct component.
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+yew\b).*'
+          - pattern-either:
+              - patterns:
+                  - pattern-either:
+                      - pattern: |
+                          #[function_component]
+                          fn $F(...) { ... }
+                      - pattern: |
+                          #[yew::function_component]
+                          fn $F(...) { ... }
+                  - focus-metavariable: $F
+              - patterns:
+                  - pattern: |
+                      impl Component for $F { ... }
+                  - focus-metavariable: $F
+          - metavariable-regex:
+              metavariable: $F
+              regex: '^(User|Account|Customer|Member|New|Self)?(SignUp|Signup|Register|Registration|CreateAccount)(Page|View|Form|Component|Dialog|Screen|Modal)?$'
+      # Yew: a function component named in its attribute.
+      - pattern-regex: '(?m)^[ \t]*#\[(?:yew::)?function_component\(\s*(User|Account|Customer|Member|New|Self)?(SignUp|Signup|Register|Registration|CreateAccount)(Page|View|Form|Component|Dialog|Screen|Modal)?\s*\)\]'
+      # askama, rinja and sailfish: the template attribute's path.
+      - pattern-regex: '(?mi)^[ \t]*#\[template\([^\]]{0,200}?\bpath\s*=\s*"(accounts?/|auth/|users?/|account/auth/|identity/|members?/|customers?/)?(sign-?up|sign_up|register|registration|create-?account|create_account)\.\w+"'
+      # Tera, Handlebars, MiniJinja and Rocket's dynamic templates rendering a sign-up template.
+      - patterns:
+          - pattern-either:
+              - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+tera\b).*'
+              - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+handlebars\b).*'
+              - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+minijinja\b).*'
+              - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+rocket_dyn_templates\b).*'
+          - pattern-either:
+              - pattern: $X.render($N, ...)
+              - pattern: $T::render($N, ...)
+              - pattern: $X.get_template($N)
+          - metavariable-regex:
+              metavariable: $N
+              regex: '(?i)^"(accounts?/|auth/|users?/|account/auth/|identity/|members?/|customers?/)?(sign-?up|sign_up|register|registration|create-?account|create_account)(\.html)?(\.(tera|hbs|handlebars|j2|jinja))?"$'
+      # A page whose HTML form (in a string, or in Leptos markup) or maud form posts to a sign-up
+      # path.
+      - pattern-regex: '(?i)<form\b[^>]{0,300}?\baction\s*=\s*\\?["'']/?(\{[^}/"'']*\}/)?(api/)?(accounts?/|auth/|users?/|account/auth/|identity/|members?/|customers?/)?(sign-?up|sign_up|register|registration|create-?account|create_account)/?\\?["'']'
+      - pattern-regex: '(?mi)^[ \t]*form\b[^\n{;]{0,200}?\baction\s*=\s*"/?(api/)?(accounts?/|auth/|users?/|account/auth/|identity/|members?/|customers?/)?(sign-?up|sign_up|register|registration|create-?account|create_account)/?"'
+    metadata:
+      activity: ships_consumer_interface
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/ships-consumer-interface
+      provenance: ungovr-original
+      license: MIT

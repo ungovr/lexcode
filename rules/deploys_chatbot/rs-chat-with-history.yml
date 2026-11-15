@@ -1,0 +1,48 @@
+# A chat call that carries the conversation so far is a chatbot by construction: the model answers
+# the newest turn in the light of the earlier ones. The calls: ollama-rs's chat with a history the
+# library keeps and appends the reply to (`send_chat_messages_with_history`, plain and streamed),
+# rig's chat on an agent with a history (`chat(prompt, history)`, `stream_chat`), a rig prompt
+# with a history (`prompt(...).with_history(&mut history)`), and rig's own command-line chatbot
+# (`cli_chatbot`, `ChatBotBuilder`). A history written as an empty literal (`vec![]`,
+# `Vec::new()`) is a single turn and does not match.
+#
+# rig's items follow the group-common amendment of 2026-11-15: rig's examples import through nested
+# groups (`use rig::{cli_chatbot::cli_chatbot, completion::Chat, ...}`), which Opengrep 1.33.1 does
+# not resolve, so the crate-path pattern sits in a `pattern-either` with the short form, and the
+# short form needs a file whose `use` line names rig (one greedy lookahead anchored at the line's
+# start, so a comment that says "use rig" does not count; CONTRIBUTING.md). rig's
+# `chat`, `stream_chat` and `with_history` are names an app may give its own methods, so those
+# branches take the same `use rig` check; a trait method needs its trait in scope, so a file that
+# calls rig's Chat has that line. ollama-rs's two method names are the library's own and are matched
+# on any receiver, since the engine does not know a Rust receiver's type.
+rules:
+  - id: lexcode.chatbot.rs-chat-with-history
+    languages: [rust]
+    severity: INFO
+    message: Sends a chat model the conversation so far with each new message, which is deploying a chatbot (deploys_chatbot).
+    pattern-either:
+      - pattern: $O.send_chat_messages_with_history($H, $R)
+      - pattern: $O.send_chat_messages_with_history_stream($H, $R)
+      - pattern: rig::cli_chatbot::cli_chatbot(...)
+      - pattern: rig::cli_chatbot::ChatBotBuilder::new()
+      - patterns:
+          - pattern-either:
+              - pattern: cli_chatbot(...)
+              - pattern: ChatBotBuilder::new()
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+rig\b).*'
+      - patterns:
+          - pattern-either:
+              - pattern: $AG.chat($Q, $HIST)
+              - pattern: $AG.stream_chat($Q, $HIST)
+              - pattern: $AG.prompt($Q).with_history($HIST)
+              - pattern: $AG.stream_prompt($Q).with_history($HIST)
+          - metavariable-regex:
+              metavariable: $HIST
+              regex: '(?s)^(?!\s*(&\s*(mut\s+)?)?(vec!\s*\[\s*\]|Vec::new\(\s*\))\s*$).*$'
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+rig\b).*'
+    metadata:
+      activity: deploys_chatbot
+      mentioned: performs
+      definition: https://lexlint.io/activities/deploys-chatbot
+      provenance: ungovr-original
+      license: MIT

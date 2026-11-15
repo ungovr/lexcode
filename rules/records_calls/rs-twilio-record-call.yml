@@ -1,0 +1,22 @@
+# Recording through Twilio's REST API from Rust. There is no maintained Rust SDK with call recording,
+# so apps post form parameters to the API themselves; the rule reads those parameters and addresses
+# as source text, which also sees them inside `format!` and `json!`:
+# - a call placed with `Record=true` (a form pair `("Record", "true")` or a map insert);
+# - a video room opened with `RecordParticipantsOnConnect=true`;
+# - the Recordings resource of a call (`.../Calls/{sid}/Recordings`): starting a recording on a live
+#   call, or reading a call's recordings, which is handling recorded calls.
+# `Record=false` and the account-wide recordings list are left out.
+rules:
+  - id: lexcode.calls.rs-twilio-record-call
+    languages: [rust]
+    severity: INFO
+    message: Places a Twilio call or opens a video room with recording turned on, or starts or reads a call's recordings, which is recording a call (records_calls).
+    pattern-either:
+      - pattern-regex: \"(Record|RecordParticipantsOnConnect)\"\s*,\s*\"true\"
+      - pattern-regex: \bapi\.twilio\.com/2010-04-01/Accounts/[^"\s]*/Calls/[^"\s/]+/Recordings\b
+    metadata:
+      activity: records_calls
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-calls
+      provenance: ungovr-original
+      license: MIT

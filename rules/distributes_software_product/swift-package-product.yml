@@ -1,0 +1,46 @@
+rules:
+  - id: lexcode.distribute.swift-package-product
+    languages: [swift]
+    severity: INFO
+    message: Declares a product of a Swift package (a library, a command-line program or a plugin), which other packages can depend on, so the package may be published for others to install or may only be used by an app in the same repository (distributes_software_product).
+    # A signal, as a gemspec or a setup.py is: SwiftPM has no publish step and the manifest has no
+    # registry metadata, so nothing in it tells a package offered to others from a local package an
+    # Xcode app in the same repository links (an app's feature modules, or a package kept only so
+    # its tests run under `swift test`). A target (`.target`, `.executableTarget`, a plugin target
+    # with a capability) and a dependency on another package's product (`.product(name:package:)`)
+    # are not products and are not matched.
+    patterns:
+      - pattern-either:
+          - pattern: .library(...)
+          - pattern: '.executable(name: $N, targets: $T)'
+          # A plugin product names its targets; a plugin target names a capability instead.
+          - pattern: '.plugin(name: $N, targets: $T)'
+          - pattern: PackageDescription.Product.library(...)
+          - pattern: 'PackageDescription.Product.executable(name: $N, targets: $T)'
+          - pattern: 'PackageDescription.Product.plugin(name: $N, targets: $T)'
+      # A product list may be built before the Package call, so the guard is the manifest's
+      # import, not the call.
+      - pattern-inside: |
+          import PackageDescription
+          ...
+    paths:
+      include:
+        - "Package.swift"
+        - "Package@swift-*.swift"
+        - "swift-package-product.*"
+      exclude:
+        - "**/example/**"
+        - "**/examples/**"
+        - "**/Example/**"
+        - "**/Examples/**"
+        - "**/sample/**"
+        - "**/samples/**"
+        - "**/demo/**"
+        - "**/demos/**"
+    metadata:
+      activity: distributes_software_product
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/distributes-software-product
+      provenance: ungovr-original
+      license: MIT

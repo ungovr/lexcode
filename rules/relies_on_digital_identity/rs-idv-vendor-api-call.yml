@@ -1,0 +1,43 @@
+# An identity-verification vendor's API address (Persona, Veriff, Onfido, Jumio, Yoti, Sumsub and the
+# others below, and Stripe Identity's verification sessions and reports) as an argument of an HTTP
+# call: a reqwest, ureq, surf or awc method, an http or hyper request builder's uri, or a Url parsed
+# or joined. The check reads the source text, so an address written in `format!` is found too, and
+# the string may be plain or raw (`r"..."`, `r#"..."#`). An address held in a const and used
+# elsewhere is not read, as in the other languages.
+#
+# Sign-in with a password, and social or workforce sign-in that only links an account (openidconnect,
+# oauth2, samael's SAML, webauthn-rs and passkey-rs passkeys), do not count and are not read: the
+# definition leaves out "a social sign-in that only links an account", and a passkey proves only that
+# the person holds the account's key.
+rules:
+  - id: lexcode.identity.rs-idv-vendor-api-call
+    languages: [rust]
+    severity: INFO
+    message: Calls an identity-verification vendor's API (Persona, Veriff, Onfido, Jumio, Yoti, Sumsub, Stripe Identity and similar) from Rust, which is relying on a digital identity (relies_on_digital_identity).
+    patterns:
+      - pattern-regex: (?i)(?<=")https?://(?:[a-z0-9-]*api[a-z0-9-]*\.(?:[a-z0-9-]+\.)*(?:withpersona\.com|veriff\.(?:com|me)|onfido\.com|jumio\.com|netverify\.com|yoti\.com|sumsub\.com|idenfy\.com|au10tix\.com|ondato\.com|incode\.com|trulioo\.com|idnow\.io)|(?:[a-z0-9-]+\.)*(?:withpersona\.com|veriff\.(?:com|me)|onfido\.com|jumio\.(?:com|ai)|netverify\.com|yoti\.com|sumsub\.com|idenfy\.com|au10tix\.com|ondato\.com|incode\.com|trulioo\.com|idnow\.io)/(?:[^\s"]*/)?(?:api|v[0-9]+)(?=/)|api\.stripe\.com/v1/identity/verification_(?:sessions|reports))[^\s"]*
+      - pattern-either:
+          - pattern-inside: $O.get(...)
+          - pattern-inside: $O.post(...)
+          - pattern-inside: $O.put(...)
+          - pattern-inside: $O.patch(...)
+          - pattern-inside: $O.delete(...)
+          - pattern-inside: $O.request(...)
+          - pattern-inside: $O.uri(...)
+          - pattern-inside: $O.join(...)
+          - pattern-inside: reqwest::get(...)
+          - pattern-inside: reqwest::blocking::get(...)
+          - pattern-inside: ureq::get(...)
+          - pattern-inside: ureq::post(...)
+          - pattern-inside: ureq::request(...)
+          - pattern-inside: surf::get(...)
+          - pattern-inside: surf::post(...)
+          - pattern-inside: http::Request::get(...)
+          - pattern-inside: http::Request::post(...)
+          - pattern-inside: url::Url::parse(...)
+    metadata:
+      activity: relies_on_digital_identity
+      mentioned: performs
+      definition: https://lexlint.io/glossary#relies-on-a-digital-identity
+      provenance: ungovr-original
+      license: MIT
