@@ -65,13 +65,4 @@ final class OfflinePageViewController: UIViewController, WKNavigationDelegate {
         webView.evaluateJavaScript("document.body.innerHTML = '<p>Offline</p>'")
         webView.evaluateJavaScript("document.body.innerText = ''")
     }
-
-    // Re-rendering the cached offline pages: each is loaded and its body is cleared, nothing is read.
-    @MainActor
-    func warm(cachedPages: [URL]) async throws {
-        for url in cachedPages {
-            webView.load(URLRequest(url: url))
-            _ = try await webView.evaluateJavaScript("document.body.innerHTML = ''")
-        }
-    }
 }

@@ -1,4 +1,4 @@
-// lexcode-expect: 7
+// lexcode-expect: 8
 import Foundation
 import FeedKit
 
@@ -38,10 +38,24 @@ final class NewsReader {
         print(feed)
     }
 
+    // A podcast directory's JSON names the show's feed, and the feed is then read in the same
+    // function: a JSON decode beside a feed parser is still reading the feed.
+    func show(directory: URL) async throws {
+        let (listing, _) = try await URLSession.shared.data(from: directory)
+        let entry = try JSONDecoder().decode(DirectoryEntry.self, from: listing)
+        let (data, _) = try await URLSession.shared.data(from: entry.feedURL)
+        let feed = try FeedKit.Feed(data: data)
+        print(feed)
+    }
+
     func split(url: URL) async throws {
         let feed = try await AtomFeed(
             url: url
         )
         print(feed)
     }
+}
+
+struct DirectoryEntry: Decodable {
+    let feedURL: URL
 }

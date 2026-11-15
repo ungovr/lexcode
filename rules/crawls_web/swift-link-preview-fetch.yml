@@ -7,19 +7,18 @@ rules:
     # lint definition ("fetches pages or files from sites you do not operate, by any automated
     # means") has no scale condition, so it is evidence (controller ruling, as for Rust's
     # rs-link-preview-fetch). The address is a variable by nature (the link a person posted or
-    # shared), so the rule carries no host check; an address written as a literal is the app
-    # previewing a fixed link of its own choosing and is not matched, nor is a loopback host or a
-    # file. Building `LPLinkMetadata` by hand (a share sheet's `UIActivityItemSource`) fetches
+    # shared), so the rule carries no host check. An address written as a literal is not matched:
+    # with no host check the rule cannot tell the app's own fixed link from a fixed card for an
+    # outside site, so both are left out (a trade beyond the ruling, which named only loopback and
+    # files). A loopback host or a file is not matched either. Building `LPLinkMetadata` by hand (a share sheet's `UIActivityItemSource`) fetches
     # nothing and is not matched.
     #
     # LinkPresentation comes only with its own import, and the provider is an untyped receiver, so
     # the file's `import LinkPresentation` stands in for the type (amendment 2). Both the callback
-    # form and the `try await` form are read.
+    # form and the `try await` form of `startFetchingMetadata(for:)` are read.
     patterns:
       - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+\s+)*import\s+(?:\w+\s+)?LinkPresentation\b).*'
-      - pattern-either:
-          - pattern: '$P.startFetchingMetadata(for: $URL, ...)'
-          - pattern: '$P.fetchMetadata(for: $URL, ...)'
+      - pattern: '$P.startFetchingMetadata(for: $URL, ...)'
       # Not a literal address, a loopback host, or a file.
       - metavariable-regex:
           metavariable: $URL

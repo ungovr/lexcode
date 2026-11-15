@@ -106,7 +106,7 @@ rules:
           # Inside a sub-pattern the engine no longer sees the file's imports, so the body names them
           # by their short names and the branch carries the import. Each vendor branch reads the
           # whole download list plus its own call: on Opengrep 1.33.1 a body sub-pattern of one
-          # vendor call cost about 24 s on a 900 KB file and this shape about 7 s (Cost, report).
+          # vendor call cost about 24 s on a 902 KB file and this shape about 7 s, a bare rule 3.8 s.
           - patterns:
               - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+\s+)*import\s+(?:\w+\s+)?AsyncHTTPClient\b).*'
               - pattern-either: *feed_parsers

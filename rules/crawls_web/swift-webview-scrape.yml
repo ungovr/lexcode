@@ -8,12 +8,22 @@ rules:
     # pages", so this rule reads only a web view fed by the code itself, in one of two shapes:
     # - a navigation callback that reads each finished page, in a file whose loads take the next
     #   address off the front of a list (`webView.load(URLRequest(url: queue.removeFirst()))`);
-    # - a loop over addresses that loads each one into a web view and reads it, in the same
-    #   function.
+    # - a `for` loop over addresses whose element is the address loaded into the web view, and
+    #   whose body reads the page.
     # A reader mode or a sign-in page that reads the page a person opened loads no address off a
-    # list and sits in no loop, so it is not matched; nor is a script that writes the page
-    # (`document.body.innerHTML = ...`). A next address taken off the list into a variable first
-    # (`let next = queue.removeFirst()`) is not seen (rules/README.md).
+    # list and from no loop's element, so it is not matched; nor is a loop that polls or retries
+    # the one page it was given, nor a script that writes the page (`document.body.innerHTML = ...`).
+    #
+    # Gaps, recorded here and in rules/README.md:
+    # - A next address taken off the list into a variable first (`let next = queue.removeFirst()`)
+    #   is not seen.
+    # - The file-level checks read text: a loop whose body opens a brace before it builds the
+    #   request (`guard ... else { continue }` first) is not seen, and in a file that does load a
+    #   list's elements in a loop, a navigation callback that reads the page counts as part of
+    #   that crawl.
+    # These checks are whole-file look-aheads because the two scopes as separate branches, each
+    # with its own condition, cost about 24 s on a 900 KB file against 3.9 s for this form, a
+    # bare rule taking 3.8 s (Opengrep 1.33.1).
     #
     # WebKit comes only with its own import, and a web view is reached through properties and
     # delegate parameters the engine cannot type, so the file's `import WebKit` stands in for the
@@ -23,31 +33,39 @@ rules:
     # `didCommit` reads as `didFinish` does. A script held in a variable is not read.
     patterns:
       - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+\s+)*import\s+(?:\w+\s+)?WebKit\b).*'
+      # The file feeds the web view itself: a load that takes the next address off the front of a
+      # list (a crawl queue; taking it off the end, `history.removeLast()`, is how an in-app browser
+      # goes back a page), or a `for` loop that builds a request from its own element.
       - pattern-either:
+          - pattern-regex: '(?s)\A(?=.*\.load\(\s*URLRequest\(\s*url:\s*[\w.]+\.(?:removeFirst|popFirst)\(\)).*'
+          - pattern-regex: '(?s)\A(?=.*for\s+(\w+)\s+in\s[^{\n]*\{[^}]*URLRequest\(\s*url:\s*\1\b).*'
+      - pattern-either:
+          - pattern: $V.evaluateJavaScript($JS, ...)
+          - pattern: $V.callAsyncJavaScript($JS, ...)
+      - pattern-either:
+          # A navigation callback that receives the finished navigation.
           - patterns:
-              # The loads take the next address off the front of a list, a crawl queue. Taking it off
-              # the end (`history.removeLast()`) is how an in-app browser goes back a page, so it
-              # does not count.
-              - pattern-regex: '(?s)\A(?=.*\.load\(\s*URLRequest\(\s*url:\s*[\w.]+\.(?:removeFirst|popFirst)\(\)).*'
-              - pattern-either: &extract
-                  - pattern: $V.evaluateJavaScript($JS, ...)
-                  - pattern: $V.callAsyncJavaScript($JS, ...)
               - pattern-inside: |
                   func webView(_ $W: $T, didFinish $N: $NT) { ... }
               - metavariable-regex:
                   metavariable: $NT
                   regex: '^WKNavigation!?$'
-          - patterns:
-              - pattern-either: *extract
-              - pattern-inside: |
-                  for $U in $L { ... }
-              - pattern-inside: |
-                  $W.load($REQ)
-                  ...
-              # Not the app's own server: a loopback host or a file address.
-              - metavariable-regex:
-                  metavariable: $REQ
-                  regex: '(?s)^(?!.*"(?:https?://(?:localhost|127\.|0\.0\.0\.0|\[::1\])|file:)).*$'
+          # A loop whose element is the address loaded, in the request itself or in a request built
+          # from it earlier in the body; the page is read in the same body.
+          - pattern-inside: |
+              for $U in $L {
+                ...
+                $W.load(URLRequest(url: $U))
+                ...
+              }
+          - pattern-inside: |
+              for $U in $L {
+                ...
+                let $R = URLRequest(url: $U)
+                ...
+                $W.load($R)
+                ...
+              }
       # The script reads the whole document: its HTML or text (not followed by an assignment, which
       # writes the page), a serialization of it, or its list of links.
       - metavariable-regex:
