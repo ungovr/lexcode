@@ -1,0 +1,57 @@
+rules:
+  - id: lexcode.train.swift-createml-train
+    languages: [swift]
+    severity: INFO
+    message: Trains a model with Create ML (a classifier, regressor, recommender, tagger, detector or other model built from training data, or a Create ML Components estimator fitted to data), which is training models (trains_models).
+    pattern-either:
+      # Create ML comes only from `import CreateML`, so each model type is written module-qualified:
+      # the engine resolves the import, and an app's own type of the same name in a file without it
+      # is not Create ML's. Probed: a metavariable in the type's place (`CreateML.$T(...)`) matches
+      # nothing, so the types are spelled out. Every one of these initializers trains on the data it
+      # is given; ModelParameters and MLDataTable, which only describe or hold data, are not
+      # matched. MLWordEmbedding and MLGazetteer, built from a dictionary the developer writes, are
+      # left out.
+      - pattern: 'CreateML.MLImageClassifier(trainingData: $D, ...)'
+      - pattern: 'CreateML.MLObjectDetector(trainingData: $D, ...)'
+      - pattern: 'CreateML.MLSoundClassifier(trainingData: $D, ...)'
+      - pattern: 'CreateML.MLActivityClassifier(trainingData: $D, ...)'
+      - pattern: 'CreateML.MLActionClassifier(trainingData: $D, ...)'
+      - pattern: 'CreateML.MLHandPoseClassifier(trainingData: $D, ...)'
+      - pattern: 'CreateML.MLHandActionClassifier(trainingData: $D, ...)'
+      - pattern: 'CreateML.MLStyleTransfer(trainingData: $D, ...)'
+      - pattern: 'CreateML.MLTextClassifier(trainingData: $D, ...)'
+      - pattern: 'CreateML.MLWordTagger(trainingData: $D, ...)'
+      - pattern: 'CreateML.MLRecommender(trainingData: $D, ...)'
+      - pattern: 'CreateML.MLClassifier(trainingData: $D, ...)'
+      - pattern: 'CreateML.MLRegressor(trainingData: $D, ...)'
+      - pattern: 'CreateML.MLLinearRegressor(trainingData: $D, ...)'
+      - pattern: 'CreateML.MLLogisticRegressionClassifier(trainingData: $D, ...)'
+      - pattern: 'CreateML.MLDecisionTreeClassifier(trainingData: $D, ...)'
+      - pattern: 'CreateML.MLDecisionTreeRegressor(trainingData: $D, ...)'
+      - pattern: 'CreateML.MLBoostedTreeClassifier(trainingData: $D, ...)'
+      - pattern: 'CreateML.MLBoostedTreeRegressor(trainingData: $D, ...)'
+      - pattern: 'CreateML.MLRandomForestClassifier(trainingData: $D, ...)'
+      - pattern: 'CreateML.MLRandomForestRegressor(trainingData: $D, ...)'
+      # The training-job form (macOS 11 and later), which returns an MLJob.
+      - pattern: CreateML.MLImageClassifier.train(...)
+      - pattern: CreateML.MLObjectDetector.train(...)
+      - pattern: CreateML.MLSoundClassifier.train(...)
+      - pattern: CreateML.MLActivityClassifier.train(...)
+      - pattern: CreateML.MLActionClassifier.train(...)
+      - pattern: CreateML.MLHandPoseClassifier.train(...)
+      - pattern: CreateML.MLHandActionClassifier.train(...)
+      - pattern: CreateML.MLStyleTransfer.train(...)
+      # Create ML Components: an estimator (or a pipeline ending in one) fitted to data. The
+      # receiver's type is not visible to the engine, so the call is guarded by the framework's
+      # import; Swift has no typed metavariables.
+      - patterns:
+          - pattern: '$E.fitted(to: $D, ...)'
+          - pattern-inside: |
+              import CreateMLComponents
+              ...
+    metadata:
+      activity: trains_models
+      mentioned: performs
+      definition: https://lexlint.io/activities/trains-models
+      provenance: ungovr-original
+      license: MIT

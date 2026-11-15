@@ -1,0 +1,68 @@
+rules:
+  - id: lexcode.mobile.swift-uikit-app-delegate
+    languages: [swift]
+    severity: INFO
+    message: Declares the application delegate of a UIKit app (a class conforming to UIApplicationDelegate, a SwiftUI app's UIApplicationDelegateAdaptor, or a UIApplicationMain start), the object an installable iPhone or iPad app starts from, which is shipping a mobile app (ships_mobile_app).
+    # UIApplicationDelegate is UIKit's, so the app runs on iOS or iPadOS, or on tvOS or visionOS
+    # (rarer, and still an app installed from Apple's store). A Mac Catalyst build is the same iPad
+    # app's delegate. A macOS-only app (NSApplicationDelegate, NSApplicationDelegateAdaptor) and a
+    # watchOS app (WKApplicationDelegate) are not matched. A SwiftUI app with no UIKit delegate says
+    # nothing in its Swift source about which platform it is built for; lexcode.mobile.xcode-ios-application
+    # finds it from the project file. UIApplication.shared is not matched: a library, an SDK or a
+    # framework target inside the app calls it too.
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              # The conformance, written module-qualified: the engine resolves `import UIKit`, and an
+              # app's own protocol of that name in a file without the import is not UIKit's. A
+              # conformance list cannot hold `...` in a Swift pattern, so the protocol's place in it is
+              # spelled out (probed: the one-item form also matches an extension, and a list matches
+              # with further items after the protocol).
+              - pattern: |
+                  class $C: UIKit.UIApplicationDelegate { ... }
+              - pattern: |
+                  class $C: $A, UIKit.UIApplicationDelegate { ... }
+              - pattern: |
+                  class $C: $A, $B, UIKit.UIApplicationDelegate { ... }
+              # A SwiftUI app's delegate file often imports only SwiftUI, which brings UIKit on iOS and
+              # which the engine does not follow, so the short form counts there. UIKit's types only
+              # compile under SwiftUI on a UIKit platform.
+              - patterns:
+                  - pattern-either:
+                      - pattern: |
+                          class $C: UIApplicationDelegate { ... }
+                      - pattern: |
+                          class $C: $A, UIApplicationDelegate { ... }
+                      - pattern: |
+                          class $C: $A, $B, UIApplicationDelegate { ... }
+                  - pattern-inside: |
+                      import SwiftUI
+                      ...
+          # A test double of the delegate (MockAppDelegate, AppDelegateStub) is not the app's own.
+          - metavariable-regex:
+              metavariable: $C
+              regex: '^(?!(?:Mock|Fake|Stub|Dummy|Spy|Test)[A-Z_])(?!\w*(?:Mock|Fake|Stub|Dummy|Spy)$)'
+      # A SwiftUI app installing a UIKit delegate: the property wrapper exists on iOS, tvOS and
+      # visionOS only (macOS has NSApplicationDelegateAdaptor). Probed: the call pattern matches the
+      # attribute with and without its argument.
+      - pattern: SwiftUI.UIApplicationDelegateAdaptor(...)
+      # A main.swift that starts UIKit by hand. Probed: the pattern also matches the older
+      # `@UIApplicationMain` attribute on a delegate class.
+      - pattern: UIKit.UIApplicationMain(...)
+    paths:
+      # An SDK's example or demo app is not the product the repository ships.
+      exclude:
+        - "**/example/**"
+        - "**/examples/**"
+        - "**/Example/**"
+        - "**/Examples/**"
+        - "**/sample/**"
+        - "**/samples/**"
+        - "**/demo/**"
+        - "**/demos/**"
+    metadata:
+      activity: ships_mobile_app
+      mentioned: performs
+      definition: https://lexlint.io/activities/ships-mobile-app
+      provenance: ungovr-original
+      license: MIT
