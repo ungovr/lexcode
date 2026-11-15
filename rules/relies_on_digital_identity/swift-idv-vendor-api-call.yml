@@ -1,0 +1,30 @@
+rules:
+  - id: lexcode.identity.swift-idv-vendor-api-call
+    languages: [swift]
+    severity: INFO
+    message: Calls an identity-verification vendor's API (Persona, Veriff, Onfido, Jumio, Yoti, Sumsub and similar), which is relying on a digital identity (relies_on_digital_identity).
+    # The address is the vendor's API host or an API path on its domain, as the other languages'
+    # vendor-API rules read it, and it is read only where it is handed to a URL or a request: a
+    # marketing page, a help article or a vendor's name in a log line is not. Foundation's URL
+    # types are reached through umbrella imports, so their short forms are read (Decision 8).
+    patterns:
+      - pattern-regex: (?i)(?<=")https?://(?:[a-z0-9-]*api[a-z0-9-]*\.(?:[a-z0-9-]+\.)*(?:withpersona\.com|veriff\.(?:com|me)|onfido\.com|jumio\.com|netverify\.com|yoti\.com|sumsub\.com|idenfy\.com|au10tix\.com|ondato\.com|incode\.com|trulioo\.com|idnow\.io)|(?:[a-z0-9-]+\.)*(?:withpersona\.com|veriff\.(?:com|me)|onfido\.com|jumio\.(?:com|ai)|netverify\.com|yoti\.com|sumsub\.com|idenfy\.com|au10tix\.com|ondato\.com|incode\.com|trulioo\.com|idnow\.io)/(?:[^\s"]*/)?(?:api|v[0-9]+)(?=/))[^\s"]*
+      - pattern-either:
+          - pattern-inside: 'URL(string: $U)'
+          - pattern-inside: 'Foundation.URL(string: $U)'
+          - pattern-inside: 'URLComponents(string: $U)'
+          - pattern-inside: 'Foundation.URLComponents(string: $U)'
+          - pattern-inside: Vapor.URI(...)
+          - pattern-inside: AsyncHTTPClient.HTTPClientRequest(...)
+          - pattern-inside: $C.get(...)
+          - pattern-inside: $C.post(...)
+          - pattern-inside: $C.put(...)
+          - pattern-inside: $C.patch(...)
+          - pattern-inside: $C.delete(...)
+          - pattern-inside: $C.request(...)
+    metadata:
+      activity: relies_on_digital_identity
+      mentioned: performs
+      definition: https://lexlint.io/glossary#relies-on-a-digital-identity
+      provenance: ungovr-original
+      license: MIT
