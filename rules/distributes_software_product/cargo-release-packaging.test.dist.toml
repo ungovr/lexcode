@@ -1,0 +1,14 @@
+# lexcode-expect: 2
+# cargo-dist: its dist-workspace.toml (the form since 0.23) and the older table in Cargo.toml.
+[workspace]
+members = ["cargo:."]
+
+[dist]
+cargo-dist-version = "0.28.0"
+ci = "github"
+installers = ["shell", "powershell", "homebrew"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc"]
+
+[workspace.metadata.dist]
+cargo-dist-version = "0.22.1"
+installers = ["shell"]

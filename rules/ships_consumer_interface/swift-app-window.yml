@@ -1,0 +1,78 @@
+# The staff and test words repeat between the SwiftUI and UIKit arms. Edit both copies together, or
+# an arm drifts from the other.
+rules:
+  - id: lexcode.consumer.swift-app-window
+    languages: [swift]
+    severity: INFO
+    message: Declares the window of an app (a SwiftUI app's WindowGroup, DocumentGroup or Window scene, or a UIKit window scene delegate), the screens an Apple app shows its users, which is a sign of a screen that members of the public use to reach a service (ships_consumer_interface). It does not say who the app is for; a tool only staff use does not count.
+    # The definition names "a mobile app's screens". Swift source does not say who an app is for, so
+    # this is a signal, as the sign-up rules in other languages are: a staff-only app (an
+    # enterprise-distributed tool) has the same window. A type named for staff, internal use, a test
+    # host, a preview or a demo is not read. A widget extension (WidgetBundle) and
+    # a server with no screen of its own declare no window. A menu-bar-only app (MenuBarExtra) is a
+    # screen too, and is not read: a known gap. Two more known gaps: a scene delegate in a file that
+    # imports only SwiftUI (UIKit comes through SwiftUI's umbrella, which the engine does not follow,
+    # Decision 8), and an App or Scene conformance in third place or later in its list.
+    # The excluded name words end at a word edge, so DemocracyApp and TestimonyApp are read.
+    pattern-either:
+      # A SwiftUI scene. The scene types are SwiftUI's, written module-qualified: the engine resolves
+      # `import SwiftUI`, and an app's own WindowGroup or App in a file without that import is not
+      # read. `X(...)` also matches the trailing-closure call `WindowGroup { ... }` (probed). The
+      # scene sits in the App's body, or in a Scene type the body names.
+      - patterns:
+          # Whole-file anchors (CONTRIBUTING.md, Cost): a file without one of these words is not parsed.
+          # Without them every Swift file is parsed, and penny-bot's generated API client (190 KB) took
+          # about 80 s to parse in a worker at --jobs 16 (measured).
+          - pattern-either:
+              - pattern-regex: '(?s)\A(?=.*WindowGroup).*'
+              - pattern-regex: '(?s)\A(?=.*DocumentGroup).*'
+              - pattern-regex: '(?s)\A(?=.*Window\s*\().*'
+          - pattern-either:
+              - pattern: SwiftUI.WindowGroup(...)
+              - pattern: SwiftUI.DocumentGroup(...)
+              - pattern: SwiftUI.Window(...)
+          - pattern-either:
+              - pattern-inside: |
+                  struct $A: SwiftUI.App { ... }
+              - pattern-inside: |
+                  struct $A: $P, SwiftUI.App { ... }
+              - pattern-inside: |
+                  struct $A: SwiftUI.Scene { ... }
+              - pattern-inside: |
+                  struct $A: $P, SwiftUI.Scene { ... }
+          - metavariable-regex:
+              metavariable: $A
+              regex: '^(?!\w*(Admin|Staff|Employee|Internal|Backoffice|BackOffice|Debug|Test|Mock|Preview|Demo|Sample|Example)s?(?![a-z]))'
+      # A UIKit app's window scene delegate, the object that puts the app's window on screen. The
+      # protocol is UIKit's, written module-qualified; a superclass (UIResponder) comes first, so its
+      # place in the list is spelled out.
+      - patterns:
+          - pattern-regex: '(?s)\A(?=.*UIWindowSceneDelegate).*'
+          - pattern-either:
+              - pattern: |
+                  class $A: UIKit.UIWindowSceneDelegate { ... }
+              - pattern: |
+                  class $A: $P, UIKit.UIWindowSceneDelegate { ... }
+              - pattern: |
+                  class $A: $P, $Q, UIKit.UIWindowSceneDelegate { ... }
+          - metavariable-regex:
+              metavariable: $A
+              regex: '^(?!\w*(Admin|Staff|Employee|Internal|Backoffice|BackOffice|Debug|Test|Mock|Preview|Demo|Sample|Example)s?(?![a-z]))'
+    paths:
+      # An SDK's example or demo app is not the product the repository ships.
+      exclude:
+        - "**/example/**"
+        - "**/examples/**"
+        - "**/Example/**"
+        - "**/Examples/**"
+        - "**/sample/**"
+        - "**/samples/**"
+        - "**/demo/**"
+        - "**/demos/**"
+    metadata:
+      activity: ships_consumer_interface
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/ships-consumer-interface
+      provenance: ungovr-original
+      license: MIT

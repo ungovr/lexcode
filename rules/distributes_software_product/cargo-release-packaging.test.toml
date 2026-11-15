@@ -1,0 +1,30 @@
+# lexcode-expect: 4
+# A server packaged for others to install: a Debian package with its systemd unit, an RPM, an AUR
+# package, and prebuilt binaries for cargo-binstall.
+[package]
+name = "relayd"
+version = "1.8.0"
+edition = "2021"
+
+[package.metadata.deb]
+maintainer = "Relay Maintainers <maint@example.org>"
+assets = [
+    ["target/release/relayd", "usr/bin/", "755"],
+]
+
+[package.metadata.deb.systemd-units]
+unit-name = "relayd"
+
+[package.metadata.generate-rpm]
+assets = [
+    { source = "target/release/relayd", dest = "/usr/bin/relayd", mode = "755" },
+]
+
+[package.metadata.aur]
+depends = ["openssl"]
+
+[package.metadata.binstall]
+pkg-url = "{ repo }/releases/download/v{ version }/{ name }-{ target }.tar.gz"
+
+[dependencies]
+tokio = "1"

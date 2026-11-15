@@ -1,0 +1,80 @@
+# The sign-up path expression repeats between the call arms (on $P, with its quotes) and the
+# attribute, markup and warp arms (inside the regex); the staff words repeat across the receiver
+# check and the exclusions. Edit every copy together, or an arm drifts from the others. The path
+# regex is the selector: a route call on any receiver reads only a sign-up path, optionally under
+# an API, version, account, auth or users prefix, so a device, webhook or node registration and
+# an admin path are not read. A route registered in a staff scope, an admin router nested under
+# /admin, or an admin prefix is excluded. A staff router built in another function and nested by
+# name is not seen, a known gap.
+rules:
+  - id: lexcode.consumer.rs-signup-route
+    languages: [rust]
+    severity: INFO
+    message: Routes a public sign-up page or endpoint (an axum, actix-web, Poem or Loco route, an actix-web, Rocket or poem-openapi route attribute, a warp filter, or a Leptos, Yew or Dioxus front-end route), a screen that members of the public use to reach a service (ships_consumer_interface).
+    patterns:
+      - pattern-either:
+          # Route calls: axum's and actix-web's route, Poem's at and Loco's add.
+          - patterns:
+              - pattern-either:
+                  - pattern: $R.route($P, ...)
+                  - pattern: $R.at($P, ...)
+                  - patterns:
+                      - pattern: $R.add($P, $V($H))
+                      - metavariable-regex:
+                          metavariable: $V
+                          regex: '^(get|post|put|patch|any)$'
+              - metavariable-regex:
+                  metavariable: $R
+                  regex: '(?is)^(?!(\w+::)*scope\(\s*"/?(api/)?(v[0-9]+/)?(admin|staff|internal|backoffice|manage))(?!.*\.prefix\(\s*"/?(api/)?(admin|staff|internal|backoffice|manage))'
+              - metavariable-regex:
+                  metavariable: $P
+                  regex: '(?i)^r?#*"/?(\{[^}/"]*\}/)?(api/)?(v[0-9]+/)?(accounts?/|auth/|users?/|account/auth/|identity/|members?/|customers?/)?(sign-?up|sign_up|register|registration|create-?account|create_account)/?"#*$'
+              - focus-metavariable: $P
+          # actix-web's resource, by the crate path (which also reads web::resource under a flat
+          # use and an alias of the crate) or, in a file that uses actix-web, by the bare name a
+          # nested use group brings.
+          - patterns:
+              - pattern-either:
+                  - pattern: actix_web::web::resource($P)
+                  - patterns:
+                      - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+actix_web\b).*'
+                      - pattern: resource($P)
+              - metavariable-regex:
+                  metavariable: $P
+                  regex: '(?i)^r?#*"/?(\{[^}/"]*\}/)?(api/)?(v[0-9]+/)?(accounts?/|auth/|users?/|account/auth/|identity/|members?/|customers?/)?(sign-?up|sign_up|register|registration|create-?account|create_account)/?"#*$'
+              - focus-metavariable: $P
+          # Route attributes: actix-web's and Rocket's method macros, actix-web's route, Yew's
+          # at and Dioxus's route on a router enum's variant.
+          - pattern-regex: '(?mi)^[ \t]*#\[(?:\w+::)*(get|post|put|route|at)\(\s*"/?(\{[^}/"]*\}/)?(api/)?(v[0-9]+/)?(accounts?/|auth/|users?/|account/auth/|identity/|members?/|customers?/)?(sign-?up|sign_up|register|registration|create-?account|create_account)/?"'
+          # poem-openapi's operation attribute.
+          - pattern-regex: '(?mi)^[ \t]*#\[oai\([^\]]{0,200}?\bpath\s*=\s*"/?(\{[^}/"]*\}/)?(api/)?(v[0-9]+/)?(accounts?/|auth/|users?/|account/auth/|identity/|members?/|customers?/)?(sign-?up|sign_up|register|registration|create-?account|create_account)/?"'
+          # Leptos's Route component in view! markup (which the engine reads only as text), with
+          # a path string, the path! macro or a static segment.
+          - pattern-regex: '(?i)<Route\b[^>]{0,200}?\bpath\s*=\s*\{?\s*(path!\(\s*)?"/?(\{[^}/"]*\}/)?(accounts?/|auth/|users?/|account/auth/|identity/|members?/|customers?/)?(sign-?up|sign_up|register|registration|create-?account|create_account)/?"'
+          - pattern-regex: '(?i)<Route\b[^>]{0,200}?\bpath\s*=\s*\(?\s*StaticSegment\(\s*"(sign-?up|sign_up|register|registration|create-?account|create_account)"'
+          # warp's path filters.
+          - pattern-regex: '(?i)\bwarp::path\(\s*"(sign-?up|sign_up|register|registration|create-?account|create_account)"'
+          - pattern-regex: '(?i)\bpath!\(\s*("(api|v[0-9]+|accounts?|auth|users?)"\s*/\s*)*"(sign-?up|sign_up|register|registration|create-?account|create_account)"\s*[)/]'
+      # A route in a staff scope or an admin router: actix-web's scope (and its service calls),
+      # axum's and Poem's nest. The nest exclusion is the nested router argument only: the nest
+      # call's own range also holds its receiver, the public routes chained before it.
+      - pattern-not-inside:
+          patterns:
+            - pattern: $X.service(...)
+            - metavariable-regex:
+                metavariable: $X
+                regex: '(?is)^(\w+::)*scope\(\s*"/?(api/)?(v[0-9]+/)?(admin|staff|internal|backoffice|manage)'
+      - pattern-not-inside:
+          patterns:
+            - pattern: $X.nest($A, $INNER)
+            - metavariable-regex:
+                metavariable: $A
+                regex: '(?i)^"/?(api/)?(v[0-9]+/)?(admin|staff|internal|backoffice|manage)'
+            - focus-metavariable: $INNER
+    metadata:
+      activity: ships_consumer_interface
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/ships-consumer-interface
+      provenance: ungovr-original
+      license: MIT

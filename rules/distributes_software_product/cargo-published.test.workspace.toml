@@ -1,0 +1,17 @@
+# lexcode-expect: 1
+# A workspace member that inherits its keywords and lists its crates.io categories.
+[package]
+name = "acme_utils"
+version.workspace = true
+edition.workspace = true
+description.workspace = true
+license.workspace = true
+keywords.workspace = true
+categories = ["command-line-utilities"]
+
+[[bin]]
+name = "acme"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = { workspace = true }

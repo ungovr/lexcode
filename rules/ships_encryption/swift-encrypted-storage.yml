@@ -1,0 +1,54 @@
+rules:
+  - id: lexcode.crypto.swift-encrypted-storage
+    languages: [swift]
+    severity: INFO
+    message: Encrypts what the app stores with SQLCipher (through GRDB, SQLite.swift or its C API) or an encrypted Realm, which is shipping encryption (ships_encryption).
+    # Each library encrypts its file in a format of its own (page encryption and key derivation),
+    # which is implementing cryptography beyond calling the platform's APIs, as Jetpack Security and
+    # SQLCipher are for Kotlin. The system's Data Protection (`.completeFileProtection`, the
+    # protection-key file attribute) encrypts files with the platform's keys and is not read. A
+    # Realm configured with no key (or `nil`) is not read. The method calls sit on untyped
+    # receivers, so each is read only in a file that imports its library.
+    pattern-either:
+      # SQLCipher through GRDB (the module was GRDBCipher before GRDB 5)
+      - patterns:
+          - pattern-either:
+              - pattern: $DB.usePassphrase(...)
+              - pattern: $DB.changePassphrase(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import GRDB
+                  ...
+              - pattern-inside: |
+                  import GRDBCipher
+                  ...
+      # SQLCipher through SQLite.swift. `key` is a generic name on an untyped receiver, so the file
+      # must also name SQLite.swift's Connection type.
+      - patterns:
+          - pattern-either:
+              - pattern: $DB.key($K)
+              - pattern: $DB.rekey($K)
+          - pattern-inside: |
+              import SQLite
+              ...
+          - pattern-regex: (?s)\A(?=.*\bConnection\b).*
+      # SQLCipher's C API, which plain SQLite does not have
+      - pattern: sqlite3_key(...)
+      - pattern: sqlite3_key_v2(...)
+      - pattern: sqlite3_rekey(...)
+      # Realm with an encryption key
+      - patterns:
+          - pattern: 'RealmSwift.Realm.Configuration(..., encryptionKey: $K, ...)'
+          - pattern-not: 'RealmSwift.Realm.Configuration(..., encryptionKey: nil, ...)'
+      - patterns:
+          - pattern: '$C.encryptionKey = $K'
+          - pattern-not: '$C.encryptionKey = nil'
+          - pattern-inside: |
+              import RealmSwift
+              ...
+    metadata:
+      activity: ships_encryption
+      mentioned: performs
+      definition: https://lexlint.io/glossary#ships-encryption
+      provenance: ungovr-original
+      license: MIT

@@ -1,0 +1,20 @@
+# lexcode-expect: 0
+# A hosted service: no listing keys in [package]. The words appear only in other tables (the
+# workspace's shared settings and a feature list), which are not the package's.
+[workspace.package]
+keywords = ["shared"]
+categories = ["web-programming"]
+
+[package]
+name = "newsletter"
+version = "0.1.0"
+edition = "2021"
+description = "Newsletter service"
+license = "MIT"
+
+[features]
+keywords = []
+categories = ["keywords"]
+
+[dependencies]
+actix-web = "4"

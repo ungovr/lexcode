@@ -1,0 +1,24 @@
+# lexcode-expect: 0
+# A hosted service: no description or licence in [package], so cargo cannot publish it. The words
+# appear only in other tables (the workspace's shared settings and a feature list), which are not
+# the package's.
+[workspace.package]
+description = "Shared settings"
+license = "MIT"
+
+[package]
+name = "newsletter"
+version = "0.1.0"
+authors = ["Ops <ops@example.com>"]
+edition = "2021"
+
+[[bin]]
+path = "src/main.rs"
+name = "newsletter"
+
+[features]
+license = []
+description = ["license"]
+
+[dependencies]
+actix-web = "4"

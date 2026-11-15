@@ -1,0 +1,62 @@
+# The follow and friend expression (with its follow-up exclusion) repeats in every arm, the
+# subscription prefixes across the SQL arms, and the content tables between the two join arms.
+# Edit every copy together, or an arm drifts from the others. A follow table named for a
+# community, topic, thread, tag, group, channel, forum or category is a notice subscription, not a
+# link between accounts; in the Diesel, SeaORM and in-memory arms the author column is what keeps
+# a community feed (post::community_id.eq_any(followed_communities)) out.
+rules:
+  - id: lexcode.social.rs-home-feed
+    languages: [rust]
+    severity: INFO
+    message: Selects posts written by the accounts a user follows or befriends (SQL text, a Diesel or SeaORM filter, or an in-memory filter keyed on followed or friend accounts), which builds a feed of other users' posts for a social platform (operates_social_platform).
+    # Constant propagation is off so that a const statement is matched once, where it is written,
+    # and not again at each call that passes it.
+    options:
+      constant_propagation: false
+    pattern-either:
+      # SQL text, wherever the string sits: an author IN (... followed or friend accounts ...)
+      # condition, posts joined to the follow or friendship table, or the follow or friendship
+      # table joined to the posts or articles.
+      - patterns:
+          - pattern: '"$SQL"'
+          - metavariable-regex:
+              metavariable: $SQL
+              regex: '(?is)^.*?\b(author|user|owner|creator|poster|person)\w*[\s\\]+in[\s\\]*\(.{0,300}?\b(?!(community|topic|thread|tag|group|channel|forum|category)_)\w*(follow(?!_?ups?\b)|friend)'
+      - patterns:
+          - pattern: '"$SQL"'
+          - metavariable-regex:
+              metavariable: $SQL
+              regex: '(?is)^.*?\bfrom\s+[`"]?\w*(post|status|statuses|tweet|toot|article)\w*[`"]?.{0,300}?\bjoin\s+[`"]?(?!(community|topic|thread|tag|group|channel|forum|category)_)\w*(follow(?!_?ups?\b)|friend)'
+      - patterns:
+          - pattern: '"$SQL"'
+          - metavariable-regex:
+              metavariable: $SQL
+              regex: '(?is)^.*?\bfrom\s+[`"]?(?!(community|topic|thread|tag|group|channel|forum|category)_)\w*(follow(?!_?ups?\b)|friend)\w*[`"]?.{0,300}?\bjoin\s+[`"]?\w*(post|status|statuses|tweet|toot|article)'
+      # Diesel's eq_any and SeaORM's is_in: the post's author column in a set named for followed
+      # or friend accounts.
+      - patterns:
+          - pattern-either:
+              - pattern: $COL.eq_any($FOL)
+              - pattern: $COL.is_in($FOL)
+          - metavariable-regex:
+              metavariable: $COL
+              regex: '(?i)^(\w+::)*(author|poster|creator|owner|user|person)_?(id)?$'
+          - metavariable-regex:
+              metavariable: $FOL
+              regex: '(?is)^.*(follow(?!_?ups?(\b|_|[A-Z]))|friend)'
+      # In memory: a set named for followed or friend accounts holding the post's author.
+      - patterns:
+          - pattern: $FOL.contains(&$P.$PROP)
+          - metavariable-regex:
+              metavariable: $PROP
+              regex: '^(author|poster|creator|owner|user|person)(_id)?$'
+          - metavariable-regex:
+              metavariable: $FOL
+              regex: '(?is)^.*(follow(?!_?ups?(\b|_|[A-Z]))|friend)'
+    metadata:
+      activity: operates_social_platform
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/operates-social-platform
+      provenance: ungovr-original
+      license: MIT

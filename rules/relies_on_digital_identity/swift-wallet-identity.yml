@@ -1,0 +1,30 @@
+rules:
+  - id: lexcode.identity.swift-wallet-identity
+    languages: [swift]
+    severity: INFO
+    message: Asks a person's Apple Wallet for an ID (Verify with Wallet) or reads a customer's mobile ID with Tap to Present ID on iPhone, which is relying on a digital identity (relies_on_digital_identity).
+    # Both frameworks come only from their own import, so each type is written module-qualified
+    # (Decision 8). The request is the act: checking whether the feature is available
+    # (canRequestDocument, MobileDocumentReader.isSupported) asks for nothing and is not read.
+    # Sign in with Apple, passkeys and Face ID through LocalAuthentication sign a person in to an
+    # account or unlock the device's own credential, which the definition leaves out, and Apple Pay
+    # takes a payment; none is read. The Info.plist usage key and the entitlement for Verify with
+    # Wallet are read by the ios-plist-identity-request and entitlements-identity-presentment rules.
+    pattern-either:
+      # Verify with Wallet
+      - pattern: PassKit.PKIdentityRequest(...)
+      # Tap to Present ID on iPhone: a display request or a data request, for a driver's license,
+      # a national ID card or a photo ID
+      - pattern: ProximityReader.MobileDriversLicenseDisplayRequest(...)
+      - pattern: ProximityReader.MobileDriversLicenseDataRequest(...)
+      - pattern: ProximityReader.MobileDriversLicenseRawDataRequest(...)
+      - pattern: ProximityReader.MobileNationalIDCardDisplayRequest(...)
+      - pattern: ProximityReader.MobileNationalIDCardDataRequest(...)
+      - pattern: ProximityReader.MobilePhotoIDDisplayRequest(...)
+      - pattern: ProximityReader.MobilePhotoIDDataRequest(...)
+    metadata:
+      activity: relies_on_digital_identity
+      mentioned: performs
+      definition: https://lexlint.io/glossary#relies-on-a-digital-identity
+      provenance: ungovr-original
+      license: MIT

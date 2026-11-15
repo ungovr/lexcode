@@ -1,0 +1,34 @@
+rules:
+  - id: lexcode.esign.swift-esign-envelope
+    languages: [swift]
+    severity: INFO
+    message: Has a person sign a document, or sends one for signature, through DocuSign's iOS SDK or the REST API of DocuSign, Dropbox Sign (HelloSign) or Adobe Acrobat Sign, which is collecting electronic signatures (collects_e_signatures).
+    # DocuSign's manager types carry its DSM prefix, not its name, so their calls are read only in
+    # a file that imports DocuSignSDK. Neither Dropbox Sign nor Acrobat Sign ships a Swift SDK, so
+    # an app (or a Vapor or Hummingbird server) reaches them through their REST APIs: the envelope,
+    # signature-request and agreement paths are read wherever they are written as a string, since
+    # only an API client writes one. A vendor's account, user-info, marketing and help addresses
+    # are not, and accepting terms with a button is contract formation, which the definition
+    # leaves out.
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: $M.presentCaptiveSigning(...)
+              - pattern: $M.presentSigning(...)
+              - pattern: $M.signOffline(...)
+              - pattern: $M.resumeSigningEnvelope(...)
+              - pattern: $M.composeEnvelope(...)
+              - pattern: $M.presentComposeEnvelopeController(...)
+              - pattern: $M.presentSendTemplateControllerWithTemplate(...)
+          - pattern-inside: |
+              import DocuSignSDK
+              ...
+      - pattern-regex: (?i)(?<=")https?://(?:[a-z0-9-]+\.)*docusign\.(?:net|com)/restapi/v2(?:\.1)?/accounts/[^\s"/]+/envelopes\b[^\s"]*
+      - pattern-regex: (?i)(?<=")https?://api\.(?:hellosign|dropboxsign)\.com/v3/signature_request/[^\s"]*
+      - pattern-regex: (?i)(?<=")https?://(?:[a-z0-9-]+\.)*(?:adobesign|echosign)\.com/api/rest/v[0-9]+/agreements\b[^\s"]*
+    metadata:
+      activity: collects_e_signatures
+      mentioned: performs
+      definition: https://lexlint.io/glossary#collects-electronic-signatures
+      provenance: ungovr-original
+      license: MIT
