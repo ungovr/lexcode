@@ -1,0 +1,21 @@
+# lexcode-expect: 1
+# A workspace member that inherits its description and licence from [workspace.package], with a
+# library and a command-line program.
+[package]
+name = "acme_utils"
+version.workspace = true
+edition.workspace = true
+description.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+name = "acme_utils"
+path = "src/lib.rs"
+
+[[bin]]
+name = "acme"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = { workspace = true }

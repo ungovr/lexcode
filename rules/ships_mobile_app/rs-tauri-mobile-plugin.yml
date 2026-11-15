@@ -1,0 +1,22 @@
+rules:
+  - id: lexcode.mobile.rs-tauri-mobile-plugin
+    languages: [rust]
+    severity: INFO
+    message: Registers a Tauri plugin that runs only on Android and iOS (barcode scanner, biometric, haptics, NFC or geolocation), so the Tauri app is built as a phone app, which is shipping a mobile app (ships_mobile_app).
+    # Tauri's plugins-workspace lists these five for Android and iOS only, so an app that registers
+    # one is built for a phone. A plugin that also runs on the desktop (opener, notification,
+    # updater) is not matched, and neither is a plugin crate's own mobile setup
+    # (register_android_plugin), which is a library other apps add. Each init is written by its
+    # crate path, which the engine resolves through `use`, an alias and a renamed import.
+    pattern-either:
+      - pattern: tauri_plugin_barcode_scanner::init()
+      - pattern: tauri_plugin_biometric::init()
+      - pattern: tauri_plugin_haptics::init()
+      - pattern: tauri_plugin_nfc::init()
+      - pattern: tauri_plugin_geolocation::init()
+    metadata:
+      activity: ships_mobile_app
+      mentioned: performs
+      definition: https://lexlint.io/activities/ships-mobile-app
+      provenance: ungovr-original
+      license: MIT

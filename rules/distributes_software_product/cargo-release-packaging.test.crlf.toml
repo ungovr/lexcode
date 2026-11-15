@@ -1,0 +1,11 @@
+# lexcode-expect: 1
+# A Debian package table saved with Windows line endings (a checkout with core.autocrlf).
+[package]
+name = "relayd"
+version = "1.8.0"
+
+[package.metadata.deb]
+maintainer = "Relay Maintainers <maint@example.org>"
+
+[dependencies]
+tokio = "1"

@@ -1,0 +1,13 @@
+# lexcode-expect: 1
+# A crate with the description and licence cargo publish requires and publishing not switched off.
+# A library written for crates.io looks like this, and so does a hosted API that never leaves its
+# server, so it is a signal.
+[package]
+name = "orders-api"
+version = "0.3.0"
+edition = "2021"
+description = "Order intake API"
+license = "MIT"
+
+[dependencies]
+axum = "0.8"

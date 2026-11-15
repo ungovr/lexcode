@@ -1,0 +1,15 @@
+# lexcode-expect: 0
+# Listing keys on a crate that may be published only to the company's own registry, written over
+# several lines.
+[package]
+name = "ledger-client"
+version = "1.4.0"
+description = "Client for the ledger service"
+license = "MIT"
+keywords = ["ledger"]
+publish = [
+    "internal",
+]
+
+[dependencies]
+reqwest = "0.12"

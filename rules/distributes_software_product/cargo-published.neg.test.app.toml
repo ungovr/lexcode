@@ -1,0 +1,13 @@
+# lexcode-expect: 0
+# A hosted API with the description and licence cargo publish requires and nothing that shows it is
+# listed on crates.io: cargo-package's signal, not this rule's evidence.
+[package]
+name = "orders-api"
+version = "0.3.0"
+edition = "2021"
+description = "Order intake API"
+license = "MIT"
+repository = "https://git.example.com/orders-api"
+
+[dependencies]
+axum = "0.8"

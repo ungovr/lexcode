@@ -1,0 +1,10 @@
+# lexcode-expect: 0
+# An in-house crate whose licence file names a proprietary grant.
+[package]
+name = "billing-core"
+version = "3.0.0"
+description = "Internal billing rules"
+license-file = "LICENSE-PROPRIETARY"
+
+[dependencies]
+rust_decimal = "1"

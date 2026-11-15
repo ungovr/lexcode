@@ -1,0 +1,38 @@
+rules:
+  - id: lexcode.distribute.cargo-published
+    languages: [generic]
+    severity: INFO
+    message: Declares a Cargo package with crates.io listing keys (keywords or categories), publish = true or a registry list naming crates-io, or build settings for docs.rs, which is a crate made available for others to install (distributes_software_product).
+    # Evidence needs what a hosted service does not write. keywords and categories exist only to list
+    # a crate on crates.io; `publish = true` and a list naming crates-io say so outright; docs.rs
+    # builds documentation for crates.io crates only. A description and a licence alone are
+    # cargo-package's signal, as a gemspec alone is rb-gemspec's and a build backend alone is
+    # pyproject-package's. One match per [package] header. Not matched when publishing is switched
+    # off (`publish = false`, a registry list without crates-io on one line or several,
+    # `publish.workspace = true`) or under a licence or licence file naming a proprietary,
+    # unlicensed or commercial grant. The listing keys and the switches are looked for only in the
+    # package's own table (the lookaheads walk line by line and stop at the next table header); the
+    # docs.rs table anywhere after it. `\r?$` reads a manifest saved with Windows line endings.
+    #
+    # Known gaps: keys written as dotted keys outside the table (`package.keywords = ..`), and a
+    # `publish.workspace = true` whose workspace turns publishing on.
+    pattern-regex: '(?m)^[ \t]*\[package\][ \t]*(?:#[^\n]*)?\r?$(?=(?:\n(?![ \t]*\[)[^\n]*)*?\n[ \t]*(?:(?:keywords|categories)(?:\.workspace)?[ \t]*=|publish[ \t]*=[ \t]*(?:true\b|\[[^\]]*crates-io))|[\s\S]*?\n[ \t]*\[package\.metadata\.docs\.rs\][ \t]*(?:#[^\n]*)?\r?$)(?!(?:\n(?![ \t]*\[)[^\n]*)*?\n[ \t]*publish(?:[ \t]*=[ \t]*(?:false\b|\[(?![^\]]*crates-io)|\{[^}\n]*\bworkspace\b)|\.workspace\b))(?!(?:\n(?![ \t]*\[)[^\n]*)*?\n[ \t]*license(?:-file)?[ \t]*=[ \t]*["''][^"''\n]*(?i:proprietary|unlicensed|commercial|all rights reserved))'
+    paths:
+      include:
+        - "Cargo.toml"
+        - "cargo-published.*"
+      # A crate under an example, sample or demo directory is a worked example, not the product. The
+      # fixture runner reads only the files beside this rule, so no fixture can sit under these paths.
+      exclude:
+        - "**/example/**"
+        - "**/examples/**"
+        - "**/sample/**"
+        - "**/samples/**"
+        - "**/demo/**"
+        - "**/demos/**"
+    metadata:
+      activity: distributes_software_product
+      mentioned: performs
+      definition: https://lexlint.io/activities/distributes-software-product
+      provenance: ungovr-original
+      license: MIT
