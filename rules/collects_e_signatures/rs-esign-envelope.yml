@@ -4,18 +4,28 @@
 # hyper request builder with that method, ureq's or surf's post):
 # - DocuSign eSignature: an envelope created (`.../v2.1/accounts/{id}/envelopes`) or a recipient's
 #   signing view (`.../envelopes/{id}/views/recipient`);
-# - Dropbox Sign (HelloSign): a signature request sent or created embedded, or an embedded sign URL;
-# - BoldSign: a document or template sent, or an embedded signing link;
+# - Dropbox Sign (HelloSign): a signature request sent or created embedded;
+# - BoldSign: a document or template sent, or an embedded request created;
 # - Adobe Acrobat Sign: an agreement created.
 # The check reads the source text, so an address built in `format!` with the account in it is found
-# too. Reading an envelope's or a request's status (a GET, or a list) sends nothing and is not read.
+# too. Reading an envelope's or a request's status (a GET, or a list) sends nothing and is not read;
+# neither is fetching a signing link for a request already sent (Dropbox Sign's embedded sign_url,
+# BoldSign's getEmbeddedSignLink, both GETs): the send is the act. A builder's method and uri must be
+# adjacent calls; `.method("POST").header(..).uri(..)` is missed.
 rules:
   - id: lexcode.esign.rs-esign-envelope
     languages: [rust]
     severity: INFO
     message: Sends a document to a person for electronic signature, or opens a signing session, through DocuSign, Dropbox Sign, BoldSign or Adobe Acrobat Sign's API from Rust, which is collecting electronic signatures (collects_e_signatures).
     patterns:
-      - pattern-regex: (?i)(?<=")[^"\s]*?(?:/v2(?:\.1)?/accounts/[^"\s/]+/envelopes(?:/[^"\s/]+/views/recipient)?|(?:hellosign\.com|dropboxsign\.com)/v3/(?:signature_request/(?:send|send_with_template|create_embedded|create_embedded_with_template)|embedded/sign_url/)|boldsign\.com/v1/(?:document/(?:send|createEmbeddedRequestUrl|getEmbeddedSignLink)|template/(?:send|createEmbeddedRequestUrl))|(?:echosign|adobesign|documents\.adobe)\.com/api/rest/v6/agreements)(?=["?])
+      - pattern-either:
+          # DocuSign's path carries no vendor word when the host is a variable (`{base}/v2.1/accounts/..`),
+          # so it is read only in a file that names DocuSign; an app's own `/accounts/{id}/envelopes`
+          # (a budgeting or mail API) elsewhere is not.
+          - patterns:
+              - pattern-regex: (?i)(?<=")[^"\s]*?/v2(?:\.1)?/accounts/[^"\s/]+/envelopes(?:/[^"\s/]+/views/recipient)?(?=["?])
+              - pattern-regex: (?is)\A(?=.*docusign).*
+          - pattern-regex: (?i)(?<=")[^"\s]*?(?:(?:hellosign\.com|dropboxsign\.com)/v3/signature_request/(?:send|send_with_template|create_embedded|create_embedded_with_template)|boldsign\.com/v1/(?:document/(?:send|createEmbeddedRequestUrl)|template/(?:send|createEmbeddedRequestUrl))|(?:echosign|adobesign|documents\.adobe)\.com/api/rest/v6/agreements)(?=["?])
       - pattern-either:
           - pattern-inside: $O.post(...)
           - pattern-inside: $O.put(...)

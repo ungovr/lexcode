@@ -1,4 +1,4 @@
-// lexcode-expect: 5
+// lexcode-expect: 6
 use chrono::{DateTime, Utc};
 use serde::Deserialize;
 use uuid::Uuid;
@@ -25,4 +25,9 @@ pub struct ParentalConsentForm {
 
 pub struct NewWaiverRow {
     signature_data: String,
+}
+
+pub struct WaiverSignature {
+    pub waiver_id: i64,
+    pub signature: String,
 }

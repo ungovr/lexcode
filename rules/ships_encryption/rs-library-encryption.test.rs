@@ -1,12 +1,10 @@
-// lexcode-expect: 28
+// lexcode-expect: 26
 use aes::Aes256;
 use aes_gcm::{aead::{Aead, KeyInit, OsRng}, Aes256Gcm, Nonce};
 use age::secrecy::SecretString;
 use cbc::cipher::{block_padding::Pkcs7, BlockEncryptMut, KeyIvInit};
 use chacha20poly1305::{XChaCha20Poly1305, XNonce};
 use crypto_box::{ChaChaBox, PublicKey, SecretKey};
-use openssl::rsa::{Padding, Rsa};
-use openssl::symm::{encrypt, Cipher, Crypter, Mode};
 use ring::{aead, agreement, rand};
 use rsa::{Oaep, Pkcs1v15Encrypt, RsaPrivateKey, RsaPublicKey};
 use sha2::Sha256;
@@ -63,12 +61,9 @@ impl Vault {
         let _ = public.oaep_encrypt::<Sha256>(data);
     }
 
-    pub fn seal_openssl(&self, iv: &[u8], data: &[u8], pem: &[u8]) {
-        let _ = encrypt(Cipher::aes_256_cbc(), &self.key, Some(iv), data);
-        let _ = Crypter::new(Cipher::aes_256_gcm(), Mode::Encrypt, &self.key, Some(iv));
-        let rsa = Rsa::public_key_from_pem(pem).unwrap();
-        let mut out = vec![0; rsa.size() as usize];
-        let _ = rsa.public_encrypt(data, &mut out, Padding::PKCS1_OAEP);
+    pub fn seal_fernet(&self, key: &str, data: &[u8]) -> Option<String> {
+        let f = fernet::Fernet::new(key)?;
+        Some(f.encrypt(data))
     }
 
     pub fn seal_sodium(&self, data: &[u8], pk: &box_::PublicKey, sk: &box_::SecretKey) {

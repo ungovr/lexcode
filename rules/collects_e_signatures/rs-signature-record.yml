@@ -1,5 +1,6 @@
 # A field holding a person's signature on a struct that is the record of an agreement, waiver or
-# consent: a database row (sqlx, Diesel, SeaORM) or a request body a drawn-signature pad posts. The
+# consent: a database row (sqlx or Diesel) or a request body a drawn-signature pad posts. A SeaORM
+# entity is always `struct Model`, which carries no agreement word, so it is not read (a known gap). The
 # engine matches each field of a struct, so the field's name and the struct's name are checked on the
 # bound text. A field that only marks that the terms were accepted (`terms_accepted: bool`) is
 # contract formation and has another name.
@@ -31,12 +32,12 @@ rules:
       # `client_signature`: an exchange order, a contract call, a device enrollment, a WebAuthn
       # attestation, an ActivityPub activity) count only where the struct is the agreement itself: its
       # name ends in the agreement word, optionally followed by up to two model trailers and a plural
-      # (ParentalConsentForm, WaiverRow, LeaseAgreementModel, NewConsent); Request is not a trailer here
+      # (ParentalConsentForm, WaiverRow, LeaseAgreementModel, NewConsent, WaiverSignature); Request is not a trailer here
       # (DeviceEnrollmentRequest), as in C#. A person's signature or an
       # image of one keeps the wider test above. One comparison reads both names, since a condition in
       # a nested branch cannot see the field's name.
       - metavariable-comparison:
-          comparison: not re.match("^(?i:(?:client_?)?signature|signature_?(?:data|file))$", str($SIG)) or re.match("^(?!.*(?:Webhook|Callback|Payload|Method|Response|Header|Token)).*(?:Waiver|Agreement|Contract|Consent|Lease|Authori[sz]ation(?:Form|Letter)|Acknowledge?ment|Disclosure|Confidentiality|(?:Liability|Medical|Photo)Release|Sign[Oo]ff|E[Ss]ign|SignatureForm|WorkOrder|PermissionSlip|Enrol+ment|(?:Parental|Parent|Guardian|Customer|Client|Patient)Approval|ApprovalForm)s?(?:Form|Record|Document|Dto|Model|Row|Entity|Input|Body|Data|Submission|Insert|Update){0,2}s?$", str($C))
+          comparison: not re.match("^(?i:(?:client_?)?signature|signature_?(?:data|file))$", str($SIG)) or re.match("^(?!.*(?:Webhook|Callback|Payload|Method|Response|Header|Token)).*(?:Waiver|Agreement|Contract|Consent|Lease|Authori[sz]ation(?:Form|Letter)|Acknowledge?ment|Disclosure|Confidentiality|(?:Liability|Medical|Photo)Release|Sign[Oo]ff|E[Ss]ign|SignatureForm|WorkOrder|PermissionSlip|Enrol+ment|(?:Parental|Parent|Guardian|Customer|Client|Patient)Approval|ApprovalForm)s?(?:Form|Record|Document|Dto|Model|Row|Entity|Input|Body|Data|Submission|Insert|Update|Signature){0,2}s?$", str($C))
     metadata:
       activity: collects_e_signatures
       mentioned: performs

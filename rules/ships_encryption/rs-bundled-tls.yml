@@ -9,7 +9,14 @@
 # Not read: native-tls and openssl's SslConnector and SslAcceptor, which hand TLS to the operating
 # system's stack (SChannel, Security.framework) or the system's OpenSSL, the nearest thing Rust has to
 # the platform's own; and a plain reqwest, hyper or sqlx call over HTTPS, whose TLS backend is a Cargo
-# feature this rule cannot see.
+# feature this rule cannot see. That leaves an asymmetry, a known gap: an app that calls
+# `use_rustls_tls()` or builds hyper-rustls's connector is read, and one that gets the same rustls
+# through reqwest's `rustls-tls` feature (or reqwest 0.13's default) with no call is not.
+#
+# tokio-rustls's and Poem's own examples import the config through a nested group
+# (`use tokio_rustls::{rustls::{ClientConfig, ..}, TlsConnector}`,
+# `use poem::{listener::{RustlsConfig, ..}, ..}`), which the engine does not resolve, so those carry
+# short forms, each read only in a file whose `use` line for the crate names the item.
 rules:
   - id: lexcode.crypto.rs-bundled-tls
     languages: [rust]
@@ -33,7 +40,22 @@ rules:
           - metavariable-regex:
               metavariable: $M
               regex: ^from_(?:pem|pem_file|pem_chain_file|der|config)$
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+tokio_rustls::[^;]*\bServerConfig\b).*'
+          - pattern: ServerConfig::$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(?:builder|builder_with_provider|builder_with_protocol_versions|new)$
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+tokio_rustls::[^;]*\bClientConfig\b).*'
+          - pattern: ClientConfig::$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(?:builder|builder_with_provider|builder_with_protocol_versions|new)$
       - pattern: poem::listener::RustlsConfig::new()
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+poem::[^;]*\bRustlsConfig\b).*'
+          - pattern: RustlsConfig::new()
       - pattern: warp::serve($R).tls()
       - pattern: hyper_rustls::HttpsConnectorBuilder::new()
       - pattern: $B.use_rustls_tls()

@@ -3,13 +3,14 @@
 # which the engine resolves through `use`, a module import (`use ring::aead;` then
 # `aead::UnboundKey::new(..)`), a grouped `use` and `use <crate> as <alias>`, so an app's own type of
 # the same short name is not read. Read here: an AEAD or other cipher built or called (ring and
-# aws-lc-rs, the RustCrypto AEAD, stream and block-mode crates, RSA encryption, openssl's ciphers,
-# sodiumoxide, age, orion, a JWE through josekit) and key agreement (ring's and x25519-dalek's
-# Diffie-Hellman), and end-to-end messaging sessions (the Signal protocol, Olm and Megolm).
+# aws-lc-rs, the RustCrypto AEAD, stream and block-mode crates, RSA encryption, sodiumoxide, Fernet,
+# age, orion, a JWE through josekit) and key agreement (ring's and x25519-dalek's Diffie-Hellman), and
+# end-to-end messaging sessions (the Signal protocol, Olm and Megolm).
 #
 # Not read: signatures (ed25519-dalek, ring::signature, RSA signing, a JWS from jsonwebtoken),
 # MACs, hashes and random numbers, which encrypt nothing; password hashing (bcrypt, argon2), which
-# processes_personal_data's rs-password-hash reads; and TLS, which rs-bundled-tls reads.
+# rs-password-hashing reads as a signal; the openssl crate's ciphers, which call the system's OpenSSL
+# and rs-openssl-encryption reads as a signal; and TLS, which rs-bundled-tls reads.
 #
 # The engine does not resolve an item imported through a path inside a `use` group
 # (`use ring::{aead::{UnboundKey, ..}, rand}`), the form ring's and josekit's own examples use, so
@@ -18,7 +19,7 @@ rules:
   - id: lexcode.crypto.rs-library-encryption
     languages: [rust]
     severity: INFO
-    message: Encrypts data or agrees keys with a cryptography crate the product compiles in (ring, aws-lc-rs, the RustCrypto ciphers, RSA encryption, openssl, sodiumoxide, age, orion, a JWE through josekit, x25519-dalek, the Signal protocol or Olm), which is shipping encryption (ships_encryption).
+    message: Encrypts data or agrees keys with a cryptography crate the product compiles in (ring, aws-lc-rs, the RustCrypto ciphers, RSA encryption, sodiumoxide, Fernet, age, orion, a JWE through josekit, x25519-dalek, the Signal protocol or Olm), which is shipping encryption (ships_encryption).
     pattern-either:
       # ring and aws-lc-rs (the same API): AEAD keys and ephemeral key agreement
       - pattern: ring::aead::UnboundKey::new(...)
@@ -135,25 +136,13 @@ rules:
           - metavariable-regex:
               metavariable: $P
               regex: ^Oaep::new
-      - pattern: $K.oaep_encrypt::<$H>(...)
-      - pattern: $K.oaep_decrypt::<$H>(...)
-      # openssl: symmetric ciphers, public-key encryption, envelopes and key derivation by agreement
-      - pattern: openssl::symm::encrypt(...)
-      - pattern: openssl::symm::decrypt(...)
-      - pattern: openssl::symm::encrypt_aead(...)
-      - pattern: openssl::symm::decrypt_aead(...)
-      - pattern: openssl::symm::Crypter::new(...)
-      - pattern: openssl::cipher_ctx::CipherCtx::new()
-      - pattern: openssl::encrypt::Encrypter::new(...)
-      - pattern: openssl::encrypt::Decrypter::new(...)
-      - pattern: openssl::envelope::Seal::new(...)
-      - pattern: openssl::envelope::Open::from_key(...)
-      - pattern: openssl::derive::Deriver::new(...)
+      # The rsa crate's newer OAEP methods (its README's `public_key.oaep_encrypt::<Sha256>(data)`), read in
+      # a file with a `use rsa::` line, so an app's own method of that name elsewhere is not read.
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+openssl\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+rsa::).*'
           - pattern-either:
-              - pattern: $R.public_encrypt(...)
-              - pattern: $R.private_decrypt(...)
+              - pattern: $K.oaep_encrypt::<$H>(...)
+              - pattern: $K.oaep_decrypt::<$H>(...)
       # sodiumoxide (libsodium): secret-key and public-key boxes, sealed boxes, AEADs, streams and key exchange
       - pattern: sodiumoxide::crypto::secretbox::seal(...)
       - pattern: sodiumoxide::crypto::secretbox::open(...)
@@ -175,6 +164,9 @@ rules:
       - pattern: age::encrypt(...)
       - pattern: age::encrypt_and_armor(...)
       - pattern: age::decrypt(...)
+      # Fernet tokens (AES-128-CBC with HMAC), as Python and Ruby read them
+      - pattern: fernet::Fernet::new(...)
+      - pattern: fernet::MultiFernet::new(...)
       # orion: its AEAD, streaming AEAD and key exchange
       - pattern: orion::aead::seal(...)
       - pattern: orion::aead::open(...)
