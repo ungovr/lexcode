@@ -887,6 +887,47 @@ describe('PHP, Blade and Twig views', () => {
     });
   });
 
+  describe('Tera templates (#13199)', () => {
+    it('extracts a script from a Tera template', () => {
+      // Tera's tags are Twig's, `-` whitespace control included, so a Tera script gets Twig's blanking.
+      const view = [
+        '{% extends "layout.html.tera" %}',
+        '<script>',
+        "  gtag('config', '{{ ga_id }}');",
+        '  {% if x %}',
+        "  track('{{- user.id -}}');",
+        '  {%- endif %}',
+        '  {# a comment #}',
+        '</script>',
+        '',
+      ].join('\n');
+      const pairs = extractOne('templates/base.html.tera', view);
+      expect(pairs).toHaveLength(1);
+      expect(pairs[0]!.originalPath).toBe('templates/base.html.tera');
+      expect(pairs[0]!.tempPath.endsWith('base.html.tera.lexcode.js')).toBe(true);
+      sameShape(view, pairs[0]!.text);
+      const out = lines(pairs[0]!.text);
+      expect(out[2]).toBe(`  gtag('config', '${pad('{{ ga_id }}')}');`);
+      expect(out[3]).toBe(sp('  {% if x %}'));
+      expect(out[4]).toBe(`  track('${pad('{{- user.id -}}')}');`);
+      expect(out[5]).toBe(sp('  {%- endif %}'));
+      expect(out[6]).toBe(sp('  {# a comment #}'));
+    });
+
+    it('a plain .tera template and an upper-case extension are read the same way', () => {
+      const view = "<script>gtag('config', '{{ ga_id }}');</script>\n";
+      for (const rel of ['templates/index.tera', 'templates/BASE.HTML.TERA']) {
+        const pairs = extractOne(rel, view);
+        expect(pairs).toHaveLength(1);
+        expect(pairs[0]!.text).toContain(`gtag('config', '${pad('{{ ga_id }}')}');`);
+      }
+    });
+
+    it('a Tera template with no script block gives no copy', () => {
+      expect(extractOne('templates/page.html.tera', '<p>{{ title }}</p>\n')).toEqual([]);
+    });
+  });
+
   it('keeps line numbers across a multi-line Blade directive and a multi-line Twig tag', () => {
     const blade = [
       '<script>',

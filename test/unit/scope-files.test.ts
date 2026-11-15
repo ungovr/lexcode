@@ -119,7 +119,7 @@ describe('listFiles outside git', () => {
   });
 
   it('skips the dependency, cache and build directories a walk would otherwise read, at any depth', () => {
-    const dirs = ['site-packages', '__pycache__', '.tox', '.nox', '.mypy_cache', '.pytest_cache', '.next', '.nuxt', '.svelte-kit', 'target', '.gradle', 'Pods', '.terraform'];
+    const dirs = ['site-packages', '__pycache__', '.tox', '.nox', '.mypy_cache', '.pytest_cache', '.next', '.nuxt', '.svelte-kit', 'target', '.gradle', 'Pods', '.terraform', '.build', 'DerivedData', 'Carthage'];
     const root = repo(['keep.py', ...dirs.flatMap((d) => [`${d}/x.py`, `deep/${d}/y.py`])], { git: false });
     expect(listFiles(root, plain).files).toEqual(['keep.py']);
   });
@@ -181,8 +181,9 @@ describe('listFiles outside git', () => {
   });
 
   it('does not skip those directories in a git repository, where git decides', () => {
-    const root = repo(['keep.py', 'target/x.py', 'Pods/y.py']);
-    expect(listFiles(root, plain).files).toEqual(['Pods/y.py', 'keep.py', 'target/x.py']);
+    // Pods/ is not one of them: it is skipped in a git listing too (see the skip list).
+    const root = repo(['keep.py', 'target/x.py', '.build/z.swift', 'DerivedData/w.swift', 'Pods/y.py']);
+    expect(listFiles(root, plain).files).toEqual(['.build/z.swift', 'DerivedData/w.swift', 'keep.py', 'target/x.py']);
   });
 
   it('applies the simple patterns of the root .gitignore when there is no git work tree', () => {
@@ -225,6 +226,8 @@ describe('the skip list', () => {
     'vendor/v/a.go',
     'dist/a.js',
     'build/a.js',
+    'Pods/P/a.swift',
+    'Carthage/Checkouts/C/a.swift',
     'src/deep/node_modules/m/a.js',
     'src/deep/vendor/a.js',
     'test/a.ts',
@@ -317,6 +320,71 @@ describe('the skip list', () => {
     const root = repo(files);
     expect(listFiles(root, plain).files).toEqual(['src/Contests/X.cs', 'src/MyApp.Testing/Clock.cs', 'src/MyApp.Tests.Shared.txt', 'src/MyApp/Program.cs']);
     expect(listFiles(root, { ...plain, includeTests: true }).files).toEqual([...files].sort());
+  });
+
+  it('Xcode test targets are test directories', () => {
+    // Xcode names a test target <App>Tests or <App>UITests, beside the app's own target (#13199).
+    const files = [
+      'WikipediaTests/A.swift',
+      'WikipediaUITests/B.swift',
+      'Modules/Feed/FeedTests/E.swift',
+      'Contests/C.swift',
+      'Latests/F.swift',
+      'Wikipedia/App.swift',
+      'benches/d.rs',
+      'crates/core/benches/e.rs',
+      'build.rs',
+      'examples/demo.rs',
+      'src/main.rs',
+    ];
+    const root = repo(files);
+    expect(listFiles(root, plain).files).toEqual([
+      'Contests/C.swift',
+      'Latests/F.swift',
+      'Wikipedia/App.swift',
+      'build.rs',
+      'examples/demo.rs',
+      'src/main.rs',
+    ]);
+    expect(listFiles(root, { ...plain, includeTests: true }).files).toEqual([...files].sort());
+  });
+
+  it('the Xcode test-target pattern is case-sensitive, unlike the test directory names', () => {
+    // `UITests` alone is not a target name (`[a-z0-9]` before it), and `appTESTS` is not Xcode's spelling.
+    const files = ['AppUITESTS/A.swift', 'appTESTS/B.swift', 'Foo2Tests/C.swift', 'TESTS/D.swift', 'App/E.swift'];
+    const root = repo(files);
+    expect(listFiles(root, plain).files).toEqual(['App/E.swift', 'AppUITESTS/A.swift', 'appTESTS/B.swift']);
+  });
+
+  it('Pods and Carthage are skipped in a git listing', () => {
+    // Teams commit Pods/ to git, and it is vendored code; Carthage/ checks out and builds dependencies the same way.
+    const root = repo(['App/App.swift', 'Pods/Alamofire/Source/Session.swift', 'ios/Pods/X/a.m', 'Carthage/Checkouts/Lib/a.swift']);
+    git(root, 'add', '-A');
+    expect(listFiles(root, plain).files).toEqual(['App/App.swift']);
+  });
+
+  it('.build and DerivedData are skipped by a walk', () => {
+    const files = ['Sources/App/main.swift', '.build/checkouts/swift-nio/Sources/a.swift', 'pkg/.build/x.swift', 'DerivedData/App/Build/a.swift', 'ios/DerivedData/b.swift'];
+    expect(listFiles(repo(files, { git: false }), plain).files).toEqual(['Sources/App/main.swift']);
+    // In a git repository git decides, as it does for target/: a committed .build/ is the repository's own choice.
+    const root = repo(files);
+    git(root, 'add', '-A');
+    expect(listFiles(root, plain).files).toEqual([...files].sort());
+  });
+
+  it('generated Swift files are skipped', () => {
+    const root = repo([
+      'App/App.swift',
+      'App/Generated/L10n.generated.swift',
+      'App/Assets+Generated.swift',
+      'App/Proto/api.pb.swift',
+      'App/Proto/api.grpc.swift',
+      'App/Generator.swift',
+      'App/generated.swift',
+    ]);
+    const r = listFiles(root, plain);
+    expect(r.files).toEqual(['App/App.swift', 'App/Generator.swift', 'App/generated.swift']);
+    expect(r.skippedBundled).toBe(4);
   });
 
   it('generated .g.cs files are skipped and counted as bundled ones are, and .Designer.cs files are read', () => {
