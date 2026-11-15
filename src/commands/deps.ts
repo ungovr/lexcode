@@ -11,6 +11,7 @@ import { readComposer } from '../manifests/composer.js';
 import { readNuget } from '../manifests/nuget.js';
 import { readMaven } from '../manifests/maven.js';
 import { readRuby } from '../manifests/ruby.js';
+import { readSwiftPm } from '../manifests/swiftpm.js';
 import { classOf, loadRuleSet } from '../rules/load.js';
 import { listFiles } from '../scope/files.js';
 import type { Dependency, RuleSet, ScopeSpec } from '../types.js';
@@ -54,7 +55,7 @@ export function collectDeps(roots: string[], rs: RuleSet): DepRow[] {
       includeTests: false,
     };
     const files = listFiles(root, spec).files;
-    const deps = [readNpm(root, files), readPypi(root, files), readGo(root, files), readRuby(root, files), readMaven(root, files), readGradle(root, files), readComposer(root, files), readNuget(root, files), readCargo(root, files)].flatMap((r) => r.deps);
+    const deps = [readNpm(root, files), readPypi(root, files), readGo(root, files), readRuby(root, files), readMaven(root, files), readGradle(root, files), readComposer(root, files), readNuget(root, files), readCargo(root, files), readSwiftPm(root, files)].flatMap((r) => r.deps);
     for (const dep of deps) {
       const k = key(dep);
       let row = rows.get(k);
