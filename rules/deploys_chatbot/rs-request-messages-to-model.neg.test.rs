@@ -35,7 +35,8 @@ pub async fn archive(State(st): State<AppState>, Json(body): Json<ChatRequest>) 
     body.history.len()
 }
 
-// An app's own `chat` method that takes two arguments.
+// An app's own `chat` method that takes two arguments. A comment is not an import:
+// use rig here once the assistant is approved.
 pub async fn room(State(st): State<AppState>, Json(payload): Json<RoomRequest>) {
     st.rooms.chat(payload.room_id, payload.messages).await;
 }

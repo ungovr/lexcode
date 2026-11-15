@@ -11,6 +11,8 @@ impl ChatBotBuilder {
 }
 
 // rig is named only as a field type, with no use line for it: a mention is not an import.
+// Nor is a comment line that begins with the word:
+//   use rig::cli_chatbot later, once the store's agent exists.
 pub struct Rooms {
     log: HashMap<u64, Vec<String>>,
     assistant: Option<rig::agent::Agent<rig::providers::openai::CompletionModel>>,

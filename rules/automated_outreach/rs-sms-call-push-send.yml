@@ -20,15 +20,28 @@ rules:
               metavariable: $BODY
               regex: (?is)^(?!.*(code|otp|verif|passcode|password|\bpin\b)).*$
       - pattern: twilio::OutboundCall::new(...)
-      # SNS: the phone number and the message are set in either order; the code exclusion applies
-      # to the message as it does to Twilio's body.
+      # SNS: the phone number and the message are set in either order, with other builder calls
+      # (`subject`) between them, and as setters (`set_phone_number`, `set_message`). The match is
+      # the later of the two calls, read with the chain before it; the code exclusion applies to the
+      # message as it does to Twilio's body (in the second form it reads the whole chain, so a code
+      # word anywhere in it leaves the call out).
       - patterns:
           - pattern-either:
-              - pattern: $C.publish().phone_number($TO).message($BODY)
-              - pattern: $C.publish().message($BODY).phone_number($TO)
+              - pattern: $CHAIN.message($BODY)
+              - pattern: $CHAIN.set_message($BODY)
+          - metavariable-regex:
+              metavariable: $CHAIN
+              regex: (?s)^.*\.publish\(\s*\).*\.(set_)?phone_number\(
           - metavariable-regex:
               metavariable: $BODY
               regex: (?is)^(?!.*(code|otp|verif|passcode|password|\bpin\b)).*$
+      - patterns:
+          - pattern-either:
+              - pattern: $CHAIN.phone_number($TO)
+              - pattern: $CHAIN.set_phone_number($TO)
+          - metavariable-regex:
+              metavariable: $CHAIN
+              regex: (?is)^(?!.*(code|otp|verif|passcode|password|\bpin\b)).*\.publish\(\s*\).*\.(set_)?message\(
       - pattern: web_push::WebPushMessageBuilder::new(...)
       - pattern: a2::DefaultNotificationBuilder::new()
       - pattern: fcm::MessageBuilder::new(...)

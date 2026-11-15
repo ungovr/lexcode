@@ -49,14 +49,15 @@ rules:
           - focus-metavariable: $X
       # rig's `chat(prompt, history)` and `with_history` are names an app may give its own methods.
       # They are rig's only in a file whose use line names rig, which it needs to bring the Chat
-      # trait or the prompt request into scope; the whole-file check is one greedy literal
+      # trait or the prompt request into scope; the whole-file check is one greedy lookahead for a
+      # `use` line anchored at the line's start, so a comment that says "use rig" does not count
       # (CONTRIBUTING.md, and the group-common amendment of 2026-11-15).
       - patterns:
           - pattern-either:
               - pattern: $AG.chat($Q, $X)
               - pattern: $AG.stream_chat($Q, $X)
               - pattern: $PR.with_history($X)
-          - pattern-regex: '(?s)\A(?=.*\buse\s+rig\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+rig\b).*'
           - focus-metavariable: $X
     metadata:
       activity: deploys_chatbot

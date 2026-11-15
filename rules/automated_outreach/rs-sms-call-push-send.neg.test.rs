@@ -44,7 +44,20 @@ pub async fn sns_code(sns: aws_sdk_sns::Client, phone: String, code: String) {
         .unwrap();
     sns.publish()
         .message(format!("{code} is your one-time passcode"))
-        .phone_number(phone)
+        .phone_number(phone.clone())
+        .send()
+        .await
+        .unwrap();
+    sns.publish()
+        .phone_number(phone.clone())
+        .subject("Sign in")
+        .message(format!("Your login code is {code}"))
+        .send()
+        .await
+        .unwrap();
+    sns.publish()
+        .set_phone_number(Some(phone))
+        .set_message(Some(format!("Your verification code: {code}")))
         .send()
         .await
         .unwrap();

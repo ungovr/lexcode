@@ -1,4 +1,4 @@
-// lexcode-expect: 9
+// lexcode-expect: 11
 use a2::{Client as ApnsClient, DefaultNotificationBuilder, NotificationBuilder, NotificationOptions};
 use twilio::{Client, OutboundCall, OutboundMessage};
 use twilio as tw;
@@ -28,7 +28,21 @@ pub async fn sms_by_sns(sns: aws_sdk_sns::Client, phone: String) {
         .unwrap();
     sns.publish()
         .message("Your prescription is ready for pickup")
-        .phone_number(phone)
+        .phone_number(phone.clone())
+        .send()
+        .await
+        .unwrap();
+    // Another builder call between the two, and the setter forms.
+    sns.publish()
+        .phone_number(phone.clone())
+        .subject("Pickup")
+        .message("Your order is ready")
+        .send()
+        .await
+        .unwrap();
+    sns.publish()
+        .set_phone_number(Some(phone))
+        .set_message(Some("We miss you, here is 10% off".to_string()))
         .send()
         .await
         .unwrap();

@@ -12,9 +12,10 @@
 # one `pattern-either`: the crate-path pattern, which the engine resolves through a flat or
 # single-level grouped `use`, `use <crate> as <alias>` and an item imported under another name
 # (`use ...::ChatMessage as Msg;`); and the short form, guarded by a whole-file check that a `use`
-# line names the crate (one greedy literal, CONTRIBUTING.md). The guard reads a `use` line, not any
-# mention: a file that holds `ollama_rs::Ollama` only as a field type and its own `ChatMessage` does
-# not match.
+# line names the crate (one greedy lookahead, CONTRIBUTING.md). The guard reads a `use` line, anchored
+# at the line's start (optionally `pub` or `pub(crate)`), not any mention: a file that holds
+# `ollama_rs::Ollama` only as a field type, or a comment that says "use ollama_rs", beside its own
+# `ChatMessage` does not match.
 rules:
   - id: lexcode.chatbot.rs-history-turns
     languages: [rust]
@@ -32,12 +33,12 @@ rules:
               - metavariable-regex:
                   metavariable: $B
                   regex: '(?s)^(\w+::)*ChatCompletionRequestAssistantMessageArgs::default\(\)'
-              - pattern-regex: '(?s)\A(?=.*\buse\s+async_openai\b).*'
+              - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+async_openai\b).*'
           # ollama-rs, by crate path, and the short form in a file whose use line names the crate.
           - pattern: ollama_rs::generation::chat::ChatMessage::assistant($X)
           - patterns:
               - pattern: ChatMessage::assistant($X)
-              - pattern-regex: '(?s)\A(?=.*\buse\s+ollama_rs\b).*'
+              - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+ollama_rs\b).*'
       - metavariable-regex:
           metavariable: $X
           regex: '(?s)^(?!\s*(r#*)?"|\s*String::from\(\s*(r#*)?").*$'

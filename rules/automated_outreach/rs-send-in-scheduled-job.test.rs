@@ -1,4 +1,4 @@
-// lexcode-expect: 7
+// lexcode-expect: 9
 use std::time::Duration;
 
 use clokwerk::{AsyncScheduler, TimeUnits};
@@ -24,6 +24,20 @@ pub async fn daily_reminders(state: AppState) {
         interval.tick().await;
         if let Ok(due) = state.due_renewals().await {
             state.mailer.send(renewal_reminder(&due)).await.unwrap();
+        }
+    }
+}
+
+// The send is the `if let Err` scrutinee: the timer sends, and only its failure is logged.
+pub async fn weekly(state: AppState) {
+    let mut interval = tokio::time::interval(Duration::from_secs(604800));
+    loop {
+        interval.tick().await;
+        if let Err(e) = state.mailer.send(weekly_digest()).await {
+            log_failure(e);
+        }
+        if let Err(e) = send_weekly_newsletter().await {
+            log_failure(e);
         }
     }
 }

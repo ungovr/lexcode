@@ -34,8 +34,17 @@ rules:
           - pattern-inside: tokio_cron_scheduler::Job::new_cron_job_async(...)
           - pattern-inside: $SCHED.every($EVERY).at($AT).run(...)
           - pattern-inside: $SCHED.every($EVERY).run(...)
-      - pattern-not-inside: |
-          if let Err($ERR) = $RES { ... }
+      # The exclusion's range is the whole `if let`, condition included, so a scrutinee that is
+      # itself a send (`if let Err(e) = mailer.send(msg).await { log(e) }`: the timer sends and
+      # only logs a failure) keeps the match: the term applies only when the scrutinee names no
+      # send. A send in an `else` after such a branch stays excluded, a smaller residual.
+      - pattern-not-inside:
+          patterns:
+            - pattern: |
+                if let Err($ERR) = $RES { ... }
+            - metavariable-regex:
+                metavariable: $RES
+                regex: '(?is)^(?!.*(send|mail|smtp|sms|push|notif|remind|digest|newsletter|alert)).*$'
       - pattern-either:
           - patterns:
               - pattern: $T.send(...)

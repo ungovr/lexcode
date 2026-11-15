@@ -1,6 +1,8 @@
 // lexcode-expect: 0
 // An app's own ChatMessage and assistant builder, in a file that has no use line for a model crate.
 // The crates are named only as field types (M6): a mention is not an import.
+// Nor is a comment: use ollama_rs for the real thing, and
+//     use async_openai once the account is set up.
 pub struct Clients {
     pub ollama: ollama_rs::Ollama,
     pub openai: async_openai::Client<async_openai::config::OpenAIConfig>,
