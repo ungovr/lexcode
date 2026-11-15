@@ -105,11 +105,11 @@ const CODE_LANGUAGES: [string, string[]][] = [
   ['Java', ['.java']],
   ['Kotlin', ['.kt', '.kts']],
   ['Swift', ['.swift']],
-  // `.m` is Objective-C too, but only beside an Xcode project, a Podfile or a Package.swift (OBJC_MARKERS): it is also
-  // MATLAB's extension. `.h` stays with C and C++.
+  // `.m` is Objective-C too, but only beside an Xcode project, a Podfile or a Package.swift (CONDITIONAL_LANGUAGES).
+  // `.h` stays with C and C++.
   ['Objective-C', ['.mm']],
   ['C#', ['.cs']],
-  // `.fs` is F# too, but only beside an `.fsproj` (FSHARP_PROJECT): it is also a GLSL fragment shader's extension.
+  // `.fs` is F# too, but only beside an `.fsproj` (CONDITIONAL_LANGUAGES).
   ['F#', ['.fsi', '.fsx']],
   ['Visual Basic', ['.vb']],
   ['Rust', ['.rs']],
@@ -119,12 +119,19 @@ const CODE_LANGUAGES: [string, string[]][] = [
   ['C and C++', ['.c', '.cc', '.cpp', '.cxx', '.h', '.hpp']],
 ];
 
-/** An `.fs` file is counted as F# only when the scope holds an F# project file. */
-const FSHARP_SOURCE = '.fs';
-const FSHARP_PROJECT = '.fsproj';
-/** An `.m` file is counted as Objective-C only when the scope holds one of these files, by its whole name. */
-const OBJC_SOURCE = '.m';
+/** The files, by whole name, beside which an `.m` file is Objective-C. */
 const OBJC_MARKERS = new Set(['project.pbxproj', 'Podfile', 'Package.swift']);
+
+/**
+ * Extensions another kind of file shares, so they count as a code language only when the scope holds the language's
+ * marker: keyed by extension, the language, and whether the files in scope hold its marker. `.fs` is also a GLSL
+ * fragment shader's extension, so it is F# only beside an `.fsproj`; `.m` is also MATLAB's, so it is Objective-C only
+ * beside an Xcode project, a Podfile or a Package.swift.
+ */
+const CONDITIONAL_LANGUAGES = new Map<string, { language: string; when: (files: string[]) => boolean }>([
+  ['.fs', { language: 'F#', when: (files) => files.some((f) => posix.extname(f).toLowerCase() === '.fsproj') }],
+  ['.m', { language: 'Objective-C', when: (files) => files.some((f) => OBJC_MARKERS.has(posix.basename(f))) }],
+]);
 
 /**
  * Per code language with files in scope that no rule names among its languages, how many files: most
@@ -139,21 +146,12 @@ export function unreadLanguages(rules: RuleMeta[], files: string[]): { language:
     if (exts !== 'all') for (const e of exts) read.add(e);
   }
   const fileExts = files.map((f) => posix.extname(f).toLowerCase());
-  const fsharpProject = fileExts.includes(FSHARP_PROJECT);
-  const objcProject = files.some((f) => OBJC_MARKERS.has(posix.basename(f)));
+  // Per conditional extension, its language when the marker is in scope, else undefined: decided once per scan.
+  const conditional = new Map([...CONDITIONAL_LANGUAGES].map(([ext, c]) => [ext, c.when(files) ? c.language : undefined]));
   const counts = new Map<string, number>();
   for (const ext of fileExts) {
     if (ext === '' || read.has(ext)) continue;
-    const lang =
-      ext === FSHARP_SOURCE
-        ? fsharpProject
-          ? 'F#'
-          : undefined
-        : ext === OBJC_SOURCE
-          ? objcProject
-            ? 'Objective-C'
-            : undefined
-          : CODE_LANGUAGES.find(([, e]) => e.includes(ext))?.[0];
+    const lang = conditional.has(ext) ? conditional.get(ext) : CODE_LANGUAGES.find(([, e]) => e.includes(ext))?.[0];
     if (lang) counts.set(lang, (counts.get(lang) ?? 0) + 1);
   }
   return [...counts.entries()]
@@ -467,7 +465,7 @@ function plural(n: number, one: string, many: string): string {
 
 /** What the "nothing was looked at" notice names: every language and view type the rules read (README, "Languages"). */
 export const READ_LANGUAGES =
-  'TypeScript, JavaScript, Python, Go, Ruby, Java, Kotlin, PHP and C#, and script blocks in HTML, Vue, Svelte, Jinja, ERB, JSP, PHP, Blade, Twig, Tera and Razor views';
+  'TypeScript, JavaScript, Python, Go, Ruby, Java, Kotlin, PHP, C#, Swift and Rust, and script blocks in HTML, Vue, Svelte, Jinja, ERB, JSP, PHP, Blade, Twig, Tera and Razor views';
 
 export function buildRecord(i: BuildInput): EvidenceRecord {
   const { rs } = i;

@@ -1,0 +1,48 @@
+rules:
+  - id: lexcode.tracking.rs-tracking-cookie
+    languages: [rust]
+    severity: INFO
+    message: Writes a cookie whose name marks it as an analytics, advertising or visitor-identifier cookie, which is tracking devices (tracks_devices).
+    patterns:
+      - pattern-either:
+          # The cookie crate's Cookie, by its own path and by the paths the web frameworks
+          # re-export it under. The engine resolves these through a flat or grouped `use` and an
+          # alias, so the app's own Cookie type is not read as the library's.
+          - pattern: cookie::Cookie::new($N, $V)
+          - pattern: cookie::Cookie::build($N, $V)
+          - pattern: cookie::Cookie::build(($N, $V))
+          - pattern: cookie::CookieBuilder::new($N, $V)
+          - pattern: actix_web::cookie::Cookie::new($N, $V)
+          - pattern: actix_web::cookie::Cookie::build($N, $V)
+          - pattern: actix_web::cookie::Cookie::build(($N, $V))
+          - pattern: axum_extra::extract::cookie::Cookie::new($N, $V)
+          - pattern: axum_extra::extract::cookie::Cookie::build(($N, $V))
+          - pattern: tower_cookies::Cookie::new($N, $V)
+          - pattern: tower_cookies::Cookie::build(($N, $V))
+          - pattern: rocket::http::Cookie::new($N, $V)
+          - pattern: rocket::http::Cookie::build(($N, $V))
+          - pattern: poem::web::cookie::Cookie::new_with_str($N, $V)
+          # A path inside a nested `use` group (`use actix_web::{cookie::Cookie, web};`) is not
+          # resolved by the engine (probed), so the short form is matched as well, in a file
+          # that imports a Cookie from a module named cookie.
+          - patterns:
+              - pattern-regex: '(?s)\A(?=.*\bcookie::[^;]*\bCookie\b).*'
+              - pattern-either:
+                  - pattern: Cookie::new($N, $V)
+                  - pattern: Cookie::build($N, $V)
+                  - pattern: Cookie::build(($N, $V))
+      - metavariable-regex:
+          metavariable: $N
+          regex: (?i)^"(_ga(_.*)?|_gid|_gat(_.*)?|_gcl_.*|_fbp|_fbc|_hjid|_hjSessionUser.*|ajs_(anonymous|user)_id|mp_.*_mixpanel|ph_.*_posthog|amplitude_id.*|_uetvid|_uetsid|_clck|_clsk|__utm.|_pk_id.*|_pk_ses.*|__hstc|hubspotutk|(visitor|tracking|anonymous|device|browser|distinct)_?(id|token|uuid)|fingerprint)"$
+      # A cookie written with an empty value is being removed (the way a tracking cookie is
+      # withdrawn on a consent change), not set.
+      - metavariable-regex:
+          metavariable: $V
+          regex: ^(?!(""|""\.to_string\(\)|""\.to_owned\(\)|""\.into\(\)|String::from\(""\)|String::new\(\)|String::default\(\))$)
+      - focus-metavariable: $N
+    metadata:
+      activity: tracks_devices
+      mentioned: performs
+      definition: https://lexlint.io/activities/tracks-devices
+      provenance: ungovr-original
+      license: MIT

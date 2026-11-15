@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- lexcode-expect: 0 -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<!-- The camera, the photo library and the calendar: a photo or an event is not, by the key alone, information about a person. -->
+	<key>NSCameraUsageDescription</key>
+	<string>Scan a QR code to join a workspace.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Choose a picture for your board.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Save a chart to your photos.</string>
+	<key>NSCalendarsWriteOnlyAccessUsageDescription</key>
+	<string>Add the match to your calendar.</string>
+	<key>NSMotionUsageDescription</key>
+	<string>Count steps while the timer runs.</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Connect to the scale.</string>
+	<!-- A commented-out key is not a key. -->
+	<!-- <key>NSContactsUsageDescription</key><string>Invite friends.</string> -->
+	<!-- A key name written as a value is not a key. -->
+	<key>RemovedKeys</key>
+	<array>
+		<string>NSLocationWhenInUseUsageDescription</string>
+		<string>NSHealthShareUsageDescription</string>
+	</array>
+</dict>
+</plist>

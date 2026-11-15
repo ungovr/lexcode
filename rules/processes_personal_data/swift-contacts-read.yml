@@ -1,0 +1,27 @@
+rules:
+  - id: lexcode.personal.swift-contacts-read
+    languages: [swift]
+    severity: INFO
+    message: Reads people's entries from the device's address book (Contacts fetches, the person's own card, or a contact the person picks), which is processing personal data (processes_personal_data).
+    # Contacts and ContactsUI come only from their own import. A contact store's fetch methods are
+    # matched by their names and argument labels on any receiver in a file that imports Contacts
+    # (the engine has no typed metavariable for Swift); the names are the framework's own. The
+    # authorization status and a formatter for an address the app already holds are not a read.
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: '$S.enumerateContacts(with: $R, ...)'
+              - pattern: '$S.unifiedContacts(matching: $P, keysToFetch: $K)'
+              - pattern: '$S.unifiedContact(withIdentifier: $I, keysToFetch: $K)'
+              - pattern: '$S.unifiedMeContactWithKeys(toFetch: $K)'
+          - pattern-inside: |
+              import Contacts
+              ...
+      - pattern: Contacts.CNContactFetchRequest(...)
+      - pattern: ContactsUI.CNContactPickerViewController()
+    metadata:
+      activity: processes_personal_data
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-personal-data
+      provenance: ungovr-original
+      license: MIT

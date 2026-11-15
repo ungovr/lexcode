@@ -1,0 +1,44 @@
+// !$*UTF8*$!
+// lexcode-expect: 0
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* A Mac app: an application target, built for macOS only. */
+/* Begin PBXNativeTarget section */
+		B10000012D00000000000001 /* Menubar */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B10000012D00000000000009 /* Build configuration list for PBXNativeTarget "Menubar" */;
+			buildPhases = (
+				B10000012D00000000000002 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Menubar;
+			productName = Menubar;
+			productReference = B10000012D00000000000003 /* Menubar.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin XCBuildConfiguration section */
+		B10000012D00000000000004 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.menubar;
+				SDKROOT = macosx;
+				SUPPORTED_PLATFORMS = macosx;
+				/* A comment is not a setting: SDKROOT = iphoneos; */
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+	};
+	rootObject = B10000012D00000000000000 /* Project object */;
+}
