@@ -159,6 +159,11 @@ import binds no class in the engine, so an import guard has one
 (`import android.speech.*;`), and the positive fixture holds a call under each.
 The negative has neither import.
 
+The eight Swift taint rules for the `generates_*` activities share their
+sources, propagators and sinks, and `scripts/gen-swift-generation-rules.py`
+writes them: change those blocks there and run
+`python3 scripts/gen-swift-generation-rules.py`, never one rule file by hand.
+
 ### Cost
 
 An engine rule can lose the literal pre-filter that lets it skip files that
