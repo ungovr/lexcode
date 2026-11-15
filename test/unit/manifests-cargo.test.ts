@@ -147,6 +147,50 @@ describe('readCargo', () => {
     expect(r.devSkipped).toBe(1);
   });
 
+  it('the root workspace spec supplies the requirement that picks between two locked versions (Review Focus 2)', () => {
+    const rootManifest = [
+      '[workspace]',
+      'members = ["crates/*"]',
+      '',
+      '[workspace.dependencies]',
+      'rand = "0.8"',
+      'tokio = { version = "1", features = ["rt"] }',
+      '',
+    ].join('\n');
+    const a = ['[package]', 'name = "a"', 'version = "0.1.0"', '', '[dependencies]', 'rand.workspace = true', ''].join('\n');
+    const b = [
+      '[package]',
+      'name = "b"',
+      'version = "0.1.0"',
+      '',
+      '[dependencies]',
+      'rand = { workspace = true }',
+      'tokio = { workspace = true, features = ["macros"] }',
+      '',
+    ].join('\n');
+    const root = tree({
+      'Cargo.toml': rootManifest,
+      'crates/a/Cargo.toml': a,
+      'crates/b/Cargo.toml': b,
+      'Cargo.lock': lock([
+        { name: 'a', version: '0.1.0' },
+        { name: 'b', version: '0.1.0' },
+        { name: 'rand', version: '0.7.3', source: CRATES },
+        { name: 'rand', version: '0.8.5', source: CRATES },
+        { name: 'tokio', version: '0.2.25', source: CRATES },
+        { name: 'tokio', version: '1.41.1', source: CRATES },
+      ]),
+    });
+    const r = readCargo(root, ['Cargo.toml', 'crates/a/Cargo.toml', 'crates/b/Cargo.toml']);
+    expect(r.deps).toEqual([
+      { ecosystem: 'cargo', name: 'rand', version: '0.8.5', manifest: `crates/a/Cargo.toml:${lineOf(a, 'rand.workspace')}` },
+      { ecosystem: 'cargo', name: 'rand', version: '0.8.5', manifest: `crates/b/Cargo.toml:${lineOf(b, 'rand =')}` },
+      { ecosystem: 'cargo', name: 'tokio', version: '1.41.1', manifest: `crates/b/Cargo.toml:${lineOf(b, 'tokio =')}` },
+    ]);
+    expect(r.devSkipped).toBe(0);
+    expect(r.notices).toEqual([]);
+  });
+
   it('two locked versions take the caret-compatible one', () => {
     const lockText = lock([
       { name: 'rand', version: '0.7.3', source: CRATES },
