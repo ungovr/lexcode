@@ -114,32 +114,11 @@ entries:
     source: https://crates.io/crates/aws-sdk-pinpointsmsvoicev2
 
   # Bundled cryptography
-  # Password hashing, message authentication and hash functions are listed, as the truth-set keys read a
-  # password hash or a signed token as shipping encryption. ring is left out: its description is "An experiment.".
-  - match: "argon2"
-    enables: [ships_encryption]
-    says: "Pure Rust implementation of the Argon2 password hashing function with support for the Argon2d, Argon2i, and Argon2id algorithmic variants"
-    source: https://crates.io/crates/argon2
-  - match: "bcrypt"
-    enables: [ships_encryption]
-    says: "Easily hash and verify passwords using bcrypt"
-    source: https://crates.io/crates/bcrypt
-  - match: "scrypt"
-    enables: [ships_encryption]
-    says: "Scrypt password-based key derivation function"
-    source: https://crates.io/crates/scrypt
-  - match: "pbkdf2"
-    enables: [ships_encryption]
-    says: "Generic implementation of PBKDF2"
-    source: https://crates.io/crates/pbkdf2
-  - match: "hmac"
-    enables: [ships_encryption]
-    says: "Generic implementation of Hash-based Message Authentication Code (HMAC)"
-    source: https://crates.io/crates/hmac
-  - match: "sha2"
-    enables: [ships_encryption]
-    says: "Pure Rust implementation of the SHA-2 hash function family including SHA-224, SHA-256, SHA-384, and SHA-512."
-    source: https://crates.io/crates/sha2
+  # Only a crate whose own description says it encrypts, or that it is a cryptographic library, is listed.
+  # Hashing, MACs, password hashing, signatures and key exchange sign or hash; they do not encrypt, so argon2,
+  # bcrypt, scrypt, pbkdf2, hmac, sha1, sha2, md5, blake3, ed25519-dalek, x25519-dalek and p256 are left out
+  # (password hashing is a code-level signal, rs-password-hashing). rsa is left out because its description
+  # ("Pure Rust RSA implementation") does not say it encrypts, and ring because its description is "An experiment.".
   - match: "aes"
     enables: [ships_encryption]
     says: "Pure Rust implementation of the Advanced Encryption Standard (a.k.a. Rijndael)"
@@ -152,22 +131,6 @@ entries:
     enables: [ships_encryption]
     says: "Pure Rust implementation of the ChaCha20Poly1305 Authenticated Encryption with Additional Data Cipher (RFC 8439) with optional architecture-specific hardware acceleration."
     source: https://crates.io/crates/chacha20poly1305
-  - match: "rsa"
-    enables: [ships_encryption]
-    says: "Pure Rust RSA implementation"
-    source: https://crates.io/crates/rsa
-  - match: "ed25519-dalek"
-    enables: [ships_encryption]
-    says: "Fast and efficient ed25519 EdDSA key generations, signing, and verification in pure Rust."
-    source: https://crates.io/crates/ed25519-dalek
-  - match: "x25519-dalek"
-    enables: [ships_encryption]
-    says: "X25519 elliptic curve Diffie-Hellman key exchange in pure-Rust, using curve25519-dalek."
-    source: https://crates.io/crates/x25519-dalek
-  - match: "p256"
-    enables: [ships_encryption]
-    says: "Pure Rust implementation of the NIST P-256 (a.k.a. secp256r1, prime256v1) elliptic curve as defined in SP 800-186, with support for ECDH, ECDSA signing/verification, and general purpose curve arithmetic"
-    source: https://crates.io/crates/p256
   - match: "age"
     enables: [ships_encryption]
     says: "[BETA] A simple, secure, and modern encryption library."
