@@ -1,0 +1,19 @@
+rules:
+  - id: lexcode.tracking.swift-crash-reporting
+    languages: [swift]
+    severity: INFO
+    message: Starts a third-party crash-reporting SDK on the device (Sentry or Bugsnag), which gives the installation its own id and reports to a crash-reporting service, one of the counterparties tracking devices names (tracks_devices).
+    # One of four Swift analytics rules split by vendor family (#13199); see
+    # swift-analytics-google.yml for why. SentrySDK and Bugsnag carry the vendor's own name, so
+    # each also matches with no import (Decision 8). SentrySDK is sentry-cocoa's type, so a
+    # server-side Swift app is not caught by it. Crashlytics is in swift-analytics-google.yml.
+    pattern-either:
+      - pattern: Sentry.SentrySDK.start(...)
+      - pattern: SentrySDK.start(...)
+      - pattern: Bugsnag.start(...)
+    metadata:
+      activity: tracks_devices
+      mentioned: performs
+      definition: https://lexlint.io/activities/tracks-devices
+      provenance: ungovr-original
+      license: MIT
