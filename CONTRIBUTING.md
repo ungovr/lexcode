@@ -397,10 +397,10 @@ a call makes the returns after it candidates for the `val` sink: with 26 of
 them ahead of the filler the rule took 28.6 s, against 22.9 s for the old sink.
 
 Before a release, `node scripts/rule-cost.mjs` times each rule with a positive
-fixture in Java, Kotlin, PHP, Ruby, Python, JavaScript, TypeScript or Go on that
-fixture followed by filler (`scripts/filler.mjs`, where every function returns
-a variable), at 90 KB and 900 KB, beside a bare rule that only parses the same
-filler. It names a rule whose time grows more than twice as fast as the bare
+fixture in Java, Kotlin, PHP, Ruby, Python, JavaScript, TypeScript, Go or C#
+on that fixture followed by filler (`scripts/filler.mjs`, where every function
+returns a variable), at 90 KB and 900 KB, beside a bare rule that only parses
+the same filler. It names a rule whose time grows more than twice as fast as the bare
 rule's for the 10x file, or that takes more than five times the bare rule's time
 on 900 KB, and every rule the engine failed on.
 

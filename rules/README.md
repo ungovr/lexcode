@@ -10,7 +10,7 @@ licensed. The recall table below is measured against the truth sets, per
 activity.
 
 <!-- recall:start -->
-Measured 2026-11-14 over the UnGovr monorepo, 11 pinned starter templates and 4 real apps,
+Measured 2026-11-15 over the UnGovr monorepo, 11 pinned starter templates and 4 real apps,
 against answer keys, each read by an agent that had not seen the rules.
 Found counts evidence of either kind for the activity or its family; signal
 only counts the misses where lexcode showed a worth-a-look row and nothing
