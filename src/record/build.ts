@@ -57,6 +57,7 @@ const LANGUAGE_EXTENSIONS: Record<string, string[]> = {
   java: ['.java'],
   kotlin: ['.kt', '.kts', '.ktm'],
   swift: ['.swift'],
+  rust: ['.rs'],
   ruby: ['.rb', '.rake', '.ru', '.gemspec'],
   php: ['.php', '.phtml', '.tpl', '.inc', '.module', '.theme', '.install'],
   csharp: ['.cs'],
@@ -73,6 +74,7 @@ const LANGUAGE_ALIASES: Record<string, string> = {
   yml: 'yaml',
   'c#': 'csharp',
   cs: 'csharp',
+  rs: 'rust',
 };
 
 /** The extensions a rule reads, or `'all'` for `generic`, `regex` and any language lexcode does not map. */
@@ -103,6 +105,9 @@ const CODE_LANGUAGES: [string, string[]][] = [
   ['Java', ['.java']],
   ['Kotlin', ['.kt', '.kts']],
   ['Swift', ['.swift']],
+  // `.m` is Objective-C too, but only beside an Xcode project, a Podfile or a Package.swift (OBJC_MARKERS): it is also
+  // MATLAB's extension. `.h` stays with C and C++.
+  ['Objective-C', ['.mm']],
   ['C#', ['.cs']],
   // `.fs` is F# too, but only beside an `.fsproj` (FSHARP_PROJECT): it is also a GLSL fragment shader's extension.
   ['F#', ['.fsi', '.fsx']],
@@ -117,11 +122,15 @@ const CODE_LANGUAGES: [string, string[]][] = [
 /** An `.fs` file is counted as F# only when the scope holds an F# project file. */
 const FSHARP_SOURCE = '.fs';
 const FSHARP_PROJECT = '.fsproj';
+/** An `.m` file is counted as Objective-C only when the scope holds one of these files, by its whole name. */
+const OBJC_SOURCE = '.m';
+const OBJC_MARKERS = new Set(['project.pbxproj', 'Podfile', 'Package.swift']);
 
 /**
  * Per code language with files in scope that no rule names among its languages, how many files: most
  * first, then by name. A `generic` or `regex` rule reads every file as text and does not count as a
- * rule for a language. `.fs` counts as F# only when `files` holds an `.fsproj`.
+ * rule for a language. `.fs` counts as F# only when `files` holds an `.fsproj`, and `.m` as Objective-C only when
+ * `files` holds a `project.pbxproj`, a `Podfile` or a `Package.swift`.
  */
 export function unreadLanguages(rules: RuleMeta[], files: string[]): { language: string; files: number }[] {
   const read = new Set<string>();
@@ -131,10 +140,20 @@ export function unreadLanguages(rules: RuleMeta[], files: string[]): { language:
   }
   const fileExts = files.map((f) => posix.extname(f).toLowerCase());
   const fsharpProject = fileExts.includes(FSHARP_PROJECT);
+  const objcProject = files.some((f) => OBJC_MARKERS.has(posix.basename(f)));
   const counts = new Map<string, number>();
   for (const ext of fileExts) {
     if (ext === '' || read.has(ext)) continue;
-    const lang = ext === FSHARP_SOURCE ? (fsharpProject ? 'F#' : undefined) : CODE_LANGUAGES.find(([, e]) => e.includes(ext))?.[0];
+    const lang =
+      ext === FSHARP_SOURCE
+        ? fsharpProject
+          ? 'F#'
+          : undefined
+        : ext === OBJC_SOURCE
+          ? objcProject
+            ? 'Objective-C'
+            : undefined
+          : CODE_LANGUAGES.find(([, e]) => e.includes(ext))?.[0];
     if (lang) counts.set(lang, (counts.get(lang) ?? 0) + 1);
   }
   return [...counts.entries()]
@@ -448,7 +467,7 @@ function plural(n: number, one: string, many: string): string {
 
 /** What the "nothing was looked at" notice names: every language and view type the rules read (README, "Languages"). */
 export const READ_LANGUAGES =
-  'TypeScript, JavaScript, Python, Go, Ruby, Java, Kotlin, PHP and C#, and script blocks in HTML, Vue, Svelte, Jinja, ERB, JSP, PHP, Blade, Twig and Razor views';
+  'TypeScript, JavaScript, Python, Go, Ruby, Java, Kotlin, PHP and C#, and script blocks in HTML, Vue, Svelte, Jinja, ERB, JSP, PHP, Blade, Twig, Tera and Razor views';
 
 export function buildRecord(i: BuildInput): EvidenceRecord {
   const { rs } = i;
