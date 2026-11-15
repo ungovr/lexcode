@@ -3,6 +3,12 @@
 # clokwerk schedule. A polling loop that only sleeps (`tokio::time::sleep`) is not a timer here,
 # because a retry loop that backs off between attempts at ONE message has the same shape.
 #
+# A send in the error branch of the job (`if let Err(e) = run_job().await { send_alert_email(..) }`)
+# mails an operator about the failure, which is an alert and not outreach; it is left out, as the
+# Java and Kotlin rules leave out a send in a catch block. The same send in a `match` arm
+# (`Err(e) => send_alert_email(..)`) is not left out: on Opengrep 1.33.1 a `match` with an `Err`
+# arm does not parse as a Rust pattern, so that form is a known residual.
+#
 # The sends are rs-send-in-loop's. tokio-cron-scheduler's Job is written by its crate path, which
 # the engine resolves through `use tokio_cron_scheduler::{Job, JobScheduler}` and an alias; a
 # `use` whose group nests a path is not resolved on Opengrep 1.33.1. A send inside a macro body is
@@ -28,17 +34,19 @@ rules:
           - pattern-inside: tokio_cron_scheduler::Job::new_cron_job_async(...)
           - pattern-inside: $SCHED.every($EVERY).at($AT).run(...)
           - pattern-inside: $SCHED.every($EVERY).run(...)
+      - pattern-not-inside: |
+          if let Err($ERR) = $RES { ... }
       - pattern-either:
           - patterns:
               - pattern: $T.send(...)
               - metavariable-regex:
                   metavariable: $T
-                  regex: '(?i)^&?(self\.)?(?!\w*mailbox)\w*(mail|smtp)\w*$'
+                  regex: '(?i)^&?(\w+\.)*(?!\w*mailbox)\w*(mail|smtp)\w*$'
           - patterns:
               - pattern: $SG.send(...)
               - metavariable-regex:
                   metavariable: $SG
-                  regex: '(?i)^&?(self\.)?(sg|\w*sendgrid\w*)$'
+                  regex: '(?i)^&?(\w+\.)*(sg|\w*sendgrid\w*)$'
           - pattern: $C.send_email()
           - pattern: $R.emails.send(...)
           - patterns:

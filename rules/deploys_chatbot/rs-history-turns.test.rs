@@ -1,4 +1,4 @@
-// lexcode-expect: 5
+// lexcode-expect: 7
 use async_openai::{
     config::OpenAIConfig,
     types::{
@@ -8,7 +8,9 @@ use async_openai::{
     Client,
 };
 use async_openai as oai;
+use async_openai::types::ChatCompletionRequestAssistantMessageArgs as AssistantArgs;
 use ollama_rs::{generation::chat::ChatMessage, Ollama};
+use ollama_rs::generation::chat::ChatMessage as Msg;
 
 pub async fn repl(client: Client<OpenAIConfig>) -> anyhow::Result<()> {
     let mut messages: Vec<ChatCompletionRequestMessage> = vec![];
@@ -49,4 +51,11 @@ pub fn from_store(rows: Vec<StoredTurn>) -> Vec<ChatMessage> {
 pub async fn ollama_turns(ollama: Ollama, history: &mut Vec<ChatMessage>, reply: String) {
     history.push(ChatMessage::assistant(reply.clone()));
     history.push(ollama_rs::generation::chat::ChatMessage::assistant(reply));
+}
+
+// The types imported under other names.
+pub fn renamed(reply: String) -> anyhow::Result<()> {
+    let _openai_turn = AssistantArgs::default().content(reply.clone()).build()?;
+    let _ollama_turn = Msg::assistant(reply);
+    Ok(())
 }

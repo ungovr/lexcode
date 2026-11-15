@@ -1,6 +1,9 @@
-// lexcode-expect: 15
+// lexcode-expect: 20
 use a2::{DefaultNotificationBuilder, NotificationBuilder};
+use a2 as apns;
 use aws_sdk_sesv2::Client as SesClient;
+use fcm::{Client as FcmClient, MessageBuilder};
+use fcm as firebase;
 use futures::StreamExt;
 use lettre::{AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor};
 use teloxide::prelude::*;
@@ -95,5 +98,19 @@ pub async fn broadcast(bot: Bot, chat_ids: Vec<ChatId>) {
 pub async fn dm_members(members: Vec<serenity::model::user::User>, http: &serenity::http::Http) {
     for member in members {
         member.direct_message(http, CreateMessage::new().content("Welcome")).await.unwrap();
+    }
+}
+
+pub async fn from_state(state: AppState, bot: Bot, participants: Vec<ChatId>, tokens: Vec<String>) {
+    for subscriber in state.subscribers() {
+        state.mailer.send(subscriber.welcome()).await.unwrap();
+    }
+    for p in participants {
+        bot.send_message(p, "The event starts in an hour").await.unwrap();
+    }
+    for token in &tokens {
+        let _apns = apns::DefaultNotificationBuilder::new().set_body("hello");
+        let _grouped = MessageBuilder::new("key", token);
+        let _aliased = firebase::MessageBuilder::new("key", token);
     }
 }

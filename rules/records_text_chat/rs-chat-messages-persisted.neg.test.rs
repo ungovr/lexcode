@@ -28,6 +28,24 @@ pub async fn rooms(pool: &PgPool, name: &str, body: &str) -> sqlx::Result<()> {
     Ok(())
 }
 
+// I4: a caption or meeting transcript is not a chat, and an email or ticket message with a role
+// column is not a conversation's turns.
+pub async fn not_chat(pool: &PgPool, body: &str) -> sqlx::Result<()> {
+    sqlx::query!("INSERT INTO video_transcripts (video_id, body) VALUES ($1, $2)", 1, body)
+        .execute(pool)
+        .await?;
+    sqlx::query!("INSERT INTO transcripts (meeting_id, body) VALUES ($1, $2)", 1, body)
+        .execute(pool)
+        .await?;
+    sqlx::query!("INSERT INTO email_messages (to_addr, role, body) VALUES ($1, $2, $3)", "a", "cc", body)
+        .execute(pool)
+        .await?;
+    sqlx::query!("INSERT INTO tickets.messages (ticket_id, role, body) VALUES ($1, $2, $3)", 1, "agent", body)
+        .execute(pool)
+        .await?;
+    Ok(())
+}
+
 pub fn diesel_rows(conn: &mut PgConnection, row: &NewTicket) {
     insert_into(tickets::table).values(row).execute(conn).unwrap();
 }

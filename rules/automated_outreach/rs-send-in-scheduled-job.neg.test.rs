@@ -32,6 +32,18 @@ pub async fn send_once(mailer: &AsyncSmtpTransport<Tokio1Executor>, email: Messa
     }
 }
 
+// I2: a timer whose job failed mails the operator about the error; that is an alert, not outreach.
+pub async fn nightly(state: AppState, admin: String) {
+    let mut interval = tokio::time::interval(Duration::from_secs(86400));
+    loop {
+        interval.tick().await;
+        if let Err(e) = run_job(&state).await {
+            send_alert_email(&admin, &e.to_string());
+            state.mailer.send(alert_message(&admin, &e)).await.unwrap();
+        }
+    }
+}
+
 // The lookalike Job running a send.
 pub fn lookalike() {
     let _job = Job::new_async("0 0 9 * * *", || {

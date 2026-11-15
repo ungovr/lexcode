@@ -1,4 +1,4 @@
-// lexcode-expect: 6
+// lexcode-expect: 7
 use std::time::Duration;
 
 use clokwerk::{AsyncScheduler, TimeUnits};
@@ -15,6 +15,16 @@ pub async fn hourly_digest(mailer: AsyncSmtpTransport<Tokio1Executor>) -> anyhow
             .subject("Your digest")
             .body(String::from("New posts"))?;
         mailer.send(email).await?;
+    }
+}
+
+pub async fn daily_reminders(state: AppState) {
+    let mut interval = tokio::time::interval(Duration::from_secs(86400));
+    loop {
+        interval.tick().await;
+        if let Ok(due) = state.due_renewals().await {
+            state.mailer.send(renewal_reminder(&due)).await.unwrap();
+        }
     }
 }
 

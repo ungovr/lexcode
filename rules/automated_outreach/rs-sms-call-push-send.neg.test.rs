@@ -34,6 +34,22 @@ pub async fn sign_in_code(client: Client, phone: &str, code: &str) {
         .unwrap();
 }
 
+// I6: the verification code a person asked for, sent through SNS, in either builder order.
+pub async fn sns_code(sns: aws_sdk_sns::Client, phone: String, code: String) {
+    sns.publish()
+        .phone_number(phone.clone())
+        .message(format!("Your verification code is {code}"))
+        .send()
+        .await
+        .unwrap();
+    sns.publish()
+        .message(format!("{code} is your one-time passcode"))
+        .phone_number(phone)
+        .send()
+        .await
+        .unwrap();
+}
+
 // An event published to a topic is not a text to a person.
 pub async fn event(sns: aws_sdk_sns::Client) {
     sns.publish().topic_arn("arn:aws:sns:us-east-1:1:orders").message("{}").send().await.unwrap();

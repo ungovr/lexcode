@@ -10,8 +10,10 @@ impl ChatBotBuilder {
     }
 }
 
+// rig is named only as a field type, with no use line for it: a mention is not an import.
 pub struct Rooms {
     log: HashMap<u64, Vec<String>>,
+    assistant: Option<rig::agent::Agent<rig::providers::openai::CompletionModel>>,
 }
 
 impl Rooms {

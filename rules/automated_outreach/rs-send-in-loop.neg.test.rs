@@ -73,3 +73,29 @@ pub fn build_all(items: Vec<String>) -> Vec<OutboundMessage> {
     }
     out
 }
+
+// I1: a polling bot answering each message it was sent replies to the person who just wrote.
+pub async fn poll_and_reply(bot: Bot, updates: Vec<Update>, new_messages: Vec<Message>) {
+    for update in updates {
+        let text = update.text().unwrap_or_default();
+        bot.send_message(update.chat_id(), format!("you said {text}")).await.unwrap();
+    }
+    new_messages.iter().for_each(|m| {
+        let _ = bot.send_message(m.chat.id, "pong");
+    });
+    for incoming in inbox_events() {
+        bot.send_message(incoming.chat, "Thanks, we got it").await.unwrap();
+    }
+}
+
+// I3: mail to the site's own administrators is not outreach to the people the app serves.
+pub async fn tell_admins(admins: Vec<LocalUserView>, settings: &Settings) {
+    for admin in admins {
+        if let Some(email) = admin.local_user.email {
+            send_email(String::from("New report"), email, admin.person.name, String::new(), settings);
+        }
+    }
+    for user in admin_users() {
+        send_notification_email(&user.email, "A new application");
+    }
+}

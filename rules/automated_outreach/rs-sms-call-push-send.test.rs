@@ -1,4 +1,4 @@
-// lexcode-expect: 8
+// lexcode-expect: 9
 use a2::{Client as ApnsClient, DefaultNotificationBuilder, NotificationBuilder, NotificationOptions};
 use twilio::{Client, OutboundCall, OutboundMessage};
 use twilio as tw;
@@ -23,6 +23,12 @@ pub async fn sms_by_sns(sns: aws_sdk_sns::Client, phone: String) {
     sns.publish()
         .phone_number(phone)
         .message("Your table is ready")
+        .send()
+        .await
+        .unwrap();
+    sns.publish()
+        .message("Your prescription is ready for pickup")
+        .phone_number(phone)
         .send()
         .await
         .unwrap();

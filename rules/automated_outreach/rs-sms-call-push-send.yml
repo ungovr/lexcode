@@ -20,7 +20,15 @@ rules:
               metavariable: $BODY
               regex: (?is)^(?!.*(code|otp|verif|passcode|password|\bpin\b)).*$
       - pattern: twilio::OutboundCall::new(...)
-      - pattern: $C.publish().phone_number(...)
+      # SNS: the phone number and the message are set in either order; the code exclusion applies
+      # to the message as it does to Twilio's body.
+      - patterns:
+          - pattern-either:
+              - pattern: $C.publish().phone_number($TO).message($BODY)
+              - pattern: $C.publish().message($BODY).phone_number($TO)
+          - metavariable-regex:
+              metavariable: $BODY
+              regex: (?is)^(?!.*(code|otp|verif|passcode|password|\bpin\b)).*$
       - pattern: web_push::WebPushMessageBuilder::new(...)
       - pattern: a2::DefaultNotificationBuilder::new()
       - pattern: fcm::MessageBuilder::new(...)

@@ -1,16 +1,25 @@
 # A loop over relays, hosts or retry attempts sends ONE message to ONE person; the iterable's name
 # rules those out, as in the JS, Python, Go, Java and Ruby rules, and so does a literal range
-# (`for attempt in 0..3`), which is a retry count. A single send in a request handler (a sign-up
-# confirmation, a password reset) is not in a loop and does not match: the mail a person asked for is
-# not outreach, which is where the other languages' rules settled it.
+# (`for attempt in 0..3`), which is a retry count. A loop over the site's administrators
+# (`for admin in admins`, `list_admins_with_emails`) mails the site's own staff, not the people the
+# app serves, and is ruled out by name as the PHP rule does. A single send in a request handler (a
+# sign-up confirmation, a password reset) is not in a loop and does not match: the mail a person
+# asked for is not outreach, which is where the other languages' rules settled it.
 #
-# The sends: a mail transport's send on a receiver named for mail or SMTP (lettre's `SmtpTransport`
-# and `AsyncSmtpTransport` are usually held as `mailer`), the AWS SES client's `send_email()`
-# builder, Resend's `emails.send`, a SendGrid client's send, an app's own function named for a send
-# (`send_email`, `send_notification_email`, `send_reminder`), Twilio's outbound message and call,
-# a web-push, APNs (a2) or FCM message built per recipient, an SNS text to a phone number, an HTTP
-# POST to an email or SMS API by its literal address, and a Telegram bot's message or a Discord
-# direct message. A queue or channel publish is not a send unless its receiver is named for mail.
+# The sends: a mail transport's send on a receiver named for mail or SMTP, also held in state
+# (`mailer`, `self.mailer`, `state.mailer`; lettre's `SmtpTransport` and `AsyncSmtpTransport`), the
+# AWS SES client's `send_email()` builder, Resend's `emails.send`, a SendGrid client's send, an app's
+# own function named for a send (`send_email`, `send_notification_email`, `send_reminder`), Twilio's
+# outbound message and call, a web-push, APNs (a2) or FCM message built per recipient, an SNS text to
+# a phone number, an HTTP POST to an email or SMS API by its literal address, and a Telegram bot's
+# message or a Discord direct message. A queue or channel publish is not a send unless its receiver
+# is named for mail.
+#
+# A bot's message in a loop is outreach only when the loop is over people or chats the bot decided to
+# write to. A bot answering each update, message, event, command or mention it received replies to
+# the person who just wrote, and one long answer sent in chunks, lines, parts or pages is one answer
+# to one person; those iterables are ruled out as whole words (`participants` and `online_users`
+# still count).
 #
 # Crate items are written by their crate path, which the engine resolves through a plain or
 # single-level grouped `use` and `use <crate> as <alias>`. A `use` whose group nests a path
@@ -29,16 +38,16 @@ rules:
                       for $V in $L { ... }
                   - metavariable-regex:
                       metavariable: $L
-                      regex: '(?is)^(?!.*(relay|host|server|retr|attempt|backoff|endpoint|smtp|fallback|provider|transport|mirror|failover|\bports?\b))(?!\s*\d+\s*\.\.=?\s*\d+\s*$).*$'
+                      regex: '(?is)^(?!.*(relay|host|server|retr|attempt|backoff|endpoint|smtp|fallback|provider|transport|mirror|failover|\bports?\b|admin))(?!\s*\d+\s*\.\.=?\s*\d+\s*$).*$'
                   - metavariable-regex:
                       metavariable: $V
-                      regex: '(?is)^(?!.*(relay|host|server|retr|attempt|backoff|endpoint|smtp|fallback|provider|transport|mirror|failover|\bports?\b)).*$'
+                      regex: '(?is)^(?!.*(relay|host|server|retr|attempt|backoff|endpoint|smtp|fallback|provider|transport|mirror|failover|\bports?\b|admin)).*$'
               - patterns:
                   - pattern-inside: |
                       while let $PAT = $L { ... }
                   - metavariable-regex:
                       metavariable: $L
-                      regex: '(?is)^(?!.*(relay|host|server|retr|attempt|backoff|endpoint|smtp|fallback|provider|transport|mirror|failover|\bports?\b)).*$'
+                      regex: '(?is)^(?!.*(relay|host|server|retr|attempt|backoff|endpoint|smtp|fallback|provider|transport|mirror|failover|\bports?\b|admin)).*$'
               - patterns:
                   - pattern-either:
                       - pattern-inside: $L.for_each(...)
@@ -47,18 +56,18 @@ rules:
                       - pattern-inside: $L.try_for_each_concurrent(...)
                   - metavariable-regex:
                       metavariable: $L
-                      regex: '(?is)^(?!.*(relay|host|server|retr|attempt|backoff|endpoint|smtp|fallback|provider|transport|mirror|failover|\bports?\b)).*$'
+                      regex: '(?is)^(?!.*(relay|host|server|retr|attempt|backoff|endpoint|smtp|fallback|provider|transport|mirror|failover|\bports?\b|admin)).*$'
           - pattern-either:
               - patterns:
                   - pattern: $T.send(...)
                   - metavariable-regex:
                       metavariable: $T
-                      regex: '(?i)^&?(self\.)?(?!\w*mailbox)\w*(mail|smtp)\w*$'
+                      regex: '(?i)^&?(\w+\.)*(?!\w*mailbox)\w*(mail|smtp)\w*$'
               - patterns:
                   - pattern: $SG.send(...)
                   - metavariable-regex:
                       metavariable: $SG
-                      regex: '(?i)^&?(self\.)?(sg|\w*sendgrid\w*)$'
+                      regex: '(?i)^&?(\w+\.)*(sg|\w*sendgrid\w*)$'
               - pattern: $C.send_email()
               - pattern: $R.emails.send(...)
               - patterns:
@@ -79,9 +88,6 @@ rules:
                   - metavariable-regex:
                       metavariable: $URL
                       regex: (?is)^r?#*".*(api\.resend\.com/emails|api\.sendgrid\.com/v3/mail/send|api\.postmarkapp\.com/email|api\.mailgun\.net/v3|mandrillapp\.com/api|api\.brevo\.com/v3/smtp/email|api\.twilio\.com/.*/(Messages|Calls)).*
-      # A bot's message or a direct message to each user in a list is outreach by direct message. A
-      # loop over the chunks, lines or parts of one reply sends one answer to one person, so those
-      # iterables are ruled out here as well.
       - patterns:
           - pattern-either:
               - patterns:
@@ -89,20 +95,23 @@ rules:
                       for $V in $L { ... }
                   - metavariable-regex:
                       metavariable: $L
-                      regex: '(?is)^(?!.*(relay|host|server|retr|attempt|backoff|endpoint|fallback|chunk|line|split|part|piece|page|attachment|file|embed|\bports?\b))(?!\s*\d+\s*\.\.=?\s*\d+\s*$).*$'
+                      regex: '(?is)^(?!.*(relay|host|server|retr|attempt|backoff|endpoint|fallback|admin|\bports?\b|(?<![a-z])(chunks?|lines?|splits?|parts?|pieces?|pages?|attachments?|files?|embeds?|updates?|messages?|msgs?|events?|incoming|commands?|cmds?|mentions?|requests?|repl(y|ies))(?![a-z])))(?!\s*\d+\s*\.\.=?\s*\d+\s*$).*$'
+                  - metavariable-regex:
+                      metavariable: $V
+                      regex: '(?is)^(?!.*(admin|(?<![a-z])(chunks?|lines?|splits?|parts?|pieces?|pages?|attachments?|files?|embeds?|updates?|messages?|msgs?|events?|incoming|commands?|cmds?|mentions?|requests?|repl(y|ies))(?![a-z]))).*$'
               - patterns:
                   - pattern-either:
                       - pattern-inside: $L.for_each(...)
                       - pattern-inside: $L.for_each_concurrent(...)
                   - metavariable-regex:
                       metavariable: $L
-                      regex: '(?is)^(?!.*(relay|host|server|retr|attempt|backoff|endpoint|fallback|chunk|line|split|part|piece|page|attachment|file|embed|\bports?\b)).*$'
+                      regex: '(?is)^(?!.*(relay|host|server|retr|attempt|backoff|endpoint|fallback|admin|\bports?\b|(?<![a-z])(chunks?|lines?|splits?|parts?|pieces?|pages?|attachments?|files?|embeds?|updates?|messages?|msgs?|events?|incoming|commands?|cmds?|mentions?|requests?|repl(y|ies))(?![a-z]))).*$'
           - pattern-either:
               - patterns:
                   - pattern: $BOT.send_message($CHAT, ...)
                   - metavariable-regex:
                       metavariable: $BOT
-                      regex: '(?i)^&?(self\.)?\w*bot$'
+                      regex: '(?i)^&?(\w+\.)*\w*bot$'
               - pattern: $U.direct_message(...)
               - pattern: $U.dm(...)
     metadata:

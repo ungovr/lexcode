@@ -1,7 +1,10 @@
-// lexcode-expect: 7
+// lexcode-expect: 8
 use ollama_rs::{generation::chat::request::ChatMessageRequest, Ollama};
-use rig::cli_chatbot::{cli_chatbot, ChatBotBuilder};
-use rig::{completion::Chat, providers::openai};
+use rig::{
+    cli_chatbot::{cli_chatbot, ChatBotBuilder},
+    completion::Chat,
+    providers::openai,
+};
 use rig as r;
 
 pub async fn ollama_chat(ollama: Ollama, history: &mut Vec<ollama_rs::generation::chat::ChatMessage>, text: String) {
@@ -26,9 +29,11 @@ pub async fn rig_chat(client: openai::Client, prompt: String) -> anyhow::Result<
     Ok(())
 }
 
+// The chatbot items imported through the nested group above, and through the crate alias.
 pub async fn terminal(client: openai::Client) -> anyhow::Result<()> {
     let agent = client.agent("gpt-4o").build();
     cli_chatbot(agent).await?;
+    ChatBotBuilder::new().agent(client.agent("gpt-4o").build()).build().run().await?;
     r::cli_chatbot::ChatBotBuilder::new().agent(client.agent("gpt-4o").build()).build().run().await?;
     Ok(())
 }

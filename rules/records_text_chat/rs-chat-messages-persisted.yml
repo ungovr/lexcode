@@ -1,11 +1,14 @@
 # A form the app only saves is not a chat, so the store is named for a chat, as in the Java, PHP and
-# C# rules: an SQL insert into a table named for chat messages, conversation turns or a transcript
-# (sqlx's query functions and macros, or a tokio-postgres or deadpool client's execute), a Diesel
+# C# rules: an SQL insert into a table named for chat messages, conversation turns or a chat
+# transcript (sqlx's query functions and macros, or a tokio-postgres or deadpool client's execute), a Diesel
 # insert into such a table, a SeaORM active model of such an entity inserted, or an app's own
-# function named for saving a chat. A generic `messages` table counts when the insert writes a
-# `role` column beside the text, which is a conversation's turns. A contact, feedback or ticket
-# table, a chat ROOM or channel that holds no text, and a private-message table (a user-to-user
-# inbox, which the social rules read) do not match.
+# function named for saving a chat. A bare `messages` or `turns` table (or `chat_`, `conversation_`,
+# `llm_`, `ai_` or `assistant_` ones) counts when the insert writes a `role` column beside the text,
+# which is a conversation's turns. A contact, feedback or ticket table, an email or ticket message
+# with its own role column (`email_messages`, `tickets.messages`), a bare transcript (a caption,
+# video or meeting transcript, as the Java and Kotlin rules say), a chat ROOM or channel that holds
+# no text, and a private-message table (a user-to-user inbox, which the social rules read) do not
+# match.
 #
 # A query string held in a constant, or built with `format!`, is not read (a macro body is
 # invisible to the engine, rules/README.md). Diesel's `table!` schema is a macro too: the mapping is
@@ -28,7 +31,7 @@ rules:
               - pattern: $DB.execute($SQL, ...)
           - metavariable-regex:
               metavariable: $SQL
-              regex: '(?is)^r?#*"\s*insert\s+into\s+["`]?(\w+["`]?\.["`]?)?(\w+_)?(chat_?(messages?|msgs?|history|logs?|turns?|entries|transcripts?)|conversation_?(messages?|turns?|entries|transcripts?)|dialog(ue)?_?(messages?|turns?)|transcripts?)["`]?\s*\('
+              regex: '(?is)^r?#*"\s*insert\s+into\s+["`]?(\w+["`]?\.["`]?)?(\w+_)?(chat_?(messages?|msgs?|history|logs?|turns?|entries|transcripts?)|conversation_?(messages?|turns?|entries|transcripts?)|dialog(ue)?_?(messages?|turns?))["`]?\s*\('
       - patterns:
           - pattern-either:
               - pattern: sqlx::query($SQL)
@@ -39,10 +42,12 @@ rules:
               - pattern: sqlx::query_scalar!($SQL, ...)
               - pattern: sqlx::query_unchecked!($SQL, ...)
               - pattern: $DB.execute($SQL, ...)
-          # A messages or turns table whose insert names a role column: user and assistant turns.
+          # A bare messages or turns table (or one named for a chat, conversation, LLM or assistant)
+          # whose insert names a role column: user and assistant turns. Any other prefix or a schema
+          # (`email_messages`, `tickets.messages`) is another kind of message with its own roles.
           - metavariable-regex:
               metavariable: $SQL
-              regex: '(?is)^r?#*"\s*insert\s+into\s+["`]?(\w+["`]?\.["`]?)?(\w+_)?(?<!private_)(messages|turns)["`]?\s*\([^)]*\brole\b'
+              regex: '(?is)^r?#*"\s*insert\s+into\s+["`]?((chat|conversation|llm|ai|assistant)_)?(messages|turns)["`]?\s*\([^)]*\brole\b'
       - patterns:
           - pattern-either:
               - pattern: diesel::insert_into($TABLE)
