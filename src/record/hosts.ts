@@ -109,6 +109,9 @@ function swiftInterpolatedHost(s: string): boolean {
   return hostPart.includes('\\(');
 }
 
+const SWIFT_URL_WRAPPER = /^(?:URL|URI)\(\s*string\s*:?\s*("[\s\S]*")\s*\)[!?]?$/;
+const QUOTELESS_URL = /^[a-z][a-z0-9+.-]*:\/\/[^\s"'`\\(){}$<>]+$/i;
+
 export type UrlLiteral = { literal: false } | { literal: true; host: string | null };
 
 /**
@@ -116,6 +119,15 @@ export type UrlLiteral = { literal: false } | { literal: true; host: string | nu
  * its host (`file:` is `localhost`), or `host: null` when it names none, as a relative path does.
  */
 export function urlLiteral(text: string): UrlLiteral {
+  const t = text.trim();
+  // Swift's `URL(string: "...")` and Vapor's `URI(string: "...")` around one string: the string decides.
+  // The pinned engine prints a bound one with the colon and space dropped (`URL(string"https://x")!`).
+  const wrapped = SWIFT_URL_WRAPPER.exec(t);
+  if (wrapped) return urlLiteral(wrapped[1] as string);
+  // A string the engine bound inside a sub-pattern comes back with no quotes (`https://x.example/a`). Only a
+  // whole absolute URL is read that way: a bare word, a dotted name or anything with a space, a quote, a
+  // bracket or a `$` stays code. An interpolated Swift string is never printed bare (it keeps a `""` in front).
+  if (QUOTELESS_URL.test(t)) return urlLiteral(`"${t}"`);
   const inner = literalText(text);
   if (inner === null) return { literal: false };
   const s = inner.trim();

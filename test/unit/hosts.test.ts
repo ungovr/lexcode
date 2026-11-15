@@ -129,6 +129,33 @@ describe('hostOfLiteral', () => {
     }
   });
 
+  // Two more spellings the pinned engine prints for a Swift `$URL` (probed on swift-html-of-fetched-page
+  // and swift-feed-read): a string bound inside a sub-pattern comes back with no quotes, and a bound
+  // `URL(string: "https://x")!` comes back as `URL(string"https://x")!`, the colon and space dropped.
+  // Each is read as the literal it prints, so a third-party host is evidence and an own host is dropped,
+  // as a quoted literal is (#13199).
+  it('reads a quote-less bound URL and a Swift URL(string:) wrapper around a literal as that literal', () => {
+    expect(urlLiteral('https://plainfront.example.com/front')).toEqual({ literal: true, host: 'plainfront.example.com' });
+    expect(urlLiteral('http://localhost:8080/x')).toEqual({ literal: true, host: 'localhost' });
+    expect(urlLiteral('URL(string"https://plain.example.com/catalog")!')).toEqual({ literal: true, host: 'plain.example.com' });
+    expect(urlLiteral('URL(string: "https://plain.example.com/catalog")!')).toEqual({ literal: true, host: 'plain.example.com' });
+    expect(urlLiteral('URL(string: "https://plain.example.com/catalog")')).toEqual({ literal: true, host: 'plain.example.com' });
+    expect(urlLiteral('URI(string"https://vapor.example.com/x")')).toEqual({ literal: true, host: 'vapor.example.com' });
+    expect(urlLiteral('URL(string"/v1/items")!')).toEqual({ literal: true, host: null });
+  });
+
+  it('keeps reading a quote-less or wrapped value as code when it is not one plain URL', () => {
+    expect(urlLiteral('URL(string: "https://\\(h)/x")!')).toEqual({ literal: false });
+    expect(urlLiteral('URL(string: base)!')).toEqual({ literal: false });
+    expect(urlLiteral('URL(string: "https://a.example.org" + path)!')).toEqual({ literal: false });
+    expect(urlLiteral('URL(fileURLWithPath: "/tmp/a")')).toEqual({ literal: false });
+    expect(urlLiteral('https://a.example.org/x + path')).toEqual({ literal: false });
+    expect(urlLiteral('https://a.example.org/x".appending(y)')).toEqual({ literal: false });
+    expect(urlLiteral('https://a.example.org/${id}')).toEqual({ literal: false });
+    expect(urlLiteral('api.example.org/x')).toEqual({ literal: false });
+    expect(urlLiteral('base.url')).toEqual({ literal: false });
+  });
+
   it('returns null for a literal with no host, such as a relative path', () => {
     expect(hostOfLiteral(`'/v1/items'`)).toBeNull();
     expect(urlLiteral(`'/v1/items'`)).toEqual({ literal: true, host: null });
