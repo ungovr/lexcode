@@ -635,9 +635,10 @@ import keeps its list of names for the wildcard arm.
 
 The definitions the rules follow, one line each:
 
-- The platform's own crypto (the JDK's and Android's) is not
-  `ships_encryption`; a bundled library that encrypts is, and bundled password
-  hashing is a signal.
+- A cipher or a key agreement is `ships_encryption` whether it runs through the
+  platform's own crypto (a javax.crypto `Cipher` or `KeyAgreement`) or a bundled
+  library; a cipher built through the Bouncy Castle provider is counted once, by
+  the library rule. Password hashing is not (see "Shipping encryption" below).
 - Signing a PDF with a key is a signal.
 - An Android app is `ships_mobile_app` evidence only; it says nothing else.
 - Publishing to GitHub Packages is not `distributes_software_product`.
@@ -755,6 +756,11 @@ ruled before it is added.
   as the library's.
 - Model output sent back in a response is followed when it leaves as an array
   value (`['reply' => $reply]`) or through `->with('reply', $reply)`.
+- The openssl and sodium extensions' ciphers and key exchange are
+  `ships_encryption` evidence, as Laravel's encrypter and the bundled
+  libraries are. An encrypted cast on a column named for access-control data
+  (a two-factor secret, a token, an API key) is not, and neither is Laravel's
+  cookie encryption.
 
 ### Known PHP gaps
 
@@ -934,11 +940,13 @@ argued and ruled before it is added.
 - Generation evidence is a direct generating call whose result reaches a sink (a
   response, a view, a component field). A client or request object handed around
   (`GetService<IChatClient>()`, `GetChatClient(...)`, a new request) is a signal.
-- The platform's own cryptography (`System.Security.Cryptography`, ASP.NET Core
-  Data Protection) is left to the framework, as the JDK's is, while a bundled
-  library that encrypts (Bouncy Castle, NSec, libsodium, PgpCore, JOSE) is
-  `ships_encryption` evidence. Identity password hashing, PBKDF2 and Data
-  Protection are signals.
+- .NET's own cryptography used to keep data confidential (`AesGcm`, an `Aes`
+  encryptor, RSA encryption, `ECDiffieHellman`, `ProtectedData`) is
+  `ships_encryption` evidence, as a bundled library that encrypts (Bouncy
+  Castle, NSec, libsodium, PgpCore, JOSE) is. So is an ASP.NET Core Data
+  Protection protector the app creates, unless its purpose string names a
+  token, cookie, session or other sign-in secret. Password hashing, PBKDF2 and
+  the framework's own key ring and sign-in cookies are not.
 - A bare Twilio `VoiceResponse.Record` verb (voicemail) is `processes_voice`, not
   `records_calls`, and an in-app SignalR notification is a user interface push,
   not `automated_outreach`.
@@ -981,10 +989,54 @@ The engine sets most of these limits, and the rules' comments point here.
   `PackageLicenseExpression` or `PackageLicenseFile` for its license metadata
   only, or an app's own attribute named `Activity` with a `MainLauncher`
   property, matches.
+- Encryption: an `Aes` or `TripleDES` encryptor in a file that reaches
+  `System.Security.Cryptography` only through a `global using` elsewhere, and
+  RSA encryption whose padding is held in a variable, are missed; a Data
+  Protection purpose held in a variable is read whatever it protects.
 - Signals: the MVC sign-up arm needs a literal `return View(...)` or
   `=> View(...)`, and no rule reads an `@page` or `.cshtml` route, so a
   storefront of Razor components with no sign-up screen shows no
   consumer-interface signal.
+
+## Shipping encryption
+
+`ships_encryption` is code that encrypts data or agrees keys to keep data
+confidential, in its own code, through the platform's cryptography APIs or with
+a library it bundles, or that bundles or vendors a cryptography library that
+does. Export control reaches cryptography for confidentiality and carves out
+authentication, signatures, integrity and password protection, and it asks
+what the code does, not whose library does it. So the rules read:
+
+- A cipher, public-key encryption or a key agreement through the platform:
+  Node's crypto module and Web Crypto (`js-platform-encryption`), Go's
+  `crypto/cipher` modes with `crypto/aes` or `crypto/des`, RSA encryption and
+  `crypto/ecdh` (`go-platform-encryption`), javax.crypto `Cipher` and
+  `KeyAgreement` (`java-` and `kt-platform-encryption`), .NET's
+  `System.Security.Cryptography` (`cs-platform-encryption`) and Data
+  Protection (`cs-data-protection`), Ruby's `OpenSSL::Cipher` and RSA
+  (`rb-platform-encryption`), and PHP's openssl and sodium extensions
+  (`php-platform-encryption`). Python's standard library has no cipher, so
+  Python has no platform rule.
+- The same through a bundled library (the `*-library-encryption` rules, the
+  framework, attribute and storage rules), and a cryptography library that
+  encrypts or agrees keys in the dependency tree (the component map).
+  `golang.org/x/crypto` has no map entry: Go links only the subpackages a
+  program imports, so `go-xcrypto-encryption` reads the cipher subpackages in
+  use, and an app that imports only `x/crypto/bcrypt` holds no cipher.
+- Never: hashing, a MAC, password hashing and key derivation (bcrypt, Argon2,
+  scrypt, PBKDF2), signing (JWT, ECDSA, RSA signatures), random bytes, or HTTPS
+  through the platform's stock client.
+- Not access-control data alone. Encrypting only passwords, PINs, tokens,
+  two-factor secrets, API keys or session data to control access is
+  authentication (15 C.F.R. 772.1). An encrypted model attribute or cast named
+  for such data (`encrypts :otp_secret`, `'two_factor_secret' => 'encrypted'`)
+  is not read, a Data Protection purpose that names one is not read, and no
+  rule reads a framework's encrypted cookies or sessions. A call-level cipher
+  cannot show what it encrypts, so it stays evidence for a person to confirm,
+  and so do the Android encrypted-storage rules, which cannot tell a stored
+  sign-in token from other data.
+- Algorithm and key strength are not read: the export lists share their
+  thresholds, and code does not show a runtime key size.
 
 ## A known gap: a file over 1 MB
 
