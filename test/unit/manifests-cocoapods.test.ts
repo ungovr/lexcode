@@ -360,3 +360,67 @@ describe('the cocoapods reader is registered', () => {
     ]);
   });
 });
+
+describe('readCocoapods: lock edge forms and nested blocks', () => {
+  it('keeps + and . in a name, and an external-source pod takes its PODS version, never its from clause', () => {
+    const lock = [
+      'PODS:', //                                                   1
+      '  - "gRPC-C++ (1.69.0)":', //                                2
+      '    - "gRPC-C++/Implementation (= 1.69.0)"', //              3
+      '  - MyLocal (0.1.0)', //                                     4
+      '  - Socket.IO-Client-Swift (16.0.1):', //                    5
+      '    - Starscream (~> 4.0.6)', //                             6
+      '  - Starscream (4.0.8)', //                                  7
+      '', //                                                        8
+      'DEPENDENCIES:', //                                           9
+      '  - "gRPC-C++ (~> 1.69)"', //                                10
+      '  - MyLocal (from `../MyLocal`)', //                         11
+      '  - Socket.IO-Client-Swift (>= 16.0)', //                    12
+      '', //                                                        13
+      'EXTERNAL SOURCES:',
+      '  MyLocal:',
+      '    :path: "../MyLocal"',
+      '',
+      'COCOAPODS: 1.15.2',
+      '',
+    ].join('\r\n');
+    const r = readCocoapods(tree({ 'Podfile.lock': lock }), ['Podfile.lock']);
+    expect(r.deps).toEqual([
+      { ecosystem: 'cocoapods', name: 'gRPC-C++', version: '1.69.0', manifest: 'Podfile.lock:10' },
+      { ecosystem: 'cocoapods', name: 'MyLocal', version: '0.1.0', manifest: 'Podfile.lock:11' },
+      { ecosystem: 'cocoapods', name: 'Socket.IO-Client-Swift', version: '16.0.1', manifest: 'Podfile.lock:12' },
+    ]);
+    expect(r.notices).toEqual([]);
+  });
+
+  it('a subspec with no PODS entry of its own takes its pod version', () => {
+    const lock = ['PODS:', '  - Firebase (10.29.0)', '', 'DEPENDENCIES:', '  - Firebase/Analytics', '  - Other/Sub', '', 'COCOAPODS: 1.15.2', ''].join('\n');
+    const r = readCocoapods(tree({ 'Podfile.lock': lock }), ['Podfile.lock']);
+    expect(r.deps).toEqual([
+      { ecosystem: 'cocoapods', name: 'Firebase/Analytics', version: '10.29.0', manifest: 'Podfile.lock:5' },
+      { ecosystem: 'cocoapods', name: 'Other/Sub', manifest: 'Podfile.lock:6' },
+    ]);
+    expect(r.notices).toEqual([UNRESOLVED(1)]);
+  });
+
+  it('a conditional inside a test target is still the test target, and a def inside one is not', () => {
+    const lock = ['PODS:', '  - Alamofire (5.10.2)', '  - Nimble (13.3.0)', '  - Quick (7.6.0)', '', 'DEPENDENCIES:', '  - Alamofire', '  - Nimble', '  - Quick', '', 'COCOAPODS: 1.15.2', ''].join('\n');
+    const podfile = [
+      "target 'AppTests' do",
+      "  if ENV['CI']",
+      "    pod 'Quick'",
+      '  end',
+      "  ['Nimble'].each do |name|",
+      '  end',
+      "  pod 'Nimble'",
+      '  def helper_pods',
+      "    pod 'Alamofire'",
+      '  end',
+      'end',
+      '',
+    ].join('\n');
+    const r = readCocoapods(tree({ Podfile: podfile, 'Podfile.lock': lock }), ['Podfile', 'Podfile.lock']);
+    expect(r.deps.map((d) => d.name)).toEqual(['Alamofire']);
+    expect(r.devSkipped).toBe(2);
+  });
+});

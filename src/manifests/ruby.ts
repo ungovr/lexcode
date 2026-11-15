@@ -1,5 +1,16 @@
 import type { Dependency } from '../types.js';
-import { ancestorDirs, baseName, dirOf, joinRel, readText, resolveInside, type ReaderResult } from './util.js';
+import {
+  ancestorDirs,
+  baseName,
+  dirOf,
+  joinRel,
+  opensRubyBlock,
+  readText,
+  resolveInside,
+  rubyLines,
+  stripRubyComment,
+  type ReaderResult,
+} from './util.js';
 
 /**
  * The gem ecosystem: `Gemfile` (or `gems.rb`), `Gemfile.lock` (or `gems.locked`) and `*.gemspec`.
@@ -25,34 +36,11 @@ interface Lock {
   direct: { name: string; line: number }[];
 }
 
-/** Cut a trailing `# comment`, leaving a `#` inside a quoted string alone. */
-function stripComment(line: string): string {
-  let quote = '';
-  for (let i = 0; i < line.length; i++) {
-    const c = line[i] as string;
-    if (quote) {
-      if (c === '\\') i++;
-      else if (c === quote) quote = '';
-    } else if (c === '"' || c === "'") quote = c;
-    else if (c === '#') return line.slice(0, i);
-  }
-  return line;
-}
-
 /** Names in a group argument list or a `group:` option value: symbols, strings, `%i[...]` words. */
 function groupNames(text: string): string[] {
   return [...text.replace(/%[iw]/g, '').matchAll(/(?<![\w:]):([A-Za-z_]\w*)|["']([A-Za-z_]\w*)["']|\b([A-Za-z_]\w*)\b/g)].map(
     (m) => (m[1] ?? m[2] ?? m[3]) as string,
   );
-}
-
-/** Does this line open a block that a later `end` closes? One-line forms and modifiers do not. */
-function opensBlock(code: string): boolean {
-  if (/\bend$/.test(code)) return false;
-  if (/\bdo(?:\s*\|[^|]*\|)?$/.test(code)) return true;
-  if (/^def\s+[^\s(]+(?:\([^)]*\))?\s*=[^=~]/.test(code)) return false;
-  if (/^(?:if|unless|case|begin|while|until|for|def|class|module)\b/.test(code)) return true;
-  return /[=(]\s*(?:if|unless|case|begin)\b/.test(code);
 }
 
 interface ParsedGemfile {
@@ -67,38 +55,10 @@ function parseGemfile(rel: string, text: string): ParsedGemfile {
   const gems: GemRef[] = [];
   const evals: string[] = [];
   const gemspecPaths: string[] = [];
-  const lines = text.split(/\r?\n/);
   const stack: string[][] = [];
-  let heredoc: string | undefined;
-  let blockComment = false;
 
-  for (let i = 0; i < lines.length; i++) {
-    const raw = lines[i] as string;
-    const lineNo = i + 1;
-    if (heredoc !== undefined) {
-      if (raw.trim() === heredoc) heredoc = undefined;
-      continue;
-    }
-    if (blockComment) {
-      if (/^=end\b/.test(raw)) blockComment = false;
-      continue;
-    }
-    if (/^=begin\b/.test(raw)) {
-      blockComment = true;
-      continue;
-    }
-    let code = stripComment(raw).trim();
-    if (code === '') continue;
-    // A gem or group call that runs on over several lines, each but the last ending in a comma.
-    if (/^(?:gem|group)\b/.test(code)) {
-      while (/[,\\]$/.test(code) && i + 1 < lines.length) {
-        i++;
-        code = `${code.replace(/\\$/, '')} ${stripComment(lines[i] as string).trim()}`.trim();
-      }
-    }
-    const hd = /<<[~-]?(["']?)([A-Za-z_]\w*)\1/.exec(code);
-    if (hd) heredoc = hd[2];
-
+  // A gem or group call that runs on over several lines is read as one.
+  for (const { code, line: lineNo } of rubyLines(text, /^(?:gem|group)\b/)) {
     const gem = /^gem\s*\(?\s*(["'])([^"']+)\1(.*)$/.exec(code);
     if (gem) {
       const opt = /(?:\bgroups?\s*:|:groups?\s*=>)\s*(\[[^\]]*\]|%[iw]\[[^\]]*\]|%[iw]\([^)]*\)|:\w+|"\w+"|'\w+')/.exec(gem[3] as string);
@@ -125,7 +85,7 @@ function parseGemfile(rel: string, text: string): ParsedGemfile {
       stack.pop();
       continue;
     }
-    if (opensBlock(code)) {
+    if (opensRubyBlock(code)) {
       const g = /^group\b\s*\(?(.*?)\)?\s*do\b/.exec(code);
       stack.push(g ? groupNames(g[1] as string).filter((n) => n !== 'optional' && n !== 'true' && n !== 'false') : []);
     }
@@ -142,7 +102,7 @@ interface ParsedGemspec {
 function parseGemspec(rel: string, text: string): ParsedGemspec {
   const out: ParsedGemspec = { runtime: [], dev: [] };
   text.split(/\r?\n/).forEach((raw, i) => {
-    const code = stripComment(raw);
+    const code = stripRubyComment(raw);
     const nm = /\.name\s*=\s*(["'])([^"']+)\1/.exec(code);
     if (nm && out.name === undefined) out.name = nm[2] as string;
     const dep = /\.add_(runtime_|development_)?dependency\s*\(?\s*(["'])([^"']+)\2/.exec(code);

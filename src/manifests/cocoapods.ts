@@ -1,6 +1,6 @@
 import { isMap, isScalar, isSeq, parseDocument, type Node } from 'yaml';
 import type { Dependency } from '../types.js';
-import { baseName, describeParseError, dirOf, joinRel, LineIndex, readText, type ReaderResult } from './util.js';
+import { baseName, describeParseError, dirOf, joinRel, LineIndex, opensRubyBlock, readText, rubyLines, type ReaderResult } from './util.js';
 
 /**
  * The CocoaPods ecosystem: `Podfile.lock` and `Podfile` (Decision 11 of the v1.5 plan, #13199).
@@ -15,11 +15,11 @@ import { baseName, describeParseError, dirOf, joinRel, LineIndex, readText, type
 /** Xcode's test target convention: `AppTests`, `AppUITests`. */
 const TEST_TARGET = /(?:UI)?Tests$/;
 
-export function isPodfile(rel: string): boolean {
+function isPodfile(rel: string): boolean {
   return baseName(rel) === 'Podfile';
 }
 
-export function isPodfileLock(rel: string): boolean {
+function isPodfileLock(rel: string): boolean {
   return baseName(rel) === 'Podfile.lock';
 }
 
@@ -95,78 +95,41 @@ interface PodLine {
   line: number;
   /** A plain version as the second argument (`'5.4.3'` or `'= 5.4.3'`), else undefined. */
   version?: string;
-  /** The innermost enclosing block is a `target` whose name ends in Tests or UITests. */
+  /** The nearest enclosing `target` is one whose name ends in Tests or UITests. */
   test: boolean;
 }
 
-/** Cut a trailing `# comment`, leaving a `#` inside a quoted string alone. */
-function stripComment(line: string): string {
-  let quote = '';
-  for (let i = 0; i < line.length; i++) {
-    const c = line[i] as string;
-    if (quote) {
-      if (c === '\\') i++;
-      else if (c === quote) quote = '';
-    } else if (c === '"' || c === "'") quote = c;
-    else if (c === '#') return line.slice(0, i);
+type Block = { kind: 'target'; name: string } | { kind: 'abstract' } | { kind: 'def' } | { kind: 'other' };
+
+/**
+ * Is a pod line at this depth in a test target? The nearest enclosing `target` or `abstract_target` decides,
+ * looking past `if`, `unless`, `.each do` and other blocks inside it. A `def` stops the search, because a
+ * method's pods go to whichever targets call it; so does an `abstract_target`, whose pods go to every target
+ * under it.
+ */
+function inTestTarget(stack: Block[]): boolean {
+  for (let i = stack.length - 1; i >= 0; i--) {
+    const b = stack[i] as Block;
+    if (b.kind === 'other') continue;
+    return b.kind === 'target' && TEST_TARGET.test(b.name);
   }
-  return line;
+  return false;
 }
-
-/** Does this line open a block that a later `end` closes? One-line forms and modifiers do not. */
-function opensBlock(code: string): boolean {
-  if (/\bend$/.test(code)) return false;
-  if (/\bdo(?:\s*\|[^|]*\|)?$/.test(code)) return true;
-  if (/^def\s+[^\s(]+(?:\([^)]*\))?\s*=[^=~]/.test(code)) return false;
-  if (/^(?:if|unless|case|begin|while|until|for|def|class|module)\b/.test(code)) return true;
-  return /[=(]\s*(?:if|unless|case|begin)\b/.test(code);
-}
-
-type Block = { kind: 'target'; name: string } | { kind: 'abstract' } | { kind: 'other' };
 
 function parsePodfile(text: string): PodLine[] {
   const out: PodLine[] = [];
-  const lines = text.split(/\r?\n/);
   const stack: Block[] = [];
-  let heredoc: string | undefined;
-  let blockComment = false;
 
-  for (let i = 0; i < lines.length; i++) {
-    const raw = lines[i] as string;
-    const lineNo = i + 1;
-    if (heredoc !== undefined) {
-      if (raw.trim() === heredoc) heredoc = undefined;
-      continue;
-    }
-    if (blockComment) {
-      if (/^=end\b/.test(raw)) blockComment = false;
-      continue;
-    }
-    if (/^=begin\b/.test(raw)) {
-      blockComment = true;
-      continue;
-    }
-    let code = stripComment(raw).trim();
-    if (code === '') continue;
-    // A pod call that runs on over several lines, each but the last ending in a comma.
-    if (/^pod\b/.test(code)) {
-      while (/[,\\]$/.test(code) && i + 1 < lines.length) {
-        i++;
-        code = `${code.replace(/\\$/, '')} ${stripComment(lines[i] as string).trim()}`.trim();
-      }
-    }
-    const hd = /<<[~-]?(["']?)([A-Za-z_]\w*)\1/.exec(code);
-    if (hd) heredoc = hd[2];
-
+  // A pod call that runs on over several lines is read as one.
+  for (const { code, line: lineNo } of rubyLines(text, /^pod\b/)) {
     const pod = /^pod\s*\(?\s*(["'])([^"']+)\1(.*)$/.exec(code);
     if (pod) {
       const ver = /^\s*,\s*(["'])\s*(?:=\s*)?(\d+(?:\.\d+)*(?:[-+][0-9A-Za-z.+-]+)?)\s*\1/.exec(pod[3] as string);
-      const inner = stack[stack.length - 1];
       out.push({
         name: (pod[2] as string).trim(),
         line: lineNo,
         ...(ver ? { version: ver[2] as string } : {}),
-        test: inner?.kind === 'target' && TEST_TARGET.test(inner.name),
+        test: inTestTarget(stack),
       });
       continue;
     }
@@ -174,9 +137,9 @@ function parsePodfile(text: string): PodLine[] {
       stack.pop();
       continue;
     }
-    if (opensBlock(code)) {
+    if (opensRubyBlock(code)) {
       const t = /^(abstract_target|target)\s*\(?\s*(?:(["'])([^"']+)\2|:([A-Za-z_]\w*))/.exec(code);
-      if (!t) stack.push({ kind: 'other' });
+      if (!t) stack.push({ kind: /^def\b/.test(code) ? 'def' : 'other' });
       else if (t[1] === 'abstract_target') stack.push({ kind: 'abstract' });
       else stack.push({ kind: 'target', name: (t[3] ?? t[4]) as string });
     }
