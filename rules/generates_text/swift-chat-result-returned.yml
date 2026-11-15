@@ -1,0 +1,195 @@
+rules:
+  - id: lexcode.text.swift-chat-result-returned
+    languages: [swift]
+    severity: INFO
+    message: Returns text written by a chat or language model from a function, which may be generating text with AI that reaches users (generates_text).
+    # The signal beside swift-chat-reply-to-response: a function that returns the model's text, often a
+    # service a view model calls from another file. A Vapor or Hummingbird handler is left to the evidence rule.
+    # Swift shapes (Opengrep 1.33.1, probed for #13199): the engine does not carry taint through an
+    # optional binding (`guard let x = ...`, `if let x = ...`), so a name bound from a model call, or from a
+    # value that holds one, is a source of its own; a `for try await` loop variable, a `switch` or `if case`
+    # `.success(let x)` binding and the first parameter of a vendor's completion closure are carried. An
+    # `if let x = try ...` condition does not parse at all and is a known gap. A local `var` declared in the
+    # same function is not a screen, so a state-name sink skips it.
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+          - patterns:
+              - pattern-either:
+                  - pattern-regex: '(?s)\A(?=.*\bimport\s+OpenAI\b).*'
+                  - pattern-regex: '(?s)\A(?=.*\bimport\s+SwiftOpenAI\b).*'
+                  - pattern-regex: '(?s)\A(?=.*\bimport\s+FoundationModels\b).*'
+                  - pattern-regex: '(?s)\A(?=.*\bimport\s+AWSBedrockRuntime\b).*'
+              - pattern-either: &calls_vendors
+                  - pattern: '$C.chats(query: $Q)'
+                  - pattern: '$C.chatsStream(query: $Q)'
+                  - pattern: '$C.completions(query: $Q)'
+                  - pattern: '$C.completionsStream(query: $Q)'
+                  - pattern: '$C.responses.createResponse(query: $Q)'
+                  - pattern: '$C.responses.createResponseStreaming(query: $Q)'
+                  - pattern: '$S.startChat(parameters: $P)'
+                  - pattern: '$S.startStreamedChat(parameters: $P)'
+                  - pattern: '$S.responseCreate($P)'
+                  - pattern: '$S.responseCreateStream($P)'
+                  - pattern: '$S.respond(...)'
+                  - pattern: '$S.streamResponse(...)'
+                  - pattern: '$C.converse(input: $I)'
+                  - pattern: '$C.converseStream(input: $I)'
+      - pattern-either:
+          - patterns:
+              - pattern-either:
+                  - pattern-regex: '(?s)\A(?=.*\bimport\s+OpenAI\b).*'
+                  - pattern-regex: '(?s)\A(?=.*\bimport\s+SwiftOpenAI\b).*'
+                  - pattern-regex: '(?s)\A(?=.*\bimport\s+FoundationModels\b).*'
+                  - pattern-regex: '(?s)\A(?=.*\bimport\s+AWSBedrockRuntime\b).*'
+              - pattern-either:
+                  - pattern: |
+                      $C.chats(query: $Q) { $R in
+                        ...
+                      }
+                  - pattern: |
+                      $C.completions(query: $Q) { $R in
+                        ...
+                      }
+                  - pattern: |
+                      $C.responses.createResponse(query: $Q) { $R in
+                        ...
+                      }
+                  - pattern: |
+                      $C.chatsStream(query: $Q) { $R in
+                        ...
+                      } completion: { $E in
+                        ...
+                      }
+                  - pattern: |
+                      $C.completionsStream(query: $Q) { $R in
+                        ...
+                      } completion: { $E in
+                        ...
+                      }
+                  - pattern: |
+                      $C.responses.createResponseStreaming(query: $Q) { $R in
+                        ...
+                      } completion: { $E in
+                        ...
+                      }
+              - focus-metavariable: $R
+      - pattern-either:
+          - patterns:
+              - pattern-either:
+                  - pattern-regex: '(?s)\A(?=.*\bimport\s+OpenAI\b).*'
+                  - pattern-regex: '(?s)\A(?=.*\bimport\s+SwiftOpenAI\b).*'
+                  - pattern-regex: '(?s)\A(?=.*\bimport\s+FoundationModels\b).*'
+                  - pattern-regex: '(?s)\A(?=.*\bimport\s+AWSBedrockRuntime\b).*'
+              - patterns:
+                  - pattern-either:
+                      - pattern-inside: |
+                          guard let $X = $E0 else { ... }
+                          ...
+                      - pattern-inside: |
+                          guard let $X = $E0, ... else { ... }
+                          ...
+                  - metavariable-pattern:
+                      metavariable: $E0
+                      pattern-either: *calls_vendors
+                  - pattern: $X
+      - pattern-either:
+          - patterns:
+              - pattern-either:
+                  - pattern-regex: '(?s)\A(?=.*\bimport\s+OpenAI\b).*'
+                  - pattern-regex: '(?s)\A(?=.*\bimport\s+SwiftOpenAI\b).*'
+                  - pattern-regex: '(?s)\A(?=.*\bimport\s+FoundationModels\b).*'
+                  - pattern-regex: '(?s)\A(?=.*\bimport\s+AWSBedrockRuntime\b).*'
+              - patterns:
+                  - pattern-either:
+                      - pattern-inside: |
+                          let $V = $E0
+                          ...
+                      - pattern-inside: |
+                          var $V = $E0
+                          ...
+                  - metavariable-pattern:
+                      metavariable: $E0
+                      pattern-either: *calls_vendors
+                  - pattern-either:
+                      - pattern-inside: |
+                          guard let $X = $E1 else { ... }
+                          ...
+                      - pattern-inside: |
+                          guard let $X = $E1, ... else { ... }
+                          ...
+                      - pattern-inside: |
+                          if let $X = $E1 {
+                            ...
+                          }
+                      - pattern-inside: |
+                          if let $X = $E1, ... {
+                            ...
+                          }
+                  - metavariable-pattern:
+                      metavariable: $E1
+                      pattern: $V
+                  - pattern: $X
+    pattern-propagators:
+      - patterns:
+          - pattern-inside: |
+              for try await $X in $S {
+                ...
+              }
+          - pattern: $X
+        from: $S
+        to: $X
+      - patterns:
+          - pattern-inside: |
+              for await $X in $S {
+                ...
+              }
+          - pattern: $X
+        from: $S
+        to: $X
+      - patterns:
+          - pattern-inside: |
+              switch $S {
+              case .success(let $X):
+                ...
+              }
+          - pattern: $X
+        from: $S
+        to: $X
+      - patterns:
+          - pattern-inside: |
+              if case .success(let $X) = $S {
+                ...
+              }
+          - pattern: $X
+        from: $S
+        to: $X
+    pattern-sinks:
+      - patterns:
+          - pattern: |
+              func $F(...) -> $T {
+                ...
+                return $X
+              }
+          - focus-metavariable: $X
+          - pattern-not-inside:
+              patterns:
+                - pattern-either:
+                    - pattern-regex: '(?s)\A(?=.*\bimport\s+Vapor\b).*'
+                    - pattern-regex: '(?s)\A(?=.*\bimport\s+Hummingbird\b).*'
+                - pattern-either:
+                    - pattern: |
+                        func $G(..., $REQ: Request, ...) -> $U {
+                          ...
+                        }
+                    - pattern: |
+                        func $G(..., $REQ: HBRequest, ...) -> $U {
+                          ...
+                        }
+    metadata:
+      activity: generates_text
+      mentioned: performs
+      definition: https://lexlint.io/activities/generates-text
+      provenance: ungovr-original
+      license: MIT
+      strength: signal

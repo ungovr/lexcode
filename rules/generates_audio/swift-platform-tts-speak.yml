@@ -1,0 +1,22 @@
+rules:
+  - id: lexcode.audio.swift-platform-tts-speak
+    languages: [swift]
+    severity: INFO
+    message: Reads text aloud with the platform text-to-speech engine, which may be generating audio that reaches users (generates_audio).
+    # The Swift counterpart of the Android and .NET MAUI text-to-speech rules, and a signal for the same
+    # reason: AVSpeechSynthesizer speaks whatever string it is handed, and most often that is the app's own
+    # fixed text read aloud for accessibility, which the definition does not count. An utterance is built
+    # only to be spoken, so the rule reads its constructor. AVSpeechUtterance comes only with AVFoundation
+    # (or an umbrella that re-exports it, such as AVKit), so it is written module-qualified only; the
+    # engine matches the short form under `import AVFoundation` and not an app type of the same name.
+    pattern-either:
+      - pattern: 'AVFoundation.AVSpeechUtterance(string: $X)'
+      - pattern: 'AVFoundation.AVSpeechUtterance(attributedString: $X)'
+      - pattern: 'AVFoundation.AVSpeechUtterance(ssmlRepresentation: $X)'
+    metadata:
+      activity: generates_audio
+      mentioned: performs
+      definition: https://lexlint.io/activities/generates-audio
+      provenance: ungovr-original
+      license: MIT
+      strength: signal

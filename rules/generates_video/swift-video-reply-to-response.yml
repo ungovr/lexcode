@@ -1,0 +1,207 @@
+rules:
+  - id: lexcode.video.swift-video-reply-to-response
+    languages: [swift]
+    severity: INFO
+    message: Plays or sends back a clip from a video model, which is generating video with AI that reaches users (generates_video).
+    # Source: Amazon Bedrock StartAsyncInvoke in a file that names a video model (Nova Reel, Luma Ray). The
+    # job writes the clip to S3 and returns its invocation ARN, which an app hands to its client to fetch
+    # the clip. OpenAI's Videos API has no Swift client in scope and was retired on 2026-09-24.
+    # Sinks: an AVPlayer, a view-model property whose name says it holds a clip, and a Vapor or Hummingbird
+    # response or socket.
+    # Swift shapes (Opengrep 1.33.1, probed for #13199): the engine does not carry taint through an
+    # optional binding (`guard let x = ...`, `if let x = ...`), so a name bound from a model call, or from a
+    # value that holds one, is a source of its own; a `for try await` loop variable, a `switch` or `if case`
+    # `.success(let x)` binding and the first parameter of a vendor's completion closure are carried. An
+    # `if let x = try ...` condition does not parse at all and is a known gap. A local `var` declared in the
+    # same function is not a screen, so a state-name sink skips it.
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+          - patterns:
+              - pattern-regex: '(?s)\A(?=.*\bimport\s+AWSBedrockRuntime\b).*'
+              - pattern-either:
+                  - pattern-regex: '(?s)\A(?=.*"amazon\.nova-reel).*'
+                  - pattern-regex: '(?s)\A(?=.*"luma\.ray).*'
+              - pattern-either: &calls_bedrock_video
+                  - pattern: '$C.startAsyncInvoke(input: $I)'
+      - pattern-either:
+          - patterns:
+              - pattern-regex: '(?s)\A(?=.*\bimport\s+AWSBedrockRuntime\b).*'
+              - pattern-either:
+                  - pattern-regex: '(?s)\A(?=.*"amazon\.nova-reel).*'
+                  - pattern-regex: '(?s)\A(?=.*"luma\.ray).*'
+              - patterns:
+                  - pattern-either:
+                      - pattern-inside: |
+                          guard let $X = $E0 else { ... }
+                          ...
+                      - pattern-inside: |
+                          guard let $X = $E0, ... else { ... }
+                          ...
+                  - metavariable-pattern:
+                      metavariable: $E0
+                      pattern-either: *calls_bedrock_video
+                  - pattern: $X
+      - pattern-either:
+          - patterns:
+              - pattern-regex: '(?s)\A(?=.*\bimport\s+AWSBedrockRuntime\b).*'
+              - pattern-either:
+                  - pattern-regex: '(?s)\A(?=.*"amazon\.nova-reel).*'
+                  - pattern-regex: '(?s)\A(?=.*"luma\.ray).*'
+              - patterns:
+                  - pattern-either:
+                      - pattern-inside: |
+                          let $V = $E0
+                          ...
+                      - pattern-inside: |
+                          var $V = $E0
+                          ...
+                  - metavariable-pattern:
+                      metavariable: $E0
+                      pattern-either: *calls_bedrock_video
+                  - pattern-either:
+                      - pattern-inside: |
+                          guard let $X = $E1 else { ... }
+                          ...
+                      - pattern-inside: |
+                          guard let $X = $E1, ... else { ... }
+                          ...
+                      - pattern-inside: |
+                          if let $X = $E1 {
+                            ...
+                          }
+                      - pattern-inside: |
+                          if let $X = $E1, ... {
+                            ...
+                          }
+                  - metavariable-pattern:
+                      metavariable: $E1
+                      pattern: $V
+                  - pattern: $X
+    pattern-propagators:
+      - patterns:
+          - pattern-inside: |
+              for try await $X in $S {
+                ...
+              }
+          - pattern: $X
+        from: $S
+        to: $X
+      - patterns:
+          - pattern-inside: |
+              for await $X in $S {
+                ...
+              }
+          - pattern: $X
+        from: $S
+        to: $X
+      - patterns:
+          - pattern-inside: |
+              switch $S {
+              case .success(let $X):
+                ...
+              }
+          - pattern: $X
+        from: $S
+        to: $X
+      - patterns:
+          - pattern-inside: |
+              if case .success(let $X) = $S {
+                ...
+              }
+          - pattern: $X
+        from: $S
+        to: $X
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: $S = $X
+              - pattern: $S += $X
+              - pattern: $S.append($X)
+              - pattern: '$S.append(contentsOf: $X)'
+          - pattern-not-inside: let $S = $E
+          - pattern-not-inside: |
+              func $F(...) {
+                ...
+                var $S = $E
+                ...
+              }
+          - pattern-not-inside: |
+              func $F(...) -> $T {
+                ...
+                var $S = $E
+                ...
+              }
+          - pattern-not-inside: |
+              func $F(...) {
+                ...
+                var $S: $U = $E
+                ...
+              }
+          - pattern-not-inside: |
+              func $F(...) -> $T {
+                ...
+                var $S: $U = $E
+                ...
+              }
+          - metavariable-regex:
+              metavariable: $S
+              regex: (?i)^(self\.)?_?\w*(video|clip|movie|footage|messages|replies|responses|answers|results|outputs|suggestions|transcript|images|photos|pictures|clips|videos)\w*$
+          - focus-metavariable: $X
+      - pattern: 'AVFoundation.AVPlayer(url: $X)'
+      - pattern: 'AVFoundation.AVPlayerItem(url: $X)'
+      - pattern: 'AVFoundation.AVPlayer(playerItem: $X)'
+      - patterns:
+          - pattern-either:
+              - pattern-regex: '(?s)\A(?=.*\bimport\s+Vapor\b).*'
+              - pattern-regex: '(?s)\A(?=.*\bimport\s+Hummingbird\b).*'
+          - pattern-either:
+              - patterns:
+                  - pattern-either:
+                      - pattern: |
+                          $APP.$M(...) { $REQ in
+                            ...
+                            return $X
+                          }
+                      - pattern: |
+                          $APP.$M(...) { $REQ, $CTX in
+                            ...
+                            return $X
+                          }
+                  - metavariable-regex:
+                      metavariable: $M
+                      regex: ^(get|post|put|patch|delete|on)$
+              - pattern: |
+                  func $F(..., $REQ: Request, ...) -> $T {
+                    ...
+                    return $X
+                  }
+              - pattern: |
+                  func $F(..., $REQ: HBRequest, ...) -> $T {
+                    ...
+                    return $X
+                  }
+          - focus-metavariable: $X
+      - patterns:
+          - pattern-either:
+              - pattern-regex: '(?s)\A(?=.*\bimport\s+Vapor\b).*'
+              - pattern-regex: '(?s)\A(?=.*\bimport\s+Hummingbird\b).*'
+          - pattern-either:
+              - pattern: 'Response(..., body: $X, ...)'
+              - pattern: 'HBResponse(..., body: $X, ...)'
+              - pattern: $REQ.eventLoop.makeSucceededFuture($X)
+      - patterns:
+          - pattern-either:
+              - pattern: $WS.send($X)
+              - pattern: $WS.send($X, ...)
+          - metavariable-regex:
+              metavariable: $WS
+              regex: (?i)^(self\.)?_?\w*(ws|websocket|socket)$
+      - pattern: 'APIGatewayV2Response(..., body: $X, ...)'
+      - pattern: 'APIGatewayResponse(..., body: $X, ...)'
+    metadata:
+      activity: generates_video
+      mentioned: performs
+      definition: https://lexlint.io/activities/generates-video
+      provenance: ungovr-original
+      license: MIT

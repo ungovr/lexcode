@@ -1,0 +1,236 @@
+rules:
+  - id: lexcode.generate.swift-genai-to-response
+    languages: [swift]
+    severity: INFO
+    message: Shows a Gemini response, whose kind the code does not fix, on screen, or sends it back in an HTTP response or a socket, which is generating content with AI that reaches users (generates_content).
+    # Sources: Google's Generative AI Swift SDK and Firebase AI Logic (FirebaseAI, FirebaseAILogic,
+    # FirebaseVertexAI): generateContent, generateContentStream and a chat's sendMessage. Gemini can answer
+    # with text or pictures, so the call is generates_content. `FirebaseAI.firebaseAI` and `VertexAI.vertexAI`
+    # carry the product's own name and also admit a file that reaches Firebase through an umbrella import.
+    # Sinks: a screen (SwiftUI `Text`, a UIKit or AppKit text property, a view-model property whose
+    # name says it holds output), and a Vapor or Hummingbird response or socket, or an AWS Lambda API Gateway
+    # response.
+    # Swift shapes (Opengrep 1.33.1, probed for #13199): the engine does not carry taint through an
+    # optional binding (`guard let x = ...`, `if let x = ...`), so a name bound from a model call, or from a
+    # value that holds one, is a source of its own; a `for try await` loop variable, a `switch` or `if case`
+    # `.success(let x)` binding and the first parameter of a vendor's completion closure are carried. An
+    # `if let x = try ...` condition does not parse at all and is a known gap. A local `var` declared in the
+    # same function is not a screen, so a state-name sink skips it.
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+          - patterns:
+              - pattern-either:
+                  - pattern-regex: '(?s)\A(?=.*\bimport\s+GoogleGenerativeAI\b).*'
+                  - pattern-regex: '(?s)\A(?=.*\bimport\s+FirebaseAI\b).*'
+                  - pattern-regex: '(?s)\A(?=.*\bimport\s+FirebaseAILogic\b).*'
+                  - pattern-regex: '(?s)\A(?=.*\bimport\s+FirebaseVertexAI\b).*'
+                  - pattern-regex: '(?s)\A(?=.*\bFirebaseAI\.firebaseAI\b).*'
+                  - pattern-regex: '(?s)\A(?=.*\bVertexAI\.vertexAI\b).*'
+              - pattern-either: &calls_vendors
+                  - pattern: '$M.generateContent(...)'
+                  - pattern: '$M.generateContentStream(...)'
+                  - pattern: '$H.sendMessage(...)'
+                  - pattern: '$H.sendMessageStream(...)'
+                  - pattern: '$M.generateContent(...)'
+                  - pattern: '$M.generateContentStream(...)'
+                  - pattern: '$H.sendMessage(...)'
+                  - pattern: '$H.sendMessageStream(...)'
+      - pattern-either:
+          - patterns:
+              - pattern-either:
+                  - pattern-regex: '(?s)\A(?=.*\bimport\s+GoogleGenerativeAI\b).*'
+                  - pattern-regex: '(?s)\A(?=.*\bimport\s+FirebaseAI\b).*'
+                  - pattern-regex: '(?s)\A(?=.*\bimport\s+FirebaseAILogic\b).*'
+                  - pattern-regex: '(?s)\A(?=.*\bimport\s+FirebaseVertexAI\b).*'
+                  - pattern-regex: '(?s)\A(?=.*\bFirebaseAI\.firebaseAI\b).*'
+                  - pattern-regex: '(?s)\A(?=.*\bVertexAI\.vertexAI\b).*'
+              - patterns:
+                  - pattern-either:
+                      - pattern-inside: |
+                          guard let $X = $E0 else { ... }
+                          ...
+                      - pattern-inside: |
+                          guard let $X = $E0, ... else { ... }
+                          ...
+                  - metavariable-pattern:
+                      metavariable: $E0
+                      pattern-either: *calls_vendors
+                  - pattern: $X
+      - pattern-either:
+          - patterns:
+              - pattern-either:
+                  - pattern-regex: '(?s)\A(?=.*\bimport\s+GoogleGenerativeAI\b).*'
+                  - pattern-regex: '(?s)\A(?=.*\bimport\s+FirebaseAI\b).*'
+                  - pattern-regex: '(?s)\A(?=.*\bimport\s+FirebaseAILogic\b).*'
+                  - pattern-regex: '(?s)\A(?=.*\bimport\s+FirebaseVertexAI\b).*'
+                  - pattern-regex: '(?s)\A(?=.*\bFirebaseAI\.firebaseAI\b).*'
+                  - pattern-regex: '(?s)\A(?=.*\bVertexAI\.vertexAI\b).*'
+              - patterns:
+                  - pattern-either:
+                      - pattern-inside: |
+                          let $V = $E0
+                          ...
+                      - pattern-inside: |
+                          var $V = $E0
+                          ...
+                  - metavariable-pattern:
+                      metavariable: $E0
+                      pattern-either: *calls_vendors
+                  - pattern-either:
+                      - pattern-inside: |
+                          guard let $X = $E1 else { ... }
+                          ...
+                      - pattern-inside: |
+                          guard let $X = $E1, ... else { ... }
+                          ...
+                      - pattern-inside: |
+                          if let $X = $E1 {
+                            ...
+                          }
+                      - pattern-inside: |
+                          if let $X = $E1, ... {
+                            ...
+                          }
+                  - metavariable-pattern:
+                      metavariable: $E1
+                      pattern: $V
+                  - pattern: $X
+    pattern-propagators:
+      - patterns:
+          - pattern-inside: |
+              for try await $X in $S {
+                ...
+              }
+          - pattern: $X
+        from: $S
+        to: $X
+      - patterns:
+          - pattern-inside: |
+              for await $X in $S {
+                ...
+              }
+          - pattern: $X
+        from: $S
+        to: $X
+      - patterns:
+          - pattern-inside: |
+              switch $S {
+              case .success(let $X):
+                ...
+              }
+          - pattern: $X
+        from: $S
+        to: $X
+      - patterns:
+          - pattern-inside: |
+              if case .success(let $X) = $S {
+                ...
+              }
+          - pattern: $X
+        from: $S
+        to: $X
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: $S = $X
+              - pattern: $S += $X
+              - pattern: $S.append($X)
+              - pattern: '$S.append(contentsOf: $X)'
+          - pattern-not-inside: let $S = $E
+          - pattern-not-inside: |
+              func $F(...) {
+                ...
+                var $S = $E
+                ...
+              }
+          - pattern-not-inside: |
+              func $F(...) -> $T {
+                ...
+                var $S = $E
+                ...
+              }
+          - pattern-not-inside: |
+              func $F(...) {
+                ...
+                var $S: $U = $E
+                ...
+              }
+          - pattern-not-inside: |
+              func $F(...) -> $T {
+                ...
+                var $S: $U = $E
+                ...
+              }
+          - metavariable-regex:
+              metavariable: $S
+              regex: (?i)^(self\.)?_?\w*(state|message|reply|response|answer|result|output|text|summary|story|caption|content|completion|suggestion|draft|translation|image|photo|picture|artwork|avatar|illustration|drawing|sticker|video|clip|movie|footage|audio|speech|sound|voice|narration|messages|replies|responses|answers|results|outputs|suggestions|transcript|images|photos|pictures|clips|videos)\w*$
+          - focus-metavariable: $X
+      - pattern: $V.text = $X
+      - pattern: $V.attributedText = $X
+      - pattern: $V.stringValue = $X
+      - pattern: Text($X)
+      - pattern: 'Text(verbatim: $X)'
+      - pattern: '$W.loadHTMLString($X, baseURL: $B)'
+      - pattern: $V.image = $X
+      - pattern: '$V.setImage($X, for: $ST)'
+      - pattern: 'Image(uiImage: $X)'
+      - pattern: 'Image(nsImage: $X)'
+      - pattern: 'Image(decorative: $X, ...)'
+      - pattern: 'Image($X, scale: $SC, ...)'
+      - pattern: 'AsyncImage(url: $X, ...)'
+      - pattern: 'UIImageView(image: $X)'
+      - patterns:
+          - pattern-either:
+              - pattern-regex: '(?s)\A(?=.*\bimport\s+Vapor\b).*'
+              - pattern-regex: '(?s)\A(?=.*\bimport\s+Hummingbird\b).*'
+          - pattern-either:
+              - patterns:
+                  - pattern-either:
+                      - pattern: |
+                          $APP.$M(...) { $REQ in
+                            ...
+                            return $X
+                          }
+                      - pattern: |
+                          $APP.$M(...) { $REQ, $CTX in
+                            ...
+                            return $X
+                          }
+                  - metavariable-regex:
+                      metavariable: $M
+                      regex: ^(get|post|put|patch|delete|on)$
+              - pattern: |
+                  func $F(..., $REQ: Request, ...) -> $T {
+                    ...
+                    return $X
+                  }
+              - pattern: |
+                  func $F(..., $REQ: HBRequest, ...) -> $T {
+                    ...
+                    return $X
+                  }
+          - focus-metavariable: $X
+      - patterns:
+          - pattern-either:
+              - pattern-regex: '(?s)\A(?=.*\bimport\s+Vapor\b).*'
+              - pattern-regex: '(?s)\A(?=.*\bimport\s+Hummingbird\b).*'
+          - pattern-either:
+              - pattern: 'Response(..., body: $X, ...)'
+              - pattern: 'HBResponse(..., body: $X, ...)'
+              - pattern: $REQ.eventLoop.makeSucceededFuture($X)
+      - patterns:
+          - pattern-either:
+              - pattern: $WS.send($X)
+              - pattern: $WS.send($X, ...)
+          - metavariable-regex:
+              metavariable: $WS
+              regex: (?i)^(self\.)?_?\w*(ws|websocket|socket)$
+      - pattern: 'APIGatewayV2Response(..., body: $X, ...)'
+      - pattern: 'APIGatewayResponse(..., body: $X, ...)'
+    metadata:
+      activity: generates_content
+      mentioned: performs
+      definition: https://lexlint.io/activities/generates-content
+      provenance: ungovr-original
+      license: MIT
