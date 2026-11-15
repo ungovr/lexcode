@@ -154,7 +154,7 @@ Swift, Rust, the Apple configuration files and Cargo carry a prefix as well:
 | Privacy manifest | `xcprivacy-<what>` | `xcprivacy-<what>.yml`, `.test.xcprivacy`, `.neg.test.xcprivacy`; `languages: [generic]`, and `paths.include` lists `*.xcprivacy` and `xcprivacy-<what>.*` |
 | Entitlements | `entitlements-<what>` | `entitlements-<what>.yml`, `.test.entitlements`, `.neg.test.entitlements`; `languages: [generic]`, and `paths.include` lists `*.entitlements` and `entitlements-<what>.*` |
 | Xcode project | `xcode-<what>` | `xcode-<what>.yml`, `.test.pbxproj`, `.neg.test.pbxproj`; `languages: [generic]`, and `paths.include` lists `project.pbxproj` and `xcode-<what>.*` |
-| Cargo | `cargo-<what>` | `cargo-<what>.yml`, `.test.toml`, `.neg.test.toml`; `languages: [generic]`, and `paths.include` lists `Cargo.toml` and `cargo-<what>.*` |
+| Cargo | `cargo-<what>` | `cargo-<what>.yml`, `.test.toml`, `.neg.test.toml`; `languages: [generic]`, and `paths.include` lists `Cargo.toml` (and `dist-workspace.toml` for a release packaging rule) and `cargo-<what>.*` |
 
 A Swift rule is `lexcode.<activity-short>.swift-<what>` and a Rust rule is
 `lexcode.<activity-short>.rs-<what>`; the others take their own prefix in the
@@ -524,12 +524,10 @@ Measured on Opengrep 1.33.1:
   nested function that captures a tainted local and from file-scope code into a
   function, and not across a call. More than about seven source alternatives in
   one taint rule lose the engine's pre-filter (55 to 84 s on one file), so split
-  the rule per kind of source. The eight Swift taint rules for the `generates_*`
-  activities share their sources, propagators and sinks, and
-  `scripts/gen-swift-generation-rules.py` writes them: change those blocks there
-  and run `python3 scripts/gen-swift-generation-rules.py`, never one rule file by
-  hand. Its scope is one `func $SCOPE(...) { $...BODY }` pattern: a
-  `pattern-either` of scopes read the same file in 60 s, against 6.7 s.
+  the rule per kind of source. The generator named under "Naming rules and
+  fixtures" writes the `generates_*` taint rules, and its scope is one
+  `func $SCOPE(...) { $...BODY }` pattern: a `pattern-either` of scopes read the
+  same file in 60 s, against 6.7 s.
 - A very large `pattern-either` of calls can cost 0.2 s per KB on some files (one
   analytics rule took 24 s on a 109 KB file, because its pre-filter held a 14 MB
   formula); split such a rule into one rule per vendor family.

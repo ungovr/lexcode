@@ -1273,7 +1273,9 @@ notice about other languages: every `.mm` file, and each `.m` file in a scope th
 holds a `project.pbxproj`, a `Podfile` or a `Package.swift` (a `.m` file is also
 MATLAB's). `.h` stays with C and C++. A Swift string interpolation
 (`"https://\(host)/path"`) is not read as a literal host, so an address the code
-builds from a variable is never taken for one of your own hosts.
+builds from a variable is never taken for one of your own hosts. Leaf templates
+(`.leaf`, Vapor's) are not extracted: the one Swift server app measured holds 3,
+all Markdown message bodies with no `<script>` block.
 
 ### Rust files
 
@@ -1293,9 +1295,7 @@ Tera templates (`.tera`, so `.html.tera`) join the `<script>` block extraction,
 with Twig's tags blanked (`{{ }}`, `{% %}` and `{# #}`, with `-` whitespace
 control). Askama templates are `.html` and were already read. Handlebars
 (`.hbs`) is not read: it is also Ember's template extension, and adding it would
-change what lexcode finds in JavaScript apps. Leaf templates (`.leaf`, Vapor's)
-are not extracted: the one Swift server app measured holds 3, all Markdown
-message bodies with no `<script>` block.
+change what lexcode finds in JavaScript apps.
 
 ### Apple configuration files
 
@@ -1379,7 +1379,7 @@ Any other exemption must be argued and ruled before it is added.
   evidence (swift-crypto, which bundles BoringSSL, rustls with ring, RustCrypto
   ciphers, age, libsodium bindings). A cipher called through the `openssl` crate,
   and password hashing (bcrypt, argon2, scrypt, Vapor's Bcrypt), are signals for
-  `ships_encryption`, though the same hashing is evidence of
+  `ships_encryption`. In Rust the same hashing is evidence of
   `processes_personal_data`, since a password is personal data. A hash or a MAC
   is not encryption.
 - A Swift package product, `.library(...)` in `Package.swift`, is a signal for
@@ -1388,8 +1388,8 @@ Any other exemption must be argued and ruled before it is added.
   `keywords` or `categories`, sets `publish = true` (or a registry list naming
   crates-io), or has a `[package.metadata.docs.rs]` table, and so is a release
   packaging section (`cargo-dist`'s `dist-workspace.toml` among them); a crate
-  with a description and a licence only is a signal, and a crate with
-  `publish = false` or a proprietary licence is neither.
+  with a description and a license only is a signal, and a crate with
+  `publish = false` or a proprietary license is neither.
 - `ships_mobile_app` is an iPhone or iPad app, as the definition says: a tvOS,
   visionOS or watchOS target is left out, and the iPad app on a Mac (Mac
   Catalyst) stays.
@@ -1416,8 +1416,10 @@ The engine sets most of these limits, and the rules' comments point here.
   `@objc(selector:)` accessors or `nonisolated(unsafe)`. A file with one is read
   in part or not at all, for every rule, and the scan counts it in `the engine
   could not read N files`. Of the three Swift apps measured on 2026-11-15, 32
-  files were affected: 2 of a SwiftUI reference app, 13 of a Vapor Discord bot
-  (among them its interaction and message handlers) and 17 of Wikipedia for iOS.
+  files were lost: 2 of a SwiftUI reference app, 13 of a Vapor Discord bot (among
+  them its interaction and message handlers) and 17 of Wikipedia for iOS. Two of
+  the 32 are raw-string losses from the scanner fault below, and 30 are grammar
+  gaps.
 - **The engine's Swift scanner.** Its state is allocated with `calloc(0, ...)`,
   so one field, which counts the `#` of a raw string, starts as whatever the
   memory held. On some runs it starts above zero, and then a file that declares a
@@ -1456,7 +1458,8 @@ The engine sets most of these limits, and the rules' comments point here.
   for iOS, named in the scan's notice), Core Data entities that Xcode generates
   from a `.xcdatamodeld`, a Sparkle updater created in a nib or storyboard, a
   SwiftUI `App` with no UIKit delegate (the Xcode project rule finds the app
-  instead), and a Mac app with no Sparkle (no Swift evidence of distribution).
+  instead), a Mac app with no Sparkle (no Swift evidence of distribution), and
+  Leaf templates (above).
 - **Generation and chat.** Discord posts through DiscordBM, Anthropic's Swift
   clients, Slack bot messages, Firebase Cloud Messaging from a Swift server,
   Hummingbird jobs, `BGTaskScheduler` tasks and a Lambda event handler as a job
@@ -1464,15 +1467,17 @@ The engine sets most of these limits, and the rules' comments point here.
   wrapper service, and on-device speech models (WhisperKit, whisper.cpp
   bindings) are not read. A system prompt placed in front of a request's
   messages (`[sys] + body.messages`) is missed, and a screen that keeps its
-  history only in a Foundation Models `session.transcript` has no rule. Polly
+  history only in a Foundation Models `session.transcript` has no rule. The
+  scheduled-job send rule skips a send inside a `do { } catch { }` clause, an
+  alert to the operator, but not one inside a typed clause (`catch let error`,
+  `catch is CancellationError`). Polly
   audio written to a file and played by URL breaks the flow at the write. With
   about 1,800 appends in one function the engine drops the history rule's match.
 - **Identity, signatures and encryption.** No Swift rule reads a selfie with an
   ID document, a verifiable credential or a PDF signature, and identity vendors
   beyond the six SDKs the rules name reach only the URL rule. End-to-end
   encryption built on CryptoKit alone is unread, as the JDK's is, and no rule
-  reads a bundled TLS stack. A send in a scheduled job's `catch` block (an alert
-  to the operator) is not excluded.
+  reads a bundled TLS stack.
 - **Data and tracking.** No rule reads a Vapor server's client address or a
   device fingerprint, and an install ID the app mints for itself (a random UUID
   kept in its own store and sent with every request) is not read, so
@@ -1495,7 +1500,8 @@ The engine sets most of these limits, and the rules' comments point here.
   that also uses the crate reads as the crate's. A parameter type matches on its
   last path segment, so a rule that keys on a handler's parameter type also
   checks that the file uses the crate. A gated method on a client typed in another
-  file, where this file never names the crate, is missed.
+  file, where this file never names the crate, is missed, and so is warp's `path()`
+  called through a grouped `use` or an alias of the crate.
 - **Macro bodies.** The engine does not see a call inside the body of `format!`,
   `serde_json::json!`, `tokio::select!`, `html!`, `view!`, `rsx!` or a Diesel
   `table!`, so a handler that returns `Json(json!({ "reply": reply }))` or
@@ -1510,9 +1516,8 @@ The engine sets most of these limits, and the rules' comments point here.
 - **Test modules.** A `#[cfg(test)] mod tests;` whose module is in another file
   is not followed (4 in Lemmy), a file-level `#![cfg(test)]` is not honored,
   `cfg(all(test, ...))` and `cfg(any(test, ...))` are kept as code, a module
-  whose name has a non-ASCII character is not recognized, code on the same line
-  as the attribute is dropped with the module, and a brace in a string inside an
-  inline staff module can end the module's text range early.
+  whose name has a non-ASCII character is not recognized and code on the same line
+  as the attribute is dropped with the module.
 - **Engine parse faults.** The grammar does not read async closures (`async |x| {
   ... }`, `async move || { ... }`, Rust 2024), an associated-type bound inside a
   generic parameter list (`CursorKey<C, SqlType: Send>`) or an attribute on a
@@ -1530,11 +1535,16 @@ The engine sets most of these limits, and the rules' comments point here.
   with no response wrapper, a model id or address held in a `const`, and an
   `mpsc` channel between a generating task and a stream are not joined. A send
   from a `match` arm on `Err` inside a timer matches, because the rule excludes
-  only `if let Err`.
+  only `if let Err`. The client-address rule counts a write only when its
+  statement is an INSERT or UPDATE string literal, so a `const` SQL string or a
+  `query(&format!("INSERT ..."))` is missed, and a predicate other than `is_ok`,
+  `is_err`, `is_some` or `is_none` at the end of a write chain (`.is_empty()`,
+  `.is_some_and(...)`) hides the match.
 - **Staff routes.** A route registered in a router built in another function
   and nested by name (`.nest("/admin", admin_routes())`), a route behind an
   authentication layer and a handler in a file under `admin/` are not read as
-  staff.
+  staff, and an inline staff-named `mod` is excluded by a text regex, so a brace
+  in a string inside it can end its range early.
 - **Not read.** A serenity (Discord) or teloxide (Telegram) bot is not read as
   a chatbot, and no Rust rule reads Woodpecker CI (`.woodpecker.yml`), `tauri.conf.json`, `cargo-apk` metadata, a
   `publish.workspace = true` that the workspace turns on, a Dioxus `launch` with
@@ -1544,7 +1554,7 @@ The engine sets most of these limits, and the rules' comments point here.
   address only, so an address assembled from parts is missed) are not read. A
   crate's item paths come from its documentation, since nothing is fetched, so a
   crate that moves an item is missed, never misread.
-- **Not extracted.** Handlebars and Leaf templates (above).
+- **Not extracted.** Handlebars templates (above).
 
 ## A known gap: a file over 1 MB
 
