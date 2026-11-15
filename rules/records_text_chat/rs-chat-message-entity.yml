@@ -1,0 +1,25 @@
+# A struct mapped to a table named for chat messages, conversation turns or a transcript keeps the
+# chat's text, as in the C#, Java and PHP entity rules: Diesel's `#[diesel(table_name = ...)]` on an
+# insertable or queryable struct, and SeaORM's `#[sea_orm(table_name = "...")]` on an entity model.
+# Diesel's own `table!` schema is a macro whose body the engine does not read, so the mapping is read
+# from the struct's attribute. A chat room or channel table, a contact or ticket table and a
+# private-message inbox do not match.
+#
+# The regular expression is the matcher, not a pre-filter: on Opengrep 1.33.1 an attribute pattern
+# (`#[diesel(table_name = $T)]` above `struct $S { ... }`) missed a struct that carries more than one
+# attribute, a path value (`crate::schema::chat_messages`) and SeaORM's quoted name, which are the
+# usual shapes. The match is the attribute line.
+rules:
+  - id: lexcode.chat.rs-chat-message-entity
+    languages: [rust]
+    severity: INFO
+    message: Maps chat messages or conversation turns to a database table, which is keeping a text chat (records_text_chat).
+    pattern-either:
+      - pattern-regex: '#\[\s*diesel\s*\([^)\]]*\btable_name\s*=\s*(?:\w+::)*(?:\w+_)?(?:chat_?(?:messages?|msgs?|history|logs?|turns?|entries|transcripts?)|conversation_?(?:messages?|turns?|entries|transcripts?)|dialog(?:ue)?_?(?:messages?|turns?))\b(?!::)'
+      - pattern-regex: '#\[\s*sea_orm\s*\([^)\]]*\btable_name\s*=\s*"(?:\w+\.)?(?:\w+_)?(?:chat_?(?:messages?|msgs?|history|logs?|turns?|entries|transcripts?)|conversation_?(?:messages?|turns?|entries|transcripts?)|dialog(?:ue)?_?(?:messages?|turns?))"'
+    metadata:
+      activity: records_text_chat
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-text-chat
+      provenance: ungovr-original
+      license: MIT
