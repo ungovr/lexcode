@@ -33,6 +33,12 @@ rules:
           - pattern: async_openai::types::CreateImageEditRequestArgs::default()
           - pattern: async_openai::types::images::CreateImageRequestArgs::default()
           - pattern: async_openai::types::images::CreateImageEditRequestArgs::default()
+          # The short form, for async-openai's documented `use async_openai::{types::{...}, Client}`.
+          - patterns:
+              - pattern-regex: '(?s)\A(?=.*\buse\s+async_openai\b).*'
+              - pattern-either:
+                  - pattern: CreateImageRequestArgs::default()
+                  - pattern: CreateImageEditRequestArgs::default()
       - requires: OPENAI_IMAGE_REQUEST
         patterns:
           - pattern-either:
@@ -141,7 +147,10 @@ rules:
                 - pattern: axum::http::Response::builder()
                 - pattern: poem::Response::builder()
           - focus-metavariable: $X
-      - pattern: http::Response::new(...)
+      # `http::Response::new(...)` is left out: as a pattern of its own, a path that starts with
+      # `http` makes the engine fail on a file holding a `// https://` comment between attributes
+      # (Opengrep 1.33.1, "Common.Impossible"; lemmy's diesel_utils/src/pagination.rs), and
+      # apps build that response through a builder or hyper's or axum's own type.
       - pattern: hyper::Response::new(...)
       - pattern: hyper::Body::from(...)
       - pattern: http_body_util::Full::new(...)
@@ -178,6 +187,54 @@ rules:
       - pattern: tungstenite::Message::Binary(...)
       - pattern: tokio_tungstenite::tungstenite::Message::Text(...)
       - pattern: tokio_tungstenite::tungstenite::Message::Binary(...)
+      # The same response types in their short form, for a file that imports them through a path
+      # inside a `use` group (`use axum::{response::Html, Json}`), which the engine does not resolve
+      # (rules/README.md); each of these crates' own documentation imports that way. A short form
+      # counts only in a file whose `use` lines name one of the web crates: a greedy whole-file check,
+      # one literal per check (group-common amendment, 2026-11-15). One guard serves every short form:
+      # per-crate guards (RawHtml for Rocket only, and so on) cost about twice as much over lemmy
+      # (9.1 s against 4.4 s for this rule alone), and in a file that imports a web framework these
+      # names are its response types.
+      - patterns:
+          - pattern-either:
+              - pattern-regex: '(?s)\A(?=.*\buse\s+axum\b).*'
+              - pattern-regex: '(?s)\A(?=.*\buse\s+rocket\b).*'
+              - pattern-regex: '(?s)\A(?=.*\buse\s+poem\b).*'
+              - pattern-regex: '(?s)\A(?=.*\buse\s+poem_openapi\b).*'
+              - pattern-regex: '(?s)\A(?=.*\buse\s+hyper\b).*'
+              - pattern-regex: '(?s)\A(?=.*\buse\s+tungstenite\b).*'
+              - pattern-regex: '(?s)\A(?=.*\buse\s+tokio_tungstenite\b).*'
+          - pattern-either:
+              - pattern: Json(...)
+              - pattern: Html(...)
+              - pattern: PlainText(...)
+              - pattern: Binary(...)
+              - pattern: RawHtml(...)
+              - pattern: RawText(...)
+              - pattern: RawJson(...)
+              - pattern: Event::data(...)
+              - pattern: Event::json(...)
+              - pattern: Event::message(...)
+              - pattern: Event::default().data(...)
+              - pattern: Event::default().json_data(...)
+              - pattern: Sse::new(...)
+              - pattern: Body::from(...)
+              - pattern: Message::Text(...)
+              - pattern: Message::Binary(...)
+      - patterns:
+          - pattern-either:
+              - pattern-regex: '(?s)\A(?=.*\buse\s+axum\b).*'
+              - pattern-regex: '(?s)\A(?=.*\buse\s+rocket\b).*'
+              - pattern-regex: '(?s)\A(?=.*\buse\s+poem\b).*'
+              - pattern-regex: '(?s)\A(?=.*\buse\s+poem_openapi\b).*'
+              - pattern-regex: '(?s)\A(?=.*\buse\s+hyper\b).*'
+              - pattern-regex: '(?s)\A(?=.*\buse\s+tungstenite\b).*'
+              - pattern-regex: '(?s)\A(?=.*\buse\s+tokio_tungstenite\b).*'
+          - pattern: $B.body($X)
+          - metavariable-pattern:
+              metavariable: $B
+              pattern: Response::builder()
+          - focus-metavariable: $X
       # Tauri: a command's value is handed to the app's own window, and an event's payload goes
       # to the front end listening for it (Tauri's Emitter; socketioxide's emit reaches a
       # connected client the same way).

@@ -1,7 +1,7 @@
 // lexcode-expect: 0
 // The app's own Json, Body and CreateImageRequestArgs, in a file without axum's or the request
 // type's use lines. A generated picture put in the app's own Json goes to the team's audit log.
-use async_openai::{config::OpenAIConfig, Client};
+// async-openai is named by its full path, with no use line.
 
 pub struct Json<T>(pub T);
 pub struct Body(pub Vec<u8>);
@@ -17,7 +17,7 @@ impl AuditLog {
     pub fn record<T>(&self, _entry: T) {}
 }
 
-pub async fn audit_preview(client: &Client<OpenAIConfig>, request: async_openai::types::CreateImageRequest, log: &AuditLog) {
+pub async fn audit_preview(client: &async_openai::Client<async_openai::config::OpenAIConfig>, request: async_openai::types::CreateImageRequest, log: &AuditLog) {
     let response = client.images().generate(request).await.unwrap();
     log.record(Json(response.created));
     log.record(Body(response.data.len().to_be_bytes().to_vec()));

@@ -1,7 +1,7 @@
 // lexcode-expect: 0
 // The app's own Json and CreateVideoRequestArgs, in a file without axum's or the request type's
 // use lines.
-use async_openai::{config::OpenAIConfig, Client};
+// async-openai is named by its full path, with no use line.
 
 pub struct Json<T>(pub T);
 
@@ -17,7 +17,7 @@ impl AuditLog {
 }
 
 // A generated clip's bytes, counted in the team's audit log through the app's own Json.
-pub async fn audit_clip(client: &Client<OpenAIConfig>, id: String, log: &AuditLog) {
+pub async fn audit_clip(client: &async_openai::Client<async_openai::config::OpenAIConfig>, id: String, log: &AuditLog) {
     let clip = client.videos().download_content(&id).await.unwrap();
     log.record(Json(clip.len()));
 }
