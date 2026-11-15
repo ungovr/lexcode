@@ -1,5 +1,7 @@
 // lexcode-expect: 0
 import Foundation
+import AsyncHTTPClient
+import Alamofire
 
 /// Calls to the app's own API, one documented API call, files on the device and webhook
 /// deliveries. None of these downloads a list of other sites' pages.
@@ -46,6 +48,22 @@ final class Sync {
             request.httpMethod = "POST"
             request.httpBody = payload
             _ = try await URLSession.shared.data(for: request)
+        }
+    }
+
+    // The same deliveries through AsyncHTTPClient and Alamofire.
+    func deliverServer(client: HTTPClient, endpoints: [String], payload: ByteBuffer) async throws {
+        for endpoint in endpoints {
+            var request = HTTPClientRequest(url: endpoint)
+            request.method = .POST
+            request.body = .bytes(payload)
+            _ = try await client.execute(request, timeout: .seconds(10))
+        }
+    }
+
+    func deliverApp(endpoints: [URL], event: [String: String]) async throws {
+        for endpoint in endpoints {
+            _ = try await AF.request(endpoint, method: .post, parameters: event).serializingData().value
         }
     }
 }

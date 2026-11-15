@@ -31,6 +31,21 @@ final class LocalContent {
         return try JSONDecoder().decode([Country].self, from: data)
     }
 
+    // One documented JSON endpoint whose model holds an HTML string, turned into plain text in the
+    // same function: a call to a partner's documented API, not a page scrape.
+    func releaseNotes() async throws -> String {
+        let url = URL(string: "https://api.github.com/repos/apple/swift/releases/latest")!
+        let (data, _) = try await URLSession.shared.data(from: url)
+        let release = try JSONDecoder().decode(Release.self, from: data)
+        return try SwiftSoup.parse(release.html).text()
+    }
+
+    func releaseNotes(from url: URL) async throws -> String {
+        let (data, _) = try await URLSession.shared.data(from: url)
+        let release = try JSONDecoder().decode(Release.self, from: data)
+        return try SwiftSoup.parse(release.html).text()
+    }
+
     // The app's own development server on the loopback host.
     func preview() async throws -> String {
         let (data, _) = try await URLSession.shared.data(from: URL(string: "http://localhost:8080/preview")!)
@@ -40,4 +55,8 @@ final class LocalContent {
 
 struct Country: Decodable {
     let name: String
+}
+
+struct Release: Decodable {
+    let html: String
 }

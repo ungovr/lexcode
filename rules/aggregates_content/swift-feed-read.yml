@@ -9,6 +9,11 @@ rules:
     # from a file the app ships. A loopback host, a file address or a path relative to the app is not
     # another publisher. A feed on the app's own host is told apart by the host check
     # (`own_hosts`); one at an address held in a variable is a signal.
+    #
+    # Unlike swift-html-of-fetched-page, a body that also decodes JSON is kept: a feed parser's
+    # input is a feed by construction (FeedKit, SyndiKit, an XMLParser in a file that names RSS
+    # elements), not one HTML field of a JSON model. A podcast app that reads a directory's JSON and
+    # then the show's feed is reading the feed.
     patterns:
       - pattern-either:
           # A feed library given the feed's address downloads it itself: FeedKit 9's FeedParser,
@@ -24,15 +29,17 @@ rules:
                   - pattern: 'FeedKit.AtomFeed(url: $URL)'
                   - pattern: 'FeedKit.JSONFeed(urlString: $URL)'
                   - pattern: 'FeedKit.JSONFeed(url: $URL)'
-              - metavariable-regex:
+              - metavariable-regex: &device_name
+                  # Not a value named for something on the device: a file, a path, the app bundle, a
+                  # local copy, the documents, caches or temporary directory, a resource. Read from a
+                  # word's start, or from a capital inside a camelCase name, so `profileURL` is told
+                  # apart from `fileURL`.
                   metavariable: $URL
                   regex: '(?s)^(?!.*(?:(?<![A-Za-z])[fF]ile|File|(?<![A-Za-z])[pP]ath|Path|[bB]undle|(?<![A-Za-z])[lL]ocal|Local|[dD]ocument|[dD]irectory|(?<![A-Za-z])[cC]ache|Cache|[rR]esource|(?<![A-Za-z])tmp|[tT]emp(?:orary)?(?![a-z]))).*$'
-              - metavariable-regex:
-                  metavariable: $URL
-                  regex: '(?s)^(?!(?:UR[LI]\(string:\s*)?#*"(?:https?://(?:localhost|127\.|0\.0\.0\.0|\[::1\])|file:|/(?!/))).*$'
           # Foundation's XMLParser given an address downloads it. XMLParser comes through umbrella
           # imports, so it is written in full and by its short name, and the address must be named
-          # for a feed (rss, atom, feed, podcast) and not for a file: XMLParser reads any XML.
+          # for a feed (rss, atom, feed but not feedback, podcast) and not for a file: XMLParser reads
+          # any XML.
           - patterns:
               - pattern-either:
                   - pattern: 'Foundation.XMLParser(contentsOf: $URL)'
@@ -40,32 +47,23 @@ rules:
               - metavariable-regex:
                   metavariable: $URL
                   regex: '(?s)^(?=.*(?:[Rr]ss|RSS|[Aa]tom(?![a-z])|[Ff]eed(?![Bb]ack)|[Pp]odcast)).*$'
-              - metavariable-regex:
-                  metavariable: $URL
-                  regex: '(?s)^(?!.*(?:(?<![A-Za-z])[fF]ile|File|(?<![A-Za-z])[pP]ath|Path|[bB]undle|(?<![A-Za-z])[lL]ocal|Local|[dD]ocument|[dD]irectory|(?<![A-Za-z])[cC]ache|Cache|[rR]esource|(?<![A-Za-z])tmp|[tT]emp(?:orary)?(?![a-z]))).*$'
-              - metavariable-regex:
-                  metavariable: $URL
-                  regex: '(?s)^(?!(?:UR[LI]\(string:\s*)?#*"(?:https?://(?:localhost|127\.|0\.0\.0\.0|\[::1\])|file:|/(?!/))).*$'
-          # A feed parser over bytes, in a function whose body downloads them (the downloads and
-          # their branches as in swift-html-of-fetched-page). Taint does not pass through Swift's
-          # optional binding, so the function is read whole.
+              - metavariable-regex: *device_name
+          # A feed parser over bytes, in a function whose body downloads them. Taint does not pass
+          # through Swift's optional binding, so the function is read whole. The downloads are
+          # URLSession, the Foundation readers given an address not named for a file on the device,
+          # AsyncHTTPClient's `get(url:)` on a client named for one, and Vapor's client, by their
+          # methods and labels.
           - patterns:
-              - pattern-inside: |
-                  func $F(...) { $...BODY }
-              - pattern-either:
+              - pattern-either: &feed_parsers
+                  - pattern: 'FeedKit.FeedParser(data: $SRC)'
+                  - pattern: 'FeedKit.Feed(data: $SRC)'
+                  - pattern: 'FeedKit.RSSFeed(data: $SRC)'
+                  - pattern: 'FeedKit.AtomFeed(data: $SRC)'
+                  - pattern: 'FeedKit.JSONFeed(data: $SRC)'
+                  # SyndiKit's decoder, its one-argument `decode` read only in a file that imports
+                  # SyndiKit (JSONDecoder's `decode(_:from:)` takes two).
                   - patterns:
-                      - pattern-either:
-                          - pattern: 'FeedKit.FeedParser(data: $SRC)'
-                          - pattern: 'FeedKit.Feed(data: $SRC)'
-                          - pattern: 'FeedKit.RSSFeed(data: $SRC)'
-                          - pattern: 'FeedKit.AtomFeed(data: $SRC)'
-                          - pattern: 'FeedKit.JSONFeed(data: $SRC)'
-                  # SyndiKit's decoder, its one-argument `decode` read only in a file that imports SyndiKit
-                  # (JSONDecoder's `decode(_:from:)` takes two).
-                  - patterns:
-                      - pattern-inside: |
-                          import SyndiKit
-                          ...
+                      - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+\s+)*import\s+(?:\w+\s+)?SyndiKit\b).*'
                       - pattern: $DEC.decode($SRC)
                   # XMLParser over downloaded bytes, in a file that names an RSS element.
                   - patterns:
@@ -78,115 +76,79 @@ rules:
                           - pattern-regex: '(?s)\A(?=.*"enclosure").*'
                           - pattern-regex: '(?s)\A(?=.*"dc:creator").*'
                           - pattern-regex: '(?s)\A(?=.*"content:encoded").*'
-              - metavariable-pattern:
-                  metavariable: $...BODY
-                  patterns:
-                    - pattern-either:
-                        - pattern: '$S.data(from: $URL, ...)'
-                        - pattern: '$S.bytes(from: $URL, ...)'
-                        - pattern: '$S.data(for: $URL, ...)'
-                        - pattern: '$S.bytes(for: $URL, ...)'
-                        - pattern: '$S.dataTask(with: $URL, ...)'
-                        - patterns:
-                            - pattern: 'String(contentsOf: $URL, ...)'
-                            - metavariable-regex:
-                                metavariable: $URL
-                                regex: '(?s)^(?!.*(?:(?<![A-Za-z])[fF]ile|File|(?<![A-Za-z])[pP]ath|Path|[bB]undle|(?<![A-Za-z])[lL]ocal|Local|[dD]ocument|[dD]irectory|(?<![A-Za-z])[cC]ache|Cache|[rR]esource|(?<![A-Za-z])tmp|[tT]emp(?:orary)?(?![a-z]))).*$'
-                        - patterns:
-                            - pattern: 'Data(contentsOf: $URL, ...)'
-                            - metavariable-regex:
-                                metavariable: $URL
-                                regex: '(?s)^(?!.*(?:(?<![A-Za-z])[fF]ile|File|(?<![A-Za-z])[pP]ath|Path|[bB]undle|(?<![A-Za-z])[lL]ocal|Local|[dD]ocument|[dD]irectory|(?<![A-Za-z])[cC]ache|Cache|[rR]esource|(?<![A-Za-z])tmp|[tT]emp(?:orary)?(?![a-z]))).*$'
-                        - patterns:
-                            - pattern: '$C.get(url: $URL, ...)'
-                            - metavariable-regex:
-                                metavariable: $C
-                                regex: '^(?:self\.)?(?![\w.]*(?:(?<![a-z])[dD]b|DB|[dD]atabase|[sS]ql|SQL|[pP]ool|[rR]edis|[cC]ache|[qQ]ueue|[sS]tore|[sS]torage|[kK]eychain))[\w.]*(?:[hH]ttp|HTTP|[cC]lient)[\w.]*$'
-                        - pattern: '$R.client.get($URL, ...)'
-                    - metavariable-regex:
-                        metavariable: $URL
-                        regex: '(?s)^(?!(?:UR[LI]\(string:\s*)?#*"(?:https?://(?:localhost|127\.|0\.0\.0\.0|\[::1\])|file:|/(?!/))).*$'
+              # The function and its body, each check beside the term that binds it (#13009).
+              - patterns:
+                  - pattern-inside: |
+                      func $F(...) { $...BODY }
+                  - metavariable-pattern:
+                      metavariable: $...BODY
+                      patterns:
+                        - pattern-either: &downloads
+                            - pattern: '$S.data(from: $URL, ...)'
+                            - pattern: '$S.bytes(from: $URL, ...)'
+                            - pattern: '$S.data(for: $URL, ...)'
+                            - pattern: '$S.bytes(for: $URL, ...)'
+                            - pattern: '$S.dataTask(with: $URL, ...)'
+                            - patterns:
+                                - pattern-either:
+                                    - pattern: 'String(contentsOf: $URL, ...)'
+                                    - pattern: 'Data(contentsOf: $URL, ...)'
+                                    - pattern: 'Foundation.Data(contentsOf: $URL, ...)'
+                                - metavariable-regex: *device_name
+                            - patterns:
+                                - pattern: '$C.get(url: $URL, ...)'
+                                - metavariable-regex:
+                                    # A receiver named for an HTTP client, not a database, cache or store.
+                                    metavariable: $C
+                                    regex: '^(?:self\.)?(?![\w.]*(?:(?<![a-z])[dD]b|DB|[dD]atabase|[sS]ql|SQL|[pP]ool|[rR]edis|[cC]ache|[qQ]ueue|[sS]tore|[sS]torage|[kK]eychain))[\w.]*(?:[hH]ttp|HTTP|[cC]lient)[\w.]*$'
+                            - pattern: '$R.client.get($URL, ...)'
+          # AsyncHTTPClient's request and Alamofire's `AF`, each in its own branch under its import.
+          # Inside a sub-pattern the engine no longer sees the file's imports, so the body names them
+          # by their short names and the branch carries the import. Each vendor branch reads the
+          # whole download list plus its own call: on Opengrep 1.33.1 a body sub-pattern of one
+          # vendor call cost about 24 s on a 900 KB file and this shape about 7 s (Cost, report).
           - patterns:
-              - pattern-inside: |
-                  func $F(...) { $...BODY }
-              - pattern-inside: |
-                  import AsyncHTTPClient
-                  ...
-              - pattern-either:
-                  - patterns:
-                      - pattern-either:
-                          - pattern: 'FeedKit.FeedParser(data: $SRC)'
-                          - pattern: 'FeedKit.Feed(data: $SRC)'
-                          - pattern: 'FeedKit.RSSFeed(data: $SRC)'
-                          - pattern: 'FeedKit.AtomFeed(data: $SRC)'
-                          - pattern: 'FeedKit.JSONFeed(data: $SRC)'
-                  # SyndiKit's decoder, its one-argument `decode` read only in a file that imports SyndiKit
-                  # (JSONDecoder's `decode(_:from:)` takes two).
-                  - patterns:
-                      - pattern-inside: |
-                          import SyndiKit
-                          ...
-                      - pattern: $DEC.decode($SRC)
-                  # XMLParser over downloaded bytes, in a file that names an RSS element.
-                  - patterns:
-                      - pattern-either:
-                          - pattern: 'Foundation.XMLParser(data: $SRC)'
-                          - pattern: 'XMLParser(data: $SRC)'
-                      - pattern-either:
-                          - pattern-regex: '(?s)\A(?=.*"pubDate").*'
-                          - pattern-regex: '(?s)\A(?=.*"guid").*'
-                          - pattern-regex: '(?s)\A(?=.*"enclosure").*'
-                          - pattern-regex: '(?s)\A(?=.*"dc:creator").*'
-                          - pattern-regex: '(?s)\A(?=.*"content:encoded").*'
-              - metavariable-pattern:
-                  metavariable: $...BODY
-                  patterns:
-                    - pattern-either:
-                        - pattern: 'HTTPClientRequest(url: $URL)'
-                    - metavariable-regex:
-                        metavariable: $URL
-                        regex: '(?s)^(?!(?:UR[LI]\(string:\s*)?#*"(?:https?://(?:localhost|127\.|0\.0\.0\.0|\[::1\])|file:|/(?!/))).*$'
+              - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+\s+)*import\s+(?:\w+\s+)?AsyncHTTPClient\b).*'
+              - pattern-either: *feed_parsers
+              - patterns:
+                  - pattern-inside: |
+                      func $F(...) { $...BODY }
+                  - metavariable-pattern:
+                      metavariable: $...BODY
+                      patterns:
+                        - pattern-either:
+                            - pattern-either: *downloads
+                            - patterns:
+                                - pattern: '$T(url: $URL)'
+                                - metavariable-regex:
+                                    metavariable: $T
+                                    regex: '^HTTPClientRequest$'
           - patterns:
-              - pattern-inside: |
-                  func $F(...) { $...BODY }
-              - pattern-inside: |
-                  import Alamofire
-                  ...
-              - pattern-either:
-                  - patterns:
-                      - pattern-either:
-                          - pattern: 'FeedKit.FeedParser(data: $SRC)'
-                          - pattern: 'FeedKit.Feed(data: $SRC)'
-                          - pattern: 'FeedKit.RSSFeed(data: $SRC)'
-                          - pattern: 'FeedKit.AtomFeed(data: $SRC)'
-                          - pattern: 'FeedKit.JSONFeed(data: $SRC)'
-                  # SyndiKit's decoder, its one-argument `decode` read only in a file that imports SyndiKit
-                  # (JSONDecoder's `decode(_:from:)` takes two).
-                  - patterns:
-                      - pattern-inside: |
-                          import SyndiKit
-                          ...
-                      - pattern: $DEC.decode($SRC)
-                  # XMLParser over downloaded bytes, in a file that names an RSS element.
-                  - patterns:
-                      - pattern-either:
-                          - pattern: 'Foundation.XMLParser(data: $SRC)'
-                          - pattern: 'XMLParser(data: $SRC)'
-                      - pattern-either:
-                          - pattern-regex: '(?s)\A(?=.*"pubDate").*'
-                          - pattern-regex: '(?s)\A(?=.*"guid").*'
-                          - pattern-regex: '(?s)\A(?=.*"enclosure").*'
-                          - pattern-regex: '(?s)\A(?=.*"dc:creator").*'
-                          - pattern-regex: '(?s)\A(?=.*"content:encoded").*'
-              - metavariable-pattern:
-                  metavariable: $...BODY
-                  patterns:
-                    - pattern-either:
-                        - pattern: 'AF.request($URL, ...)'
-                        - pattern: 'AF.download($URL, ...)'
-                    - metavariable-regex:
-                        metavariable: $URL
-                        regex: '(?s)^(?!(?:UR[LI]\(string:\s*)?#*"(?:https?://(?:localhost|127\.|0\.0\.0\.0|\[::1\])|file:|/(?!/))).*$'
+              - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+\s+)*import\s+(?:\w+\s+)?Alamofire\b).*'
+              - pattern-either: *feed_parsers
+              - patterns:
+                  - pattern-inside: |
+                      func $F(...) { $...BODY }
+                  - metavariable-pattern:
+                      metavariable: $...BODY
+                      patterns:
+                        - pattern-either:
+                            - pattern-either: *downloads
+                            - patterns:
+                                - pattern: '$A.$M($URL, ...)'
+                                - metavariable-regex:
+                                    metavariable: $A
+                                    regex: '^AF$'
+                                - metavariable-regex:
+                                    metavariable: $M
+                                    regex: '^(request|download)$'
+      # Not another publisher: a loopback host, a file address, or a path relative to the app. A
+      # string bound inside the body's sub-pattern comes back without its quotes, so the quote is
+      # optional. The check also needs `$URL` bound, so a branch that loses the binding loses its
+      # match and the positive fixtures fail.
+      - metavariable-regex:
+          metavariable: $URL
+          regex: '(?s)^(?!(?:UR[LI]\(string:\s*)?#*"?(?:https?://(?:localhost|127\.|0\.0\.0\.0|\[::1\])|file:|/(?!/))).*$'
     metadata:
       activity: aggregates_content
       mentioned: performs

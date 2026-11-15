@@ -10,33 +10,23 @@ rules:
     # not a source, and one library's import never admits another's call.
     pattern-sources:
       - patterns:
-          - pattern-inside: |
-              import SwiftSoup
-              ...
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+\s+)*import\s+(?:\w+\s+)?SwiftSoup\b).*'
           - pattern-either:
               - pattern: $E.attr($A)
               - pattern: $E.absUrl($A)
-          - metavariable-regex:
+          - metavariable-regex: &link_attribute
               metavariable: $A
               regex: '^"(abs:)?(href|src)"$'
       - patterns:
-          - pattern-inside: |
-              import Kanna
-              ...
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+\s+)*import\s+(?:\w+\s+)?Kanna\b).*'
           - pattern: $E[$A]
-          - metavariable-regex:
-              metavariable: $A
-              regex: '^"(abs:)?(href|src)"$'
+          - metavariable-regex: *link_attribute
       - patterns:
-          - pattern-inside: |
-              import Fuzi
-              ...
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+\s+)*import\s+(?:\w+\s+)?Fuzi\b).*'
           - pattern-either:
               - pattern: $E[$A]
               - pattern: $E.attr($A)
-          - metavariable-regex:
-              metavariable: $A
-              regex: '^"(abs:)?(href|src)"$'
+          - metavariable-regex: *link_attribute
     # A crawl frontier: links appended to a queue or inserted into a set are fetched from it later.
     pattern-propagators:
       - pattern: $Q.append($V)
@@ -48,46 +38,40 @@ rules:
       - pattern: $Q.insert($V)
         from: $V
         to: $Q
-    # A link joined onto the app's own server (a loopback host) is the app reading its own pages.
+    # The downloads, their address in `$ADDR`. Alamofire's `AF`, AsyncHTTPClient's request and
+    # Kanna's `HTML(url:)` are written by their short names as well as in full: the list is also
+    # read inside a sub-pattern below, where the engine no longer sees the file's imports. The value
+    # must carry a link read under an HTML library's import, which is what keeps a short name
+    # precise here. A link joined onto the app's own server (a loopback host) is the app reading its
+    # own pages.
     pattern-sinks:
       # The address given to a download.
       - patterns:
-          - pattern-either:
-              - pattern: '$S.data(from: $X, ...)'
-              - pattern: '$S.bytes(from: $X, ...)'
-              - pattern: '$S.download(from: $X, ...)'
-              - pattern: '$S.dataTask(with: $X, ...)'
-              - pattern: '$S.downloadTask(with: $X, ...)'
-              - pattern: 'Foundation.URLRequest(url: $X, ...)'
-              - pattern: 'URLRequest(url: $X, ...)'
+          - pattern-either: &downloads
+              - pattern: '$S.data(from: $ADDR, ...)'
+              - pattern: '$S.bytes(from: $ADDR, ...)'
+              - pattern: '$S.download(from: $ADDR, ...)'
+              - pattern: '$S.dataTask(with: $ADDR, ...)'
+              - pattern: '$S.downloadTask(with: $ADDR, ...)'
+              - pattern: 'URLRequest(url: $ADDR, ...)'
+              - pattern: 'Foundation.URLRequest(url: $ADDR, ...)'
+              - pattern: 'String(contentsOf: $ADDR, ...)'
+              - pattern: 'Data(contentsOf: $ADDR, ...)'
+              - pattern: 'Foundation.Data(contentsOf: $ADDR, ...)'
+              - pattern: 'HTTPClientRequest(url: $ADDR)'
               - patterns:
-                  - pattern: 'String(contentsOf: $X, ...)'
+                  - pattern: '$C.get(url: $ADDR, ...)'
                   - metavariable-regex:
-                      metavariable: $X
-                      regex: '(?s)^(?!.*(?:(?<![A-Za-z])[fF]ile|File|(?<![A-Za-z])[pP]ath|Path|[bB]undle|(?<![A-Za-z])[lL]ocal|Local|[dD]ocument|[dD]irectory|(?<![A-Za-z])[cC]ache|Cache|[rR]esource|(?<![A-Za-z])tmp|[tT]emp(?:orary)?(?![a-z]))).*$'
-              - patterns:
-                  - pattern: 'Foundation.Data(contentsOf: $X, ...)'
-                  - metavariable-regex:
-                      metavariable: $X
-                      regex: '(?s)^(?!.*(?:(?<![A-Za-z])[fF]ile|File|(?<![A-Za-z])[pP]ath|Path|[bB]undle|(?<![A-Za-z])[lL]ocal|Local|[dD]ocument|[dD]irectory|(?<![A-Za-z])[cC]ache|Cache|[rR]esource|(?<![A-Za-z])tmp|[tT]emp(?:orary)?(?![a-z]))).*$'
-              - patterns:
-                  - pattern: 'Data(contentsOf: $X, ...)'
-                  - metavariable-regex:
-                      metavariable: $X
-                      regex: '(?s)^(?!.*(?:(?<![A-Za-z])[fF]ile|File|(?<![A-Za-z])[pP]ath|Path|[bB]undle|(?<![A-Za-z])[lL]ocal|Local|[dD]ocument|[dD]irectory|(?<![A-Za-z])[cC]ache|Cache|[rR]esource|(?<![A-Za-z])tmp|[tT]emp(?:orary)?(?![a-z]))).*$'
-              - pattern: 'AsyncHTTPClient.HTTPClientRequest(url: $X)'
-              - patterns:
-                  - pattern: '$C.get(url: $X, ...)'
-                  - metavariable-regex:
+                      # A receiver named for an HTTP client, not a database, cache or store.
                       metavariable: $C
                       regex: '^(?:self\.)?(?![\w.]*(?:(?<![a-z])[dD]b|DB|[dD]atabase|[sS]ql|SQL|[pP]ool|[rR]edis|[cC]ache|[qQ]ueue|[sS]tore|[sS]torage|[kK]eychain))[\w.]*(?:[hH]ttp|HTTP|[cC]lient)[\w.]*$'
-              - pattern: '$R.client.get($X, ...)'
-              - pattern: 'Alamofire.AF.request($X, ...)'
-              - pattern: 'Alamofire.AF.download($X, ...)'
-              - pattern: 'Kanna.HTML(url: $X, ...)'
-          - focus-metavariable: $X
-          - metavariable-regex:
-              metavariable: $X
+              - pattern: '$R.client.get($ADDR, ...)'
+              - pattern: 'AF.request($ADDR, ...)'
+              - pattern: 'AF.download($ADDR, ...)'
+              - pattern: 'HTML(url: $ADDR, ...)'
+          - focus-metavariable: $ADDR
+          - metavariable-regex: &not_loopback
+              metavariable: $ADDR
               regex: '(?s)^(?!.*"https?://(?:localhost|127\.|0\.0\.0\.0|\[::1\])).*$'
       # Taint does not pass through Swift's optional binding, so a link bound with `guard let` or
       # `if let` (`guard let url = URL(string: href)`) is read at the binding: its value is the sink
@@ -129,25 +113,10 @@ rules:
           - metavariable-pattern:
               metavariable: $STMT
               patterns:
-                - pattern-either:
-                    - pattern: '$S.data(from: <... $H ...>, ...)'
-                    - pattern: '$S.bytes(from: <... $H ...>, ...)'
-                    - pattern: '$S.download(from: <... $H ...>, ...)'
-                    - pattern: '$S.dataTask(with: <... $H ...>, ...)'
-                    - pattern: '$S.downloadTask(with: <... $H ...>, ...)'
-                    - pattern: 'URLRequest(url: <... $H ...>, ...)'
-                    - pattern: 'String(contentsOf: <... $H ...>, ...)'
-                    - pattern: 'Data(contentsOf: <... $H ...>, ...)'
-                    - pattern: 'HTTPClientRequest(url: <... $H ...>)'
-                    - patterns:
-                        - pattern: '$C.get(url: <... $H ...>, ...)'
-                        - metavariable-regex:
-                            metavariable: $C
-                            regex: '^(?:self\.)?(?![\w.]*(?:(?<![a-z])[dD]b|DB|[dD]atabase|[sS]ql|SQL|[pP]ool|[rR]edis|[cC]ache|[qQ]ueue|[sS]tore|[sS]torage|[kK]eychain))[\w.]*(?:[hH]ttp|HTTP|[cC]lient)[\w.]*$'
-                    - pattern: '$R.client.get(<... $H ...>, ...)'
-                    - pattern: 'AF.request(<... $H ...>, ...)'
-                    - pattern: 'AF.download(<... $H ...>, ...)'
-                    - pattern: 'HTML(url: <... $H ...>, ...)'
+                - pattern-either: *downloads
+                - metavariable-pattern:
+                    metavariable: $ADDR
+                    pattern: $H
           - focus-metavariable: $X
           - metavariable-regex:
               metavariable: $X
