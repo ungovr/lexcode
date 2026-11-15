@@ -68,7 +68,12 @@ function enginePath() {
   }
 }
 
-/** Each rule file with its first positive fixture in a language above: `<stem>.yml` and `<stem>.test*.<ext>`. */
+/**
+ * Each rule file with its positive fixture in a language above: `<stem>.yml` and `<stem>.test.<ext>`, or the
+ * first `<stem>.test.<variant>.<ext>` when there is no plain one. The plain fixture is the case the bounds are
+ * for; a variant such as `*.test.calls.*` holds every source call of the rule at once, many at module level,
+ * and would time that instead (#13034).
+ */
 function rulesWithFixtures(dir) {
   const out = [];
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -79,9 +84,10 @@ function rulesWithFixtures(dir) {
     }
     if (!entry.name.endsWith('.yml')) continue;
     const stem = entry.name.slice(0, -4);
-    const fixture = readdirSync(dir)
+    const positives = readdirSync(dir)
       .filter((f) => f.startsWith(`${stem}.test`) && !f.includes('.neg.') && extname(f) in LANGS)
-      .sort()[0];
+      .sort();
+    const fixture = positives.find((f) => f === `${stem}.test${extname(f)}`) ?? positives[0];
     if (fixture) out.push({ rule: p, fixture: join(dir, fixture) });
   }
   return out.sort((x, y) => x.rule.localeCompare(y.rule));
