@@ -125,16 +125,12 @@ entries:
     source: https://github.com/twilio/conversations-ios
 
   # Bundled cryptography
-  # The truth-set keys read a signed token or a password hash as shipping encryption, so a JWT library whose
-  # description names signing algorithms is listed.
+  # Only a cryptographic library is listed. A library that signs or hashes does not encrypt, so a JWT library
+  # (vapor/jwt-kit: "JSON Web Token signing and verification") is left out.
   - match: "github.com/apple/swift-crypto"
     enables: [ships_encryption]
     says: "Swift Crypto is an open-source implementation of a substantial portion of the API of Apple CryptoKit suitable for use on Linux and ARM64 Windows platforms."
     source: https://github.com/apple/swift-crypto
-  - match: "github.com/vapor/jwt-kit"
-    enables: [ships_encryption]
-    says: "JSON Web Token signing and verification (HMAC, ECDSA, EdDSA, MLDSA, RSA, PSS) using SwiftCrypto."
-    source: https://github.com/vapor/jwt-kit
   - match: "github.com/krzyzanowskim/cryptoswift"
     enables: [ships_encryption]
     says: "CryptoSwift is a growing collection of standard and secure cryptographic algorithms implemented in Swift"
