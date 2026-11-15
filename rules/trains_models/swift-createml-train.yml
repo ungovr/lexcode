@@ -32,6 +32,7 @@ rules:
       - pattern: 'CreateML.MLBoostedTreeRegressor(trainingData: $D, ...)'
       - pattern: 'CreateML.MLRandomForestClassifier(trainingData: $D, ...)'
       - pattern: 'CreateML.MLRandomForestRegressor(trainingData: $D, ...)'
+      - pattern: 'CreateML.MLSupportVectorClassifier(trainingData: $D, ...)'
       # The training-job form (macOS 11 and later), which returns an MLJob.
       - pattern: CreateML.MLImageClassifier.train(...)
       - pattern: CreateML.MLObjectDetector.train(...)
@@ -43,7 +44,9 @@ rules:
       - pattern: CreateML.MLStyleTransfer.train(...)
       # Create ML Components: an estimator (or a pipeline ending in one) fitted to data. The
       # receiver's type is not visible to the engine, so the call is guarded by the framework's
-      # import; Swift has no typed metavariables.
+      # import; Swift has no typed metavariables. A preprocessing estimator fitted alone (a
+      # OneHotEncoder learning its categories) is matched too; in a file that imports the framework,
+      # training a model is the reason it is fitted.
       - patterns:
           - pattern: '$E.fitted(to: $D, ...)'
           - pattern-inside: |

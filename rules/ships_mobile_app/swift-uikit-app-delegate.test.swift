@@ -10,10 +10,6 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         return true
     }
-
-    func refresh() async throws {
-        try await Task.sleep(nanoseconds: 1)
-    }
 }
 
 class PlainDelegate: UIApplicationDelegate {

@@ -1,4 +1,4 @@
-// lexcode-expect: 7
+// lexcode-expect: 8
 import Foundation
 import CreateML
 
@@ -40,5 +40,9 @@ final class Trainer {
 
     func tagger(table: MLDataTable) throws {
         _ = try MLWordTagger(trainingData: table, tokenColumn: "tokens", labelColumn: "labels")
+    }
+
+    func churn(table: MLDataTable) throws {
+        _ = try MLSupportVectorClassifier(trainingData: table, targetColumn: "churned")
     }
 }
