@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- lexcode-expect: 0 -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<!-- Face ID confirms the phone's owner and NFC reads a tag: neither asks for an identity document. -->
+	<key>NSFaceIDUsageDescription</key>
+	<string>Unlock with Face ID.</string>
+	<key>NFCReaderUsageDescription</key>
+	<string>Read the tag on your bike.</string>
+	<key>NSContactsUsageDescription</key>
+	<string>Invite people.</string>
+	<!-- A commented-out key is not a key. -->
+	<!-- <key>NSIdentityUsageDescription</key><string>Confirm your age.</string> -->
+	<key>RemovedKeys</key>
+	<array>
+		<string>NSIdentityUsageDescription</string>
+		<string>NSIdentityUsageDescriptionDictionary</string>
+	</array>
+</dict>
+</plist>

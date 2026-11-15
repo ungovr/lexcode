@@ -1,0 +1,147 @@
+rules:
+  - id: lexcode.personal.rs-client-ip-captured
+    languages: [rust]
+    severity: INFO
+    message: Writes the visitor's IP address into a log line or a database row (an INSERT or UPDATE), which is processing personal data (processes_personal_data).
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+          # actix-web: the connection info's addresses (connection_info() and head().peer_addr
+          # are actix's own names).
+          - pattern: $R.connection_info().realip_remote_addr()
+          - pattern: $R.connection_info().peer_addr()
+          - pattern: $R.head().peer_addr
+          # actix-web: the request's own peer address. A Rust pattern cannot carry a type on a
+          # metavariable, so peer_addr() is taken only on a handler's HttpRequest parameter: a
+          # TcpStream's peer_addr() on a client is the server it called. A parameter's type is
+          # matched on its last segment whatever its path (probed: `axum_client_ip::ClientIp`
+          # matched an app's own `ClientIp`, and `axum::extract::ConnectInfo<$T>` matched
+          # `mine::ConnectInfo<Settings>`), so each of these sources also needs the file to name
+          # the library: in a flat or nested `use`, under an alias, or in full.
+          - patterns:
+              - pattern-regex: '(?s)\A(?=.*actix_web::[^;]*\bHttpRequest\b).*'
+              - pattern-either:
+                  - pattern-inside: |
+                      async fn $F(..., $R: actix_web::HttpRequest, ...) { ... }
+                  - pattern-inside: |
+                      async fn $F(..., $R: &actix_web::HttpRequest, ...) { ... }
+                  - pattern-inside: |
+                      fn $F(..., $R: actix_web::HttpRequest, ...) { ... }
+                  - pattern-inside: |
+                      fn $F(..., $R: &actix_web::HttpRequest, ...) { ... }
+              - pattern: $R.peer_addr()
+          # axum: a handler's ConnectInfo extractor, destructured or not. The parameter itself is
+          # the source (focus-metavariable); a `pattern: $P` beside a file check matched nothing.
+          - patterns:
+              - pattern-either:
+                  - pattern-regex: '(?s)\A(?=.*axum::extract::[^;]*\bConnectInfo\b).*'
+                  - pattern-regex: '(?s)\A(?=.*axum::\{[^;]*\bextract::[^;]*\bConnectInfo\b).*'
+              - pattern: |
+                  async fn $F(..., $P: axum::extract::ConnectInfo<$T>, ...) { ... }
+              - focus-metavariable: $P
+          # axum-client-ip's extractors.
+          - patterns:
+              - pattern-regex: '(?s)\A(?=.*axum_client_ip\b).*'
+              - pattern-either:
+                  - pattern: |
+                      async fn $F(..., $P: axum_client_ip::ClientIp, ...) { ... }
+                  - pattern: |
+                      async fn $F(..., $P: axum_client_ip::InsecureClientIp, ...) { ... }
+                  - pattern: |
+                      async fn $F(..., $P: axum_client_ip::SecureClientIp, ...) { ... }
+              - focus-metavariable: $P
+          # Rocket: the request's client address, in a file that uses Rocket.
+          - patterns:
+              - pattern-regex: '(?s)\A(?=.*rocket::).*'
+              - pattern: $R.client_ip()
+          # A forwarded-address header set by a proxy, read from any header map.
+          - patterns:
+              - pattern-either:
+                  - pattern: $H.get($K)
+                  - pattern: $H.get_all($K)
+              - metavariable-regex:
+                  metavariable: $K
+                  regex: (?i)^"(x-forwarded-for|x-real-ip|forwarded|cf-connecting-ip|true-client-ip|x-client-ip)"$
+    options:
+      taint_assume_safe_comparisons: true
+      taint_assume_safe_booleans: true
+    # The address is not what is kept when it only feeds a membership test or a check whose
+    # answer is logged (an allow list, a loopback or private-range test, a prefix test, a ban-list
+    # check). The engine cannot type a Rust method call, so taint_assume_safe_booleans does not
+    # see these: they are named.
+    pattern-sanitizers:
+      - pattern: $X.contains(...)
+      - pattern: $X.starts_with(...)
+      - pattern: $X.ends_with(...)
+      - patterns:
+          - pattern-either:
+              - pattern: $F(...)
+              - pattern: $C.$F(...)
+          # A Result or Option test at the end of a chain is not a check on the address: the
+          # sanitizer covers the whole chain, so `query("INSERT ...").bind(ip).execute(db).await.is_ok()`
+          # would hide its own write.
+          - metavariable-regex:
+              metavariable: $F
+              regex: ^(.*::)?(?!is_(ok|err|some|none)$)(is|has|can|check|verify|validate|allow|allows|matches)(_\w+)?$
+    pattern-sinks:
+      - pattern-either:
+          # A log line. The engine reads a plain identifier argument of a logging macro; a
+          # field written `ip = %addr` or a method call inside the macro is not seen (a known gap
+          # for every Rust macro). Macros are not resolved through `use`, so the short names
+          # imported from tracing or log are listed beside the full paths.
+          - pattern: tracing::trace!(...)
+          - pattern: tracing::debug!(...)
+          - pattern: tracing::info!(...)
+          - pattern: tracing::warn!(...)
+          - pattern: tracing::error!(...)
+          - pattern: log::trace!(...)
+          - pattern: log::debug!(...)
+          - pattern: log::info!(...)
+          - pattern: log::warn!(...)
+          - pattern: log::error!(...)
+          - pattern: trace!(...)
+          - pattern: debug!(...)
+          - pattern: info!(...)
+          - pattern: warn!(...)
+          - pattern: error!(...)
+          # A database row: a write only. A lookup of the address (a ban list, a count of recent
+          # attempts) is not keeping it, so an sqlx query macro is a sink only when its statement
+          # is an INSERT or UPDATE. The arguments are bound as one token run (`$...ARGS`), which
+          # also matches the trailing-comma form a `$SQL, ...` pattern misses; the statement may
+          # follow a type argument (query_as!) and a comment.
+          - patterns:
+              - pattern-either:
+                  - pattern: sqlx::query!($...ARGS)
+                  - pattern: sqlx::query_as!($...ARGS)
+                  - pattern: sqlx::query_scalar!($...ARGS)
+                  - pattern: sqlx::query_unchecked!($...ARGS)
+                  - pattern: sqlx::query_as_unchecked!($...ARGS)
+              - metavariable-regex:
+                  metavariable: $...ARGS
+                  regex: (?is)^(?:\s|//[^\n]*)*(?:[\w:]+\s*,(?:\s|//[^\n]*)*)?(?:r#*)?"\s*(?:insert|update)\b
+          # A bind on a query built from an INSERT or UPDATE statement. Binds chain
+          # (`.bind(a).bind(ip)`), so the bind is matched on any receiver and the receiver's
+          # chain is searched for the query and its statement.
+          - patterns:
+              - pattern: $Q.bind(...)
+              - metavariable-pattern:
+                  metavariable: $Q
+                  patterns:
+                    - pattern-either:
+                        - pattern: sqlx::query($SQL)
+                        - pattern: sqlx::query_as($SQL)
+                        - pattern: sqlx::query_scalar($SQL)
+                        - pattern: diesel::sql_query($SQL)
+                    - metavariable-regex:
+                        metavariable: $SQL
+                        regex: (?is)^(?:r#*)?"\s*(?:insert|update)\b
+          - pattern: diesel::insert_into(...).values(...)
+          - pattern: diesel::update(...).set(...)
+          - pattern: sea_orm::ActiveValue::Set(...)
+          - pattern: sea_orm::Set(...)
+    metadata:
+      activity: processes_personal_data
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-personal-data
+      provenance: ungovr-original
+      license: MIT
