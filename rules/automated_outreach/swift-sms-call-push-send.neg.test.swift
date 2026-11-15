@@ -6,7 +6,8 @@ import UserNotifications
 
 // Sends that are not outreach: a one-time sign-in code by text (left out by its words), a publish to
 // an SNS topic with no phone number, a silent background push, a local notification on the person's
-// own device, and Twilio's Verify service (a verification, not a message the app composes).
+// own device, Twilio's Verify service (a verification, not a message the app composes), and reads of
+// one Twilio message's status or one call's recordings (no send).
 struct Security {
     let app: Application
     let sns: SNSClient
@@ -28,5 +29,13 @@ struct Security {
 
     func verifyURL(service: String) -> String {
         "https://verify.twilio.com/v2/Services/\(service)/Verifications"
+    }
+
+    func messageStatusURL(account: String, sid: String) -> String {
+        "https://api.twilio.com/2010-04-01/Accounts/\(account)/Messages/\(sid).json"
+    }
+
+    func recordingsURL(account: String, call: String) -> String {
+        "https://api.twilio.com/2010-04-01/Accounts/\(account)/Calls/\(call)/Recordings.json"
     }
 }

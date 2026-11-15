@@ -4,24 +4,40 @@ rules:
     severity: INFO
     message: Sends an email, text, push notification or direct message from a scheduled job, a repeating timer or a task that wakes on an interval, which no person's action triggers, which is sending automated outreach (automated_outreach).
     # The schedule shapes: a Vapor Queues scheduled job (AsyncScheduledJob, ScheduledJob, as a struct
-    # or a class, module-qualified only so an app's own protocol of that name does not match), a
-    # repeating Foundation Timer (`repeats: true`, in its module-qualified and short forms, since
-    # Foundation comes through Vapor, UIKit and SwiftUI), and a `while` loop whose body sleeps
-    # (`Task.sleep`), which is how a Swift server runs a periodic task in-process. A `while` loop
-    # that counts attempts or backs off is a retry of ONE message and does not match. A queued job
-    # (AsyncJob) runs off a person's request and is the signal rule swift-send-in-background-job.
-    # The send set is swift-send-in-loop's: a post to a bot's own channel, a local notification and a
-    # silent push are not messages to people.
+    # or a class, first or second in the inheritance list, module-qualified only so an app's own
+    # protocol of that name does not match), a repeating Foundation Timer (`repeats: true`, in its
+    # module-qualified and short forms, since Foundation comes through Vapor, UIKit and SwiftUI), and
+    # a `while` loop whose body sleeps (`Task.sleep`), which is how a Swift server runs a periodic
+    # task in-process. A `while` loop that counts attempts or backs off is a retry of ONE message and
+    # does not match. A queued job (AsyncJob) runs off a person's request and is the signal rule
+    # swift-send-in-background-job.
+    # A send inside a `catch` block is an alert to the operator about the job, not a message to
+    # people, as in kt- and java-send-in-scheduled-job: each send arm carries its own
+    # `do { } catch { ... <... send ...> ... }` exclusion, written with the arm's own metavariables.
+    # The deep form is needed: a plain statement pattern misses a send under `try await` or
+    # `_ = try await` (probe p/h in the group report).
+    # The send set is the one in swift-send-in-loop and swift-send-in-background-job; the three
+    # rules change together. Its metavariable names ($N, $X, $M, $A, $SNSP, $DMC) must not reuse a
+    # scope's ($K, $P1, $I, $C, $...BODY), or the two unify and the arm never matches. A post to a
+    # bot's own channel, a local notification and a silent push are not messages to people.
     patterns:
       - pattern-either:
           - pattern-inside: |
               struct $K: Queues.AsyncScheduledJob { ... }
           - pattern-inside: |
+              struct $K: $P1, Queues.AsyncScheduledJob { ... }
+          - pattern-inside: |
               struct $K: Queues.ScheduledJob { ... }
+          - pattern-inside: |
+              struct $K: $P1, Queues.ScheduledJob { ... }
           - pattern-inside: |
               class $K: Queues.AsyncScheduledJob { ... }
           - pattern-inside: |
+              class $K: $P1, Queues.AsyncScheduledJob { ... }
+          - pattern-inside: |
               class $K: Queues.ScheduledJob { ... }
+          - pattern-inside: |
+              class $K: $P1, Queues.ScheduledJob { ... }
           - pattern-inside: 'Foundation.Timer.scheduledTimer(withTimeInterval: $I, repeats: true, ...)'
           - pattern-inside: 'Timer.scheduledTimer(withTimeInterval: $I, repeats: true, ...)'
           - patterns:
@@ -38,22 +54,75 @@ rules:
                   regex: '(?is)^(?!.*(attempt|retr|backoff|tries)).*$'
       - pattern-either:
           - patterns:
-              - pattern-either:
-                  - pattern: $X.$N(...)
-                  - pattern: $N(...)
+              - pattern: $X.$N(...)
               - metavariable-regex:
                   metavariable: $N
-                  regex: ^(?!\w*(Local|Background|LiveActivity|VoIP|FileProvider|Complication|PushToTalk))send\w*(Email|Mail|Sms|SMS|Text|TextMessage|Push|PushNotification|Notification|Reminder|Digest|Newsletter|Alert|DM|Dm|DirectMessage)s?$
+                  regex: ^(?!\w*(Local|Background|LiveActivity|VoIP|FileProvider|Complication|PushToTalk)(Push|Notification|Reminder)s?$)send\w*(Email|Mail|Sms|SMS|TextMessage|Push|PushNotification|Notification|Reminder|Digest|Newsletter|(Email|Sms|SMS|Push)Alert|DM|Dm|DirectMessage)s?$
+              - pattern-not-inside: |
+                  do {
+                    ...
+                  } catch {
+                    ...
+                    <... $X.$N(...) ...>
+                    ...
+                  }
+          - patterns:
+              - pattern: $N(...)
+              - metavariable-regex:
+                  metavariable: $N
+                  regex: ^(?!\w*(Local|Background|LiveActivity|VoIP|FileProvider|Complication|PushToTalk)(Push|Notification|Reminder)s?$)send\w*(Email|Mail|Sms|SMS|TextMessage|Push|PushNotification|Notification|Reminder|Digest|Newsletter|(Email|Sms|SMS|Push)Alert|DM|Dm|DirectMessage)s?$
+              - pattern-not-inside: |
+                  do {
+                    ...
+                  } catch {
+                    ...
+                    <... $N(...) ...>
+                    ...
+                  }
           - patterns:
               - pattern: $M.send(...)
               - metavariable-regex:
                   metavariable: $M
                   regex: '(?i)^([\w.]*\.)?\w*(mail|smtp|sendgrid|mailgun|postmark)\w*(\(\))?(\.client)?$'
-          - pattern: $A.apns.send(...)
-          - pattern: 'AWSSNS.PublishInput(..., phoneNumber: $P, ...)'
+              - pattern-not-inside: |
+                  do {
+                    ...
+                  } catch {
+                    ...
+                    <... $M.send(...) ...>
+                    ...
+                  }
+          - patterns:
+              - pattern: $A.apns.send(...)
+              - pattern-not-inside: |
+                  do {
+                    ...
+                  } catch {
+                    ...
+                    <... $A.apns.send(...) ...>
+                    ...
+                  }
+          - patterns:
+              - pattern: 'AWSSNS.PublishInput(..., phoneNumber: $SNSP, ...)'
+              - pattern-not-inside: |
+                  do {
+                    ...
+                  } catch {
+                    ...
+                    <... AWSSNS.PublishInput(..., phoneNumber: $SNSP, ...) ...>
+                    ...
+                  }
           - patterns:
               - pattern-regex: '(?s)\bimport\s+(DiscordBM|DiscordHTTP)\b.*'
-              - pattern: $C.createDm(...)
+              - pattern: $DMC.createDm(...)
+              - pattern-not-inside: |
+                  do {
+                    ...
+                  } catch {
+                    ...
+                    <... $DMC.createDm(...) ...>
+                    ...
+                  }
       # Literal anchor inside the match: it lets the engine skip files with no send call.
       - pattern-regex: '(\bsend\w*\s*\(|\.send\s*\(|phoneNumber\s*:|\.createDm\s*\()'
     metadata:

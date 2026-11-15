@@ -19,7 +19,11 @@ rules:
       - pattern: 'Intercom.setApiKey($K, forAppId: $A)'
       - pattern: Intercom.presentMessenger(...)
       - pattern: 'Zendesk.initialize(withChannelKey: $K, ...)'
-      - pattern: Freshchat.sharedInstance().initWith(...)
+      # Head-first (group-common Amendment 2): a chain is matched at its head inside the last call,
+      # which also holds under `try` and `await`.
+      - patterns:
+          - pattern: Freshchat.sharedInstance()
+          - pattern-inside: $X.initWith(...)
       - pattern: 'SendbirdChat.initialize(params: $P, ...)'
       - pattern: 'SendbirdUI.initialize(applicationId: $A, ...)'
       - pattern: 'StreamChat.ChatClient(config: $C)'

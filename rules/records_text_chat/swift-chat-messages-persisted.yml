@@ -71,7 +71,7 @@ rules:
       # Realm
       - patterns:
           - pattern-regex: '(?s)\bimport\s+RealmSwift\b.*'
-          - pattern: $R.add($T(...))
+          - pattern: $R.add($T(...), ...)
           - metavariable-regex:
               metavariable: $T
               regex: ^\w*(Chat(Message|Msg|Turn|Entry|History|Log|Transcript)|Conversation(Message|Turn|Entry|Transcript))s?(Entity|Record|Model|Object|MO|Item)?$

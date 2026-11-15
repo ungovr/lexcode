@@ -1,8 +1,9 @@
-// lexcode-expect: 7
+// lexcode-expect: 11
 import Foundation
 import SwiftData
 import CoreData
 import Fluent
+import FluentKit
 import Vapor
 import RealmSwift
 import GRDB
@@ -58,4 +59,21 @@ final class ChatTranscript: Object {
 struct ChatLogRecord: Codable, FetchableRecord, PersistableRecord {
     var id: Int64?
     var text: String
+}
+
+final class ConversationEntry: Model {
+    static let schema = "conversation_entries"
+}
+
+struct ChatTurnRecord: Codable, FetchableRecord, Identifiable, PersistableRecord {
+    var id: Int64?
+    var text: String
+}
+
+struct ChatHistoryRow: MutablePersistableRecord {
+    var id: Int64?
+}
+
+final class ChatMessageRow: Record {
+    var text: String = ""
 }

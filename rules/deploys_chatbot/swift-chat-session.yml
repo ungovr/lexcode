@@ -14,6 +14,10 @@ rules:
     # A session used in a chat screen is swift-history-turns.
     patterns:
       - pattern-regex: '(?s)\bimport\s+(FirebaseAI|FirebaseVertexAI|Firebase|GoogleGenerativeAI)\b.*'
+      # The Firebase umbrella also brings Firestore and Auth to messaging apps, whose own
+      # `startChat(with:)` is a person-to-person chat, so the file must also build a Gemini model
+      # before the call.
+      - pattern-regex: '(?s)\b(generativeModel|GenerativeModel)\b.*'
       - pattern: $M.startChat(...)
       - pattern-not: '$M.startChat(parameters: $P)'
     metadata:

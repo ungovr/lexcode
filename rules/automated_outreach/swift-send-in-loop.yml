@@ -14,7 +14,12 @@ rules:
     # `sendAlertNotification` (by the name rule), an Amazon SNS text (`PublishInput` with a
     # `phoneNumber`, module-qualified only, Decision 8) and a Discord direct-message channel opened
     # with DiscordBM's `createDm` (under its import). A direct message is one of the channels the
-    # definition names.
+    # definition names. A bare `Text` or `Alert` suffix is not a send to a person (`ws.sendText`
+    # broadcasts a socket frame, `sendAlert` shows a dialog), so only `TextMessage` and an Email, SMS
+    # or Push alert count. The silent-push and local words exclude only a name ending in Push,
+    # Notification or Reminder, so `sendLocalizedDigestEmail` still counts.
+    # The send set is the one in swift-send-in-scheduled-job and swift-send-in-background-job; the
+    # three rules change together, and its metavariable names must not reuse a scope's ($V, $L).
     # Left out on purpose: a local notification (UserNotifications) is drawn by the system on the
     # person's own device and goes over no network to anyone, as an in-app SignalR notification is a
     # user interface push in the C# rules, so `center.add(request)` and any send named Local do not
@@ -47,7 +52,7 @@ rules:
                   - pattern: $N(...)
               - metavariable-regex:
                   metavariable: $N
-                  regex: ^(?!\w*(Local|Background|LiveActivity|VoIP|FileProvider|Complication|PushToTalk))send\w*(Email|Mail|Sms|SMS|Text|TextMessage|Push|PushNotification|Notification|Reminder|Digest|Newsletter|Alert|DM|Dm|DirectMessage)s?$
+                  regex: ^(?!\w*(Local|Background|LiveActivity|VoIP|FileProvider|Complication|PushToTalk)(Push|Notification|Reminder)s?$)send\w*(Email|Mail|Sms|SMS|TextMessage|Push|PushNotification|Notification|Reminder|Digest|Newsletter|(Email|Sms|SMS|Push)Alert|DM|Dm|DirectMessage)s?$
           - patterns:
               - pattern: $M.send(...)
               - metavariable-regex:
@@ -57,7 +62,7 @@ rules:
           - pattern: 'AWSSNS.PublishInput(..., phoneNumber: $P, ...)'
           - patterns:
               - pattern-regex: '(?s)\bimport\s+(DiscordBM|DiscordHTTP)\b.*'
-              - pattern: $C.createDm(...)
+              - pattern: $DMC.createDm(...)
       # Literal anchor inside the match: it lets the engine skip files with no send call.
       - pattern-regex: '(\bsend\w*\s*\(|\.send\s*\(|phoneNumber\s*:|\.createDm\s*\()'
     metadata:

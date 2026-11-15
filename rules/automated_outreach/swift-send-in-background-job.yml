@@ -6,18 +6,27 @@ rules:
     # Signal strength, as in the other languages' background-job rules: the mail a person asked for (a
     # welcome message, a receipt) is often sent from a queued job too. The loop and timer shapes are
     # the evidence rules; this one is the worth-a-look row for a Vapor Queues job (AsyncJob, Job, as
-    # a struct or a class, module-qualified only so an app's own protocol of that name does not
-    # match). The send set is swift-send-in-loop's.
+    # a struct or a class, first or second in the inheritance list. Module-qualified only, so an app's own protocol of that name does not match).
+    # The send set is the one in swift-send-in-loop and swift-send-in-scheduled-job; the three rules
+    # change together, and its metavariable names must not reuse the scope's ($K, $P1).
     patterns:
       - pattern-either:
           - pattern-inside: |
               struct $K: Queues.AsyncJob { ... }
           - pattern-inside: |
+              struct $K: $P1, Queues.AsyncJob { ... }
+          - pattern-inside: |
               struct $K: Queues.Job { ... }
+          - pattern-inside: |
+              struct $K: $P1, Queues.Job { ... }
           - pattern-inside: |
               class $K: Queues.AsyncJob { ... }
           - pattern-inside: |
+              class $K: $P1, Queues.AsyncJob { ... }
+          - pattern-inside: |
               class $K: Queues.Job { ... }
+          - pattern-inside: |
+              class $K: $P1, Queues.Job { ... }
       - pattern-either:
           - patterns:
               - pattern-either:
@@ -25,7 +34,7 @@ rules:
                   - pattern: $N(...)
               - metavariable-regex:
                   metavariable: $N
-                  regex: ^(?!\w*(Local|Background|LiveActivity|VoIP|FileProvider|Complication|PushToTalk))send\w*(Email|Mail|Sms|SMS|Text|TextMessage|Push|PushNotification|Notification|Reminder|Digest|Newsletter|Alert|DM|Dm|DirectMessage)s?$
+                  regex: ^(?!\w*(Local|Background|LiveActivity|VoIP|FileProvider|Complication|PushToTalk)(Push|Notification|Reminder)s?$)send\w*(Email|Mail|Sms|SMS|TextMessage|Push|PushNotification|Notification|Reminder|Digest|Newsletter|(Email|Sms|SMS|Push)Alert|DM|Dm|DirectMessage)s?$
           - patterns:
               - pattern: $M.send(...)
               - metavariable-regex:
@@ -35,7 +44,7 @@ rules:
           - pattern: 'AWSSNS.PublishInput(..., phoneNumber: $P, ...)'
           - patterns:
               - pattern-regex: '(?s)\bimport\s+(DiscordBM|DiscordHTTP)\b.*'
-              - pattern: $C.createDm(...)
+              - pattern: $DMC.createDm(...)
       # Literal anchor inside the match: it lets the engine skip files with no send call.
       - pattern-regex: '(\bsend\w*\s*\(|\.send\s*\(|phoneNumber\s*:|\.createDm\s*\()'
     metadata:

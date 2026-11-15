@@ -36,6 +36,8 @@ rules:
                   - pattern: $S.streamResponse(...)
           - patterns:
               - pattern-regex: '(?s)\bimport\s+(FirebaseAI|FirebaseVertexAI|Firebase|GoogleGenerativeAI)\b.*'
+              # The Firebase umbrella also serves messaging apps: the file must build a Gemini model.
+              - pattern-regex: '(?s)\b(generativeModel|GenerativeModel)\b.*'
               - pattern-either:
                   - pattern: $S.sendMessage(...)
                   - pattern: $S.sendMessageStream(...)

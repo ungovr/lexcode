@@ -1,4 +1,4 @@
-// lexcode-expect: 8
+// lexcode-expect: 9
 import Vapor
 import APNS
 import AWSSNS
@@ -17,6 +17,9 @@ struct Notifier {
         }
         for subscriber in subscribers where subscriber.optedIn {
             try await mailer.sendDigestEmail(to: subscriber.email)
+        }
+        for subscriber in subscribers {
+            try await mailer.sendLocalizedDigestEmail(to: subscriber.email, locale: subscriber.locale)
         }
     }
 

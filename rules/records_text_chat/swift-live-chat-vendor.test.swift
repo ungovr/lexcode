@@ -1,4 +1,4 @@
-// lexcode-expect: 9
+// lexcode-expect: 11
 import UIKit
 import Intercom
 import ZendeskSDK
@@ -27,6 +27,11 @@ final class SupportChat {
         TwilioConversationsClient.conversationsClient(withToken: "token", properties: nil, delegate: nil) { _, client in
             self.conversations = client
         }
+    }
+
+    func startAsync() async throws {
+        _ = try await Zendesk.initialize(withChannelKey: "channel-key", messagingFactory: DefaultMessagingFactory())
+        try await Freshchat.sharedInstance().initWith(FreshchatConfig(appID: "app-id", andAppKey: "app-key"))
     }
 
     func open(from controller: UIViewController) {

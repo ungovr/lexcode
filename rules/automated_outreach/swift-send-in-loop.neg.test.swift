@@ -5,7 +5,8 @@ import APNS
 
 // Loops that send ONE message to ONE person, or that send nothing to people: retries over attempts,
 // a fallback over mail relays, local notifications the app schedules on the person's own device,
-// silent background pushes that only refresh data, and the bot posting to its own channels.
+// silent background pushes that only refresh data, the bot posting to its own channels, socket frames
+// broadcast to connected clients and an alert dialog shown for each failure.
 struct Sender {
     let app: Application
 
@@ -43,6 +44,15 @@ struct Sender {
     func announce(_ channels: [ChannelSnowflake]) async {
         for channel in channels {
             await discordService.sendMessage(channelId: channel, payload: .init(content: "New release"))
+        }
+    }
+
+    func broadcast(_ clients: [WebSocket], frame: String) async {
+        for client in clients {
+            client.sendText(frame)
+        }
+        for failure in failures {
+            presenter.sendAlert(failure.message)
         }
     }
 }
