@@ -1,0 +1,28 @@
+rules:
+  - id: lexcode.identity.entitlements-identity-presentment
+    languages: [generic]
+    severity: INFO
+    message: Grants the app Apple's In App Identity Presentment entitlement (com.apple.developer.in-app-identity-presentment), so it can request data from an identity document in the person's Wallet (Verify with Wallet), which is relying on a digital identity (relies_on_digital_identity).
+    # Apple grants the entitlement on request, for Verify with Wallet only. Its companion key
+    # (.merchant-identifiers) is not matched again, and Apple Pay's in-app-payments entitlement is not an
+    # identity request. The engine's xml rules do not read an .entitlements file, so this is a generic rule.
+    pattern-regex: '<key>com\.apple\.developer\.in-app-identity-presentment</key>'
+    paths:
+      include:
+        - "*.entitlements"
+        - "entitlements-identity-presentment.*"
+      exclude:
+        - "**/example/**"
+        - "**/examples/**"
+        - "**/sample/**"
+        - "**/samples/**"
+        - "**/demo/**"
+        - "**/demos/**"
+        - "**/Tests/**"
+        - "**/UITests/**"
+    metadata:
+      activity: relies_on_digital_identity
+      mentioned: performs
+      definition: https://lexlint.io/glossary#relies-on-a-digital-identity
+      provenance: ungovr-original
+      license: MIT

@@ -1,0 +1,24 @@
+// !$*UTF8*$!
+// lexcode-expect: 1
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin XCBuildConfiguration section */
+		4887343E2CDCA2DD00B400A3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSFaceIDUsageDescription = "Unlock your vault with Face ID.";
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.vault;
+				SDKROOT = iphoneos;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+	};
+	rootObject = 4887340F2CDCA2DB00B400A3 /* Project object */;
+}

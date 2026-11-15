@@ -1,0 +1,25 @@
+// !$*UTF8*$!
+// lexcode-expect: 2
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin XCBuildConfiguration section */
+		4887343E2CDCA2DD00B400A3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Record a voice note.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Turn your voice note into text.";
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.notes;
+				SDKROOT = iphoneos;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+	};
+	rootObject = 4887340F2CDCA2DB00B400A3 /* Project object */;
+}

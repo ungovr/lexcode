@@ -1,0 +1,34 @@
+// !$*UTF8*$!
+// lexcode-expect: 2
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin XCBuildConfiguration section */
+		4887343E2CDCA2DD00B400A3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSUserTrackingUsageDescription = "Your data will be used to show you ads that fit your interests.";
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.news;
+				SDKROOT = iphoneos;
+			};
+			name = Debug;
+		};
+		4887343F2CDCA2DD00B400A3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSUserTrackingUsageDescription = AdsThatFit;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.news;
+				SDKROOT = iphoneos;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+	};
+	rootObject = 4887340F2CDCA2DB00B400A3 /* Project object */;
+}

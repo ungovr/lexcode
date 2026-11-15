@@ -1,0 +1,31 @@
+rules:
+  - id: lexcode.biometric.ios-plist-face-id
+    languages: [xml]
+    severity: INFO
+    message: Declares NSFaceIDUsageDescription in an Apple app's Info.plist, so the app asks the phone to confirm the user with Face ID, which may be using biometric data (processes_biometrics).
+    # Signal strength, as the device-biometric-prompt rules in the other languages are: the system
+    # compares the face and the app receives only a yes or a no, never the face geometry. The camera and
+    # the photo library are left out, since a photo is not biometric data.
+    pattern: <key>NSFaceIDUsageDescription</key>
+    paths:
+      # Xcode's older templates name the file <Target>-Info.plist.
+      include:
+        - "Info.plist"
+        - "*-Info.plist"
+        - "ios-plist-face-id.*"
+      exclude:
+        - "**/example/**"
+        - "**/examples/**"
+        - "**/sample/**"
+        - "**/samples/**"
+        - "**/demo/**"
+        - "**/demos/**"
+        - "**/Tests/**"
+        - "**/UITests/**"
+    metadata:
+      activity: processes_biometrics
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/processes-biometrics
+      provenance: ungovr-original
+      license: MIT

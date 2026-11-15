@@ -1,0 +1,29 @@
+rules:
+  - id: lexcode.tracking.xcprivacy-tracking
+    languages: [generic]
+    severity: INFO
+    message: Declares NSPrivacyTracking true in an Apple privacy manifest, the app's own statement that it uses data for tracking (linking it with other companies' data for advertising, or sharing it with a data broker), which is tracking devices (tracks_devices).
+    # The engine's xml rules do not read a .xcprivacy file, so this is a generic rule over its text. The
+    # key and the <true/> that follows it, with white space between. False is left out, as are the
+    # required-reason API entries (NSPrivacyAccessedAPITypes), whose declared reasons keep the value in
+    # the app. A commented-out declaration would still match; none was found in the apps read.
+    pattern-regex: '<key>NSPrivacyTracking</key>\s*+<true\s*/>'
+    paths:
+      include:
+        - "*.xcprivacy"
+        - "xcprivacy-tracking.*"
+      exclude:
+        - "**/example/**"
+        - "**/examples/**"
+        - "**/sample/**"
+        - "**/samples/**"
+        - "**/demo/**"
+        - "**/demos/**"
+        - "**/Tests/**"
+        - "**/UITests/**"
+    metadata:
+      activity: tracks_devices
+      mentioned: performs
+      definition: https://lexlint.io/activities/tracks-devices
+      provenance: ungovr-original
+      license: MIT

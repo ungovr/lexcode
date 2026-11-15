@@ -1,0 +1,32 @@
+rules:
+  - id: lexcode.personal.entitlements-sign-in
+    languages: [generic]
+    severity: INFO
+    message: Grants the app a sign-in entitlement in an Apple entitlements file (Sign in with Apple, or a webcredentials domain that shares a website's saved passwords with the app's sign-in), so the app has user accounts, which is processing personal data (processes_personal_data).
+    # Sign in with Apple with a value (an empty array is the capability switched off). A webcredentials
+    # entry in the associated domains exists only for password autofill and shared credentials, which is
+    # a sign-in form: one match per associated-domains list, at its first webcredentials entry. applinks
+    # and activitycontinuation entries open pages and are left out; so are Apple Pay and push
+    # notifications. The engine's xml rules do not read an .entitlements file, so this is a generic rule.
+    pattern-either:
+      - pattern-regex: '<key>com\.apple\.developer\.applesignin</key>\s*+<array>\s*+<string>'
+      - pattern-regex: '<key>com\.apple\.developer\.associated-domains</key>\s*+<array>(?:(?!</array>)[\s\S])*?\K<string>webcredentials:'
+    paths:
+      include:
+        - "*.entitlements"
+        - "entitlements-sign-in.*"
+      exclude:
+        - "**/example/**"
+        - "**/examples/**"
+        - "**/sample/**"
+        - "**/samples/**"
+        - "**/demo/**"
+        - "**/demos/**"
+        - "**/Tests/**"
+        - "**/UITests/**"
+    metadata:
+      activity: processes_personal_data
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-personal-data
+      provenance: ungovr-original
+      license: MIT

@@ -1,0 +1,39 @@
+// !$*UTF8*$!
+// lexcode-expect: 6
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin XCBuildConfiguration section */
+		4887343E2CDCA2DD00B400A3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSContactsUsageDescription = "Invite people from your address book.";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Read your workouts.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Save your rides as workouts.";
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Tell you when your stop is close.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Find stops near you.";
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.transit;
+				SDKROOT = iphoneos;
+			};
+			name = Debug;
+		};
+		4887343F2CDCA2DD00B400A3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				GENERATE_INFOPLIST_FILE = YES;
+				"INFOPLIST_KEY_NSLocationAlwaysUsageDescription[sdk=iphoneos*]" = "Tell you when your stop is close.";
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.transit;
+				SDKROOT = iphoneos;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+	};
+	rootObject = 4887340F2CDCA2DB00B400A3 /* Project object */;
+}
