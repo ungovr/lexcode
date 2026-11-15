@@ -1,0 +1,34 @@
+rules:
+  - id: lexcode.biometric.swift-device-biometric-prompt
+    languages: [swift]
+    severity: INFO
+    message: Asks the device to confirm the user with Face ID, Touch ID or Optic ID, which may be using biometric data (processes_biometrics).
+    # A signal, as in every other language: the definition covers a face-unlock feature and a
+    # fingerprint login, but the device matches the person and the app only learns yes or no.
+    # Only the biometrics-only policy is matched. A policy that also accepts the passcode, an Apple
+    # Watch or a companion device, and canEvaluatePolicy (which asks whether the hardware is
+    # there), are not. Symbolic propagation follows `let policy = LAPolicy.deviceOwner...` into the
+    # call; a type-annotated `let policy: LAPolicy = .deviceOwner...` is not followed (probed).
+    pattern-either:
+      - patterns:
+          - pattern-regex: '(?sm)^[ \t]*(?:@\w+[ \t]+)*import[ \t]+LocalAuthentication\b.*'
+          - pattern-either:
+              - pattern: $C.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, ...)
+              - pattern: $C.evaluatePolicy(LocalAuthentication.LAPolicy.deviceOwnerAuthenticationWithBiometrics, ...)
+      # A keychain item that opens only with the enrolled biometry: reading it shows the prompt.
+      # The flag is matched alone or in a set, but not in a set with `.or`
+      # ([.biometryCurrentSet, .or, .devicePasscode] also opens with the passcode).
+      - patterns:
+          - pattern: SecAccessControlCreateWithFlags($A, $P, $F, $E)
+          - metavariable-regex:
+              metavariable: $F
+              regex: (?s)^(?!.*\.or\b).*\.(biometryAny|biometryCurrentSet|touchIDAny|touchIDCurrentSet)\b
+    options:
+      symbolic_propagation: true
+    metadata:
+      activity: processes_biometrics
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/processes-biometrics
+      provenance: ungovr-original
+      license: MIT
