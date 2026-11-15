@@ -79,18 +79,23 @@ Languages: TypeScript, JavaScript (with JSX and TSX), Python, Go, Ruby
 (`.rb`, `.rake`, `.ru` and `.gemspec` files, and a `Rakefile`, `Fastfile`,
 `Appfile` or `Capfile`), Java (`.java`), Kotlin (`.kt`, `.kts`), PHP (`.php`,
 `.phtml`, and `.inc`, `.module`, `.theme` and `.install` files that open with
-`<?php`) and C# (`.cs`; `.csx` and `.cake` scripts are not read), plus the
-`<script>` blocks of Vue, Svelte, HTML, Jinja, ERB (`.erb`, so `.html.erb`),
-JSP (`.jsp`, `.jspf`, `.tag`), PHP (`.php`, `.phtml`), Blade (`.blade.php`),
-Twig (`.twig`, so `.html.twig`), Tera (`.tera`, so `.html.tera`) and Razor
-(`.cshtml`, `.razor`) files. In an ERB, JSP, Twig, Tera or Razor view only the
-`<script>` blocks are read, as JavaScript; the Ruby, Java, C# or template code
-inside the tags is not (the tags are blanked, so line numbers hold), except
-that a Razor file's `@code` and `@functions` blocks are also read as C#. A
-PHP, Blade or `.phtml` view is PHP source, so the whole file is also scanned
-as PHP, and its `<script>` blocks are read as JavaScript as well. Code in any
-other language (Swift, F#, Visual Basic, Rust and the like) is not read, and
-the scan names each such language with its file count in a notice, so a
+`<?php`), C# (`.cs`; `.csx` and `.cake` scripts are not read), Swift
+(`.swift`) and Rust (`.rs`), plus the `<script>` blocks of Vue, Svelte, HTML,
+Jinja, ERB (`.erb`, so `.html.erb`), JSP (`.jsp`, `.jspf`, `.tag`), PHP
+(`.php`, `.phtml`), Blade (`.blade.php`), Twig (`.twig`, so `.html.twig`),
+Tera (`.tera`, so `.html.tera`) and Razor (`.cshtml`, `.razor`) files. In an
+ERB, JSP, Twig, Tera or Razor view only the `<script>` blocks are read, as
+JavaScript; the Ruby, Java, C# or template code inside the tags is not (the
+tags are blanked, so line numbers hold), except that a Razor file's `@code`
+and `@functions` blocks are also read as C#. A PHP, Blade or `.phtml` view is
+PHP source, so the whole file is also scanned as PHP, and its `<script>`
+blocks are read as JavaScript as well. In a Rust file, code inside a
+`#[cfg(test)]` module is left out unless you pass `--include-tests`. For
+Apple apps lexcode also reads, as text, the files that declare what an app may
+do: `Info.plist` (and Xcode's `<Target>-Info.plist`), `PrivacyInfo.xcprivacy`,
+`*.entitlements` and `project.pbxproj`; a binary plist is not read. Code in
+any other language (Objective-C, F#, Visual Basic and the like) is not read,
+and the scan names each such language with its file count in a notice, so a
 missing activity there reads as "not checked", never as "not there".
 Manifests: npm
 (`package.json` with `package-lock.json`, `pnpm-lock.yaml` or `yarn.lock`),
@@ -99,12 +104,17 @@ PyPI (`pyproject.toml`, `requirements*.txt`, `uv.lock`, `poetry.lock`), Go
 `gems.locked`, and `*.gemspec`), Maven (`pom.xml`, and Gradle's `build.gradle`
 and `build.gradle.kts` with their version catalogs, `gradle/*.versions.toml`,
 and the constants and `findLibrary` lookups in `buildSrc` and `build-logic`),
-Composer (`composer.json`, with the `composer.lock` beside it) and NuGet
+Composer (`composer.json`, with the `composer.lock` beside it), NuGet
 (`*.csproj`, `*.fsproj`, `*.vbproj`, `Directory.Build.props`,
 `Directory.Build.targets`, `Directory.Packages.props` and `packages.config`,
-with the `packages.lock.json` beside a project).
-How Ruby, gems, Java, Kotlin, Maven, Gradle, PHP, Composer, C#, Razor and
-NuGet are read, in detail, is in [rules/README.md](rules/README.md).
+with the `packages.lock.json` beside a project), Cargo (`Cargo.toml`, with
+the `Cargo.lock` beside it or above it), Swift packages (`Package.swift` and
+the Swift packages of an Xcode project's `project.pbxproj`, with
+`Package.resolved`) and CocoaPods (`Podfile` and `Podfile.lock`). Carthage's
+`Cartfile.resolved` is not read; the scan counts its entries in a notice.
+How Ruby, gems, Java, Kotlin, Maven, Gradle, PHP, Composer, C#, Razor, NuGet,
+Swift, Rust, Cargo, Swift packages, CocoaPods and the Apple configuration
+files are read, in detail, is in [rules/README.md](rules/README.md).
 
 ## What it writes
 

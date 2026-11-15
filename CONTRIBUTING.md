@@ -55,8 +55,8 @@ would end that for the whole set. Every rule says so in its metadata:
 ## Adding a package to the component map
 
 The component map (`rules/components/npm.yml`, `pypi.yml`, `go.yml`,
-`gem.yml`, `maven.yml`, `composer.yml`, `nuget.yml`) says which activities a
-well-known package enables. It is written by hand, one entry per package, and
+`gem.yml`, `maven.yml`, `composer.yml`, `nuget.yml`, `cargo.yml`, `swift.yml`,
+`cocoapods.yml`) says which activities a well-known package enables. It is written by hand, one entry per package, and
 nothing adds to it on its own:
 
 1. Find candidates with `lexcode deps <repo>... --unmapped`, run over several
@@ -70,7 +70,9 @@ nothing adds to it on its own:
 3. `says` quotes the vendor's own description of the package, verbatim, and
    `source` is the https page that holds it (the registry page, or the
    package's README in its published tarball when the registry page says too
-   little). When the description runs long, `says` may quote whole sentences
+   little: `https://crates.io/crates/<name>` for a crate,
+   `https://cocoapods.org/pods/<name>` for a pod, and the repository's URL for a
+   Swift package). When the description runs long, `says` may quote whole sentences
    from its start, up to a sentence boundary, and drop the rest; it never cuts
    inside a sentence or rewords one. `enables` lists activity ids whose class
    in `classes.yml` is `evidence`.
@@ -141,6 +143,37 @@ library type that is an app class of the same short name in another namespace
 (`cs-<what>.test.global.cs`), as PHP's does, to pin a short form that has no
 `using` or an initializer form.
 
+Swift, Rust, the Apple configuration files and Cargo carry a prefix as well:
+
+| Kind | Rule `<what>` part | File and fixtures |
+|---|---|---|
+| Swift | `swift-<what>` | `swift-<what>.yml`, `.test.swift`, `.neg.test.swift`; `languages: [swift]` |
+| Rust | `rs-<what>` | `rs-<what>.yml`, `.test.rs`, `.neg.test.rs`; `languages: [rust]` |
+| Info.plist | `ios-plist-<what>` | `ios-plist-<what>.yml`, `.test.plist`, `.neg.test.plist`; `languages: [xml]`, and `paths.include` lists `Info.plist`, `*-Info.plist` and `ios-plist-<what>.*` |
+| Info.plist keys set in the Xcode project | `xcode-infoplist-<what>` | `xcode-infoplist-<what>.yml`, `.test.pbxproj`, `.neg.test.pbxproj`; `languages: [generic]`, over `project.pbxproj` |
+| Privacy manifest | `xcprivacy-<what>` | `xcprivacy-<what>.yml`, `.test.xcprivacy`, `.neg.test.xcprivacy`; `languages: [generic]`, and `paths.include` lists `*.xcprivacy` and `xcprivacy-<what>.*` |
+| Entitlements | `entitlements-<what>` | `entitlements-<what>.yml`, `.test.entitlements`, `.neg.test.entitlements`; `languages: [generic]`, and `paths.include` lists `*.entitlements` and `entitlements-<what>.*` |
+| Xcode project | `xcode-<what>` | `xcode-<what>.yml`, `.test.pbxproj`, `.neg.test.pbxproj`; `languages: [generic]`, and `paths.include` lists `project.pbxproj` and `xcode-<what>.*` |
+| Cargo | `cargo-<what>` | `cargo-<what>.yml`, `.test.toml`, `.neg.test.toml`; `languages: [generic]`, and `paths.include` lists `Cargo.toml` (and `dist-workspace.toml` for a release packaging rule) and `cargo-<what>.*` |
+
+A Swift rule is `lexcode.<activity-short>.swift-<what>` and a Rust rule is
+`lexcode.<activity-short>.rs-<what>`; the others take their own prefix in the
+same place (`lexcode.mobile.xcode-ios-application`). The engine's `xml`
+language reads `Info.plist` but no `.xcprivacy` or `.entitlements` file, and an
+Xcode project is not XML, so those rules are `generic`, and every fixture of a
+`generic` rule carries the file's real extension. A Swift fixture is a whole
+file, with its `import` lines and a type, and a Rust fixture is a whole file,
+with its `use` lines and a function or an `impl`, so each parses as a real file
+does. A rule names a library API or a language construct any app may use, never
+a type that exists in one app, and its negative fixture holds the nearest
+lookalike the exclusion names: for a Swift or Rust library item, an app type of
+the same short name in a file that does not import the library. The Apple
+configuration and Cargo rules are build and configuration rules, not source
+rules, so they keep their `**/example/**`, `**/sample/**` and `**/demo/**`
+excludes. A fixture that must keep Windows line endings (a `Cargo.toml` saved
+with CRLF) is named `<what>.test.crlf.toml` and marked `-text` in a
+`.gitattributes` beside it, so a checkout keeps its bytes.
+
 A Java or Kotlin fixture is a whole compilation unit: a `package` line,
 imports and a class, so it parses as a real file does.
 
@@ -204,7 +237,9 @@ for Rust. Several modules go in one non-capturing group in the name's place
 (`(?:Fluent|FluentKit)`). A Rust guard may also name the item on the use line
 (`use\s+ring::[^;]*\bUnboundKey\b`) when a comment says which same-name false
 match that prevents. `\x{FEFF}?` lets a first line saved with a byte order mark
-count. A second import on the same line (`import A; import B`) is not read.
+count. A second import on the same line (`import A; import B`) is not read. The
+guard goes in a `patterns` block as a `pattern-regex` term, greedy, and a rule
+with one puts Swift or Rust among the languages the large-file notice counts.
 
 A scan hands the engine only the rules that have a file to read and only the
 files those rules read (#12997): every config parse costs time, about 2.6 s
@@ -281,11 +316,14 @@ pairing:
 The nested form matches the same ranges and took those rules to about 3 s. A
 check on a metavariable that two terms bind stays at the joined level. Before a
 release, `node scripts/rule-cost.mjs` times each rule with a positive fixture in
-Java, Kotlin, PHP, Ruby, Python, JavaScript, TypeScript or Go on that fixture
-followed by filler, at 90 KB and 900 KB, beside a bare rule that only parses the
-same filler. It names a rule whose time grows more than twice as fast as the bare
-rule's for the 10x file, or that takes more than five times the bare rule's time
-on 900 KB, and every rule the engine failed on.
+Java, Kotlin, PHP, Ruby, Python, JavaScript, TypeScript, Go, C#, Swift or Rust
+on that fixture followed by filler, at 90 KB and 900 KB, beside a bare rule that
+only parses the same filler. It names a rule whose time grows more than twice as
+fast as the bare rule's for the 10x file, or that takes more than five times the
+bare rule's time on 900 KB, and every rule the engine failed on. It names its
+two test files with 12 characters or more on purpose, because of the Swift
+scanner fault in "Swift pattern notes"; a Swift time taken on a shorter name is
+not a parse time.
 
 ### Kotlin pattern notes
 
@@ -447,6 +485,103 @@ Measured on Opengrep 1.33.1:
 - An MSBuild file is not XML to the engine: `languages: [xml]` reads only `.xml`,
   so a `.csproj`, `.fsproj`, `.props` or `.nuspec` rule is `generic`, with
   `paths.include` and a `pattern-regex`, as the Gradle rules are.
+
+### Swift pattern notes
+
+Measured on Opengrep 1.33.1:
+
+- The engine resolves `import` for Swift. A module-qualified pattern
+  (`OpenAI.OpenAI(...)`) matches the short call under `import OpenAI`, and not an
+  app's own `struct OpenAI` in a file without that import. So write a library
+  type module-qualified, once.
+- The engine does not follow an umbrella import. A Foundation type
+  (`URLSession`, `URLRequest`, `JSONEncoder`) reaches a file through
+  `import UIKit`, `import SwiftUI`, `import AppKit` or `import Cocoa`, so it is
+  matched by a `pattern-either` of its module-qualified and its short form.
+  `Firebase.Analytics.logEvent(...)` matches `Analytics.logEvent` under
+  `import Firebase`, and `FirebaseAnalytics.Analytics.logEvent(...)` does not,
+  so a branch for a vendor with an umbrella carries both module names. A
+  framework that only its own import brings (AVFoundation, Speech, Vision,
+  LocalAuthentication, AppTrackingTransparency, AdSupport, CoreLocation,
+  Contacts, HealthKit, UserNotifications, CallKit, MessageUI, WebKit, CryptoKit,
+  StoreKit, CreateML) is written module-qualified only. A vendor's type may add a
+  short form only when the short name carries the vendor's or product's own name
+  (`FirebaseApp`, `Mixpanel`, `SentrySDK`); otherwise the `@_exported import` gap
+  stands and is recorded in `rules/README.md`.
+- A module-qualified chain (`Mod.Type.f().g(...)`) does not match when the call
+  sits under `try`, `await` or `try?`. Match the head alone inside `$X.g(...)`,
+  which works in every context, and give each positive fixture a `try await`
+  form.
+- Swift has no typed metavariable, so a method on an untyped receiver is guarded
+  only by the file's `import`. `X.f(...)` matches the trailing-closure call
+  `X.f { ... }`, and a pattern written with the trailing closure does not.
+  Labeled arguments match when spelled out (`$X.chats(query: $Q)`).
+  `@Model class $C { ... }` also matches `@Model final class`.
+- Taint mode works through `let` bindings and string interpolation: a source
+  `UIDevice.current.identifierForVendor` reaches `setValue(_:forHTTPHeaderField:)`.
+  Put `focus-metavariable` on the sink's value, or a request whose body is
+  tainted makes a later header call a sink. The engine carries taint into a
+  nested function that captures a tainted local and from file-scope code into a
+  function, and not across a call. More than about seven source alternatives in
+  one taint rule lose the engine's pre-filter (55 to 84 s on one file), so split
+  the rule per kind of source. The generator named under "Naming rules and
+  fixtures" writes the `generates_*` taint rules, and its scope is one
+  `func $SCOPE(...) { $...BODY }` pattern: a `pattern-either` of scopes read the
+  same file in 60 s, against 6.7 s.
+- A very large `pattern-either` of calls can cost 0.2 s per KB on some files (one
+  analytics rule took 24 s on a 109 KB file, because its pre-filter held a 14 MB
+  formula); split such a rule into one rule per vendor family.
+- Where the engine's grammar fails, the whole file is read in part or not at all
+  (the list is in `rules/README.md`, "Known Swift gaps"), so do not write a
+  fixture that holds one of those constructs next to the shape a rule needs.
+- The engine's Swift scanner allocates its state with `calloc(0, ...)`, so one
+  field starts as whatever the memory held, and a run can parse a file that
+  declares a modified class in quadratic time (900 KB: 57 s, against 2.2 s). In
+  a run of one file it follows the length of the path, 11 characters or fewer
+  being slow, so time a rule on a file named with 12 characters or more. It is
+  fixed upstream in tree-sitter-swift (commit `8abb3e8b33`).
+- A line-start gate (`^`) fails on a byte order mark, as in C#; the shared guard
+  above allows one.
+
+### Rust pattern notes
+
+Measured on Opengrep 1.33.1:
+
+- The engine resolves `use` for Rust. A pattern with a crate path
+  (`async_openai::Client::new()`) matches the short call `Client::new()` under
+  `use async_openai::{Client, ...}`, `use async_openai::types::X`, a module
+  import (`use ring::aead;` then `aead::UnboundKey::new(..)`) and
+  `use async_openai as oai` (`use reqwest as rq` resolves too), and does not
+  match an app's own `Client` under `use mine::Client`. So write a library item
+  by its full crate path, once.
+- The engine does not resolve an item imported through a path inside a `use`
+  group (`use async_openai::{types::{Args}, Client}`, `use a::{b::Item}`), a
+  `self as m` in a group or a glob. A crate whose own examples import that way
+  (async-openai, ollama-rs, rig, ring) pairs the crate-path pattern, in a
+  `pattern-either`, with a short form guarded by a check that the file names the
+  crate on a `use` line: the shared guard above, in a `patterns` block, with the
+  fixture written in the nested-group form.
+- A parameter type and a turbofish type match on their last path segment, so a
+  rule that keys on a handler's parameter type, or on `$S.parse::<rss::Channel>()`,
+  also checks that the file uses the crate.
+- A macro call matches as a call (`sqlx::query!(...)`), and a chain matches
+  across `.await` (`$C.chat().create($R)`). Calls inside the body of `format!`,
+  `serde_json::json!` and `tokio::select!` are not seen, and taint into a macro
+  sees only a bare identifier, not an argument with a trailing comma, so a rule
+  that must read inside one reads the text with a `pattern-regex`.
+- `mod $M { ... }` is not a pattern (it matches nothing), so an exclusion for a
+  module is a `pattern-not-inside` text regex. A `match` with an `Err(e) =>` arm
+  does not parse as a pattern, and `if let Err($E) = $R { ... }` does. A struct
+  literal cannot be a pattern, and a tail-expression pattern (`fn ... { ... $X }`)
+  binds the earlier statements too.
+- A call inside a `#[cfg(test)] mod tests { }` block is matched by the engine,
+  and `scan` drops the match afterward (README, "What it reads"), so a fixture
+  cannot show that a rule skips a test module.
+- A rule that matches thousands of times in one file (about 3,000) reaches the
+  30 s limit the scan gives each rule per file, whatever its shape.
+- A `Cargo.toml` rule is a `generic` rule with `paths.include`, and reads the
+  package's own table by walking lines up to the next `[` header, with `\r?$` so a
+  manifest saved with Windows line endings still matches.
 
 ## Performance tests
 
