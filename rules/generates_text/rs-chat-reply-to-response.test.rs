@@ -13,6 +13,7 @@ use axum::response::IntoResponse;
 use axum::{Json, Router};
 use futures::StreamExt;
 use genai::{chat::ChatRequest, Client as GenaiClient};
+use llama_cpp::{standard_sampler::StandardSampler, SessionParams};
 use llama_cpp_2::model::Special;
 use llama_cpp_2::sampling::{params::LlamaSamplerChainParams, LlamaSampler};
 use mistralrs::{TextMessages, TextModelBuilder};
@@ -114,10 +115,10 @@ pub async fn llama_local(model: &llama_cpp_2::model::LlamaModel, ctx: &mut llama
 }
 
 pub async fn llama_session(model: llama_cpp::LlamaModel, prompt: String) -> Json<Vec<String>> {
-    let mut session = model.create_session(llama_cpp::SessionParams::default()).unwrap();
+    let mut session = model.create_session(SessionParams::default()).unwrap();
     session.advance_context(prompt).unwrap();
     let completions = session
-        .start_completing_with(llama_cpp::standard_sampler::StandardSampler::default(), 512)
+        .start_completing_with(StandardSampler::default(), 512)
         .unwrap()
         .into_strings();
     Json(completions.collect())

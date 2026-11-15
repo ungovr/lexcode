@@ -1,4 +1,4 @@
-// lexcode-expect: 7
+// lexcode-expect: 8
 // Sinks, actix-web, hyper and http: speech a text-to-speech model made, sent to the person who asked, one sink per function.
 use async_openai::{config::OpenAIConfig, types::CreateSpeechRequest, Client};
 use actix_web::{web, HttpResponse};
@@ -35,6 +35,12 @@ async fn hyper_new(client: &Client<OpenAIConfig>, request: CreateSpeechRequest) 
     let speech = client.audio().speech().create(request).await.unwrap();
     let out = speech.bytes;
     Response::new(out)
+}
+
+async fn http_new(client: &Client<OpenAIConfig>, request: CreateSpeechRequest) -> http::Response<String> {
+    let speech = client.audio().speech().create(request).await.unwrap();
+    let out = speech.bytes;
+    http::Response::new(out)
 }
 
 async fn hyper_full(client: &Client<OpenAIConfig>, request: CreateSpeechRequest) -> Full<Bytes> {

@@ -1,11 +1,10 @@
-// lexcode-expect: 9
-// Sinks, Poem, poem-openapi, Loco and Tauri: speech a text-to-speech model made, sent to the person who asked, one sink per function.
+// lexcode-expect: 7
+// Sinks, Poem, poem-openapi and Loco: speech a text-to-speech model made, sent to the person who asked, one sink per function.
 use async_openai::{config::OpenAIConfig, types::CreateSpeechRequest, Client};
 use loco_rs::prelude::*;
 use poem::web::Html;
 use poem_openapi::payload;
 use poem_openapi::payload::{Binary, PlainText};
-use tauri::{AppHandle, Emitter};
 
 async fn poem_html(client: &Client<OpenAIConfig>, request: CreateSpeechRequest) -> Html<String> {
     let speech = client.audio().speech().create(request).await.unwrap();
@@ -47,18 +46,4 @@ async fn loco_text(client: &Client<OpenAIConfig>, request: CreateSpeechRequest) 
     let speech = client.audio().speech().create(request).await.unwrap();
     let out = speech.bytes;
     format::text(&out)
-}
-
-#[tauri::command]
-async fn tauri_command(client: &Client<OpenAIConfig>, request: CreateSpeechRequest) -> Result<String, String> {
-    let speech = client.audio().speech().create(request).await.unwrap();
-    let out = speech.bytes;
-    Ok(out)
-}
-
-#[tauri::command]
-async fn tauri_event(app: AppHandle, client: &Client<OpenAIConfig>, request: CreateSpeechRequest) -> Result<(), String> {
-    let speech = client.audio().speech().create(request).await.unwrap();
-    let out = speech.bytes;
-    app.emit("reply", out).map_err(|e| e.to_string())
 }

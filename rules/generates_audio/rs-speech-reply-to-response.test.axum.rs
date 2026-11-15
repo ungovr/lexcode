@@ -1,4 +1,4 @@
-// lexcode-expect: 11
+// lexcode-expect: 12
 // Sinks, axum and tungstenite: speech a text-to-speech model made, sent to the person who asked, one sink per function.
 use async_openai::{config::OpenAIConfig, types::CreateSpeechRequest, Client};
 use axum::body::Body;
@@ -21,11 +21,16 @@ async fn html_reply(client: &Client<OpenAIConfig>, request: CreateSpeechRequest)
     Html(out)
 }
 
-async fn body_reply(client: &Client<OpenAIConfig>, request: CreateSpeechRequest) -> Response {
+async fn body_reply(client: &Client<OpenAIConfig>, request: CreateSpeechRequest) -> Body {
     let speech = client.audio().speech().create(request).await.unwrap();
     let out = speech.bytes;
-    let body = Body::from(out);
-    Response::new(body)
+    Body::from(out)
+}
+
+async fn response_new(client: &Client<OpenAIConfig>, request: CreateSpeechRequest) -> Response {
+    let speech = client.audio().speech().create(request).await.unwrap();
+    let out = speech.bytes;
+    Response::new(out.into())
 }
 
 async fn event_reply(client: &Client<OpenAIConfig>, request: CreateSpeechRequest) -> Event {

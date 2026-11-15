@@ -1,4 +1,4 @@
-// lexcode-expect: 7
+// lexcode-expect: 8
 // Sinks, actix-web, hyper and http: a picture an image model made, sent to the person who asked, one sink per function.
 use async_openai::{config::OpenAIConfig, types::CreateImageRequest, Client};
 use actix_web::{web, HttpResponse};
@@ -35,6 +35,12 @@ async fn hyper_new(client: &Client<OpenAIConfig>, request: CreateImageRequest) -
     let response = client.images().generate(request).await.unwrap();
     let out = response.data[0].b64_json.clone().unwrap_or_default();
     Response::new(out)
+}
+
+async fn http_new(client: &Client<OpenAIConfig>, request: CreateImageRequest) -> http::Response<String> {
+    let response = client.images().generate(request).await.unwrap();
+    let out = response.data[0].b64_json.clone().unwrap_or_default();
+    http::Response::new(out)
 }
 
 async fn hyper_full(client: &Client<OpenAIConfig>, request: CreateImageRequest) -> Full<Bytes> {

@@ -1,4 +1,4 @@
-// lexcode-expect: 11
+// lexcode-expect: 12
 // Sinks, axum and tungstenite: text a chat model wrote, sent to the person who asked, one sink per function.
 use async_openai::{config::OpenAIConfig, types::CreateChatCompletionRequest, Client};
 use axum::body::Body;
@@ -21,11 +21,16 @@ async fn html_reply(client: &Client<OpenAIConfig>, request: CreateChatCompletion
     Html(out)
 }
 
-async fn body_reply(client: &Client<OpenAIConfig>, request: CreateChatCompletionRequest) -> Response {
+async fn body_reply(client: &Client<OpenAIConfig>, request: CreateChatCompletionRequest) -> Body {
     let response = client.chat().create(request).await.unwrap();
     let out = response.choices[0].message.content.clone().unwrap_or_default();
-    let body = Body::from(out);
-    Response::new(body)
+    Body::from(out)
+}
+
+async fn response_new(client: &Client<OpenAIConfig>, request: CreateChatCompletionRequest) -> Response {
+    let response = client.chat().create(request).await.unwrap();
+    let out = response.choices[0].message.content.clone().unwrap_or_default();
+    Response::new(out.into())
 }
 
 async fn event_reply(client: &Client<OpenAIConfig>, request: CreateChatCompletionRequest) -> Event {

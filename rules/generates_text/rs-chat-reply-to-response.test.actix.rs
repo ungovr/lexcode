@@ -1,4 +1,4 @@
-// lexcode-expect: 7
+// lexcode-expect: 8
 // Sinks, actix-web, hyper and http: text a chat model wrote, sent to the person who asked, one sink per function.
 use async_openai::{config::OpenAIConfig, types::CreateChatCompletionRequest, Client};
 use actix_web::{web, HttpResponse};
@@ -35,6 +35,12 @@ async fn hyper_new(client: &Client<OpenAIConfig>, request: CreateChatCompletionR
     let response = client.chat().create(request).await.unwrap();
     let out = response.choices[0].message.content.clone().unwrap_or_default();
     Response::new(out)
+}
+
+async fn http_new(client: &Client<OpenAIConfig>, request: CreateChatCompletionRequest) -> http::Response<String> {
+    let response = client.chat().create(request).await.unwrap();
+    let out = response.choices[0].message.content.clone().unwrap_or_default();
+    http::Response::new(out)
 }
 
 async fn hyper_full(client: &Client<OpenAIConfig>, request: CreateChatCompletionRequest) -> Full<Bytes> {

@@ -1,4 +1,4 @@
-// lexcode-expect: 7
+// lexcode-expect: 8
 // Sinks, actix-web, hyper and http: a clip a video model made, sent to the person who asked, one sink per function.
 use async_openai::{config::OpenAIConfig, Client};
 use actix_web::{web, HttpResponse};
@@ -35,6 +35,12 @@ async fn hyper_new(client: &Client<OpenAIConfig>, video_id: String) -> Response<
     let clip = client.videos().download_content(&video_id).await.unwrap();
     let out = clip.to_vec();
     Response::new(out)
+}
+
+async fn http_new(client: &Client<OpenAIConfig>, video_id: String) -> http::Response<String> {
+    let clip = client.videos().download_content(&video_id).await.unwrap();
+    let out = clip.to_vec();
+    http::Response::new(out)
 }
 
 async fn hyper_full(client: &Client<OpenAIConfig>, video_id: String) -> Full<Bytes> {

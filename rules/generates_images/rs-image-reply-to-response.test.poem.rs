@@ -1,11 +1,10 @@
-// lexcode-expect: 9
-// Sinks, Poem, poem-openapi, Loco and Tauri: a picture an image model made, sent to the person who asked, one sink per function.
+// lexcode-expect: 7
+// Sinks, Poem, poem-openapi and Loco: a picture an image model made, sent to the person who asked, one sink per function.
 use async_openai::{config::OpenAIConfig, types::CreateImageRequest, Client};
 use loco_rs::prelude::*;
 use poem::web::Html;
 use poem_openapi::payload;
 use poem_openapi::payload::{Binary, PlainText};
-use tauri::{AppHandle, Emitter};
 
 async fn poem_html(client: &Client<OpenAIConfig>, request: CreateImageRequest) -> Html<String> {
     let response = client.images().generate(request).await.unwrap();
@@ -47,18 +46,4 @@ async fn loco_text(client: &Client<OpenAIConfig>, request: CreateImageRequest) -
     let response = client.images().generate(request).await.unwrap();
     let out = response.data[0].b64_json.clone().unwrap_or_default();
     format::text(&out)
-}
-
-#[tauri::command]
-async fn tauri_command(client: &Client<OpenAIConfig>, request: CreateImageRequest) -> Result<String, String> {
-    let response = client.images().generate(request).await.unwrap();
-    let out = response.data[0].b64_json.clone().unwrap_or_default();
-    Ok(out)
-}
-
-#[tauri::command]
-async fn tauri_event(app: AppHandle, client: &Client<OpenAIConfig>, request: CreateImageRequest) -> Result<(), String> {
-    let response = client.images().generate(request).await.unwrap();
-    let out = response.data[0].b64_json.clone().unwrap_or_default();
-    app.emit("reply", out).map_err(|e| e.to_string())
 }

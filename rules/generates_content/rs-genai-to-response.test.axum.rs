@@ -1,4 +1,4 @@
-// lexcode-expect: 11
+// lexcode-expect: 12
 // Sinks, axum and tungstenite: a Gemini response, sent to the person who asked, one sink per function.
 use gemini_rust::Gemini;
 use axum::body::Body;
@@ -21,11 +21,16 @@ async fn html_reply(gemini: &Gemini, prompt: String) -> Html<String> {
     Html(out)
 }
 
-async fn body_reply(gemini: &Gemini, prompt: String) -> Response {
+async fn body_reply(gemini: &Gemini, prompt: String) -> Body {
     let response = gemini.generate_content().with_user_message(prompt).execute().await.unwrap();
     let out = response.text();
-    let body = Body::from(out);
-    Response::new(body)
+    Body::from(out)
+}
+
+async fn response_new(gemini: &Gemini, prompt: String) -> Response {
+    let response = gemini.generate_content().with_user_message(prompt).execute().await.unwrap();
+    let out = response.text();
+    Response::new(out.into())
 }
 
 async fn event_reply(gemini: &Gemini, prompt: String) -> Event {

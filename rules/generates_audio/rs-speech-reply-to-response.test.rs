@@ -11,6 +11,7 @@ use axum::extract::ws::{Message, WebSocket};
 use axum::response::{IntoResponse, Response};
 use futures::StreamExt;
 use mistralrs::{SpeechLoaderType, SpeechModelBuilder};
+use rig::providers::openai::AudioGenerationModel;
 
 pub async fn narrate(State(client): State<Client<OpenAIConfig>>, request: CreateSpeechRequest) -> impl IntoResponse {
     let speech = client.audio().speech().create(request).await.unwrap();
@@ -34,7 +35,7 @@ pub async fn narrate_live(client: Client<OpenAIConfig>, request: CreateSpeechReq
     }
 }
 
-pub async fn rig_voice(model: rig::providers::openai::AudioGenerationModel, text: String) -> impl IntoResponse {
+pub async fn rig_voice(model: AudioGenerationModel, text: String) -> impl IntoResponse {
     let response = model
         .audio_generation_request()
         .text(&text)

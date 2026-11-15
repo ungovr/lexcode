@@ -1,4 +1,4 @@
-// lexcode-expect: 8
+// lexcode-expect: 12
 // Text a model wrote, sent to the person who asked, with every crate imported
 // the way its own documentation does: paths inside `use` groups. The engine does not resolve
 // those, so these are read by the rule's short forms, in a file whose use lines name the crate.
@@ -12,10 +12,11 @@ use ollama_rs::{generation::completion::request::GenerationRequest, Ollama};
 use axum::{
     body::Body,
     extract::{ws::Message, State},
-    response::{sse::Event, Html, IntoResponse, Response},
+    response::{sse::{Event, Sse}, Html, IntoResponse, Response},
     routing::get,
     Json, Router,
 };
+use futures::stream;
 
 pub async fn axum_json(client: &Client<OpenAIConfig>, request: CreateChatCompletionRequest) -> Json<String> {
     let response = client.chat().create(request).await.unwrap();
@@ -51,6 +52,30 @@ pub async fn axum_builder(client: &Client<OpenAIConfig>, request: CreateChatComp
     let response = client.chat().create(request).await.unwrap();
     let out = response.choices[0].message.content.clone().unwrap_or_default();
     Response::builder().status(200).body(Body::new(out)).unwrap()
+}
+
+pub async fn axum_event_json(client: &Client<OpenAIConfig>, request: CreateChatCompletionRequest) -> Event {
+    let response = client.chat().create(request).await.unwrap();
+    let out = response.choices[0].message.content.clone().unwrap_or_default();
+    Event::default().json_data(out).unwrap()
+}
+
+pub async fn axum_sse(client: &Client<OpenAIConfig>, request: CreateChatCompletionRequest) -> impl IntoResponse {
+    let response = client.chat().create(request).await.unwrap();
+    let out = response.choices[0].message.content.clone().unwrap_or_default();
+    Sse::new(stream::iter(vec![out]))
+}
+
+pub async fn axum_socket_bytes(client: &Client<OpenAIConfig>, request: CreateChatCompletionRequest) -> Message {
+    let response = client.chat().create(request).await.unwrap();
+    let out = response.choices[0].message.content.clone().unwrap_or_default();
+    Message::Binary(out.into())
+}
+
+pub async fn axum_response_new(client: &Client<OpenAIConfig>, request: CreateChatCompletionRequest) -> Response {
+    let response = client.chat().create(request).await.unwrap();
+    let out = response.choices[0].message.content.clone().unwrap_or_default();
+    Response::new(out.into())
 }
 
 pub async fn ollama_generate(ollama: &Ollama, prompt: String) -> Json<String> {

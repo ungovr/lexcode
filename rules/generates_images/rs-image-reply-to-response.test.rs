@@ -11,6 +11,7 @@ use axum::response::{Html, IntoResponse};
 use axum::{Json, Router};
 use futures::StreamExt;
 use mistralrs::{DiffusionGenerationParams, DiffusionModelBuilder, ImageGenerationResponseFormat};
+use rig::providers::openai::ImageGenerationModel;
 
 pub async fn draw(State(client): State<Client<OpenAIConfig>>, Json(request): Json<CreateImageRequest>) -> Json<Vec<String>> {
     let response = client.images().generate(request).await.unwrap();
@@ -45,7 +46,7 @@ pub async fn draw_streamed(client: Client<OpenAIConfig>, request: CreateImageReq
     }
 }
 
-pub async fn avatar(model: rig::providers::openai::ImageGenerationModel, prompt: String) -> impl IntoResponse {
+pub async fn avatar(model: ImageGenerationModel, prompt: String) -> impl IntoResponse {
     let response = model
         .image_generation_request()
         .prompt(&prompt)

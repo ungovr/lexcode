@@ -1,4 +1,4 @@
-// lexcode-expect: 11
+// lexcode-expect: 12
 // Sinks, axum and tungstenite: a clip a video model made, sent to the person who asked, one sink per function.
 use async_openai::{config::OpenAIConfig, Client};
 use axum::body::Body;
@@ -21,11 +21,16 @@ async fn html_reply(client: &Client<OpenAIConfig>, video_id: String) -> Html<Str
     Html(out)
 }
 
-async fn body_reply(client: &Client<OpenAIConfig>, video_id: String) -> Response {
+async fn body_reply(client: &Client<OpenAIConfig>, video_id: String) -> Body {
     let clip = client.videos().download_content(&video_id).await.unwrap();
     let out = clip.to_vec();
-    let body = Body::from(out);
-    Response::new(body)
+    Body::from(out)
+}
+
+async fn response_new(client: &Client<OpenAIConfig>, video_id: String) -> Response {
+    let clip = client.videos().download_content(&video_id).await.unwrap();
+    let out = clip.to_vec();
+    Response::new(out.into())
 }
 
 async fn event_reply(client: &Client<OpenAIConfig>, video_id: String) -> Event {

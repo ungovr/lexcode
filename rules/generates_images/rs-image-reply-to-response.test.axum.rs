@@ -1,4 +1,4 @@
-// lexcode-expect: 11
+// lexcode-expect: 12
 // Sinks, axum and tungstenite: a picture an image model made, sent to the person who asked, one sink per function.
 use async_openai::{config::OpenAIConfig, types::CreateImageRequest, Client};
 use axum::body::Body;
@@ -21,11 +21,16 @@ async fn html_reply(client: &Client<OpenAIConfig>, request: CreateImageRequest) 
     Html(out)
 }
 
-async fn body_reply(client: &Client<OpenAIConfig>, request: CreateImageRequest) -> Response {
+async fn body_reply(client: &Client<OpenAIConfig>, request: CreateImageRequest) -> Body {
     let response = client.images().generate(request).await.unwrap();
     let out = response.data[0].b64_json.clone().unwrap_or_default();
-    let body = Body::from(out);
-    Response::new(body)
+    Body::from(out)
+}
+
+async fn response_new(client: &Client<OpenAIConfig>, request: CreateImageRequest) -> Response {
+    let response = client.images().generate(request).await.unwrap();
+    let out = response.data[0].b64_json.clone().unwrap_or_default();
+    Response::new(out.into())
 }
 
 async fn event_reply(client: &Client<OpenAIConfig>, request: CreateImageRequest) -> Event {

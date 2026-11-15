@@ -1,4 +1,4 @@
-// lexcode-expect: 7
+// lexcode-expect: 8
 // Sinks, actix-web, hyper and http: a Gemini response, sent to the person who asked, one sink per function.
 use gemini_rust::Gemini;
 use actix_web::{web, HttpResponse};
@@ -35,6 +35,12 @@ async fn hyper_new(gemini: &Gemini, prompt: String) -> Response<String> {
     let response = gemini.generate_content().with_user_message(prompt).execute().await.unwrap();
     let out = response.text();
     Response::new(out)
+}
+
+async fn http_new(gemini: &Gemini, prompt: String) -> http::Response<String> {
+    let response = gemini.generate_content().with_user_message(prompt).execute().await.unwrap();
+    let out = response.text();
+    http::Response::new(out)
 }
 
 async fn hyper_full(gemini: &Gemini, prompt: String) -> Full<Bytes> {
