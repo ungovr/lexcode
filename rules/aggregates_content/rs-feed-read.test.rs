@@ -1,4 +1,4 @@
-// lexcode-expect: 10
+// lexcode-expect: 12
 use std::str::FromStr;
 
 use feed_rs::{model::Feed, parser};
@@ -6,6 +6,8 @@ use feed_rs as fr;
 use rss::{Channel, Item};
 use rss as rs_feed;
 use atom_syndication::Feed as AtomFeed;
+use atom_syndication as atom;
+use syndication as synd;
 
 // feed-rs over a body downloaded the line before, through a grouped `use` and through the alias.
 pub async fn headlines(client: &reqwest::Client, url: &str) -> anyhow::Result<Vec<String>> {
@@ -33,5 +35,7 @@ pub fn atom(body: &[u8], text: &str) -> anyhow::Result<()> {
     let other = text
         .parse::<atom_syndication::Feed>()?;
     let either = text.parse::<syndication::Feed>()?;
+    let by_alias = atom::Feed::read_from(body)?;
+    let any = text.parse::<synd::Feed>()?;
     Ok(())
 }

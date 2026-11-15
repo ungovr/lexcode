@@ -23,21 +23,22 @@ rules:
           - pattern: atom_syndication::Feed::read_from($X)
           - pattern: atom_syndication::Feed::from_str($X)
           # The type in a turbofish is matched by its last segment whatever the file imports, so
-          # each `parse::<T>()` form also needs the crate in a `use` line or written in the path.
+          # each `parse::<T>()` form also needs the crate on a `use` line or written in a path on a
+          # code line; a comment that names the crate does not count.
           - patterns:
               - pattern-either:
-                  - pattern-regex: (?s)\A(?=.*\buse\s+rss\b).*
-                  - pattern-regex: (?s)\A(?=.*\brss::Channel\b).*
+                  - pattern-regex: (?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+rss\b).*
+                  - pattern-regex: (?ms)\A(?=.*^(?![ \t]*[/*])[^\n]*\brss::Channel\b).*
               - pattern: $X.parse::<rss::Channel>()
           - patterns:
               - pattern-either:
-                  - pattern-regex: (?s)\A(?=.*\buse\s+atom_syndication\b).*
-                  - pattern-regex: (?s)\A(?=.*\batom_syndication::Feed\b).*
+                  - pattern-regex: (?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+atom_syndication\b).*
+                  - pattern-regex: (?ms)\A(?=.*^(?![ \t]*[/*])[^\n]*\batom_syndication::Feed\b).*
               - pattern: $X.parse::<atom_syndication::Feed>()
           - patterns:
               - pattern-either:
-                  - pattern-regex: (?s)\A(?=.*\buse\s+syndication\b).*
-                  - pattern-regex: (?s)\A(?=.*\bsyndication::Feed\b).*
+                  - pattern-regex: (?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+syndication\b).*
+                  - pattern-regex: (?ms)\A(?=.*^(?![ \t]*[/*])[^\n]*\bsyndication::Feed\b).*
               - pattern: $X.parse::<syndication::Feed>()
       - metavariable-regex:
           metavariable: $X

@@ -1,8 +1,10 @@
-// lexcode-expect: 6
+// lexcode-expect: 8
 use spider::{tokio, website::Website};
 use spider as sp;
 use texting_robots::{get_robots_url, Robot};
 use robotstxt::DefaultMatcher;
+use texting_robots as tr;
+use robotstxt as rt;
 
 // spider through a grouped `use` with a nested path, and through the crate's alias.
 pub async fn crawl_site(start: &str) {
@@ -28,4 +30,11 @@ pub fn google_matcher(robots_body: &str, url: &str) -> bool {
     let many = matcher
         .allowed_by_robots(robots_body, vec!["PriceBot", "Googlebot"], url);
     one && many
+}
+
+// The same crates through their aliases.
+pub fn by_alias(robots_body: &[u8], text: &str, url: &str) -> bool {
+    let robots = tr::Robot::new("PriceBot", robots_body);
+    let mut m = rt::DefaultMatcher::default();
+    m.one_agent_allowed_by_robots(text, "PriceBot", url)
 }

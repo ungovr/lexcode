@@ -1,4 +1,4 @@
-// lexcode-expect: 8
+// lexcode-expect: 13
 use reqwest::{get, Client};
 use reqwest as rq;
 use scraper::{Html, Selector};
@@ -55,5 +55,20 @@ pub fn with_ureq(url: &str) -> anyhow::Result<()> {
     let agent = ureq::AgentBuilder::new().build();
     let page = agent.get(url).call()?.into_string()?;
     let dom = tl::parse(&page, tl::ParserOptions::default())?;
+    Ok(())
+}
+
+// The other clients and parsers the rule names, each by its crate path.
+pub async fn others(url: &str) -> anyhow::Result<()> {
+    let a = surf::get(url).await?.body_string().await?;
+    let d1 = kuchikiki::parse_html().one(a);
+    let b = isahc::get_async(url).await?.text().await?;
+    let d2 = dom_query::Document::from(b);
+    let c = attohttpc::get(url).send()?.text()?;
+    let d3 = webpage::HTML::from_string(c, None)?;
+    let r = reqwest::blocking::get(url)?;
+    let d4 = select::document::Document::from_read(r)?;
+    let e = isahc::get(url)?.text()?;
+    let d5 = kuchiki::parse_html().one(e);
     Ok(())
 }

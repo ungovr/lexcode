@@ -1,4 +1,4 @@
-// lexcode-expect: 9
+// lexcode-expect: 12
 use firecrawl::{crawl::CrawlOptions, FirecrawlApp};
 use firecrawl as fc;
 use reqwest::{Client, Proxy};
@@ -12,6 +12,8 @@ pub async fn firecrawl_jobs(key: &str) -> anyhow::Result<()> {
         .await?;
     let other = fc::FirecrawlApp::new(key)?;
     let links = other.map_url("https://shop.example.com", None).await?;
+    let job = other.async_crawl_url("https://shop.example.com", None).await?;
+    let batch = app.batch_scrape_urls(vec!["https://a.example.com", "https://b.example.com"], None).await?;
     Ok(())
 }
 
@@ -25,6 +27,7 @@ pub async fn via_http(client: &Client, key: &str, target: &str) -> anyhow::Resul
     client.get(format!("https://api.scraperapi.com/?api_key={key}&url={target}")).send().await?;
     client.post("https://api.zyte.com/v1/extract").basic_auth(key, Some("")).send().await?;
     client.get(format!("https://r.jina.ai/{target}")).send().await?;
+    client.post(format!("https://production-sfo.browserless.io/content?token={key}")).send().await?;
     Ok(())
 }
 

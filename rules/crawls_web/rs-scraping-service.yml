@@ -3,12 +3,14 @@
 # - Firecrawl's Rust SDK asked to scrape, crawl, map or batch-scrape, in a file with a
 #   `use firecrawl` line. Its own examples import with a nested group
 #   (`use firecrawl::{crawl::CrawlOptions, FirecrawlApp};`), which the engine does not resolve, so
-#   the client is known by the import rather than by its type; an app's own `crawl_url` in a file
-#   without it is not the service.
+#   the client is known by the import rather than by its type (a line-anchored `use` check, so a
+#   comment naming the crate does not count); an app's own `crawl_url` in a file without it is
+#   not the service.
 # - A string literal (plain, raw, or the template of `format!`) naming a scraping or fetch API's
 #   endpoint (ScrapingBee, ScraperAPI, Zyte, Crawlbase, Scrapfly, ScrapingAnt, Bright Data, Jina
-#   Reader, Browserless, Firecrawl's REST API) or a scraping proxy's host (Bright Data's
-#   superproxy, ScraperAPI's and Zyte's proxies), with or without credentials before the host. The
+#   Reader, Browserless's `chrome.` and `production-*` hosts, Firecrawl's REST API) or a scraping
+#   proxy's host (Bright Data's superproxy, ScraperAPI's and Zyte's proxies), with or without
+#   credentials after the scheme (an email address at a proxy's domain is not a proxy URL). The
 #   regex is the matcher, since the literal is the evidence whichever client sends it; a link to a
 #   service's marketing site is not its API.
 rules:
@@ -18,14 +20,14 @@ rules:
     message: Asks a scraping service or scraping proxy to fetch, crawl or map pages of other sites, which is crawling the web (crawls_web).
     pattern-either:
       - patterns:
-          - pattern-regex: (?s)\A(?=.*\buse\s+firecrawl\b).*
+          - pattern-regex: (?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+firecrawl\b).*
           - pattern-either:
               - pattern: $F.scrape_url(...)
               - pattern: $F.crawl_url(...)
               - pattern: $F.async_crawl_url(...)
               - pattern: $F.map_url(...)
               - pattern: $F.batch_scrape_urls(...)
-      - pattern-regex: (?:r#*)?"(?:https?://)?(?:[^"\s/@]*@)?(?:api\.firecrawl\.dev|app\.scrapingbee\.com/api|api\.scraperapi\.com|proxy-server\.scraperapi\.com|api\.zyte\.com/v1/extract|proxy\.zyte\.com|api\.crawlbase\.com|api\.scrapfly\.io/scrape|api\.scrapingant\.com|api\.brightdata\.com/request|brd\.superproxy\.io|r\.jina\.ai/|[\w-]+\.browserless\.io)
+      - pattern-regex: (?:r#*)?"(?:https?://(?:[^"\s/@]*@)?)?(?:api\.firecrawl\.dev|app\.scrapingbee\.com/api|api\.scraperapi\.com|proxy-server\.scraperapi\.com|api\.zyte\.com/v1/extract|proxy\.zyte\.com|api\.crawlbase\.com|api\.scrapfly\.io/scrape|api\.scrapingant\.com|api\.brightdata\.com/request|brd\.superproxy\.io|r\.jina\.ai/|(?:chrome|production-[\w-]+)\.browserless\.io)
     metadata:
       activity: crawls_web
       mentioned: performs

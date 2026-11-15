@@ -1,6 +1,11 @@
 // lexcode-expect: 0
-// A file that names no browser crate in a `use` line or a path: the app's own `goto`,
+// A file that names no browser crate in a `use` line or a code path: the app's own `goto`,
 // `navigate_to` and `new_page` are a router, a wizard and a document model, not a browser.
+// Comments that name the crates do not count:
+// use headless_chrome::Tab; use chromiumoxide::Page; see headless_chrome::Browser docs
+// use fantoccini::Client; use thirtyfour::WebDriver; chromiumoxide::Page is heavier
+/* fantoccini::Client and thirtyfour::WebDriver were compared, see
+ * headless_chrome::Tab and chromiumoxide::Browser in the notes */
 
 pub struct Router {
     stack: Vec<String>,

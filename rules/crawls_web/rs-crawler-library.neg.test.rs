@@ -1,6 +1,9 @@
 // lexcode-expect: 0
 // A file that names no crawler crate: the app's own `Website` and `Robot` types, a site's own
-// robots.txt served to visitors, and a config file read from disk.
+// robots.txt served to visitors, and a config file read from disk. Comments that name the crates
+// do not count:
+// use spider::website::Website;   (dropped)
+// use robotstxt::DefaultMatcher;  (dropped)
 use crate::model::{Robot, Website};
 
 pub fn register(name: &str, url: &str) -> Website {

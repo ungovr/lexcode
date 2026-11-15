@@ -2,7 +2,8 @@
 # is a page fetched by automated means. The tab, page and client objects come from factory calls
 # (`browser.new_tab()`, `Browser::launch(..)`, `ClientBuilder::native().connect(..)`) whose type the
 # engine does not infer, so each crate's navigation is read by its method name, in a file that names
-# that crate in a `use` line or a path (`headless_chrome::Browser::default()`). One branch per crate,
+# that crate on a `use` line or in a path on a code line (`headless_chrome::Browser::default()`);
+# a comment that names the crate does not count. One branch per crate,
 # so one crate's import never admits another's call, and an app's own router or document model with
 # a `goto` or `new_page` in a file without the crate is not a browser. Connecting to a WebDriver
 # server is not opening a page. The address is the host (`host_metavar`): one held in a variable
@@ -18,25 +19,25 @@ rules:
       - pattern-either:
           - patterns:
               - pattern-either:
-                  - pattern-regex: (?s)\A(?=.*\buse\s+headless_chrome\b).*
-                  - pattern-regex: (?s)\A(?=.*\bheadless_chrome::).*
+                  - pattern-regex: (?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+headless_chrome\b).*
+                  - pattern-regex: (?ms)\A(?=.*^(?![ \t]*[/*])[^\n]*\bheadless_chrome::).*
               - pattern: $T.navigate_to($URL)
           - patterns:
               - pattern-either:
-                  - pattern-regex: (?s)\A(?=.*\buse\s+chromiumoxide\b).*
-                  - pattern-regex: (?s)\A(?=.*\bchromiumoxide::).*
+                  - pattern-regex: (?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+chromiumoxide\b).*
+                  - pattern-regex: (?ms)\A(?=.*^(?![ \t]*[/*])[^\n]*\bchromiumoxide::).*
               - pattern-either:
                   - pattern: $B.new_page($URL)
                   - pattern: $P.goto($URL)
           - patterns:
               - pattern-either:
-                  - pattern-regex: (?s)\A(?=.*\buse\s+fantoccini\b).*
-                  - pattern-regex: (?s)\A(?=.*\bfantoccini::).*
+                  - pattern-regex: (?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+fantoccini\b).*
+                  - pattern-regex: (?ms)\A(?=.*^(?![ \t]*[/*])[^\n]*\bfantoccini::).*
               - pattern: $C.goto($URL)
           - patterns:
               - pattern-either:
-                  - pattern-regex: (?s)\A(?=.*\buse\s+thirtyfour\b).*
-                  - pattern-regex: (?s)\A(?=.*\bthirtyfour::).*
+                  - pattern-regex: (?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+thirtyfour\b).*
+                  - pattern-regex: (?ms)\A(?=.*^(?![ \t]*[/*])[^\n]*\bthirtyfour::).*
               - pattern: $D.goto($URL)
       - metavariable-regex:
           metavariable: $URL

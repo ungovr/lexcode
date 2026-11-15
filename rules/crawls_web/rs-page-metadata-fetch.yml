@@ -1,11 +1,11 @@
 # A page downloaded to read its title, description and Open Graph tags: webpage's
 # `Webpage::from_url` and opengraph's `scrape` fetch the address themselves. That is fetching a
-# page from a site the operator may not run by automated means, whether one page per link a user
-# posts (a link preview) or many. Written by crate path, so an app's own `Webpage` under
-# `use crate::...` is not taken for it; parsing HTML the app already holds (`HTML::from_string`)
-# fetches nothing. The address is the host (`host_metavar`): a link held in a variable, the usual
-# link-preview case, makes the finding a signal, since one fetch per link a person posts is not
-# plainly crawling at scale. A loopback or file address is the app's own.
+# page from a site the operator does not run by automated means, whether one page per link a
+# person posts (a link preview) or many: the lint definition sets no condition of scale
+# (controller ruling, 11-15), so the finding is evidence whether the address is a literal or a
+# link held in a variable, and the rule reads no host. Written by crate path, so an app's own
+# `Webpage` under `use crate::...` is not taken for it; parsing HTML the app already holds
+# (`HTML::from_string`) fetches nothing. A loopback or file address is the app's own.
 rules:
   - id: lexcode.crawl.rs-page-metadata-fetch
     languages: [rust]
@@ -24,4 +24,3 @@ rules:
       definition: https://lexlint.io/activities/crawls-web
       provenance: ungovr-original
       license: MIT
-      host_metavar: $URL
