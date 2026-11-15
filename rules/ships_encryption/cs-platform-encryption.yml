@@ -1,0 +1,55 @@
+rules:
+  - id: lexcode.crypto.cs-platform-encryption
+    languages: [csharp]
+    severity: INFO
+    message: Encrypts data or agrees keys with .NET's own cryptography (AesGcm, AesCcm, ChaCha20Poly1305, a symmetric algorithm's encryptor, RSA encryption, ECDiffieHellman or ProtectedData), which is shipping encryption (ships_encryption).
+    # A cipher, RSA encryption or a key agreement keeps data confidential whoever wrote the code that
+    # runs it, so System.Security.Cryptography counts as a bundled library does. Each type is written
+    # fully qualified: the engine resolves a `using` and an alias to it, and never an app's own class
+    # of the same short name. System.Security.Cryptography is not an SDK implicit using, so no short
+    # form is needed. A symmetric algorithm comes from a static factory (`Aes.Create()`), whose return
+    # type the engine does not follow, so its encryptor and one-shot calls are read by their names
+    # in a file that imports the namespace; a file that reaches it only through a `global using`
+    # elsewhere is missed. RSA encryption is read by its padding argument, which only encryption
+    # takes. Hashing (SHA256), a MAC (HMACSHA256), key derivation and password hashing
+    # (Rfc2898DeriveBytes, Identity's PasswordHasher), signing (SignData, ECDsa), random bytes and
+    # HTTPS through HttpClient are not read.
+    pattern-either:
+      # The AEAD types, built with `new` (with or without an initializer) or a target-typed `new()`
+      - pattern: 'new System.Security.Cryptography.AesGcm(...) { ... }'
+      - pattern: 'System.Security.Cryptography.AesGcm $V = new(...) { ... };'
+      - pattern: 'new System.Security.Cryptography.AesCcm(...) { ... }'
+      - pattern: 'System.Security.Cryptography.AesCcm $V = new(...) { ... };'
+      - pattern: 'new System.Security.Cryptography.ChaCha20Poly1305(...) { ... }'
+      - pattern: 'System.Security.Cryptography.ChaCha20Poly1305 $V = new(...) { ... };'
+      # A symmetric algorithm's encryptor, decryptor and one-shot modes (Aes, TripleDES and the rest)
+      - patterns:
+          - pattern-either:
+              - pattern: $A.CreateEncryptor(...)
+              - pattern: $A.CreateDecryptor(...)
+              - pattern: $A.EncryptCbc(...)
+              - pattern: $A.DecryptCbc(...)
+              - pattern: $A.EncryptEcb(...)
+              - pattern: $A.DecryptEcb(...)
+              - pattern: $A.EncryptCfb(...)
+              - pattern: $A.DecryptCfb(...)
+          - pattern-inside: |
+              using System.Security.Cryptography;
+              ...
+      # RSA encryption, read by its padding
+      - pattern: $R.Encrypt($D, System.Security.Cryptography.RSAEncryptionPadding.$P)
+      - pattern: $R.Decrypt($D, System.Security.Cryptography.RSAEncryptionPadding.$P)
+      - pattern: $R.TryEncrypt($D, $O, System.Security.Cryptography.RSAEncryptionPadding.$P, ...)
+      - pattern: $R.TryDecrypt($D, $O, System.Security.Cryptography.RSAEncryptionPadding.$P, ...)
+      # Key agreement
+      - pattern: System.Security.Cryptography.ECDiffieHellman.Create(...)
+      - pattern: 'new System.Security.Cryptography.ECDiffieHellmanCng(...) { ... }'
+      # Windows DPAPI
+      - pattern: System.Security.Cryptography.ProtectedData.Protect(...)
+      - pattern: System.Security.Cryptography.ProtectedData.Unprotect(...)
+    metadata:
+      activity: ships_encryption
+      mentioned: performs
+      definition: https://lexlint.io/glossary#ships-encryption
+      provenance: ungovr-original
+      license: MIT
