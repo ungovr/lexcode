@@ -1,0 +1,38 @@
+# No e-signature vendor publishes a Rust SDK, so a Rust app reaches one over its REST API. Read: an
+# address that sends a document for signature or opens a signing session, as an argument of an HTTP
+# call that writes (a reqwest or awc post or put, a request whose method is POST or PUT, an http or
+# hyper request builder with that method, ureq's or surf's post):
+# - DocuSign eSignature: an envelope created (`.../v2.1/accounts/{id}/envelopes`) or a recipient's
+#   signing view (`.../envelopes/{id}/views/recipient`);
+# - Dropbox Sign (HelloSign): a signature request sent or created embedded, or an embedded sign URL;
+# - BoldSign: a document or template sent, or an embedded signing link;
+# - Adobe Acrobat Sign: an agreement created.
+# The check reads the source text, so an address built in `format!` with the account in it is found
+# too. Reading an envelope's or a request's status (a GET, or a list) sends nothing and is not read.
+rules:
+  - id: lexcode.esign.rs-esign-envelope
+    languages: [rust]
+    severity: INFO
+    message: Sends a document to a person for electronic signature, or opens a signing session, through DocuSign, Dropbox Sign, BoldSign or Adobe Acrobat Sign's API from Rust, which is collecting electronic signatures (collects_e_signatures).
+    patterns:
+      - pattern-regex: (?i)(?<=")[^"\s]*?(?:/v2(?:\.1)?/accounts/[^"\s/]+/envelopes(?:/[^"\s/]+/views/recipient)?|(?:hellosign\.com|dropboxsign\.com)/v3/(?:signature_request/(?:send|send_with_template|create_embedded|create_embedded_with_template)|embedded/sign_url/)|boldsign\.com/v1/(?:document/(?:send|createEmbeddedRequestUrl|getEmbeddedSignLink)|template/(?:send|createEmbeddedRequestUrl))|(?:echosign|adobesign|documents\.adobe)\.com/api/rest/v6/agreements)(?=["?])
+      - pattern-either:
+          - pattern-inside: $O.post(...)
+          - pattern-inside: $O.put(...)
+          - patterns:
+              - pattern-either:
+                  - pattern-inside: $O.request($M, ...)
+                  - pattern-inside: $B.method($M).uri(...)
+                  - pattern-inside: $B.uri(...).method($M)
+              - metavariable-regex:
+                  metavariable: $M
+                  regex: (?i)^(?:"(?:post|put)"|(?:\w+::)*(?:POST|PUT))$
+          - pattern-inside: ureq::post(...)
+          - pattern-inside: surf::post(...)
+          - pattern-inside: http::Request::post(...)
+    metadata:
+      activity: collects_e_signatures
+      mentioned: performs
+      definition: https://lexlint.io/glossary#collects-electronic-signatures
+      provenance: ungovr-original
+      license: MIT

@@ -1,0 +1,45 @@
+# rustls is a TLS stack written in Rust and compiled into the app's own binary, with its cryptography
+# from a provider crate (ring or aws-lc-rs) compiled in beside it. The definition counts "a bundled
+# secure-connection stack" and leaves out "calling HTTPS through the platform's stock client". So the
+# app's own code choosing rustls is read: building a rustls client or server configuration (directly or
+# through tokio-rustls's re-export), installing its cryptography provider, serving TLS through
+# axum-server's, Poem's or warp's rustls listener, hyper-rustls's connector, and asking reqwest for its
+# rustls backend.
+#
+# Not read: native-tls and openssl's SslConnector and SslAcceptor, which hand TLS to the operating
+# system's stack (SChannel, Security.framework) or the system's OpenSSL, the nearest thing Rust has to
+# the platform's own; and a plain reqwest, hyper or sqlx call over HTTPS, whose TLS backend is a Cargo
+# feature this rule cannot see.
+rules:
+  - id: lexcode.crypto.rs-bundled-tls
+    languages: [rust]
+    severity: INFO
+    message: Builds or serves TLS with rustls, a secure-connection stack the product compiles in, which is shipping encryption (ships_encryption).
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: rustls::ServerConfig::$M(...)
+              - pattern: rustls::ClientConfig::$M(...)
+              - pattern: tokio_rustls::rustls::ServerConfig::$M(...)
+              - pattern: tokio_rustls::rustls::ClientConfig::$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(?:builder|builder_with_provider|builder_with_protocol_versions|new)$
+      - pattern: rustls::crypto::ring::default_provider()
+      - pattern: rustls::crypto::aws_lc_rs::default_provider()
+      - pattern: rustls::crypto::CryptoProvider::install_default(...)
+      - patterns:
+          - pattern: axum_server::tls_rustls::RustlsConfig::$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^from_(?:pem|pem_file|pem_chain_file|der|config)$
+      - pattern: poem::listener::RustlsConfig::new()
+      - pattern: warp::serve($R).tls()
+      - pattern: hyper_rustls::HttpsConnectorBuilder::new()
+      - pattern: $B.use_rustls_tls()
+    metadata:
+      activity: ships_encryption
+      mentioned: performs
+      definition: https://lexlint.io/glossary#ships-encryption
+      provenance: ungovr-original
+      license: MIT

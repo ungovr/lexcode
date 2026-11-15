@@ -1,0 +1,227 @@
+# Rust has no platform cryptography: the standard library holds no cipher, so every cipher an app
+# calls comes from a crate it compiles into its own binary. Each item is written by its crate path,
+# which the engine resolves through `use`, a module import (`use ring::aead;` then
+# `aead::UnboundKey::new(..)`), a grouped `use` and `use <crate> as <alias>`, so an app's own type of
+# the same short name is not read. Read here: an AEAD or other cipher built or called (ring and
+# aws-lc-rs, the RustCrypto AEAD, stream and block-mode crates, RSA encryption, openssl's ciphers,
+# sodiumoxide, age, orion, a JWE through josekit) and key agreement (ring's and x25519-dalek's
+# Diffie-Hellman), and end-to-end messaging sessions (the Signal protocol, Olm and Megolm).
+#
+# Not read: signatures (ed25519-dalek, ring::signature, RSA signing, a JWS from jsonwebtoken),
+# MACs, hashes and random numbers, which encrypt nothing; password hashing (bcrypt, argon2), which
+# processes_personal_data's rs-password-hash reads; and TLS, which rs-bundled-tls reads.
+#
+# The engine does not resolve an item imported through a path inside a `use` group
+# (`use ring::{aead::{UnboundKey, ..}, rand}`), the form ring's and josekit's own examples use, so
+# those two crates also carry short forms, each read only in a file with a `use` line for its crate.
+rules:
+  - id: lexcode.crypto.rs-library-encryption
+    languages: [rust]
+    severity: INFO
+    message: Encrypts data or agrees keys with a cryptography crate the product compiles in (ring, aws-lc-rs, the RustCrypto ciphers, RSA encryption, openssl, sodiumoxide, age, orion, a JWE through josekit, x25519-dalek, the Signal protocol or Olm), which is shipping encryption (ships_encryption).
+    pattern-either:
+      # ring and aws-lc-rs (the same API): AEAD keys and ephemeral key agreement
+      - pattern: ring::aead::UnboundKey::new(...)
+      - pattern: ring::aead::LessSafeKey::new(...)
+      - pattern: ring::aead::SealingKey::new(...)
+      - pattern: ring::aead::OpeningKey::new(...)
+      - pattern: ring::agreement::EphemeralPrivateKey::generate(...)
+      - pattern: ring::agreement::agree_ephemeral(...)
+      - pattern: aws_lc_rs::aead::UnboundKey::new(...)
+      - pattern: aws_lc_rs::aead::LessSafeKey::new(...)
+      - pattern: aws_lc_rs::aead::SealingKey::new(...)
+      - pattern: aws_lc_rs::aead::OpeningKey::new(...)
+      - pattern: aws_lc_rs::agreement::EphemeralPrivateKey::generate(...)
+      - pattern: aws_lc_rs::agreement::agree_ephemeral(...)
+      # The same items imported through a nested group (`use ring::{aead::{UnboundKey, ..}, rand}`), read
+      # in a file whose `use` line for the crate names the item, so an app's own type of the same name in
+      # a file that uses the crate only for something else is not read.
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+ring::[^;]*\bUnboundKey\b).*'
+          - pattern: UnboundKey::new(...)
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+ring::[^;]*\bLessSafeKey\b).*'
+          - pattern: LessSafeKey::new(...)
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+ring::[^;]*\bSealingKey\b).*'
+          - pattern: SealingKey::new(...)
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+ring::[^;]*\bOpeningKey\b).*'
+          - pattern: OpeningKey::new(...)
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+ring::[^;]*\bEphemeralPrivateKey\b).*'
+          - pattern: EphemeralPrivateKey::generate(...)
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+ring::[^;]*\bagree_ephemeral\b).*'
+          - pattern: agree_ephemeral(...)
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+aws_lc_rs::[^;]*\bUnboundKey\b).*'
+          - pattern: UnboundKey::new(...)
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+aws_lc_rs::[^;]*\bLessSafeKey\b).*'
+          - pattern: LessSafeKey::new(...)
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+aws_lc_rs::[^;]*\bSealingKey\b).*'
+          - pattern: SealingKey::new(...)
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+aws_lc_rs::[^;]*\bOpeningKey\b).*'
+          - pattern: OpeningKey::new(...)
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+aws_lc_rs::[^;]*\bEphemeralPrivateKey\b).*'
+          - pattern: EphemeralPrivateKey::generate(...)
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+aws_lc_rs::[^;]*\bagree_ephemeral\b).*'
+          - pattern: agree_ephemeral(...)
+      # RustCrypto AEADs and stream ciphers, built from a key (KeyInit's new or new_from_slice), and
+      # crypto_box's public-key boxes. A namespace part cannot be a metavariable, so each type is listed.
+      - patterns:
+          - pattern-either:
+              - pattern: aes_gcm::Aes128Gcm::$M(...)
+              - pattern: aes_gcm::Aes256Gcm::$M(...)
+              - pattern: aes_gcm_siv::Aes128GcmSiv::$M(...)
+              - pattern: aes_gcm_siv::Aes256GcmSiv::$M(...)
+              - pattern: aes_siv::Aes128SivAead::$M(...)
+              - pattern: aes_siv::Aes256SivAead::$M(...)
+              - pattern: chacha20poly1305::ChaCha20Poly1305::$M(...)
+              - pattern: chacha20poly1305::XChaCha20Poly1305::$M(...)
+              - pattern: chacha20poly1305::ChaCha8Poly1305::$M(...)
+              - pattern: chacha20poly1305::ChaCha12Poly1305::$M(...)
+              - pattern: xsalsa20poly1305::XSalsa20Poly1305::$M(...)
+              - pattern: crypto_secretbox::XSalsa20Poly1305::$M(...)
+              - pattern: crypto_secretbox::XChaCha20Poly1305::$M(...)
+              - pattern: chacha20::ChaCha20::$M(...)
+              - pattern: chacha20::XChaCha20::$M(...)
+              - pattern: salsa20::Salsa20::$M(...)
+              - pattern: salsa20::XSalsa20::$M(...)
+              - pattern: crypto_box::SalsaBox::$M(...)
+              - pattern: crypto_box::ChaChaBox::$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^new(?:_from_slices?)?$
+      # RustCrypto block modes over a block cipher (cbc, ctr, ecb, cfb), built with the cipher as a type
+      # argument, and the padded calls that encrypt with one. The padded calls are read by name alone:
+      # the docs build the mode through a type alias (`type Aes256CbcEnc = cbc::Encryptor<aes::Aes256>`)
+      # that the engine cannot follow, and the names belong to RustCrypto's cipher traits.
+      - pattern: cbc::Encryptor::<$C>::new(...)
+      - pattern: cbc::Decryptor::<$C>::new(...)
+      - pattern: ecb::Encryptor::<$C>::new(...)
+      - pattern: cfb_mode::Encryptor::<$C>::new(...)
+      - pattern: ctr::Ctr128BE::<$C>::new(...)
+      - pattern: ctr::Ctr64LE::<$C>::new(...)
+      - pattern: ctr::Ctr32BE::<$C>::new(...)
+      - pattern: $E.encrypt_padded_mut::<$P>(...)
+      - pattern: $E.encrypt_padded_vec_mut::<$P>(...)
+      - pattern: $E.encrypt_padded_b2b_mut::<$P>(...)
+      - pattern: $E.decrypt_padded_mut::<$P>(...)
+      - pattern: $E.decrypt_padded_vec_mut::<$P>(...)
+      # RSA encryption with the rsa crate (PKCS #1 v1.5 or OAEP padding); its signing is not read
+      - pattern: $K.encrypt($R, rsa::Pkcs1v15Encrypt, ...)
+      - pattern: $K.decrypt(rsa::Pkcs1v15Encrypt, ...)
+      # OAEP's padding is built with a type argument (`Oaep::new::<Sha256>()`), which the engine does not
+      # resolve through `use`, so the padding argument is read by its text: written in full, or by its
+      # short name in a file whose `use rsa::` line names Oaep.
+      - patterns:
+          - pattern-either:
+              - pattern: $K.encrypt($R, $P, ...)
+              - pattern: $K.decrypt($P, ...)
+          - metavariable-regex:
+              metavariable: $P
+              regex: ^rsa::(?:oaep::)?Oaep::new
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+rsa::[^;]*\bOaep\b).*'
+          - pattern-either:
+              - pattern: $K.encrypt($R, $P, ...)
+              - pattern: $K.decrypt($P, ...)
+          - metavariable-regex:
+              metavariable: $P
+              regex: ^Oaep::new
+      - pattern: $K.oaep_encrypt::<$H>(...)
+      - pattern: $K.oaep_decrypt::<$H>(...)
+      # openssl: symmetric ciphers, public-key encryption, envelopes and key derivation by agreement
+      - pattern: openssl::symm::encrypt(...)
+      - pattern: openssl::symm::decrypt(...)
+      - pattern: openssl::symm::encrypt_aead(...)
+      - pattern: openssl::symm::decrypt_aead(...)
+      - pattern: openssl::symm::Crypter::new(...)
+      - pattern: openssl::cipher_ctx::CipherCtx::new()
+      - pattern: openssl::encrypt::Encrypter::new(...)
+      - pattern: openssl::encrypt::Decrypter::new(...)
+      - pattern: openssl::envelope::Seal::new(...)
+      - pattern: openssl::envelope::Open::from_key(...)
+      - pattern: openssl::derive::Deriver::new(...)
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+openssl\b).*'
+          - pattern-either:
+              - pattern: $R.public_encrypt(...)
+              - pattern: $R.private_decrypt(...)
+      # sodiumoxide (libsodium): secret-key and public-key boxes, sealed boxes, AEADs, streams and key exchange
+      - pattern: sodiumoxide::crypto::secretbox::seal(...)
+      - pattern: sodiumoxide::crypto::secretbox::open(...)
+      - pattern: sodiumoxide::crypto::box_::seal(...)
+      - pattern: sodiumoxide::crypto::box_::open(...)
+      - pattern: sodiumoxide::crypto::box_::precompute(...)
+      - pattern: sodiumoxide::crypto::sealedbox::seal(...)
+      - pattern: sodiumoxide::crypto::sealedbox::open(...)
+      - pattern: sodiumoxide::crypto::aead::xchacha20poly1305_ietf::seal(...)
+      - pattern: sodiumoxide::crypto::aead::chacha20poly1305_ietf::seal(...)
+      - pattern: sodiumoxide::crypto::aead::aes256gcm::seal(...)
+      - pattern: sodiumoxide::crypto::secretstream::Stream::init_push(...)
+      - pattern: sodiumoxide::crypto::kx::client_session_keys(...)
+      - pattern: sodiumoxide::crypto::kx::server_session_keys(...)
+      # age file encryption
+      - pattern: age::Encryptor::with_recipients(...)
+      - pattern: age::Encryptor::with_user_passphrase(...)
+      - pattern: age::Decryptor::new(...)
+      - pattern: age::encrypt(...)
+      - pattern: age::encrypt_and_armor(...)
+      - pattern: age::decrypt(...)
+      # orion: its AEAD, streaming AEAD and key exchange
+      - pattern: orion::aead::seal(...)
+      - pattern: orion::aead::open(...)
+      - pattern: orion::aead::streaming::StreamSealer::new(...)
+      - pattern: orion::kex::EphemeralClientSession::new()
+      - pattern: orion::kex::EphemeralServerSession::new()
+      - pattern: orion::hazardous::aead::xchacha20poly1305::seal(...)
+      - pattern: orion::hazardous::aead::chacha20poly1305::seal(...)
+      # x25519-dalek Diffie-Hellman secrets (its PublicKey is not read)
+      - patterns:
+          - pattern-either:
+              - pattern: x25519_dalek::EphemeralSecret::$M(...)
+              - pattern: x25519_dalek::ReusableSecret::$M(...)
+              - pattern: x25519_dalek::StaticSecret::$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(?:new|random|random_from_rng|from)$
+      - pattern: x25519_dalek::x25519(...)
+      # A JWE (an encrypted token, not a signed JWS) with josekit
+      - pattern: josekit::jwt::encode_with_encrypter(...)
+      - pattern: josekit::jwt::decode_with_decrypter(...)
+      - pattern: josekit::jwe::serialize_compact(...)
+      - pattern: josekit::jwe::serialize_flattened_json(...)
+      - pattern: josekit::jwe::serialize_general_json(...)
+      - pattern: josekit::jwe::deserialize_compact(...)
+      # The same calls through a module imported in a nested group (`use josekit::{jwe::{..}, jwt::{self, ..}}`)
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+josekit::[^;]*\bjwt\b).*'
+          - pattern: jwt::encode_with_encrypter(...)
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+josekit::[^;]*\bjwt\b).*'
+          - pattern: jwt::decode_with_decrypter(...)
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+josekit::[^;]*\bjwe\b).*'
+          - pattern: jwe::serialize_compact(...)
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+josekit::[^;]*\bjwe\b).*'
+          - pattern: jwe::deserialize_compact(...)
+      # End-to-end messaging: the Signal protocol, and Olm and Megolm through vodozemac and Matrix's crypto machine
+      - pattern: libsignal_protocol::message_encrypt(...)
+      - pattern: libsignal_protocol::group_encrypt(...)
+      - pattern: vodozemac::olm::Account::new()
+      - pattern: vodozemac::megolm::GroupSession::new(...)
+      - pattern: matrix_sdk_crypto::OlmMachine::new(...)
+    metadata:
+      activity: ships_encryption
+      mentioned: performs
+      definition: https://lexlint.io/glossary#ships-encryption
+      provenance: ungovr-original
+      license: MIT
