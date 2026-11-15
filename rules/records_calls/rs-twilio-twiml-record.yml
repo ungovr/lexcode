@@ -1,0 +1,18 @@
+# A Twilio voice webhook answered with TwiML that records the call it bridges: a Dial or a Conference
+# with a `record` attribute that turns recording on (`record-from-answer`, `record-from-ringing`,
+# their `-dual` forms, `record-from-start`, or `true`). Rust apps write TwiML as a string, so the
+# rule reads string text: a plain literal (`\"`-escaped attributes), a raw string and a `format!`
+# template are all source text. `record="do-not-record"` and `false` are left out, and so is the
+# Record verb, which takes one caller's own message (rs-twilio-speech under processes_voice).
+rules:
+  - id: lexcode.calls.rs-twilio-twiml-record
+    languages: [rust]
+    severity: INFO
+    message: Answers a Twilio call with TwiML that records the bridged call or the conference, which is recording a call (records_calls).
+    pattern-regex: <(Dial|Conference)\b[^>]*?\brecord=\\?"(record-from-|true\b)
+    metadata:
+      activity: records_calls
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-calls
+      provenance: ungovr-original
+      license: MIT
