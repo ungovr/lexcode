@@ -1,0 +1,62 @@
+rules:
+  - id: lexcode.crypto.go-platform-encryption
+    languages: [go]
+    severity: INFO
+    message: Encrypts data or agrees keys with Go's standard library (a block cipher in a crypto/cipher mode, RSA encryption or crypto/ecdh), which is shipping encryption (ships_encryption).
+    # A cipher, RSA encryption or a key agreement keeps data confidential whoever wrote the code that
+    # runs it, so the standard library counts as a bundled library does. A crypto/cipher mode is read
+    # only in a file that also imports a block cipher (crypto/aes or crypto/des), so a mode wrapped
+    # around a cipher from elsewhere is left to that cipher's rule. Hashing (crypto/sha256), a MAC
+    # (crypto/hmac), key derivation (crypto/pbkdf2, crypto/hkdf), signing (crypto/ecdsa,
+    # crypto/ed25519, rsa.SignPSS), random bytes and HTTPS through net/http are not read; neither is
+    # crypto/tls, the standard library's own TLS stack. An ECDSA key's ECDH() conversion takes no
+    # argument and is not a key agreement, so only the one-argument call is read.
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: cipher.NewGCM(...)
+              - pattern: cipher.NewGCMWithNonceSize(...)
+              - pattern: cipher.NewGCMWithTagSize(...)
+              - pattern: cipher.NewGCMWithRandomNonce(...)
+              - pattern: cipher.NewCTR(...)
+              - pattern: cipher.NewCBCEncrypter(...)
+              - pattern: cipher.NewCBCDecrypter(...)
+              - pattern: cipher.NewCFBEncrypter(...)
+              - pattern: cipher.NewCFBDecrypter(...)
+              - pattern: cipher.NewOFB(...)
+          - pattern-inside: |
+              import "crypto/cipher"
+              ...
+          - pattern-either:
+              - pattern-inside: |
+                  import "crypto/aes"
+                  ...
+              - pattern-inside: |
+                  import "crypto/des"
+                  ...
+      - patterns:
+          - pattern-either:
+              - pattern: rsa.EncryptOAEP(...)
+              - pattern: rsa.EncryptPKCS1v15(...)
+              - pattern: rsa.DecryptOAEP(...)
+              - pattern: rsa.DecryptPKCS1v15(...)
+              - pattern: rsa.DecryptPKCS1v15SessionKey(...)
+          - pattern-inside: |
+              import "crypto/rsa"
+              ...
+      - patterns:
+          - pattern-either:
+              - pattern: ecdh.X25519()
+              - pattern: ecdh.P256()
+              - pattern: ecdh.P384()
+              - pattern: ecdh.P521()
+              - pattern: $K.ECDH($P)
+          - pattern-inside: |
+              import "crypto/ecdh"
+              ...
+    metadata:
+      activity: ships_encryption
+      mentioned: performs
+      definition: https://lexlint.io/glossary#ships-encryption
+      provenance: ungovr-original
+      license: MIT
