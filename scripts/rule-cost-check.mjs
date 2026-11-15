@@ -1,12 +1,15 @@
 #!/usr/bin/env node
 // Checks scripts/rule-cost.mjs against the engine: `node scripts/rule-cost-check.mjs [<rule-cost script>]`.
 //
-// Release-time only, beside rule-cost.mjs (it runs the real engine for about three minutes). It copies the script
-// into a scratch tree whose rules/ holds three Swift rules, runs it there, and fails unless:
+// Release-time only, beside rule-cost.mjs (it runs the real engine for about four minutes). It copies the script
+// into a scratch tree whose rules/ holds five Swift rules, runs it there, and fails unless:
 //   - swift-quadratic-check, a rule that is itself quadratic on any class (each class whose number ends in 00
 //     searches the rest of the file for a name that is never there), is named OVER;
-//   - swift-final-quadratic-check, the same rule on `final class` only, is named NOT CLEARED: the plain filler has no
-//     modified class, so it cannot clear a rule keyed on one (see MODIFIER in rule-cost.mjs);
+//   - three rules quadratic only on a modified class are named NOT CLEARED, since the plain filler has none to match
+//     (see MODIFIER_WORD and ATTRIBUTE in rule-cost.mjs): swift-final-quadratic-check (`^final class`),
+//     swift-escaped-final-quadratic-check (`\bfinal class`, a modifier behind a regex escape) and
+//     swift-attribute-quadratic-check (`^(?:@\w+\s+)*\S+ class`, keyed on a regex attribute and a word before
+//     `class`, so it matches `final class` and never a plain `class`);
 //   - swift-scanner-hit-check, a copy of swift-health-read, which the pinned engine's Swift scanner bug slows to about
 //     56 s on rule-cost's first Swift filler (see BARE_HIT in rule-cost.mjs), is timed and is not OVER;
 //   - nothing failed, and the script exits 1.
@@ -34,12 +37,18 @@ const QUADRATIC = `rules:
     message: rule-cost check, a quadratic rule
     pattern-regex: '(?m)^(?:final )?class (C[0-9]*00) (?=(?s:.*)C9999999 = )'
 `;
-const FINAL_QUADRATIC = `rules:
-  - id: lexcode.check.swift-final-quadratic-check
+/** Rules quadratic only on a modified class, each expected NOT CLEARED: stem and regex. */
+const NOT_CLEARED = [
+  ['swift-final-quadratic-check', String.raw`(?m)^final class (C[0-9]*00) (?=(?s:.*)C9999999 = )`],
+  ['swift-escaped-final-quadratic-check', String.raw`(?m)\bfinal class (C[0-9]*00) (?=(?s:.*)C9999999 = )`],
+  ['swift-attribute-quadratic-check', String.raw`(?m)^(?:@\w+\s+)*\S+ class (C[0-9]*00) (?=(?s:.*)C9999999 = )`],
+];
+const notClearedRule = (stem, regex) => `rules:
+  - id: lexcode.check.${stem}
     languages: [swift]
     severity: INFO
-    message: rule-cost check, a quadratic rule on final classes only
-    pattern-regex: '(?m)^final class (C[0-9]*00) (?=(?s:.*)C9999999 = )'
+    message: rule-cost check, a quadratic rule on modified classes only
+    pattern-regex: '${regex}'
 `;
 
 const tree = mkdtempSync(join(tmpdir(), 'lexcode-cost-check-'));
@@ -51,8 +60,10 @@ try {
   const rules = join(tree, 'rules', 'check');
   writeFileSync(join(rules, 'swift-quadratic-check.yml'), QUADRATIC);
   writeFileSync(join(rules, 'swift-quadratic-check.test.swift'), '// lexcode-expect: 0\nfinal class Start {}\n');
-  writeFileSync(join(rules, 'swift-final-quadratic-check.yml'), FINAL_QUADRATIC);
-  writeFileSync(join(rules, 'swift-final-quadratic-check.test.swift'), '// lexcode-expect: 0\nfinal class Start {}\n');
+  for (const [stem, regex] of NOT_CLEARED) {
+    writeFileSync(join(rules, `${stem}.yml`), notClearedRule(stem, regex));
+    writeFileSync(join(rules, `${stem}.test.swift`), '// lexcode-expect: 0\nfinal class Start {}\n');
+  }
   const health = join(ROOT, 'rules', 'processes_personal_data');
   copyFileSync(join(health, 'swift-health-read.yml'), join(rules, 'swift-scanner-hit-check.yml'));
   const fixture = readdirSync(health).filter((f) => f.startsWith('swift-health-read.test') && f.endsWith('.swift')).sort()[0];
@@ -68,12 +79,14 @@ try {
   const line = (stem) => out.split('\n').find((l) => l.startsWith(`check/${stem}.yml`)) ?? '';
   const problems = [];
   if (!/\bOVER\b/.test(line('swift-quadratic-check'))) problems.push('swift-quadratic-check is not named OVER');
-  if (!/^NOT CLEARED check\/swift-final-quadratic-check\.yml: /m.test(out)) problems.push('swift-final-quadratic-check is not named NOT CLEARED');
+  for (const [stem] of NOT_CLEARED) {
+    if (!out.split('\n').some((l) => l.startsWith(`NOT CLEARED check/${stem}.yml: `))) problems.push(`${stem} is not named NOT CLEARED`);
+  }
   const hit = line('swift-scanner-hit-check');
   if (hit === '') problems.push('swift-scanner-hit-check was not timed');
   else if (/\bOVER\b/.test(hit)) problems.push('swift-scanner-hit-check is named OVER (the scanner bug read as rule cost)');
   if (/^FAILED /m.test(out)) problems.push('a rule failed');
-  if (run.status !== 1) problems.push(`rule-cost exited ${String(run.status)}, not 1 (one rule over a bound)`);
+  if (run.status !== 1) problems.push(`rule-cost exited ${String(run.status)}, not 1 (a rule over a bound and rules not cleared)`);
   if (problems.length > 0) {
     process.stdout.write(`rule-cost check FAILED: ${problems.join('; ')}\n`);
     process.exit(1);

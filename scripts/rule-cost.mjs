@@ -18,7 +18,7 @@
 // Each size is timed in an engine run of its own, and each time is the lowest of up to three runs, because load
 // on the machine only adds time; a rule within both bounds after its first run is not run again. A Swift rule over a
 // bound is measured again on a second filler the engine's Swift scanner bug cannot touch (`plain`, below); a rule
-// within bounds there is cleared only if it names no modifier or attribute (BARE_HIT, MODIFIER). The script names
+// within bounds there is cleared only if it names no modifier or attribute (BARE_HIT, MODIFIER_WORD). The script names
 // every rule over a bound, every rule not cleared, and every rule the engine failed on, and exits 1 if there is any.
 //
 // It needs the built CLI for the engine's path (`npm run build`, then `lexcode engine fetch` once), or
@@ -61,7 +61,7 @@ const LARGE_NAME = 'unit-900kb';
  * the filler below is measured again on LANGS['.swift'].plain, a filler of plain classes with no modifier at all,
  * against a bare rule on that filler. Those figures can show only what that filler exercises:
  * - over on the plain filler: the rule is over (it is slow on plain declarations);
- * - within bounds there, and the rule's file names no modifier or attribute outside a `pattern-not` (MODIFIER): the
+ * - within bounds there, and the rule's file names no modifier or attribute outside a `pattern-not` (MODIFIER_WORD, ATTRIBUTE): the
  *   rule is cleared, since its first-filler time was the bug;
  * - within bounds there, but the rule names a modifier or attribute: not cleared. The plain filler gives such a rule
  *   nothing to match, so it cannot tell a rule slowed by the bug from one that is slow on modified declarations
@@ -71,13 +71,15 @@ const LARGE_NAME = 'unit-900kb';
  */
 const BARE_HIT = 40;
 /**
- * A Swift declaration modifier or an attribute, as a rule's positive patterns would name one. A dotted or called name
- * (`$X.open(...)`) and a label (`private:`) are not one; neither is the `@\w+` of a regex, which has no letter after
- * the `@`.
+ * A Swift declaration modifier or attribute named in a rule's positive patterns, read conservatively: a NOT CLEARED
+ * that was not needed only sends a rule to a person, while a miss lets a slow rule ship. A modifier word anywhere as a
+ * whole word (`$X.open(...)` included), after each backslash escape is blanked so `\bfinal` and `\sfinal` read as
+ * `final`; and an `@` followed by a letter, `\w`, `(` or `[`, so `@Model`, `@\w+`, `@(?:A|B)` and `@[A-Z]` all count.
  */
-const MODIFIER = /(?<![.\w$])(?:final|open|public|internal|private|fileprivate)\b(?!\s*[(:])|@[A-Za-z_]\w*/g;
-/** The shared Swift import guard, whose `@...` is an attribute before an import, not a declaration's. */
-const IMPORT_GUARD = /\\A\(\?=\.\*\^.*import\\s\+/;
+const MODIFIER_WORD = /\b(?:final|open|public|internal|private|fileprivate)\b/g;
+const ATTRIBUTE = /@(?:[A-Za-z_]\w*|\\w|\(|\[)/g;
+/** The shared Swift import guard's attribute-before-import part, which names no declaration's attribute. */
+const IMPORT_GUARD_ATTRIBUTE = '(?:@\\w+(?:\\([^)]*\\))?\\s+)*import';
 /**
  * Keys whose text is not a positive pattern: exclusions, sanitizers, what is not a pattern at all, and a
  * metavariable's regex or comparison, which tests text a pattern already bound (a path, a name), not a declaration.
@@ -253,14 +255,15 @@ async function baselines(engine, exts) {
   return base;
 }
 
-/** The modifiers and attributes a rule file names in its positive patterns (MODIFIER), without repeats. */
+/** The modifiers and attributes a rule file names in its positive patterns (MODIFIER_WORD, ATTRIBUTE), without repeats. */
 function namedModifiers(ruleFile) {
   const found = new Set();
   const walk = (node, key) => {
     if (key !== undefined && NOT_POSITIVE.test(key)) return;
     if (typeof node === 'string') {
-      if (key === 'pattern-regex' && IMPORT_GUARD.test(node)) return;
-      for (const m of node.matchAll(MODIFIER)) found.add(m[0]);
+      const text = node.replaceAll(IMPORT_GUARD_ATTRIBUTE, 'import');
+      for (const m of text.matchAll(ATTRIBUTE)) found.add(m[0]);
+      for (const m of text.replace(/\\[A-Za-z]/g, ' ').matchAll(MODIFIER_WORD)) found.add(m[0]);
     } else if (Array.isArray(node)) {
       for (const v of node) walk(v, key);
     } else if (node !== null && typeof node === 'object') {
@@ -297,7 +300,12 @@ async function measure(engine, base, { rule, fixture }) {
     const pq = ratios(p, base[ext].plain);
     const first = { small: r.small, large: r.large };
     if (within(pq)) {
-      const named = namedModifiers(rule);
+      let named;
+      try {
+        named = namedModifiers(rule);
+      } catch (e) {
+        return { rule, failed: `cannot read the rule file for its modifiers: ${e instanceof Error ? e.message : String(e)}` };
+      }
       if (named.length > 0) return { rule, notCleared: named, plain: { small: p.small, large: p.large, ...pq }, first };
     }
     return { rule, small: p.small, large: p.large, ...pq, over: !within(pq), first };
