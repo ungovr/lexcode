@@ -1,0 +1,20 @@
+# lexcode-expect: 1
+# A library crate with the description and licence crates.io requires, not marked publish = false.
+[package]
+name = "tidy-dates"
+version = "0.4.2"
+edition = "2021"
+description = "Parse and format calendar dates without a time zone database"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/example/tidy-dates"
+keywords = [
+    "date",
+    "calendar",
+]
+# publish = false
+
+[package.metadata.docs.rs]
+all-features = true
+
+[dependencies]
+serde = { version = "1", optional = true }

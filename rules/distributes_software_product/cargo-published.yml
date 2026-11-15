@@ -1,0 +1,38 @@
+rules:
+  - id: lexcode.distribute.cargo-published
+    languages: [generic]
+    severity: INFO
+    message: Declares a Cargo package with the description and licence crates.io requires and no publish = false, which is a crate made available for others to install (distributes_software_product).
+    # One match per [package] header. Every crate has a [package] table, so the table alone says
+    # nothing; `cargo publish` refuses a package without a description and a licence, so a table with
+    # both (written out or inherited with `.workspace = true`) that is not switched off is a crate
+    # written to be published. It is switched off by `publish = false`, by an empty registry list, and
+    # by `publish.workspace = true`, which a workspace sets only to turn publishing off (the default is
+    # on). A licence that names a proprietary, unlicensed or commercial grant is an in-house crate. Each
+    # key is looked for only in the package's own table: the lookaheads walk line by line and stop at
+    # the next table header, so [workspace.package] or a feature named `license` does not count. A
+    # commented-out key is not a key. A hosted server whose manifest has both keys and no publish = false
+    # is matched too; the definition counts a server others self-host.
+    #
+    # Known gaps: keys written as dotted keys outside the table (`package.license = ..`), and a
+    # `publish.workspace = true` whose workspace turns publishing on.
+    pattern-regex: '(?m)^[ \t]*\[package\][ \t]*(?:#[^\n]*)?$(?=(?:\n(?![ \t]*\[)[^\n]*)*?\n[ \t]*description(?:\.workspace)?[ \t]*=)(?=(?:\n(?![ \t]*\[)[^\n]*)*?\n[ \t]*license(?:-file)?(?:\.workspace)?[ \t]*=)(?!(?:\n(?![ \t]*\[)[^\n]*)*?\n[ \t]*publish(?:[ \t]*=[ \t]*(?:false\b|\[[ \t]*\]|\{[^}\n]*\bworkspace\b)|\.workspace\b))(?!(?:\n(?![ \t]*\[)[^\n]*)*?\n[ \t]*license[ \t]*=[ \t]*["''][^"''\n]*(?i:proprietary|unlicensed|commercial|all rights reserved))'
+    paths:
+      include:
+        - "Cargo.toml"
+        - "cargo-published.*"
+      # A crate under an example, sample or demo directory is a worked example, not the product. The
+      # fixture runner reads only the files beside this rule, so no fixture can sit under these paths.
+      exclude:
+        - "**/example/**"
+        - "**/examples/**"
+        - "**/sample/**"
+        - "**/samples/**"
+        - "**/demo/**"
+        - "**/demos/**"
+    metadata:
+      activity: distributes_software_product
+      mentioned: performs
+      definition: https://lexlint.io/activities/distributes-software-product
+      provenance: ungovr-original
+      license: MIT

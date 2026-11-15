@@ -1,0 +1,21 @@
+rules:
+  - id: lexcode.mobile.rs-tauri-mobile-entry
+    languages: [rust]
+    severity: INFO
+    message: Marks a Tauri 2 app's mobile entry point, which a phone build of the app starts from; the app may be shipped as a phone app or only as a desktop app (ships_mobile_app).
+    # A signal, not evidence: create-tauri-app writes `#[cfg_attr(mobile, tauri::mobile_entry_point)]`
+    # into every Tauri 2 project's lib.rs, desktop-only ones included, so the attribute shows the app
+    # can be built for a phone, not that it is. A phone build is evidenced by
+    # rs-tauri-mobile-plugin, and by the generated Android and Xcode projects under src-tauri/gen
+    # (android-manifest-launcher, xcode-ios-application). The engine matches the template's cfg_attr
+    # form only when spelled exactly, and does not match the path attribute written alone
+    # (`#[tauri::mobile_entry_point] fn ..`, probed), so the attribute is read as text, at the start
+    # of a line, which keeps comments and strings out.
+    pattern-regex: '(?m)^[ \t]*#\[[ \t]*(?:cfg_attr[ \t]*\([ \t]*mobile[ \t]*,[ \t]*)?tauri::mobile_entry_point\b'
+    metadata:
+      activity: ships_mobile_app
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/ships-mobile-app
+      provenance: ungovr-original
+      license: MIT

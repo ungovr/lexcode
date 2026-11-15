@@ -1,0 +1,33 @@
+rules:
+  - id: lexcode.distribute.cargo-release-packaging
+    languages: [generic]
+    severity: INFO
+    message: Configures release packaging for a Rust program (cargo-dist, a Debian or RPM package, an AUR package, prebuilt binaries for cargo-binstall, or a desktop bundle or installer), which is software made available for others to install (distributes_software_product).
+    # One match per packaging table. Each of these tools reads only its own table, and each table
+    # exists to build something a person outside the project installs: installers and archives for a
+    # release (cargo-dist), a .deb (cargo-deb), an .rpm (cargo-generate-rpm), an AUR PKGBUILD
+    # (cargo-aur), binary download locations (cargo-binstall), a macOS app or Linux bundle
+    # (cargo-bundle), an MSI (cargo-wix), installers (cargo-packager) and an AppImage
+    # (cargo-appimage). A sub-table (`[package.metadata.deb.systemd-units]`) is not counted again. A
+    # member cargo-dist is told to skip (`dist = false` in its own table) is not matched.
+    # dist-workspace.toml's `[dist]` table is read in that file only. cargo-apk's
+    # `[package.metadata.android]` builds a phone app and belongs to ships_mobile_app, not here.
+    pattern-regex: '(?m)^[ \t]*\[(?:(?:package|workspace)\.metadata\.(?:dist|deb|generate-rpm|aur|binstall|bundle|wix|packager|appimage)|dist)\][ \t]*(?:#[^\n]*)?$(?!(?:\n(?![ \t]*\[)[^\n]*)*?\n[ \t]*dist[ \t]*=[ \t]*false\b)'
+    paths:
+      include:
+        - "Cargo.toml"
+        - "dist-workspace.toml"
+        - "cargo-release-packaging.*"
+      exclude:
+        - "**/example/**"
+        - "**/examples/**"
+        - "**/sample/**"
+        - "**/samples/**"
+        - "**/demo/**"
+        - "**/demos/**"
+    metadata:
+      activity: distributes_software_product
+      mentioned: performs
+      definition: https://lexlint.io/activities/distributes-software-product
+      provenance: ungovr-original
+      license: MIT

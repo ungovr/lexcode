@@ -1,0 +1,25 @@
+# lexcode-expect: 0
+# A workspace member that cargo-dist is told to leave out, documentation settings for docs.rs,
+# tool settings that package nothing, and a packaging table left commented out.
+[package]
+name = "relay-testkit"
+version = "0.1.0"
+edition = "2021"
+
+[package.metadata.dist]
+dist = false
+
+[package.metadata.docs.rs]
+all-features = true
+
+[package.metadata.cargo-machete]
+ignored = ["serde"]
+
+[package.metadata.debian-scripts]
+note = "not a cargo-deb table"
+
+# [package.metadata.deb]
+# maintainer = "nobody"
+
+[dependencies]
+tokio = "1"

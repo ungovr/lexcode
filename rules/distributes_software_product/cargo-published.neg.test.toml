@@ -1,0 +1,14 @@
+# lexcode-expect: 0
+# A server binary with a description and a licence, marked publish = false (it is deployed, not
+# put on a registry).
+[package]
+name = "acme_server"
+version = "1.0.0"
+edition = "2024"
+description = "The Acme web backend"
+license = "AGPL-3.0"
+publish = false
+default-run = "acme_server"
+
+[dependencies]
+actix-web = "4"

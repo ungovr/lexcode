@@ -1,0 +1,10 @@
+# lexcode-expect: 0
+# An in-house crate under a proprietary licence, and one with an empty registry list.
+[package]
+name = "billing-core"
+version = "3.0.0"
+description = "Internal billing rules"
+license = "LicenseRef-Proprietary"
+
+[dependencies]
+rust_decimal = "1"
