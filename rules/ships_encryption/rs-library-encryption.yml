@@ -137,9 +137,9 @@ rules:
               metavariable: $P
               regex: ^Oaep::new
       # The rsa crate's newer OAEP methods (its README's `public_key.oaep_encrypt::<Sha256>(data)`), read in
-      # a file with a `use rsa::` line, so an app's own method of that name elsewhere is not read.
+      # a file with a `use` line for rsa, so an app's own method of that name elsewhere is not read.
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+rsa::).*'
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+rsa\b).*'
           - pattern-either:
               - pattern: $K.oaep_encrypt::<$H>(...)
               - pattern: $K.oaep_decrypt::<$H>(...)

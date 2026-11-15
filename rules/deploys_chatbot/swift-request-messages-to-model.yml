@@ -26,14 +26,14 @@ rules:
                   ...
           - pattern-either:
               - patterns:
-                  - pattern-regex: '(?s)\bimport\s+OpenAI\b.*'
+                  - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?OpenAI\b).*'
                   - pattern-either:
                       - pattern: '$C.chats(query: ChatQuery(messages: <... $P.$A ...>, ...))'
                       - pattern: '$C.chats(query: .init(messages: <... $P.$A ...>, ...))'
                       - pattern: '$C.chatsStream(query: ChatQuery(messages: <... $P.$A ...>, ...))'
                       - pattern: '$C.chatsStream(query: .init(messages: <... $P.$A ...>, ...))'
               - patterns:
-                  - pattern-regex: '(?s)\bimport\s+SwiftOpenAI\b.*'
+                  - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?SwiftOpenAI\b).*'
                   - pattern-either:
                       - pattern: '$C.startChat(parameters: ChatCompletionParameters(messages: <... $P.$A ...>, ...))'
                       - pattern: '$C.startChat(parameters: .init(messages: <... $P.$A ...>, ...))'
@@ -55,14 +55,14 @@ rules:
               regex: '^\[.*(Message|Turn)\w*\]$'
           - pattern-either:
               - patterns:
-                  - pattern-regex: '(?s)\bimport\s+OpenAI\b.*'
+                  - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?OpenAI\b).*'
                   - pattern-either:
                       - pattern: '$C.chats(query: ChatQuery(messages: $P, ...))'
                       - pattern: '$C.chats(query: .init(messages: $P, ...))'
                       - pattern: '$C.chatsStream(query: ChatQuery(messages: $P, ...))'
                       - pattern: '$C.chatsStream(query: .init(messages: $P, ...))'
               - patterns:
-                  - pattern-regex: '(?s)\bimport\s+SwiftOpenAI\b.*'
+                  - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?SwiftOpenAI\b).*'
                   - pattern-either:
                       - pattern: '$C.startChat(parameters: ChatCompletionParameters(messages: $P, ...))'
                       - pattern: '$C.startChat(parameters: .init(messages: $P, ...))'

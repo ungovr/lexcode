@@ -11,7 +11,7 @@ rules:
     pattern-either:
       - pattern: ImagePlayground.ImagePlaygroundViewController(...)
       - patterns:
-          - pattern-regex: '(?s)\A(?=.*\bimport\s+ImagePlayground\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?ImagePlayground\b).*'
           - pattern: $V.imagePlaygroundSheet(...)
     metadata:
       activity: generates_images

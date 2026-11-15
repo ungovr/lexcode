@@ -19,8 +19,8 @@ rules:
       - patterns:
           - pattern: NativeAudioStream::new(...)
           - pattern-either:
-              - pattern-regex: (?sm)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+livekit\b).*
-              - pattern-regex: (?sm)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+libwebrtc\b).*
+              - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+livekit\b).*'
+              - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+libwebrtc\b).*'
     metadata:
       activity: records_calls
       mentioned: performs

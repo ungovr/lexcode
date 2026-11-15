@@ -61,7 +61,7 @@ rules:
       # Fluent: a migration that creates a follows or friendships table, and a query keyed on the
       # follower (`.filter(\.$follower.$id == user)`, also inside `try await`).
       - patterns:
-          - pattern-regex: '(?s)\A(?=.*import\s+Fluent).*'
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?(?:Fluent|FluentKit)\b).*'
           - pattern-either:
               - pattern-inside: |
                   import Fluent

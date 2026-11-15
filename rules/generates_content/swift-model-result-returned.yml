@@ -15,10 +15,10 @@ rules:
       - pattern-either:
           - patterns:
               - pattern-either:
-                  - pattern-regex: '(?s)\A(?=.*\bimport\s+GoogleGenerativeAI\b).*'
-                  - pattern-regex: '(?s)\A(?=.*\bimport\s+FirebaseAI\b).*'
-                  - pattern-regex: '(?s)\A(?=.*\bimport\s+FirebaseAILogic\b).*'
-                  - pattern-regex: '(?s)\A(?=.*\bimport\s+FirebaseVertexAI\b).*'
+                  - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?GoogleGenerativeAI\b).*'
+                  - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?FirebaseAI\b).*'
+                  - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?FirebaseAILogic\b).*'
+                  - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?FirebaseVertexAI\b).*'
                   - pattern-regex: '(?s)\A(?=.*\bFirebaseAI\.firebaseAI\b).*'
                   - pattern-regex: '(?s)\A(?=.*\bVertexAI\.vertexAI\b).*'
               - pattern-either: &calls_vendors
@@ -29,10 +29,10 @@ rules:
       - pattern-either:
           - patterns:
               - pattern-either:
-                  - pattern-regex: '(?s)\A(?=.*\bimport\s+GoogleGenerativeAI\b).*'
-                  - pattern-regex: '(?s)\A(?=.*\bimport\s+FirebaseAI\b).*'
-                  - pattern-regex: '(?s)\A(?=.*\bimport\s+FirebaseAILogic\b).*'
-                  - pattern-regex: '(?s)\A(?=.*\bimport\s+FirebaseVertexAI\b).*'
+                  - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?GoogleGenerativeAI\b).*'
+                  - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?FirebaseAI\b).*'
+                  - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?FirebaseAILogic\b).*'
+                  - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?FirebaseVertexAI\b).*'
                   - pattern-regex: '(?s)\A(?=.*\bFirebaseAI\.firebaseAI\b).*'
                   - pattern-regex: '(?s)\A(?=.*\bVertexAI\.vertexAI\b).*'
               - patterns:
@@ -50,10 +50,10 @@ rules:
       - pattern-either:
           - patterns:
               - pattern-either:
-                  - pattern-regex: '(?s)\A(?=.*\bimport\s+GoogleGenerativeAI\b).*'
-                  - pattern-regex: '(?s)\A(?=.*\bimport\s+FirebaseAI\b).*'
-                  - pattern-regex: '(?s)\A(?=.*\bimport\s+FirebaseAILogic\b).*'
-                  - pattern-regex: '(?s)\A(?=.*\bimport\s+FirebaseVertexAI\b).*'
+                  - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?GoogleGenerativeAI\b).*'
+                  - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?FirebaseAI\b).*'
+                  - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?FirebaseAILogic\b).*'
+                  - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?FirebaseVertexAI\b).*'
                   - pattern-regex: '(?s)\A(?=.*\bFirebaseAI\.firebaseAI\b).*'
                   - pattern-regex: '(?s)\A(?=.*\bVertexAI\.vertexAI\b).*'
               - patterns:
@@ -138,8 +138,8 @@ rules:
           - pattern-not-inside:
               patterns:
                 - pattern-either:
-                    - pattern-regex: '(?s)\A(?=.*\bimport\s+Vapor\b).*'
-                    - pattern-regex: '(?s)\A(?=.*\bimport\s+Hummingbird\b).*'
+                    - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?Vapor\b).*'
+                    - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?Hummingbird\b).*'
                 - pattern-either:
                     - pattern: |
                         func $G(..., $REQ: Request, ...) -> $U {

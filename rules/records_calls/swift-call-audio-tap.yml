@@ -8,7 +8,7 @@ rules:
     # only measure. The capture types are written module-qualified, as in swift-microphone-capture.
     pattern-either:
       - patterns:
-          - pattern-regex: '(?sm)^[ \t]*(?:@\w+[ \t]+)*import[ \t]+CallKit\b.*'
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?CallKit\b).*'
           - pattern-either:
               # A recorder made with no URL (an error fallback) records nothing and is left out.
               - patterns:
@@ -24,7 +24,7 @@ rules:
               - pattern: $E.inputNode.installTap(...)
       # LiveKit's Swift SDK: an audio renderer added to a track gets its PCM buffers.
       - patterns:
-          - pattern-regex: '(?sm)^[ \t]*(?:@\w+[ \t]+)*import[ \t]+LiveKit\b.*'
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?LiveKit\b).*'
           - pattern: '$T.add(audioRenderer: $R)'
     options:
       symbolic_propagation: true

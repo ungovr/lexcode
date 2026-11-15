@@ -24,9 +24,10 @@ rules:
           - pattern: poem::web::cookie::Cookie::new_with_str($N, $V)
           # A path inside a nested `use` group (`use actix_web::{cookie::Cookie, web};`) is not
           # resolved by the engine (probed), so the short form is matched as well, in a file
-          # that imports a Cookie from a module named cookie.
+          # whose use line imports a Cookie from a module named cookie (a comment naming one
+          # does not count).
           - patterns:
-              - pattern-regex: '(?s)\A(?=.*\bcookie::[^;]*\bCookie\b).*'
+              - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+[^;]*\bcookie::[^;]*\bCookie\b).*'
               - pattern-either:
                   - pattern: Cookie::new($N, $V)
                   - pattern: Cookie::build($N, $V)

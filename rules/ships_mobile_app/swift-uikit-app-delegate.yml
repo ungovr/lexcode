@@ -78,10 +78,10 @@ rules:
       - pattern-either:
           - patterns:
               - pattern-regex: '(?s)\A.*'
-              - pattern-not-regex: '(?ms)\A(?=.*^[ \t]*import[ \t]+TVUIKit\b).*'
-              - pattern-not-regex: '(?ms)\A(?=.*^[ \t]*import[ \t]+TVServices\b).*'
-              - pattern-not-regex: '(?ms)\A(?=.*^[ \t]*import[ \t]+TVMLKit\b).*'
-              - pattern-not-regex: '(?ms)\A(?=.*^[ \t]*import[ \t]+CompositorServices\b).*'
+              - pattern-not-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?TVUIKit\b).*'
+              - pattern-not-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?TVServices\b).*'
+              - pattern-not-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?TVMLKit\b).*'
+              - pattern-not-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?CompositorServices\b).*'
               - pattern-not-regex: '(?s)\A(?=.*ImmersiveSpace\b).*'
               - pattern-not-regex: '(?s)\A(?=.*\.volumetric\b).*'
               - pattern-not-regex: '(?s)\A(?=.*@available\(\s*iOS\s*,\s*unavailable\b).*'

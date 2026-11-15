@@ -113,7 +113,7 @@ rules:
                     ...
                   }
           - patterns:
-              - pattern-regex: '(?s)\bimport\s+(DiscordBM|DiscordHTTP)\b.*'
+              - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?(?:DiscordBM|DiscordHTTP)\b).*'
               - pattern: $DMC.createDm(...)
               - pattern-not-inside: |
                   do {
