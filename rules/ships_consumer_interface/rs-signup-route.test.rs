@@ -1,4 +1,4 @@
-// lexcode-expect: 8
+// lexcode-expect: 9
 use actix_web::{web, App, HttpResponse};
 use actix_web::{web::{resource, scope}, HttpServer};
 use actix_web as aw;
@@ -32,6 +32,15 @@ pub fn config(cfg: &mut web::ServiceConfig) {
     cfg.service(web::resource("/sign-up").route(web::post().to(register)));
     cfg.service(aw::web::resource("/signup").route(web::post().to(register)));
     cfg.service(resource("/create-account").route(web::post().to(register)));
+}
+
+// axum: a public router that ends in an admin nest. The public sign-up route is chained before
+// the nest, in its receiver, and is read; only the nested admin router is a staff screen.
+pub fn app() -> Router {
+    Router::new()
+        .route("/sign-up", post(register))
+        .route("/login", post(register))
+        .nest("/admin", Router::new().route("/register", post(register)))
 }
 
 // Poem: a route tree.

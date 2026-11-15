@@ -23,6 +23,12 @@ rules:
       - metavariable-regex:
           metavariable: $F
           regex: '^(handle_|post_|submit_|process_)?(sign_?up|register|registration|create_account|new_account|subscribe|subscribe_to_newsletter|newsletter_(sign_?up|subscribe))(_(user|account|member|customer|form|post|submit|handler|page|action))?$'
+      # A handler in an inline staff module is a staff screen; one in an admin/ file is not seen.
+      # The engine does not match a Rust `mod` block as a pattern (probed), so the module is a
+      # text range: its header and its balanced braces (PCRE recursion). A brace inside a string
+      # in the module can end the range early.
+      - pattern-not-inside:
+          pattern-regex: '(?mi)^[ \t]*(?:pub(?:\([^)]*\))?\s+)?mod\s+\w*(?:admin|staff|internal|backoffice|manage)\w*\s*(\{(?:[^{}]++|(?1))*+\})'
       - focus-metavariable: $F
     metadata:
       activity: ships_consumer_interface

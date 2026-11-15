@@ -37,3 +37,13 @@ pub async fn subscribe_confirm(token: web::Query<String>) -> HttpResponse {
     let _ = token;
     HttpResponse::Ok().finish()
 }
+
+// The staff's own form for opening an account, in an inline admin module.
+pub mod admin {
+    use actix_web::{web, HttpResponse};
+
+    pub async fn create_account(form: web::Form<super::Credentials>) -> HttpResponse {
+        let _ = &form.email;
+        HttpResponse::Ok().finish()
+    }
+}

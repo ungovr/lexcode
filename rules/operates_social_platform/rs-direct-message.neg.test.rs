@@ -32,6 +32,12 @@ pub struct QueueChatMessage {
     pub receiver: String,
 }
 
+// A Diesel insert form beside a private message: the same message type, read once on the struct.
+pub struct PrivateMessageInsertForm {
+    pub creator_id: i32,
+    pub recipient_id: i32,
+}
+
 // A direct message type with only a recipient: a broadcast the staff send.
 pub struct DirectMessage {
     pub recipient_id: Uuid,
@@ -42,13 +48,20 @@ pub struct DirectMessage {
 // An insert into a support message table whose recipient is the support team (a user writing to
 // the staff), and an insert into a mail log.
 pub async fn store(pool: &sqlx::PgPool, user: Uuid, body: &str) -> sqlx::Result<()> {
-    sqlx::query("insert into support_messages (user_id, recipient, body) values ($1, 'support', $2)")
+    sqlx::query("insert into support_chat_messages (user_id, recipient, body) values ($1, 'support', $2)")
         .bind(user)
         .bind(body)
         .execute(pool)
         .await?;
     sqlx::query("insert into email_log (recipient, subject) values ($1, $2)")
         .bind("a@example.org")
+        .bind(body)
+        .execute(pool)
+        .await?;
+    // A shop order with a gift recipient: a recipient column on a table that holds no messages.
+    sqlx::query("insert into gift_orders (customer_id, recipient, address) values ($1, $2, $3)")
+        .bind(user)
+        .bind("A. Person")
         .bind(body)
         .execute(pool)
         .await?;

@@ -1,4 +1,4 @@
-// lexcode-expect: 5
+// lexcode-expect: 4
 use chrono::{DateTime, Utc};
 use diesel::prelude::*;
 use uuid::Uuid;
@@ -13,16 +13,6 @@ pub struct PrivateMessage {
     pub recipient_id: i32,
     pub content: String,
     pub published_at: DateTime<Utc>,
-}
-
-// Its insert form.
-#[derive(Clone)]
-#[cfg_attr(feature = "full", derive(Insertable))]
-#[cfg_attr(feature = "full", diesel(table_name = private_message))]
-pub struct PrivateMessageInsertForm {
-    pub creator_id: i32,
-    pub recipient_id: i32,
-    pub content: String,
 }
 
 // sqlx: a direct message between two accounts.
