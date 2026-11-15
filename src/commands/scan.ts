@@ -11,6 +11,7 @@ import { ensureEngine } from '../engine/fetch.js';
 import { ENGINE_PIN } from '../engine/pin.js';
 import { runEngine } from '../engine/run.js';
 import { isCargoManifest, readCargo } from '../manifests/cargo.js';
+import { readCocoapods } from '../manifests/cocoapods.js';
 import { readGo } from '../manifests/go.js';
 import { readNpm } from '../manifests/npm.js';
 import { isRequirementsFile, readPypi } from '../manifests/pypi.js';
@@ -172,7 +173,7 @@ export async function scan(o: ScanOptions): Promise<EvidenceRecord> {
   }
 
   // Manifests: what the code enables.
-  const readers = [readNpm(root, files), readPypi(root, files), readGo(root, files), readRuby(root, files), readMaven(root, files), readGradle(root, files), readComposer(root, files), readNuget(root, files), readCargo(root, files)];
+  const readers = [readNpm(root, files), readPypi(root, files), readGo(root, files), readRuby(root, files), readMaven(root, files), readGradle(root, files), readComposer(root, files), readNuget(root, files), readCargo(root, files), readCocoapods(root, files)];
   const deps: Dependency[] = readers.flatMap((r) => r.deps);
   const devSkipped = readers.reduce((n, r) => n + r.devSkipped, 0);
   for (const r of readers) notices.push(...r.notices);
