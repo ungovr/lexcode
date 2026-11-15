@@ -1,0 +1,65 @@
+# The bar is the other languages' rules: a messages or history LIST that a client sent in a request
+# reaches a chat model call. A single question pasted into a fixed prompt is a one-shot tool, not a
+# chatbot, and does not match. Taint follows the list through a request builder
+# (`CreateChatCompletionRequestArgs::default().messages(...).build()`), a conversion
+# (`into_iter().map(...).collect()`) and a local, which a search rule cannot.
+#
+# The source is a conversation field (messages, history, chat_history, conversation, turns) of a
+# value with a request's usual name (req, request, body, payload, input, data, params), also after
+# actix-web's `into_inner()` or a tuple struct's `.0`; axum's `Json(req)`, actix-web's
+# `web::Json<T>` and Rocket's `Json<T>` all bind one. The sinks are the model calls, matched through
+# the chain from the client, since the engine does not know a Rust receiver's type: async-openai's
+# chat completions (plain, streamed, and with the caller's own types), ollama-rs's chat (plain,
+# streamed, and with a history it keeps), rig's chat on an agent (the history argument) and a prompt
+# with a history, genai's chat, and mistral.rs's chat request. A history held in a request and
+# passed on is the conversation the client keeps; it is not a store, so it is not records_text_chat.
+#
+# Calls inside a macro body (`json!`, `format!`) are not seen: a conversation posted to a model's
+# HTTP API inside `json!({ "messages": ... })` is missed (rules/README.md).
+rules:
+  - id: lexcode.chatbot.rs-request-messages-to-model
+    languages: [rust]
+    severity: INFO
+    message: Passes the conversation a client sent in a request to a language model, which is deploying a chatbot (deploys_chatbot).
+    mode: taint
+    pattern-sources:
+      - patterns:
+          - pattern: $P.$A
+          - metavariable-regex:
+              metavariable: $P
+              regex: ^(req|request|body|payload|input|data|params|chat_request|chat_req|chat_body|chat_payload)(\.into_inner\(\)|\.0)?$
+          - metavariable-regex:
+              metavariable: $A
+              regex: ^(messages|history|chat_history|conversation|conversation_history|turns|chat_messages)$
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: $C.chat().create($X)
+              - pattern: $C.chat().create_stream($X)
+              - pattern: $C.chat().create_byot($X)
+              - pattern: $C.chat().create_stream_byot($X)
+              - pattern: $O.send_chat_messages($X)
+              - pattern: $O.send_chat_messages_stream($X)
+              - pattern: $O.send_chat_messages_with_history($H, $X)
+              - pattern: $O.send_chat_messages_with_history_stream($H, $X)
+              - pattern: $G.exec_chat($M, $X, ...)
+              - pattern: $G.exec_chat_stream($M, $X, ...)
+              - pattern: $MR.send_chat_request($X)
+              - pattern: $MR.stream_chat_request($X)
+          - focus-metavariable: $X
+      # rig's `chat(prompt, history)` and `with_history` are names an app may give its own methods.
+      # They are rig's only in a file that names rig, which it must to bring the Chat trait or the
+      # prompt request into scope; the whole-file check is one greedy literal (CONTRIBUTING.md).
+      - patterns:
+          - pattern-either:
+              - pattern: $AG.chat($Q, $X)
+              - pattern: $AG.stream_chat($Q, $X)
+              - pattern: $PR.with_history($X)
+          - pattern-regex: '(?s)\A(?=.*\brig::).*'
+          - focus-metavariable: $X
+    metadata:
+      activity: deploys_chatbot
+      mentioned: performs
+      definition: https://lexlint.io/activities/deploys-chatbot
+      provenance: ungovr-original
+      license: MIT

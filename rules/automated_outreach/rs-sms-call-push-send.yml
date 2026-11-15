@@ -1,0 +1,38 @@
+# Signal strength, as in every other language: one text, call or push is as often the one a person
+# just asked for (a code, an order update) as a message the software decided to send. The loop, timer
+# and bulk shapes are the evidence rules; this one is the worth-a-look row. A text whose body names a
+# code, a one-time password or a verification is left out, since it answers the person's own sign-in.
+#
+# The sends: Twilio's outbound message and call (the `twilio` crate), an SNS text to a phone number,
+# a web-push message, an APNs notification (a2) and an FCM message, each where it is built, and an
+# HTTP POST to Twilio's messages or calls API by its literal address. Crate items are written by
+# their crate path, resolved through a plain or single-level grouped `use` and an alias; a `use`
+# whose group nests a path is not resolved on Opengrep 1.33.1.
+rules:
+  - id: lexcode.outreach.rs-sms-call-push-send
+    languages: [rust]
+    severity: INFO
+    message: Sends a text, places a call or pushes a notification, where the code does not show whether a person just asked for it, which may be sending automated outreach (automated_outreach).
+    pattern-either:
+      - patterns:
+          - pattern: twilio::OutboundMessage::new($FROM, $TO, $BODY)
+          - metavariable-regex:
+              metavariable: $BODY
+              regex: (?is)^(?!.*(code|otp|verif|passcode|password|\bpin\b)).*$
+      - pattern: twilio::OutboundCall::new(...)
+      - pattern: $C.publish().phone_number(...)
+      - pattern: web_push::WebPushMessageBuilder::new(...)
+      - pattern: a2::DefaultNotificationBuilder::new()
+      - pattern: fcm::MessageBuilder::new(...)
+      - patterns:
+          - pattern: $H.post($URL)
+          - metavariable-regex:
+              metavariable: $URL
+              regex: (?is)^r?#*".*api\.twilio\.com/.*/(Messages|Calls).*
+    metadata:
+      activity: automated_outreach
+      mentioned: performs
+      definition: https://lexlint.io/activities/automated-outreach
+      provenance: ungovr-original
+      license: MIT
+      strength: signal
