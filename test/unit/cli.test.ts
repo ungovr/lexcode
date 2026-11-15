@@ -182,6 +182,28 @@ describe('lexcode explain', () => {
       expect(JSON.parse(out.join('')).enables).toEqual([]);
     });
 
+    it('reads cargo, swift and cocoapods purls, a CocoaPods subpath as the subspec', async () => {
+      const rs = makeRuleSet();
+      rs.components = [
+        { ecosystem: 'cargo', match: 'async-openai', enables: ['automated_outreach'], says: 'a', source: 'https://example.org' },
+        { ecosystem: 'swift', match: 'github.com/twilio/twilio-voice-ios', enables: ['automated_outreach'], says: 'a', source: 'https://example.org' },
+        { ecosystem: 'cocoapods', match: 'firebase/messaging', enables: ['automated_outreach'], says: 'a', source: 'https://example.org' },
+      ];
+      for (const purl of [
+        'pkg:cargo/async-openai@0.25.0',
+        'pkg:swift/github.com/Twilio/twilio-voice-ios@6.11.0',
+        'pkg:cocoapods/Firebase@10.29.0#Messaging',
+      ]) {
+        out.length = 0;
+        expect(await runExplainCommand([purl, '--json'], io(), { rs })).toBe(0);
+        expect(JSON.parse(out.join(''))).toEqual({ purl, enables: ['automated_outreach'] });
+      }
+      // The pod without its subspec is not the subspec.
+      out.length = 0;
+      expect(await runExplainCommand(['pkg:cocoapods/Firebase@10.29.0', '--json'], io(), { rs })).toBe(0);
+      expect(JSON.parse(out.join('')).enables).toEqual([]);
+    });
+
     it('answers a Maven purl from the bundled map through main', async () => {
       vi.unstubAllEnvs(); // the bundled rules home, not the minimal one, holds the Maven map
       expect(await main(['explain', 'pkg:maven/com.twilio.sdk/twilio@10.1.0', '--json'], io())).toBe(0);
