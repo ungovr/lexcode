@@ -5,6 +5,9 @@ rules:
     message: Returns text written by a chat or language model from a function, which may be generating text with AI that reaches users (generates_text).
     # The signal beside swift-chat-reply-to-response: a function that returns the model's text, often a
     # service a view model calls from another file. A Vapor or Hummingbird handler is left to the evidence rule.
+    # The return counts only inside a function whose body names one of the source calls (the sink regex
+    # lists them; keep it equal to them), which keeps the rule within its cost bounds. A
+    # model result held at file scope and returned from a function that names no call is not read.
     # Swift shapes (Opengrep 1.33.1, probed for #13199): the engine does not carry taint through an
     # optional binding (`guard let x = ...`, `if let x = ...`), so a name bound from a model call, or from a
     # value that holds one, is a source of its own; a `for try await` loop variable, a `switch` or `if case`
@@ -251,7 +254,7 @@ rules:
           - pattern-inside:
               patterns:
                 - pattern: |
-                    func $SCOPE(...) -> $SCOPET {
+                    func $SCOPE(...) {
                       $...BODY
                     }
                 - metavariable-regex:
