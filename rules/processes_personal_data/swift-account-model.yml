@@ -1,0 +1,45 @@
+rules:
+  - id: lexcode.personal.swift-account-model
+    languages: [swift]
+    severity: INFO
+    message: Declares user accounts and sign-in (a Vapor Fluent model that people sign in to with a username or email and a password, Firebase Authentication accounts created or signed in with an email address, or Sign in with Apple asked for the person's name or email), which is processing personal data (processes_personal_data).
+    pattern-either:
+      # Vapor: a Fluent model people sign in to. ModelAuthenticatable is Fluent's own protocol,
+      # written module-qualified; the engine resolves `import Fluent`. A conformance list cannot
+      # hold `...` in a Swift pattern, so the protocol's place in it is spelled out (probed: the
+      # one-item form also matches an extension, and a list matches with further items after it).
+      - pattern: |
+          class $T: Fluent.ModelAuthenticatable { ... }
+      - pattern: |
+          class $T: $A, Fluent.ModelAuthenticatable { ... }
+      - pattern: |
+          class $T: $A, $B, Fluent.ModelAuthenticatable { ... }
+      # Firebase Authentication: an account created or signed in with the person's email address.
+      # The engine does not resolve a module-qualified head of a chain under `try` or `await`,
+      # so the head (`Auth.auth()`) is matched inside the call it receives. Auth carries no
+      # vendor name, so it is module-qualified only (FirebaseAuth, or the Firebase umbrella).
+      - patterns:
+          - pattern-either:
+              - pattern: FirebaseAuth.Auth.auth()
+              - pattern: Firebase.Auth.auth()
+          - pattern-either:
+              - pattern-inside: '$X.createUser(withEmail: $E, ...)'
+              - pattern-inside: '$X.signIn(withEmail: $E, ...)'
+              - pattern-inside: '$X.sendSignInLink(toEmail: $E, ...)'
+      # Sign in with Apple: the request asks for the person's email or full name, which the app
+      # then receives. A request with no scopes gets only an opaque user id.
+      - patterns:
+          - pattern-either:
+              - pattern: $R.requestedScopes = [..., .email, ...]
+              - pattern: $R.requestedScopes = [..., .fullName, ...]
+              - pattern: $R.requestedScopes = [..., ASAuthorization.Scope.email, ...]
+              - pattern: $R.requestedScopes = [..., ASAuthorization.Scope.fullName, ...]
+          - pattern-inside: |
+              import AuthenticationServices
+              ...
+    metadata:
+      activity: processes_personal_data
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-personal-data
+      provenance: ungovr-original
+      license: MIT

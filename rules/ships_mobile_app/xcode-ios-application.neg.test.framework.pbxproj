@@ -1,0 +1,59 @@
+// !$*UTF8*$!
+// lexcode-expect: 0
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* An iOS library's project: a framework, an app extension and a watch app, built for iPhone, and no application target. */
+/* Begin PBXNativeTarget section */
+		C10000012D00000000000001 /* ChartKit */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C10000012D00000000000009 /* Build configuration list for PBXNativeTarget "ChartKit" */;
+			buildPhases = (
+				C10000012D00000000000002 /* Sources */,
+			);
+			name = ChartKit;
+			productName = ChartKit;
+			productReference = C10000012D00000000000003 /* ChartKit.framework */;
+			productType = "com.apple.product-type.framework";
+		};
+		C10000012D00000000000011 /* ChartWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C10000012D00000000000019 /* Build configuration list for PBXNativeTarget "ChartWidget" */;
+			buildPhases = (
+				C10000012D00000000000012 /* Sources */,
+			);
+			name = ChartWidget;
+			productName = ChartWidget;
+			productReference = C10000012D00000000000013 /* ChartWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		C10000012D00000000000021 /* ChartWatch */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C10000012D00000000000029 /* Build configuration list for PBXNativeTarget "ChartWatch" */;
+			buildPhases = (
+				C10000012D00000000000022 /* Sources */,
+			);
+			name = ChartWatch;
+			productName = ChartWatch;
+			productReference = C10000012D00000000000023 /* ChartWatch.app */;
+			productType = "com.apple.product-type.application.watchapp2";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin XCBuildConfiguration section */
+		C10000012D00000000000004 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				SDKROOT = iphoneos;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+	};
+	rootObject = C10000012D00000000000000 /* Project object */;
+}

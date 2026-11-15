@@ -1,0 +1,27 @@
+rules:
+  - id: lexcode.tracking.xcprivacy-tracking-domains
+    languages: [generic]
+    severity: INFO
+    message: Lists tracking domains (NSPrivacyTrackingDomains) in an Apple privacy manifest, the hosts the app contacts that, by the app's own statement, engage in tracking, which is tracking devices (tracks_devices).
+    # One match per list that holds at least one domain; an empty list (<array/> or an <array> with nothing
+    # in it) is left out. The engine's xml rules do not read a .xcprivacy file, so this is a generic rule.
+    pattern-regex: '<key>NSPrivacyTrackingDomains</key>\s*+<array>\s*+<string>\s*+[^<\s]'
+    paths:
+      include:
+        - "*.xcprivacy"
+        - "xcprivacy-tracking-domains.*"
+      exclude:
+        - "**/example/**"
+        - "**/examples/**"
+        - "**/sample/**"
+        - "**/samples/**"
+        - "**/demo/**"
+        - "**/demos/**"
+        - "**/Tests/**"
+        - "**/UITests/**"
+    metadata:
+      activity: tracks_devices
+      mentioned: performs
+      definition: https://lexlint.io/activities/tracks-devices
+      provenance: ungovr-original
+      license: MIT
