@@ -155,8 +155,7 @@ describe('blankOutsideScripts', () => {
   });
 
   it('matches the tag names in ASCII letters only, in either case, as HTML does (#13251)', () => {
-    // A long s (U+017F) and a dotless i (U+0131) uppercase to S and I, and a Kelvin sign (U+212A) lowercases to k:
-    // none is a letter of "script".
+    // A long s (U+017F) and a dotless i (U+0131) uppercase to S and I: neither is a letter of "script".
     expect(blankOutsideScripts('<\u017Fcript>a();</\u017Fcript>')).toBeNull();
     expect(blankOutsideScripts('<scr\u0131pt>a();</scr\u0131pt>')).toBeNull();
     const r = blankOutsideScripts('<ScRiPt>a();</\u017Fcript>b();</SCRIPT\n><scrIPT>c();</sCrIpT>')!;
@@ -1679,6 +1678,62 @@ describe('a copy with a line over 100,000 characters (#13251)', () => {
       ['Gen.razor.lexcode.js', false, true],
       ['Gen.razor.lexcode.cs', true, false],
     ]);
+  });
+
+  it('judges a long line in every view kind from the page, and writes the copy of a page at the limit', () => {
+    // Each script body holds that kind's template syntax, over two lines, so its blanker runs on the written copy.
+    const views: [string, string][] = [
+      ['page.html', '{{ a }}'],
+      ['view.html.erb', '<%= a\n %>'],
+      ['view.jsp', '${a\n}'],
+      ['view.php', '<?= $a\n ?>'],
+      ['view.blade.php', '{{ $a\n }}'],
+      ['view.twig', '{{ a\n }}'],
+      ['View.cshtml', '@(a\n)'],
+    ];
+    for (const [rel, syntax] of views) {
+      for (const [chars, long] of [[100_000, false], [100_001, true]] as const) {
+        const root = tmp();
+        const out = tmp();
+        write(root, rel, `${'a'.repeat(chars)}\n<script>var x = ${syntax};</script>\n`);
+        const pairs = extractScripts(root, [rel], out);
+        expect(pairs.map((p) => p.longLine), `${rel} at ${chars}`).toEqual([long]);
+        expect(existsSync(pairs[0]!.tempPath), `${rel} at ${chars}`).toBe(!long);
+        if (!long) expect(hasLongLine(pairs[0]!.tempPath), rel).toBe(false);
+      }
+    }
+  });
+
+  it("keeps every line's length in every view kind, over seeded random pages: the invariant the in-memory answer rests on", () => {
+    const fragments = [
+      '<script>', '</script>', '<SCRIPT lang="ts">', '</Script >', '<script type="text/template">', '<!--', '-->',
+      '<% x %>', '<%= y\n%>', '<%# z %>', '<?php a(); ?>', '<?= $b ?>', '<?php', '?>', '{{ c }}', '{!! d !!}', '{{--', '--}}',
+      '@if ($e)', '@endif', '{% f %}', '{# g #}', '${h}', '<%-- i --%>', '<jsp:k/>', '@Model.X', '@(m)', '@{ var q = 1; }',
+      '@* n *@', '@code {', '@functions {', '}', '{', '(', ')', '"', "'", '`', '/*', '*/', '//', '\n', '\r\n', '\r',
+      'text ', '\u0130', '\u017F', '\u{1F600}', '\uFEFF', '\uD800', '\t',
+    ];
+    let seed = 13251;
+    const random = (): number => {
+      // mulberry32
+      seed = (seed + 0x6d2b79f5) | 0;
+      let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+    const kinds: Parameters<typeof blankOutsideScripts>[1][] = [{}, { erb: true }, { jsp: true }, { php: true }, { blade: true }, { twig: true }, { razor: true }];
+    let checked = 0;
+    for (let n = 0; n < 1500; n++) {
+      let src = '<script>';
+      const count = Math.floor(random() * 40);
+      for (let k = 0; k < count; k++) src += fragments[Math.floor(random() * fragments.length)];
+      for (const opts of kinds) {
+        const r = blankOutsideScripts(src, opts);
+        if (r === null) continue;
+        checked++;
+        expect(r.text.split('\n').map((l) => l.length), `${JSON.stringify(opts)} ${JSON.stringify(src)}`).toEqual(src.split('\n').map((l) => l.length));
+      }
+    }
+    expect(checked).toBeGreaterThan(5000);
   });
 
   describe('the answer taken in memory is the one hasLongLine gives on the written copy', () => {

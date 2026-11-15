@@ -140,7 +140,7 @@ function parseStartTag(text: string, from: number): { attrs: Attrs; next: number
 /**
  * True when `text` holds `word`, a run of lowercase ASCII letters, at `at`, each letter in either case and nothing
  * else: HTML matches tag names in ASCII only. Setting bit 0x20 maps only A-Z onto a-z among the characters that can
- * land on a letter, so a long s (U+017F) or a Kelvin sign (U+212A) never matches. Nothing is lowercased, so the
+ * land on a letter, so a long s (U+017F) or a dotless i (U+0131) never matches. Nothing is lowercased, so the
  * offsets are `text`'s (`toLowerCase()` turns a Turkish "İ", U+0130, into two units and moves every later one).
  */
 function letterWordAt(text: string, at: number, word: string): boolean {
