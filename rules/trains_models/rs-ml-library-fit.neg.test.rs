@@ -1,7 +1,6 @@
 // lexcode-expect: 0
 // A `fit` in a file with no machine-learning crate: an image resized to fit a frame, and an
-// app's own curve type whose fit is a lookup. And a linfa model trained elsewhere, only loaded
-// and used to predict here.
+// app's own curve type whose fit is a lookup.
 use image::imageops::FilterType;
 use image::DynamicImage;
 

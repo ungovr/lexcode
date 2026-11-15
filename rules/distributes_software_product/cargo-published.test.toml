@@ -1,5 +1,6 @@
 # lexcode-expect: 1
-# A library crate with the description and licence crates.io requires, not marked publish = false.
+# A library crate with crates.io listing keys (keywords) and a docs.rs table: one match, at the
+# [package] header.
 [package]
 name = "tidy-dates"
 version = "0.4.2"

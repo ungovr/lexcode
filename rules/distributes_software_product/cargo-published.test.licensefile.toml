@@ -1,5 +1,5 @@
 # lexcode-expect: 1
-# A crate under a licence file, inline workspace tables, and an allow-list of registries.
+# A crate under a licence file whose registry allow-list names crates.io.
 [package]
 name = "edge-cli"
 version = "2.1.0"

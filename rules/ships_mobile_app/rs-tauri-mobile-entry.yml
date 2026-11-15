@@ -10,8 +10,9 @@ rules:
     # (android-manifest-launcher, xcode-ios-application). The engine matches the template's cfg_attr
     # form only when spelled exactly, and does not match the path attribute written alone
     # (`#[tauri::mobile_entry_point] fn ..`, probed), so the attribute is read as text, at the start
-    # of a line, which keeps comments and strings out.
-    pattern-regex: '(?m)^[ \t]*#\[[ \t]*(?:cfg_attr[ \t]*\([ \t]*mobile[ \t]*,[ \t]*)?tauri::mobile_entry_point\b'
+    # of a line, which keeps comments and strings out. Any cfg_attr condition is read
+    # (`any(target_os = "android", target_os = "ios")` as well as `mobile`).
+    pattern-regex: '(?m)^[ \t]*#\[[ \t]*(?:cfg_attr[ \t]*\([^\n]*?,[ \t]*)?tauri::mobile_entry_point\b'
     metadata:
       activity: ships_mobile_app
       mentioned: performs

@@ -12,7 +12,8 @@ rules:
     # member cargo-dist is told to skip (`dist = false` in its own table) is not matched.
     # dist-workspace.toml's `[dist]` table is read in that file only. cargo-apk's
     # `[package.metadata.android]` builds a phone app and belongs to ships_mobile_app, not here.
-    pattern-regex: '(?m)^[ \t]*\[(?:(?:package|workspace)\.metadata\.(?:dist|deb|generate-rpm|aur|binstall|bundle|wix|packager|appimage)|dist)\][ \t]*(?:#[^\n]*)?$(?!(?:\n(?![ \t]*\[)[^\n]*)*?\n[ \t]*dist[ \t]*=[ \t]*false\b)'
+    # `\r?$` reads a manifest saved with Windows line endings.
+    pattern-regex: '(?m)^[ \t]*\[(?:(?:package|workspace)\.metadata\.(?:dist|deb|generate-rpm|aur|binstall|bundle|wix|packager|appimage)|dist)\][ \t]*(?:#[^\n]*)?\r?$(?!(?:\n(?![ \t]*\[)[^\n]*)*?\n[ \t]*dist[ \t]*=[ \t]*false\b)'
     paths:
       include:
         - "Cargo.toml"

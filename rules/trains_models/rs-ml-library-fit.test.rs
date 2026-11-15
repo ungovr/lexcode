@@ -4,11 +4,14 @@ use linfa::prelude::*;
 use linfa_bayes::GaussianNb;
 use linfa_clustering as clustering;
 use linfa_logistic::LogisticRegression;
+use linfa_preprocessing::linear_scaling::LinearScaler;
 use linfa_trees::{DecisionTree, SplitQuality};
 use ndarray::{Array1, Array2};
 
 pub fn churn_model(records: Array2<f64>, targets: Array1<bool>) -> Result<(), linfa::Error> {
     let train = Dataset::new(records, targets);
+    // The scaler's fit learns a transform and is not counted; the two model fits below are.
+    let _scaler = LinearScaler::standard().fit(&train)?;
     let model = LogisticRegression::default().max_iterations(150).fit(&train)?;
     let tree = DecisionTree::params()
         .split_quality(SplitQuality::Gini)

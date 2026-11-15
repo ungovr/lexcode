@@ -5,6 +5,7 @@ name = "ops-tasks"
 version = "0.2.0"
 description = "Operator scripts for the cluster"
 license = "MIT"
+categories = ["command-line-utilities"]
 publish = [ ]
 
 [dependencies]

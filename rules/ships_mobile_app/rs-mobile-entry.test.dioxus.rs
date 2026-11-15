@@ -1,6 +1,7 @@
-// lexcode-expect: 4
+// lexcode-expect: 5
 // Dioxus launched as a mobile app: the launch builder reached through the prelude glob and by
 // path, and dioxus-mobile's launch functions directly and through an alias.
+use dioxus as dx;
 use dioxus::prelude::*;
 use dioxus_mobile as dm;
 
@@ -11,6 +12,10 @@ fn main() {
 pub fn start_by_path() {
     dioxus::LaunchBuilder::mobile()
         .launch(app);
+}
+
+pub fn start_by_alias() {
+    dx::LaunchBuilder::mobile().launch(app);
 }
 
 pub fn start_mobile_crate() {

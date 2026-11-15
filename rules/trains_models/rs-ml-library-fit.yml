@@ -2,22 +2,38 @@ rules:
   - id: lexcode.train.rs-ml-library-fit
     languages: [rust]
     severity: INFO
-    message: Fits a classical machine-learning model (linfa or smartcore) to the app's own data, which is training models (trains_models).
-    # In both libraries `fit` is the training call: linfa's Fit and FitWith traits, smartcore's
-    # associated fit functions. Predicting with a model fitted elsewhere is not matched. `fit` is a
-    # common name (an image fitted to a frame, a curve), so each branch is kept to a file with a `use`
-    # line naming the library; linfa's own examples reach `fit` through `use linfa::prelude::*`, a
-    # glob the engine cannot resolve, so no crate path could be written. `$M.fit(...)` also matches
-    # a path call (`RandomForestClassifier::fit(..)`, probed).
+    message: Fits a classical machine-learning model (a linfa or smartcore classifier, regressor or clustering model) to the app's own data, which is training models (trains_models).
+    # In both libraries `fit` is the training call for a model (linfa's Fit and FitWith traits,
+    # smartcore's associated fit functions), and also the call that learns a data transform (a
+    # scaler, a vectorizer, PCA). A transform is not a model, as py-sklearn-fit and cs-mlnet-train
+    # read it, so two checks keep transforms out:
+    # - the file must have a `use` line naming a model crate (linfa) or model module (smartcore),
+    #   so a file that only preprocesses (linfa_preprocessing, linfa_reduction, linfa_ica,
+    #   smartcore::preprocessing, smartcore::decomposition) is not read;
+    # - a fit whose receiver chain starts at a transform type is not matched, in a file that has
+    #   both.
+    # A transform built on one line and fitted on another, in a file that also imports a model, is
+    # still matched: the engine cannot type the variable. Predicting with a model fitted elsewhere is
+    # not matched. `fit` is a common name, and linfa's examples reach it through
+    # `use linfa::prelude::*`, a glob the engine cannot resolve, so no crate path could be written.
+    # `$M.fit(...)` also matches a path call (`RandomForestClassifier::fit(..)`, probed). For a path
+    # call through a `use` the engine reports two bindings, `$M` = the type and `$M` = `fit` (probed),
+    # so the exclusion also refuses the bare `fit`; the type's binding still carries a model's fit.
     pattern-either:
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+linfa(?:_\w+)?\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+linfa_(?:logistic|trees|svm|clustering|bayes|linear|elasticnet|pls|ftrl|ensemble)\b).*'
           - pattern-either:
               - pattern: $M.fit(...)
               - pattern: $M.fit_with(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(?!(?:\w+::)*(?:LinearScaler|NormScaler|Whitener|CountVectorizer|TfIdfVectorizer|Pca|FastIca|DiffusionMap|GaussianRandomProjection|SparseRandomProjection|PlsSvd|Tsne(?:Params)?|TSneParams)\b|fit$)
       - patterns:
-          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+smartcore\b).*'
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+smartcore::(?:ensemble|linear|tree|svm|neighbors|naive_bayes|cluster)\b).*'
           - pattern: $M.fit(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(?!(?:\w+::)*(?:StandardScaler|OneHotEncoder|PCA|SVD)\b|fit$)
     metadata:
       activity: trains_models
       mentioned: performs

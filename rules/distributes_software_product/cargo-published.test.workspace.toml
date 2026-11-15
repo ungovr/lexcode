@@ -1,17 +1,13 @@
 # lexcode-expect: 1
-# A workspace member that inherits its description and licence from [workspace.package], with a
-# library and a command-line program.
+# A workspace member that inherits its keywords and lists its crates.io categories.
 [package]
 name = "acme_utils"
 version.workspace = true
 edition.workspace = true
 description.workspace = true
 license.workspace = true
-repository.workspace = true
-
-[lib]
-name = "acme_utils"
-path = "src/lib.rs"
+keywords.workspace = true
+categories = ["command-line-utilities"]
 
 [[bin]]
 name = "acme"

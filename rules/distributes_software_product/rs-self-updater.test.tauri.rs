@@ -1,8 +1,10 @@
-// lexcode-expect: 4
+// lexcode-expect: 6
 // A Tauri desktop app that updates itself from its release server: the Tauri 2 updater plugin
-// registered and checked, and Tauri 1's built-in updater.
+// registered and checked (by path, through a grouped `use` with a rename and through an alias), and
+// Tauri 1's built-in updater.
 use tauri::AppHandle;
-use tauri_plugin_updater::UpdaterExt;
+use tauri_plugin_updater as updater;
+use tauri_plugin_updater::{Builder as UpdaterBuilder, UpdaterExt};
 
 pub fn run() {
     tauri::Builder::default()
@@ -21,4 +23,9 @@ pub async fn check(app: AppHandle) -> tauri_plugin_updater::Result<()> {
 
 pub async fn check_v1(app: AppHandle) {
     let _ = tauri::updater::builder(app).check().await;
+}
+
+pub fn run_with_plugin_names() {
+    let _grouped = UpdaterBuilder::new().build::<tauri::Wry>();
+    let _aliased = updater::Builder::new().pubkey("key").build::<tauri::Wry>();
 }
