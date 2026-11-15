@@ -1,0 +1,145 @@
+ecosystem: swift
+entries:
+
+  # A Swift package is matched by its repository, host/owner/repo, case-insensitively, as lexcode names the row
+  # from the URL in Package.swift or project.pbxproj. Each says is the first sentence of the package README that
+  # says what it is, or the repository's own GitHub description where the README opens with no such sentence.
+  # One repository that ships many products is left out when its description names no activity: Firebase
+  # (firebase/firebase-ios-sdk), the AWS SDK for Swift (awslabs/aws-sdk-swift) and Soto (soto-project/soto).
+  # Their CocoaPods are mapped one per service in cocoapods.yml. A vendor's SDK is read as performing what that
+  # vendor's service does, as the other maps read one (Sentry, PostHog, Adjust). Left out because the
+  # description names no activity: hCaptcha (a challenge that returns a token), DiscordBM (a Discord bot
+  # library), the Gemini Swift SDK (archived; its description only points to Firebase), Persona's
+  # inquiry-ios-2 (no description), Stripe's stripe-ios (payments), Twilio's voice and video SDKs, and
+  # general HTTP, logging, image and parsing libraries.
+
+  # Analytics, attribution and advertising SDKs
+  - match: "github.com/mixpanel/mixpanel-swift"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Official iOS (Swift) Tracking Library for Mixpanel Analytics"
+    source: https://github.com/mixpanel/mixpanel-swift
+  - match: "github.com/mixpanel/mixpanel-iphone"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Official iOS (Objective-C) Tracking Library for Mixpanel Analytics"
+    source: https://github.com/mixpanel/mixpanel-iphone
+  - match: "github.com/amplitude/amplitude-swift"
+    enables: [tracks_devices, processes_personal_data]
+    says: "This is Amplitude's latest version of the iOS SDK, covering iOS/tvOS/macOS/watchOS."
+    source: https://github.com/amplitude/Amplitude-Swift
+  - match: "github.com/amplitude/amplitude-ios"
+    enables: [tracks_devices, processes_personal_data]
+    says: "iOS/tvOS/macOS SDK for tracking events and revenue to Amplitude."
+    source: https://github.com/amplitude/Amplitude-iOS
+  - match: "github.com/segmentio/analytics-swift"
+    enables: [tracks_devices, processes_personal_data]
+    says: "The hassle-free way to add Segment analytics to your Swift app (iOS/tvOS/visionOS/watchOS/macOS/Linux/iPadOS). Analytics helps you measure your users, product, and business."
+    source: https://github.com/segmentio/analytics-swift
+  - match: "github.com/segmentio/analytics-ios"
+    enables: [tracks_devices, processes_personal_data]
+    says: "The hassle-free way to integrate analytics into any iOS application."
+    source: https://github.com/segmentio/analytics-ios
+  - match: "github.com/posthog/posthog-ios"
+    enables: [tracks_devices, processes_personal_data]
+    says: "PostHog iOS SDK"
+    source: https://github.com/PostHog/posthog-ios
+  - match: "github.com/appsflyersdk/appsflyerframework"
+    enables: [tracks_devices, processes_personal_data]
+    says: "AppsFlyer Apple SDK"
+    source: https://github.com/AppsFlyerSDK/AppsFlyerFramework
+  - match: "github.com/adjust/ios_sdk"
+    enables: [tracks_devices, processes_personal_data]
+    says: "This is the Adjust™ SDK for iOS."
+    source: https://github.com/adjust/ios_sdk
+  # The repository moved from facebook/ to meta/; a Package.swift may name either.
+  - match: "github.com/facebook/facebook-ios-sdk"
+    enables: [tracks_devices, processes_personal_data]
+    says: "This open-source library allows you to integrate Facebook into your iOS app."
+    source: https://github.com/facebook/facebook-ios-sdk
+  - match: "github.com/meta/facebook-ios-sdk"
+    enables: [tracks_devices, processes_personal_data]
+    says: "This open-source library allows you to integrate Facebook into your iOS app."
+    source: https://github.com/meta/facebook-ios-sdk
+  - match: "github.com/googleads/swift-package-manager-google-mobile-ads"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Google Mobile Ads SDK now officially supports installation via Swift Package Manager."
+    source: https://github.com/googleads/swift-package-manager-google-mobile-ads
+
+  # Crash and error reporting SDKs
+  - match: "github.com/getsentry/sentry-cocoa"
+    enables: [tracks_devices, processes_personal_data]
+    says: "The official Sentry SDK for iOS, tvOS, macOS, watchOS, iPadOS and visionOS."
+    source: https://github.com/getsentry/sentry-cocoa
+
+  # Model SDKs
+  - match: "github.com/macpaw/openai"
+    enables: [generates_content]
+    says: "This repository contains Swift community-maintained implementation over OpenAI public API."
+    source: https://github.com/MacPaw/OpenAI
+  - match: "github.com/jamesrochabrun/swiftopenai"
+    enables: [generates_content]
+    says: "An open-source Swift package designed for effortless interaction with OpenAI's public API."
+    source: https://github.com/jamesrochabrun/SwiftOpenAI
+  - match: "github.com/jamesrochabrun/swiftanthropic"
+    enables: [generates_content]
+    says: "An open-source Swift package designed for effortless interaction with Anthropic's public API."
+    source: https://github.com/jamesrochabrun/SwiftAnthropic
+
+  # Feed readers
+  - match: "github.com/nmdias/feedkit"
+    enables: [aggregates_content]
+    says: "FeedKit is a Swift library for Reading and Generating RSS, RDF, Atom, and JSON feeds."
+    source: https://github.com/nmdias/FeedKit
+
+  # Email, SMS and push senders
+  - match: "github.com/kitura/swift-smtp"
+    enables: [automated_outreach]
+    says: "Swift SMTP client."
+    source: https://github.com/Kitura/Swift-SMTP
+  - match: "github.com/vapor-community/sendgrid-kit"
+    enables: [automated_outreach]
+    says: "SendGridKit is a Swift package that helps you communicate with the SendGrid API in your Server Side Swift applications."
+    source: https://github.com/vapor-community/sendgrid-kit
+  - match: "github.com/vapor-community/mailgun"
+    enables: [automated_outreach]
+    says: "Mailgun is a Vapor 4 service for the popular email sending API."
+    source: https://github.com/vapor-community/mailgun
+  - match: "github.com/onesignal/onesignal-ios-sdk"
+    enables: [automated_outreach]
+    says: "OneSignal is a free email, sms, push notification, and in-app message service for mobile apps."
+    source: https://github.com/OneSignal/OneSignal-iOS-SDK
+  - match: "github.com/onesignal/onesignal-xcframework"
+    enables: [automated_outreach]
+    says: "OneSignal makes engaging customers simple and is the fastest, most reliable service to send push notifications, in-app messages, SMS, and emails."
+    source: https://github.com/OneSignal/OneSignal-XCFramework
+
+  # Identity verification
+  - match: "github.com/onfido/onfido-ios-sdk"
+    enables: [relies_on_digital_identity]
+    says: "A Swift client for the Onfido API and a collection of UI elements to capture photos of documents."
+    source: https://github.com/onfido/onfido-ios-sdk
+
+  # Chat SDKs
+  - match: "github.com/twilio/conversations-ios"
+    enables: [records_text_chat]
+    says: "This repository contains releases for the Twilio Conversations for iOS SDK."
+    source: https://github.com/twilio/conversations-ios
+
+  # Bundled cryptography
+  # The truth-set keys read a signed token or a password hash as shipping encryption, so a JWT library whose
+  # description names signing algorithms is listed.
+  - match: "github.com/apple/swift-crypto"
+    enables: [ships_encryption]
+    says: "Swift Crypto is an open-source implementation of a substantial portion of the API of Apple CryptoKit suitable for use on Linux and ARM64 Windows platforms."
+    source: https://github.com/apple/swift-crypto
+  - match: "github.com/vapor/jwt-kit"
+    enables: [ships_encryption]
+    says: "JSON Web Token signing and verification (HMAC, ECDSA, EdDSA, MLDSA, RSA, PSS) using SwiftCrypto."
+    source: https://github.com/vapor/jwt-kit
+  - match: "github.com/krzyzanowskim/cryptoswift"
+    enables: [ships_encryption]
+    says: "CryptoSwift is a growing collection of standard and secure cryptographic algorithms implemented in Swift"
+    source: https://github.com/krzyzanowskim/CryptoSwift
+  - match: "github.com/jedisct1/swift-sodium"
+    enables: [ships_encryption]
+    says: "Swift-Sodium provides a safe and easy to use interface to perform common cryptographic operations on Apple platforms (macOS, iOS, tvOS, watchOS) and Linux."
+    source: https://github.com/jedisct1/swift-sodium

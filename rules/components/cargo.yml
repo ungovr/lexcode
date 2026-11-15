@@ -1,0 +1,182 @@
+ecosystem: cargo
+entries:
+
+  # A crate name is matched case-insensitively. Each says is the crate's own `description`, read from the
+  # Cargo.toml in its source repository (the text crates.io shows). A crate whose description does not say it
+  # performs the activity is left out: a general HTTP client (reqwest), a database toolkit (sqlx), an HTML
+  # parser (scraper), a protocol library that names OAuth, OpenID Connect or WebAuthn only, a JWT library whose
+  # description names no signing (jwt, jsonwebtoken), and a TLS library (rustls), since stock TLS is not
+  # counted as shipping encryption. Each AWS service crate gets its own entry, never a prefix. A crate that is a
+  # vendor's client library is read as performing what that vendor's service does, as the other maps read one.
+
+  # Crash and error reporting, and product analytics
+  - match: "sentry"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Sentry (sentry.io) client for Rust."
+    source: https://crates.io/crates/sentry
+  - match: "posthog-rs"
+    enables: [tracks_devices, processes_personal_data]
+    says: "The official Rust client for Posthog (https://posthog.com/)."
+    source: https://crates.io/crates/posthog-rs
+
+  # Model SDKs
+  - match: "async-openai"
+    enables: [generates_content]
+    says: "Rust library for OpenAI"
+    source: https://crates.io/crates/async-openai
+  - match: "rig-core"
+    enables: [generates_content]
+    says: "An opinionated library for building LLM powered applications."
+    source: https://crates.io/crates/rig-core
+  - match: "ollama-rs"
+    enables: [generates_content]
+    says: "A Rust library for interacting with the Ollama API"
+    source: https://crates.io/crates/ollama-rs
+  - match: "aws-sdk-bedrockruntime"
+    enables: [generates_content]
+    says: "AWS SDK for Amazon Bedrock Runtime"
+    source: https://crates.io/crates/aws-sdk-bedrockruntime
+
+  # Speech synthesis and speech-to-text
+  - match: "aws-sdk-polly"
+    enables: [generates_audio]
+    says: "AWS SDK for Amazon Polly"
+    source: https://crates.io/crates/aws-sdk-polly
+  - match: "aws-sdk-transcribe"
+    enables: [processes_voice]
+    says: "AWS SDK for Amazon Transcribe Service"
+    source: https://crates.io/crates/aws-sdk-transcribe
+  - match: "aws-sdk-transcribestreaming"
+    enables: [processes_voice]
+    says: "AWS SDK for Amazon Transcribe Streaming Service"
+    source: https://crates.io/crates/aws-sdk-transcribestreaming
+
+  # Crawling and browser automation
+  - match: "spider"
+    enables: [crawls_web]
+    says: "A web crawler and scraper, building blocks for data curation workloads."
+    source: https://crates.io/crates/spider
+  - match: "webpage"
+    enables: [crawls_web]
+    says: "Small library to fetch info about a web page: title, description, language, HTTP info, links, RSS feeds, Opengraph, Schema.org, and more"
+    source: https://crates.io/crates/webpage
+  - match: "headless_chrome"
+    enables: [crawls_web]
+    says: "Control Chrome programmatically"
+    source: https://crates.io/crates/headless_chrome
+  - match: "chromiumoxide"
+    enables: [crawls_web]
+    says: "Library for interacting with a chrome instance with the chrome devtools protocol"
+    source: https://crates.io/crates/chromiumoxide
+  - match: "fantoccini"
+    enables: [crawls_web]
+    says: "High-level API for programmatically interacting with web pages through WebDriver."
+    source: https://crates.io/crates/fantoccini
+
+  # Feed readers
+  - match: "feed-rs"
+    enables: [aggregates_content]
+    says: "A feed parser that handles Atom, RSS 2.0, RSS 1.0, RSS 0.x and JSON Feed"
+    source: https://crates.io/crates/feed-rs
+
+  # Email, SMS and push senders
+  - match: "lettre"
+    enables: [automated_outreach]
+    says: "Email client"
+    source: https://crates.io/crates/lettre
+  - match: "mail-send"
+    enables: [automated_outreach]
+    says: "E-mail delivery library with SMTP and DKIM support"
+    source: https://crates.io/crates/mail-send
+  - match: "sendgrid"
+    enables: [automated_outreach]
+    says: "An unofficial client library for the SendGrid API"
+    source: https://crates.io/crates/sendgrid
+  - match: "aws-sdk-ses"
+    enables: [automated_outreach]
+    says: "AWS SDK for Amazon Simple Email Service"
+    source: https://crates.io/crates/aws-sdk-ses
+  - match: "aws-sdk-sesv2"
+    enables: [automated_outreach]
+    says: "AWS SDK for Amazon Simple Email Service"
+    source: https://crates.io/crates/aws-sdk-sesv2
+  - match: "aws-sdk-sns"
+    enables: [automated_outreach]
+    says: "AWS SDK for Amazon Simple Notification Service"
+    source: https://crates.io/crates/aws-sdk-sns
+  - match: "aws-sdk-pinpoint"
+    enables: [automated_outreach]
+    says: "AWS SDK for Amazon Pinpoint"
+    source: https://crates.io/crates/aws-sdk-pinpoint
+  - match: "aws-sdk-pinpointsmsvoicev2"
+    enables: [automated_outreach]
+    says: "AWS SDK for Amazon Pinpoint SMS Voice V2"
+    source: https://crates.io/crates/aws-sdk-pinpointsmsvoicev2
+
+  # Bundled cryptography
+  # Password hashing, message authentication and hash functions are listed, as the truth-set keys read a
+  # password hash or a signed token as shipping encryption. ring is left out: its description is "An experiment.".
+  - match: "argon2"
+    enables: [ships_encryption]
+    says: "Pure Rust implementation of the Argon2 password hashing function with support for the Argon2d, Argon2i, and Argon2id algorithmic variants"
+    source: https://crates.io/crates/argon2
+  - match: "bcrypt"
+    enables: [ships_encryption]
+    says: "Easily hash and verify passwords using bcrypt"
+    source: https://crates.io/crates/bcrypt
+  - match: "scrypt"
+    enables: [ships_encryption]
+    says: "Scrypt password-based key derivation function"
+    source: https://crates.io/crates/scrypt
+  - match: "pbkdf2"
+    enables: [ships_encryption]
+    says: "Generic implementation of PBKDF2"
+    source: https://crates.io/crates/pbkdf2
+  - match: "hmac"
+    enables: [ships_encryption]
+    says: "Generic implementation of Hash-based Message Authentication Code (HMAC)"
+    source: https://crates.io/crates/hmac
+  - match: "sha2"
+    enables: [ships_encryption]
+    says: "Pure Rust implementation of the SHA-2 hash function family including SHA-224, SHA-256, SHA-384, and SHA-512."
+    source: https://crates.io/crates/sha2
+  - match: "aes"
+    enables: [ships_encryption]
+    says: "Pure Rust implementation of the Advanced Encryption Standard (a.k.a. Rijndael)"
+    source: https://crates.io/crates/aes
+  - match: "aes-gcm"
+    enables: [ships_encryption]
+    says: "Pure Rust implementation of the AES-GCM (Galois/Counter Mode) Authenticated Encryption with Associated Data (AEAD) Cipher with optional architecture-specific hardware acceleration"
+    source: https://crates.io/crates/aes-gcm
+  - match: "chacha20poly1305"
+    enables: [ships_encryption]
+    says: "Pure Rust implementation of the ChaCha20Poly1305 Authenticated Encryption with Additional Data Cipher (RFC 8439) with optional architecture-specific hardware acceleration."
+    source: https://crates.io/crates/chacha20poly1305
+  - match: "rsa"
+    enables: [ships_encryption]
+    says: "Pure Rust RSA implementation"
+    source: https://crates.io/crates/rsa
+  - match: "ed25519-dalek"
+    enables: [ships_encryption]
+    says: "Fast and efficient ed25519 EdDSA key generations, signing, and verification in pure Rust."
+    source: https://crates.io/crates/ed25519-dalek
+  - match: "x25519-dalek"
+    enables: [ships_encryption]
+    says: "X25519 elliptic curve Diffie-Hellman key exchange in pure-Rust, using curve25519-dalek."
+    source: https://crates.io/crates/x25519-dalek
+  - match: "p256"
+    enables: [ships_encryption]
+    says: "Pure Rust implementation of the NIST P-256 (a.k.a. secp256r1, prime256v1) elliptic curve as defined in SP 800-186, with support for ECDH, ECDSA signing/verification, and general purpose curve arithmetic"
+    source: https://crates.io/crates/p256
+  - match: "age"
+    enables: [ships_encryption]
+    says: "[BETA] A simple, secure, and modern encryption library."
+    source: https://crates.io/crates/age
+  - match: "orion"
+    enables: [ships_encryption]
+    says: "Usable, easy and safe pure-Rust crypto"
+    source: https://crates.io/crates/orion
+  - match: "sodiumoxide"
+    enables: [ships_encryption]
+    says: "Fast cryptographic library for Rust (bindings to libsodium)"
+    source: https://crates.io/crates/sodiumoxide
