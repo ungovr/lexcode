@@ -1,3 +1,5 @@
+# The compose words repeat in the anchors, the $C name check and the declaration regex, and the
+# excluded words in the last two. Edit every copy together, or an arm drifts from the others.
 rules:
   - id: lexcode.social.swift-post-composer
     languages: [swift]
@@ -29,10 +31,10 @@ rules:
               regex: '^((UIKit|AppKit|SwiftUI)\.)?\w*(ViewController|Controller|View)(<.*>)?$'
           - metavariable-regex:
               metavariable: $C
-              regex: '^(?!\w*(Mail|Email|Message|Sms|SMS|Ticket|Support|Feedback|Admin|Staff|Internal|Mock|Preview|Test))\w*((Post|Reply|Comment|Topic|Thread|Tweet|Toot)(Compose|Composer|Composition)|(Compose|New|Create|Write)(Post|Reply|Comment|Topic|Thread|Tweet|Toot))\w*(View|ViewController|Controller|Screen|Sheet|Page)$'
+              regex: '^(?!\w*(Mail|Email|Message|Sms|SMS|Ticket|Support|Feedback|Admin|Staff|Internal|Mock|Preview|Test)s?(?![a-z]))\w*((Post|Reply|Comment|Topic|Thread|Tweet|Toot)(Compose|Composer|Composition)|(Compose|New|Create|Write)(Post|Reply|Comment|Topic|Thread|Tweet|Toot))\w*(View|ViewController|Controller|Screen|Sheet|Page)$'
       # A controller class with no superclass, named for the compose screen it drives: the same
       # words and exclusions, written in one declaration regex.
-      - pattern-regex: '(?m)^[ \t]*(?:@\w+\s+)*(?:(?:public|package|internal|fileprivate|private|open|final)\s+)*class\s+(?!\w*(?:Mail|Email|Message|Sms|SMS|Ticket|Support|Feedback|Admin|Staff|Internal|Mock|Preview|Test))\w*(?:(?:Post|Reply|Comment|Topic|Thread|Tweet|Toot)(?:Compose|Composer|Composition)|(?:Compose|New|Create|Write)(?:Post|Reply|Comment|Topic|Thread|Tweet|Toot))\w*Controller\s*\{'
+      - pattern-regex: '(?m)^[ \t]*(?:@\w+\s+)*(?:(?:public|package|internal|fileprivate|private|open|final)\s+)*class\s+(?!\w*(?:Mail|Email|Message|Sms|SMS|Ticket|Support|Feedback|Admin|Staff|Internal|Mock|Preview|Test)s?(?![a-z]))\w*(?:(?:Post|Reply|Comment|Topic|Thread|Tweet|Toot)(?:Compose|Composer|Composition)|(?:Compose|New|Create|Write)(?:Post|Reply|Comment|Topic|Thread|Tweet|Toot))\w*Controller\s*\{'
     metadata:
       activity: operates_social_platform
       mentioned: performs

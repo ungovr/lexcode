@@ -8,7 +8,9 @@ rules:
     # As in the Kotlin, Java, C# and PHP home-feed rules. The followed accounts are a value named for
     # them (`followingIDs`, `friends`); the post side is an author, poster, creator, owner or user key.
     # A follow-up list is not followed accounts (`follow_ups` is left out of the SQL arm too), and a
-    # filter on followed topics keys on a post's topic, not its author, so neither is read.
+    # filter on followed topics keys on a post's topic, not its author, so neither is read. Known
+    # gaps: Firestore's `whereField("authorId", in: followingIDs)` and a Core Data
+    # `NSPredicate(format: "author IN %@", following)` are not read.
     pattern-either:
       # Fluent: `Post.query(on: db).filter(\.$author.$id ~~ followingIDs)`, also inside `try await`
       # (probed). `~~` is Fluent's "value in list".

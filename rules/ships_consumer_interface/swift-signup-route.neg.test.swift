@@ -1,8 +1,8 @@
 // lexcode-expect: 0
-// Sign-up routes for staff only (the definition's exclusion: an admin group, a staff builder and a
-// builder behind a sign-in guard), the nearest lookalikes (a sign-in route, a device registration
-// endpoint, a registration email template). The same calls on an app's own types, in a file
-// without Vapor or Hummingbird, are in the noimport fixture.
+// Sign-up routes for staff only (the definition's exclusion: an admin group, a staff builder, one
+// wrapped over several lines, and a builder behind a sign-in guard), and the nearest lookalikes (a
+// sign-in route, a device registration endpoint, a registration email template). The same calls on
+// an app's own types, in a file without Vapor or Hummingbird, are in the noimport fixture.
 import Vapor
 
 func routes(_ app: Application) throws {
@@ -13,6 +13,9 @@ func routes(_ app: Application) throws {
     let staff = app.grouped("staff")
     staff.get("register", use: staffSignupPage)
     app.grouped(User.guardMiddleware()).post("register", use: inviteUser)
+    app
+        .grouped("admin")
+        .post("register", use: createStaffAccount)
 
     app.post("login", use: login)
     app.post("devices", "register-token", use: registerDevice)

@@ -1,4 +1,4 @@
-// lexcode-expect: 4
+// lexcode-expect: 5
 import SwiftUI
 import UIKit
 
@@ -23,6 +23,15 @@ struct NotesApp: Sendable, App {
         }
         Settings {
             PreferencesView()
+        }
+    }
+}
+
+// A civic app whose name holds an excluded word inside another word (Demo in Democracy).
+struct DemocracyApp: App {
+    var body: some Scene {
+        WindowGroup {
+            BallotList()
         }
     }
 }

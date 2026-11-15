@@ -11,7 +11,7 @@ rules:
     # SwiftData, Core Data, Fluent or Realm alike). An email, an SMS, a notification, a log or audit
     # event, a contact-form message and a queue message are not user-to-user messages, and their
     # names are not read. A message with a sender and no recipient (a room or a bot conversation) is
-    # not read.
+    # not read. A property with an inferred type (`var sender = ""`) is not read: a known gap.
     patterns:
       # Whole-file anchors (CONTRIBUTING.md, Cost): a file without one of these words is not parsed.
       # Without them every Swift file is parsed, and penny-bot's generated API client (190 KB) took

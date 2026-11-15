@@ -1,4 +1,4 @@
-// lexcode-expect: 7
+// lexcode-expect: 11
 import Vapor
 import Fluent
 
@@ -28,4 +28,13 @@ func routes(_ app: Application) throws {
 
 func signupPage(req: Request) async throws -> View {
     return try await req.view.render("register", ["title": "Join"])
+}
+
+// Routes declared under `try` and `try await` (Amendment 2): a builder on the sign-up path, and a
+// route on a chained builder.
+func moreRoutes(_ app: Application) async throws {
+    try app.grouped("signup").get(use: signupPage)
+    try await app.grouped("register").post(use: completeRegistration)
+    try app.grouped("auth").post("register", use: register)
+    try await app.grouped("api").get("sign-up", use: signupPage)
 }

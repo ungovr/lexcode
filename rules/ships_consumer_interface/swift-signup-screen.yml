@@ -1,3 +1,5 @@
+# The sign-up words repeat in the anchors and the $C name check. Edit both copies together, or
+# they drift.
 rules:
   - id: lexcode.consumer.swift-signup-screen
     languages: [swift]

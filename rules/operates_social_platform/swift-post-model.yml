@@ -13,7 +13,9 @@ rules:
     # struct, an enum and an extension (probed). A local variable in a method or an initializer is not
     # a property, and is not read. A post with neither reactions nor a thread (a blog article, a job
     # posting with an owner) and a comment type are not read: a comment alone is what an app's issue
-    # tracker or a support form has too.
+    # tracker or a support form has too. Known gaps: a property with an inferred type (`var likes =
+    # 0`) is not read, and a `static` property or a typed local in a subscript or a lazy closure is
+    # read as a field.
     pattern-either:
       - patterns:
           # Whole-file anchors (CONTRIBUTING.md, Cost): a file without one of these words is not parsed.

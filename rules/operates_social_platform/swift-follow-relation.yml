@@ -9,7 +9,8 @@ rules:
     # As in the Kotlin, Java, C# and PHP follow-relation rules. A pair of properties in one type, as
     # a struct or a class (Codable, SwiftData, Core Data, Fluent or Realm alike); a property wrapper
     # (`@Parent(key: "follower_id")`) does not change the match (probed). A follower count on a
-    # profile and a type that follows a feed or a topic, not a person, are not read.
+    # profile and a type that follows a feed or a topic, not a person, are not read. A property with
+    # an inferred type (`var follower = User()`) is not read: a known gap.
     pattern-either:
       - patterns:
           # Whole-file anchors (CONTRIBUTING.md, Cost): a file without one of these words is not parsed.

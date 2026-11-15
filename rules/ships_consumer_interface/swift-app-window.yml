@@ -10,7 +10,10 @@ rules:
     # enterprise-distributed tool) has the same window. A type named for staff, internal use, a test
     # host, a preview or a demo is not read. A widget extension (WidgetBundle) and
     # a server with no screen of its own declare no window. A menu-bar-only app (MenuBarExtra) is a
-    # screen too, and is not read: a known gap.
+    # screen too, and is not read: a known gap. Two more known gaps: a scene delegate in a file that
+    # imports only SwiftUI (UIKit comes through SwiftUI's umbrella, which the engine does not follow,
+    # Decision 8), and an App or Scene conformance in third place or later in its list.
+    # The excluded name words end at a word edge, so DemocracyApp and TestimonyApp are read.
     pattern-either:
       # A SwiftUI scene. The scene types are SwiftUI's, written module-qualified: the engine resolves
       # `import SwiftUI`, and an app's own WindowGroup or App in a file without that import is not
@@ -39,7 +42,7 @@ rules:
                   struct $A: $P, SwiftUI.Scene { ... }
           - metavariable-regex:
               metavariable: $A
-              regex: '^(?!\w*(Admin|Staff|Employee|Internal|Backoffice|BackOffice|Debug|Test|Mock|Preview|Demo|Sample|Example))'
+              regex: '^(?!\w*(Admin|Staff|Employee|Internal|Backoffice|BackOffice|Debug|Test|Mock|Preview|Demo|Sample|Example)s?(?![a-z]))'
       # A UIKit app's window scene delegate, the object that puts the app's window on screen. The
       # protocol is UIKit's, written module-qualified; a superclass (UIResponder) comes first, so its
       # place in the list is spelled out.
@@ -54,7 +57,7 @@ rules:
                   class $A: $P, $Q, UIKit.UIWindowSceneDelegate { ... }
           - metavariable-regex:
               metavariable: $A
-              regex: '^(?!\w*(Admin|Staff|Employee|Internal|Backoffice|BackOffice|Debug|Test|Mock|Preview|Demo|Sample|Example))'
+              regex: '^(?!\w*(Admin|Staff|Employee|Internal|Backoffice|BackOffice|Debug|Test|Mock|Preview|Demo|Sample|Example)s?(?![a-z]))'
     paths:
       # An SDK's example or demo app is not the product the repository ships.
       exclude:
