@@ -251,11 +251,15 @@ rules:
         to: $X
     pattern-sinks:
       - patterns:
-          - pattern-either:
-              - pattern: $S = $X
-              - pattern: $S += $X
-              - pattern: $S.append($X)
-              - pattern: '$S.append(contentsOf: $X)'
+          - patterns:
+              - pattern-either:
+                  - pattern: $S = $X
+                  - pattern: $S += $X
+                  - pattern: $S.append($X)
+                  - pattern: '$S.append(contentsOf: $X)'
+              - metavariable-regex:
+                  metavariable: $S
+                  regex: (?i)^(self[?!]?\.)?_?\w*(state|message|reply|response|answer|result|output|text|summary|story|caption|content|completion|suggestion|draft|translation|messages|replies|responses|answers|results|outputs|suggestions|transcript)\w*$
           - pattern-not-inside: let $S = $E
           - pattern-not-inside: |
               func $F(...) {
@@ -264,26 +268,11 @@ rules:
                 ...
               }
           - pattern-not-inside: |
-              func $F(...) -> $T {
-                ...
-                var $S = $E
-                ...
-              }
-          - pattern-not-inside: |
               func $F(...) {
                 ...
                 var $S: $U = $E
                 ...
               }
-          - pattern-not-inside: |
-              func $F(...) -> $T {
-                ...
-                var $S: $U = $E
-                ...
-              }
-          - metavariable-regex:
-              metavariable: $S
-              regex: (?i)^(self[?!]?\.)?_?\w*(state|message|reply|response|answer|result|output|text|summary|story|caption|content|completion|suggestion|draft|translation|messages|replies|responses|answers|results|outputs|suggestions|transcript)\w*$
           - focus-metavariable: $X
       - pattern: $V.text = $X
       - pattern: $V.attributedText = $X
