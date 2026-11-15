@@ -1,0 +1,45 @@
+rules:
+  - id: lexcode.personal.rs-model-field
+    languages: [rust]
+    severity: INFO
+    message: Declares a stored field for an email, phone number, name, date of birth, government identifier, IP address or password hash on a database row type (a struct deriving sqlx's FromRow, Diesel's Queryable, Insertable, Selectable or AsChangeset, or SeaORM's DeriveEntityModel), which is processing personal data (processes_personal_data).
+    patterns:
+      - pattern-either:
+          # A derive list on the struct, written plainly or behind a cfg_attr (Lemmy's
+          # `#[cfg_attr(feature = "full", derive(Queryable, Selectable))]`). The engine matches
+          # each attribute of a struct on its own and binds its token tree, so the derive names
+          # are checked on the bound text. A derive is not resolved through `use` (Diesel's
+          # derives usually come from `#[macro_use] extern crate diesel` in another file), so
+          # the names themselves are the anchor: each belongs to a database mapper, and a
+          # struct that derives only serde's Deserialize (a request body, a settings file) is
+          # not a stored row.
+          - patterns:
+              - pattern-inside: |
+                  #[derive($...A)]
+                  struct $S { ... }
+              - metavariable-regex:
+                  metavariable: $...A
+                  regex: (?s)^(.*[\s,(:])?(FromRow|Queryable|QueryableByName|Insertable|Selectable|AsChangeset|DeriveEntityModel)\b
+          - patterns:
+              - pattern-inside: |
+                  #[cfg_attr($...A)]
+                  struct $S { ... }
+              - metavariable-regex:
+                  metavariable: $...A
+                  regex: (?s)^.*\bderive\s*\((?:[^)]*?[\s,:])?(FromRow|Queryable|QueryableByName|Insertable|Selectable|AsChangeset|DeriveEntityModel)\b
+      - pattern: |
+          struct $S { ..., $F: $T, ... }
+      - metavariable-regex:
+          metavariable: $F
+          regex: (?i)^(e_?mail|email_?(address|addr)|(user|contact|work|primary|customer|billing|normalized|unconfirmed|subscriber|recipient|personal|account|backup|recovery|notification)_?e_?mail(_?address)?|phone(_?(number|no|num))?|mobile(_?(number|phone|no))?|telephone|first_?name|last_?name|full_?name|given_?name|family_?name|surname|date_?of_?birth|dob|birth_?(date|day)|birthday|ssn|social_?security(_?(number|no))?|national_?(id|insurance)(_?number)?|passport(_?(number|no))?|tax_?(id|number)|drivers?_?licen[sc]e(_?(number|no))?|ip|ip_?(address|addr)|last_?(login_?)?ip(_?address)?|client_?ip(_?address)?|remote_?(addr|ip|address)|password|passwd|password_?(hash|digest|encrypted)|(hashed|encrypted)_?password)$
+      # A flag about a person's email or phone (verified, opted in) is not the value itself.
+      - metavariable-regex:
+          metavariable: $T
+          regex: ^(?!bool$)
+      - focus-metavariable: $F
+    metadata:
+      activity: processes_personal_data
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-personal-data
+      provenance: ungovr-original
+      license: MIT
