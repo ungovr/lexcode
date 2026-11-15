@@ -1,4 +1,4 @@
-// lexcode-expect: 7
+// lexcode-expect: 9
 import HealthKit
 import Foundation
 
@@ -32,6 +32,18 @@ final class HeartRateReader {
         )
         let results = try await descriptor.result(for: store)
         print(results)
+    }
+
+    func latest() async throws -> [HKQuantitySample] {
+        try await HKSampleQueryDescriptor(
+            predicates: [.quantitySample(type: heartRate)],
+            sortDescriptors: [],
+            limit: 1
+        ).result(for: store)
+    }
+
+    func latestOrNone() async -> [HKQuantitySample]? {
+        try? await HKSampleQueryDescriptor(predicates: [.quantitySample(type: heartRate)], sortDescriptors: [], limit: 1).result(for: store)
     }
 
     func profile() throws {

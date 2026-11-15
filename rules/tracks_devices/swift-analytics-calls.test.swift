@@ -1,4 +1,4 @@
-// lexcode-expect: 25
+// lexcode-expect: 31
 import UIKit
 import FirebaseAnalytics
 import FirebaseCrashlytics
@@ -59,5 +59,16 @@ final class AppAnalytics {
         Bugsnag.start()
         let hit = URL(string: "https://www.google-analytics.com/mp/collect?measurement_id=G-1&api_secret=s")
         print(hit as Any)
+    }
+
+    // The awaited and optional-try forms, written as an SDK's async wrapper is called: each chain
+    // is matched by its head, which the engine resolves under `try await`.
+    func awaited(userID: String) async throws {
+        try await Mixpanel.mainInstance().track(event: "Synced")
+        try await Crashlytics.crashlytics().setUserID(userID)
+        try await PostHogSDK.shared.capture("synced")
+        try await AppEvents.shared.logEvent(.completedTutorial)
+        try await AppsFlyerLib.shared().logEvent("synced", withValues: [:])
+        try? await Analytics.logEvent("synced", parameters: nil)
     }
 }

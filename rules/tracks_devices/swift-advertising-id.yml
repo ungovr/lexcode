@@ -7,11 +7,15 @@ rules:
     # the engine resolves `import AdSupport` and `import AppTrackingTransparency`, and an app's own
     # ASIdentifierManager or ATTrackingManager in a file without the import is not read as Apple's.
     # Reading the tracking authorization status alone, with no request and no identifier read, is
-    # not matched.
+    # not matched, and neither is the deprecated isAdvertisingTrackingEnabled flag.
     pattern-either:
-      - pattern: AdSupport.ASIdentifierManager.shared().advertisingIdentifier
-      # The request in all three shapes: a trailing closure, a labeled completion handler and
-      # the async form (the engine matches a direct static call under `await`).
+      # The IDFA read, head-first: the engine does not resolve a module-qualified head of a chain
+      # under `try` or `await`, so the shared manager is matched inside the property read.
+      - patterns:
+          - pattern: AdSupport.ASIdentifierManager.shared()
+          - pattern-inside: $X.advertisingIdentifier
+      # The request in all its shapes: a trailing closure, a labeled completion handler and the
+      # async form (a direct static call, which the engine resolves under `await` and `try`).
       - pattern: AppTrackingTransparency.ATTrackingManager.requestTrackingAuthorization(...)
     metadata:
       activity: tracks_devices

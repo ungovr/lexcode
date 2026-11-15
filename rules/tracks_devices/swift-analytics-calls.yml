@@ -57,6 +57,7 @@ rules:
           - pattern-either:
               - pattern: '$C.track(event: $E, ...)'
               - pattern: '$C.identify(distinctId: $D, ...)'
+          - pattern-not: '$C.identify(distinctId: "", ...)'
           - pattern-inside: |
               import Mixpanel
               ...
@@ -69,11 +70,15 @@ rules:
               - pattern-inside: $X.initializeApiKey(...)
               - pattern-inside: $X.logEvent(...)
               - pattern-inside: $X.setUserId(...)
+          - pattern-not-inside: $X.setUserId(nil)
+          - pattern-not-inside: $X.setUserId("")
       - patterns:
           - pattern-either:
               - pattern: '$C.track(eventType: $E, ...)'
               - pattern: '$C.track(event: $E, ...)'
               - pattern: '$C.setUserId(userId: $U)'
+          - pattern-not: '$C.setUserId(userId: nil)'
+          - pattern-not: '$C.setUserId(userId: "")'
           - pattern-inside: |
               import AmplitudeSwift
               ...
@@ -92,6 +97,7 @@ rules:
               - pattern: '$C.track(name: $N, ...)'
               - pattern: '$C.identify(userId: $U, ...)'
               - pattern: '$C.screen(title: $T, ...)'
+          - pattern-not: '$C.identify(userId: "", ...)'
           - pattern-inside: |
               import Segment
               ...

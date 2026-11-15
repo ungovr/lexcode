@@ -1,4 +1,4 @@
-// lexcode-expect: 5
+// lexcode-expect: 8
 import UIKit
 
 final class DeviceReporter {
@@ -9,18 +9,26 @@ final class DeviceReporter {
         return request
     }
 
-    func queryURL() -> URL? {
+    func attribution() async throws {
         let vendorID = UIDevice.current.identifierForVendor?.uuidString ?? ""
-        var components = URLComponents(string: "https://ads.example.net/attribution")
-        components?.queryItems = [
+        var components = URLComponents(string: "https://ads.example.net/attribution")!
+        components.queryItems = [
             URLQueryItem(name: "idfv", value: vendorID),
         ]
-        return components?.url
+        let request = URLRequest(url: components.url!)
+        _ = try await URLSession.shared.data(for: request)
     }
 
-    func pixel() -> URL? {
+    func pixel() async throws {
         let id = UIDevice.current.identifierForVendor!.uuidString
-        return URL(string: "https://px.example.net/p.gif?d=\(id)")
+        let url = URL(string: "https://px.example.net/p.gif?d=\(id)")!
+        _ = try await URLSession.shared.data(from: url)
+    }
+
+    func pixelOrNothing() async {
+        let id = UIDevice.current.identifierForVendor?.uuidString ?? ""
+        let url = URL(string: "https://px.example.net/p.gif?d=\(id)")!
+        _ = try? await URLSession.shared.data(from: url)
     }
 
     func register() throws -> URLRequest {
@@ -33,5 +41,19 @@ final class DeviceReporter {
             forHTTPHeaderField: "X-Install"
         )
         return request
+    }
+
+    func qualified() {
+        let id = UIKit.UIDevice.current.identifierForVendor?.uuidString ?? ""
+        var request = Foundation.URLRequest(url: URL(string: "https://api.example.com/v1/ping")!)
+        request.setValue(id, forHTTPHeaderField: "X-Device-Id")
+        print(request)
+    }
+
+    func legacyTask() {
+        let id = UIDevice.current.identifierForVendor?.uuidString ?? ""
+        var components = URLComponents(string: "https://api.example.com/v1/hello")!
+        components.queryItems?.append(URLQueryItem(name: "d", value: id))
+        URLSession.shared.dataTask(with: components.url!) { _, _, _ in }.resume()
     }
 }

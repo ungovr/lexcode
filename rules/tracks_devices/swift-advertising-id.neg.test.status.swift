@@ -10,6 +10,11 @@ struct AdsSettingsView: View {
         ATTrackingManager.trackingAuthorizationStatus == .authorized
     }
 
+    // The deprecated opt-out flag, read for the same toggle: not the identifier.
+    var legacyAllowed: Bool {
+        ASIdentifierManager.shared().isAdvertisingTrackingEnabled
+    }
+
     var body: some View {
         Text(trackingAllowed ? "Personalised" : "Standard")
     }
