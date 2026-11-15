@@ -1,0 +1,42 @@
+rules:
+  - id: lexcode.social.swift-post-composer
+    languages: [swift]
+    severity: INFO
+    message: Declares a screen where a user writes a post, a reply, a comment or a discussion topic for others to read (a SwiftUI view, or a UIKit or AppKit view or view controller, named for composing one), which is how users post content on a social platform (operates_social_platform).
+    # A client app's compose screen is where its users post to the app's own service, the shape a
+    # client of a social platform has where a server has a post model. The type is named for composing
+    # a post, reply, comment, topic, thread, tweet or toot, and is a screen type: its first superclass
+    # or protocol is named like a view or a controller (SwiftUI's View, UIKit's UIViewController, an
+    # app's own base view), or it is a controller class. On Opengrep 1.33.1 `class $C: $S { ... }`
+    # matches a struct, an actor, an enum and an extension too, binding the first type in the list
+    # (probed), so the name of $S keeps a delegate extension and a raw-value enum out. A composer for
+    # an email, a message, a support ticket or feedback (a comment for staff to read, the definition's
+    # exclusion) is not read, and neither is a bare `ComposeView`, which names no post.
+    pattern-either:
+      - patterns:
+          # Whole-file anchors (CONTRIBUTING.md, Cost): a file without one of these words is not parsed.
+          # Without them every Swift file is parsed, and penny-bot's generated API client (190 KB) took
+          # about 80 s to parse in a worker at --jobs 16 (measured).
+          - pattern-either:
+              - pattern-regex: '(?s)\A(?=.*Compos\w*(?:View|Controller|Screen|Sheet|Page)).*'
+              - pattern-regex: '(?s)\A(?=.*New(?:Post|Reply|Comment|Topic|Thread|Tweet|Toot)\w*(?:View|Controller|Screen|Sheet|Page)).*'
+              - pattern-regex: '(?s)\A(?=.*Create(?:Post|Reply|Comment|Topic|Thread|Tweet|Toot)\w*(?:View|Controller|Screen|Sheet|Page)).*'
+              - pattern-regex: '(?s)\A(?=.*Write(?:Post|Reply|Comment|Topic|Thread|Tweet|Toot)\w*(?:View|Controller|Screen|Sheet|Page)).*'
+          - pattern: |
+              class $C: $S { ... }
+          - metavariable-regex:
+              metavariable: $S
+              regex: '^((UIKit|AppKit|SwiftUI)\.)?\w*(ViewController|Controller|View)(<.*>)?$'
+          - metavariable-regex:
+              metavariable: $C
+              regex: '^(?!\w*(Mail|Email|Message|Sms|SMS|Ticket|Support|Feedback|Admin|Staff|Internal|Mock|Preview|Test))\w*((Post|Reply|Comment|Topic|Thread|Tweet|Toot)(Compose|Composer|Composition)|(Compose|New|Create|Write)(Post|Reply|Comment|Topic|Thread|Tweet|Toot))\w*(View|ViewController|Controller|Screen|Sheet|Page)$'
+      # A controller class with no superclass, named for the compose screen it drives: the same
+      # words and exclusions, written in one declaration regex.
+      - pattern-regex: '(?m)^[ \t]*(?:@\w+\s+)*(?:(?:public|package|internal|fileprivate|private|open|final)\s+)*class\s+(?!\w*(?:Mail|Email|Message|Sms|SMS|Ticket|Support|Feedback|Admin|Staff|Internal|Mock|Preview|Test))\w*(?:(?:Post|Reply|Comment|Topic|Thread|Tweet|Toot)(?:Compose|Composer|Composition)|(?:Compose|New|Create|Write)(?:Post|Reply|Comment|Topic|Thread|Tweet|Toot))\w*Controller\s*\{'
+    metadata:
+      activity: operates_social_platform
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/operates-social-platform
+      provenance: ungovr-original
+      license: MIT

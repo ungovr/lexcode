@@ -1,0 +1,62 @@
+# The message-type, sender and recipient expressions repeat in the Kotlin, Java and C# rules of the
+# same name. Edit the copies together, or a language drifts from the others.
+# Each name check sits in the block that binds its name (CONTRIBUTING.md, Cost).
+rules:
+  - id: lexcode.social.swift-direct-message
+    languages: [swift]
+    severity: INFO
+    message: Stores or receives a message addressed from one user account to another (a direct or private message type with a sender and a recipient), which is how people talk on a social platform (operates_social_platform).
+    # As in the Kotlin, Java and C# direct-message rules: a type named for a direct, private, chat,
+    # user or inbox message, with a sender and a recipient property, as a struct or a class (Codable,
+    # SwiftData, Core Data, Fluent or Realm alike). An email, an SMS, a notification, a log or audit
+    # event, a contact-form message and a queue message are not user-to-user messages, and their
+    # names are not read. A message with a sender and no recipient (a room or a bot conversation) is
+    # not read.
+    patterns:
+      # Whole-file anchors (CONTRIBUTING.md, Cost): a file without one of these words is not parsed.
+      # Without them every Swift file is parsed, and penny-bot's generated API client (190 KB) took
+      # about 80 s to parse in a worker at --jobs 16 (measured).
+      - pattern-either:
+          - pattern-regex: '(?s)\A(?=.*recipient).*'
+          - pattern-regex: '(?s)\A(?=.*receiver).*'
+          - pattern-regex: '(?s)\A(?=.*toUser).*'
+      - patterns:
+          - pattern-either:
+              - pattern: 'let $G: $T'
+              - pattern: 'var $G: $T'
+              - pattern: 'let $G: $T = $V'
+              - pattern: 'var $G: $T = $V'
+          - metavariable-regex:
+              metavariable: $G
+              regex: '^(sender|fromUser|senderId|senderID|fromUserId|fromUserID|author|authorId|authorID)$'
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  class $C {
+                    ...
+                    let $F: $T2
+                    ...
+                  }
+              - pattern-inside: |
+                  class $C {
+                    ...
+                    var $F: $T2
+                    ...
+                  }
+          - metavariable-regex:
+              metavariable: $C
+              regex: '^(?!.*(Email|Mail|Sms|SMS|Notification|Log|Event|Contact|Audit|Queue|Push|Support|Ticket)).*(DirectMessage|PrivateMessage|ChatMessage|UserMessage|InboxMessage|Dm|DM)(Model|Entity|Record|Object|DTO|Dto)?$'
+          - metavariable-regex:
+              metavariable: $F
+              regex: '^(recipient|receiver|toUser|recipientId|recipientID|receiverId|receiverID|toUserId|toUserID)$'
+      - pattern-not-inside: |
+          func $FN(...) { ... }
+      - pattern-not-inside: |
+          init(...) { ... }
+    metadata:
+      activity: operates_social_platform
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/operates-social-platform
+      provenance: ungovr-original
+      license: MIT

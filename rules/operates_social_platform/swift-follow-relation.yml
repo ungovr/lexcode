@@ -1,0 +1,93 @@
+# The follower and followed expressions repeat across the arms. Edit every copy together, or an arm
+# drifts from the others.
+# Each name check sits in the block that binds its name (CONTRIBUTING.md, Cost).
+rules:
+  - id: lexcode.social.swift-follow-relation
+    languages: [swift]
+    severity: INFO
+    message: Defines a follow or friendship relation between user accounts (a follower and followed pair, a friendship type, a Fluent follow relation or follows table, or a query keyed on the follower), which is how people connect on a social platform (operates_social_platform).
+    # As in the Kotlin, Java, C# and PHP follow-relation rules. A pair of properties in one type, as
+    # a struct or a class (Codable, SwiftData, Core Data, Fluent or Realm alike); a property wrapper
+    # (`@Parent(key: "follower_id")`) does not change the match (probed). A follower count on a
+    # profile and a type that follows a feed or a topic, not a person, are not read.
+    pattern-either:
+      - patterns:
+          # Whole-file anchors (CONTRIBUTING.md, Cost): a file without one of these words is not parsed.
+          # Without them every Swift file is parsed, and penny-bot's generated API client (190 KB) took
+          # about 80 s to parse in a worker at --jobs 16 (measured).
+          - pattern-regex: '(?s)\A(?=.*follower(?:User|Account|Member|Profile)?(?:Id|ID)?\s*:).*'
+          - patterns:
+              - pattern-either:
+                  - pattern: 'let $G: $T'
+                  - pattern: 'var $G: $T'
+                  - pattern: 'let $G: $T = $V'
+                  - pattern: 'var $G: $T = $V'
+              - metavariable-regex:
+                  metavariable: $G
+                  regex: '^follower(User|Account|Member|Profile)?(Id|ID)?$'
+          - patterns:
+              - pattern-either:
+                  - pattern-inside: |
+                      class $C {
+                        ...
+                        let $F: $T2
+                        ...
+                      }
+                  - pattern-inside: |
+                      class $C {
+                        ...
+                        var $F: $T2
+                        ...
+                      }
+              - metavariable-regex:
+                  metavariable: $F
+                  regex: '^(followed|followee|following)(User|Account|Member|Profile)?(Id|ID)?$'
+          - pattern-not-inside: |
+              func $FN(...) { ... }
+          - pattern-not-inside: |
+              init(...) { ... }
+      # A struct, class or actor declared with a friendship name. A regex, because `class $C { ... }`
+      # also matches each extension of the type (probed), which would repeat the row.
+      - pattern-regex: '(?m)^[ \t]*(?:@\w+\s+)*(?:(?:public|package|internal|fileprivate|private|open|final)\s+)*(?:struct|class|actor)\s+(?:Friendship|FriendRequest|FriendConnection|UserFriend)(?:Model|Entity|Record|Object)?\b'
+      # Fluent: a many-to-many relation of users through a follow pivot (`followers`, `following`).
+      - patterns:
+          - pattern-regex: '(?s)\A(?=.*@Siblings).*'
+          - pattern: |
+              @Siblings(through: $X, from: $FROM, to: $TO) var $P: $T
+          - metavariable-regex:
+              metavariable: $FROM
+              regex: '^\\\w*\.\$(follower|followed|followee|following)(User|Account|Member|Profile)?$'
+      # Fluent: a migration that creates a follows or friendships table, and a query keyed on the
+      # follower (`.filter(\.$follower.$id == user)`, also inside `try await`).
+      - patterns:
+          - pattern-regex: '(?s)\A(?=.*import\s+Fluent).*'
+          - pattern-either:
+              - pattern-inside: |
+                  import Fluent
+                  ...
+              - pattern-inside: |
+                  import FluentKit
+                  ...
+          - pattern-either:
+              # A migration's revert drops the same table: one row for the migration.
+              - patterns:
+                  - pattern: $DB.schema($N)
+                  - pattern-not-inside: |
+                      func revert(...) { ... }
+                  - metavariable-regex:
+                      metavariable: $N
+                      regex: '^"(user_?)?(follows|followers|followings|follow_relations|friendships|friend_requests)"$'
+              - patterns:
+                  - pattern-either:
+                      - pattern: $Q.filter($KP == $V)
+                      - pattern: $Q.filter($KP ~~ $V)
+                  - metavariable-regex:
+                      metavariable: $KP
+                      regex: '^\\\w*\.\$follower(User|Account|Member|Profile)?(\.\$id)?$'
+    metadata:
+      activity: operates_social_platform
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/operates-social-platform
+      provenance: ungovr-original
+      license: MIT

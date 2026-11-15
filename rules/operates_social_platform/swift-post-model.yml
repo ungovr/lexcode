@@ -1,0 +1,93 @@
+# The post-type and property expressions repeat across the two arms. Edit every copy together, or an
+# arm drifts from the other.
+# Each name check sits in the block that binds its name (CONTRIBUTING.md, Cost), so a property is
+# paired only with a post type, never every property with every type.
+rules:
+  - id: lexcode.social.swift-post-model
+    languages: [swift]
+    severity: INFO
+    message: Declares a post that a user writes and other users react to (a post, tweet or reply type with likes, upvotes, boosts or reactions, or with an author and comments or replies), which is how content is shared on a social platform (operates_social_platform).
+    # As in the Kotlin, Java, C# and PHP post-model rules. A Swift model is a struct or a class
+    # (Codable, SwiftData, Core Data, Fluent or Realm alike), and a property wrapper (`@Field`,
+    # `@Children`, `@Parent`) does not change the match (probed). `class $C { ... }` also matches a
+    # struct, an enum and an extension (probed). A local variable in a method or an initializer is not
+    # a property, and is not read. A post with neither reactions nor a thread (a blog article, a job
+    # posting with an owner) and a comment type are not read: a comment alone is what an app's issue
+    # tracker or a support form has too.
+    pattern-either:
+      - patterns:
+          # Whole-file anchors (CONTRIBUTING.md, Cost): a file without one of these words is not parsed.
+          # Without them every Swift file is parsed, and penny-bot's generated API client (190 KB) took
+          # about 80 s to parse in a worker at --jobs 16 (measured).
+          - pattern-either:
+              - pattern-regex: '(?s)\A(?=.*Post).*'
+              - pattern-regex: '(?s)\A(?=.*Tweet).*'
+              - pattern-regex: '(?s)\A(?=.*Toot).*'
+              - pattern-regex: '(?s)\A(?=.*Reply).*'
+              - pattern-regex: '(?s)\A(?=.*StatusUpdate).*'
+          - patterns:
+              - pattern-either:
+                  - pattern: 'let $L: $T'
+                  - pattern: 'var $L: $T'
+                  - pattern: 'let $L: $T = $V'
+                  - pattern: 'var $L: $T = $V'
+              - metavariable-regex:
+                  metavariable: $L
+                  regex: '^(likes?|likeCount|likesCount|numberOfLikes|numLikes|likedBy|reactions?|reactionCount|reactionsCount|upvotes?|upvoteCount|downvotes?|shareCount|retweetCount|retweets|boosts|boostCount|boostsCount|reblogs|reblogsCount|reposts|repostCount|favorites|favourites|favoritesCount|favouritesCount)$'
+          - patterns:
+              - pattern-inside: |
+                  class $C { ... }
+              - metavariable-regex:
+                  metavariable: $C
+                  regex: '^(\w*[a-z0-9])?(Post|Tweet|Toot|Reply|ForumPost|WallPost|StatusUpdate)(Model|Entity|Record|Object|DTO|Dto)?$'
+          - pattern-not-inside: |
+              func $FN(...) { ... }
+          - pattern-not-inside: |
+              init(...) { ... }
+      - patterns:
+          - pattern-either:
+              - pattern-regex: '(?s)\A(?=.*Post).*'
+              - pattern-regex: '(?s)\A(?=.*Tweet).*'
+              - pattern-regex: '(?s)\A(?=.*Toot).*'
+              - pattern-regex: '(?s)\A(?=.*Reply).*'
+              - pattern-regex: '(?s)\A(?=.*StatusUpdate).*'
+          - patterns:
+              - pattern-either:
+                  - pattern: 'let $M: $T'
+                  - pattern: 'var $M: $T'
+                  - pattern: 'let $M: $T = $V'
+                  - pattern: 'var $M: $T = $V'
+              - metavariable-regex:
+                  metavariable: $M
+                  regex: '^(comments|replies|numberOfComments|commentCount|commentsCount|repliesCount|replyCount)$'
+          - patterns:
+              - pattern-either:
+                  - pattern-inside: |
+                      class $C {
+                        ...
+                        let $A: $T2
+                        ...
+                      }
+                  - pattern-inside: |
+                      class $C {
+                        ...
+                        var $A: $T2
+                        ...
+                      }
+              - metavariable-regex:
+                  metavariable: $C
+                  regex: '^(\w*[a-z0-9])?(Post|Tweet|Toot|Reply|ForumPost|WallPost|StatusUpdate)(Model|Entity|Record|Object|DTO|Dto)?$'
+              - metavariable-regex:
+                  metavariable: $A
+                  regex: '^(author|authorId|authorID|creator|creatorId|creatorID|poster|posterId|posterID|owner|ownerId|ownerID|user|userId|userID|account|createdBy)$'
+          - pattern-not-inside: |
+              func $FN(...) { ... }
+          - pattern-not-inside: |
+              init(...) { ... }
+    metadata:
+      activity: operates_social_platform
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/operates-social-platform
+      provenance: ungovr-original
+      license: MIT

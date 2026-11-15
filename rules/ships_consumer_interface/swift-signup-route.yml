@@ -1,0 +1,67 @@
+# The sign-up path expression repeats across the route arms, and the staff words across the
+# exclusions. Edit every copy together, or an arm drifts from the others.
+rules:
+  - id: lexcode.consumer.swift-signup-route
+    languages: [swift]
+    severity: INFO
+    message: Serves a public sign-up page or endpoint (a Vapor or Hummingbird route on a sign-up path, or a Vapor view rendering a sign-up template), a screen that members of the public use to reach a service (ships_consumer_interface).
+    # As in the sign-up route rules for JavaScript, Python, Ruby, PHP, Java, Kotlin and C#: an account
+    # anyone can open is what a service for the public has and a staff tool does not. A route builder
+    # is any receiver (`app`, `routes`, a `grouped(...)` or `group(...)` builder), so the file must
+    # import Vapor or Hummingbird. A path is a whole string literal or one segment of a segment list
+    # (`app.post("users", "register", ...)`). `X.f(...)` also matches the trailing-closure route
+    # `app.get("signup") { req in ... }` (probed). A sign-up route under an admin, staff or internal
+    # group, or on a builder behind a sign-in guard, creates accounts for staff, and is not read.
+    patterns:
+      # Whole-file anchors (CONTRIBUTING.md, Cost): a file without one of these words is not parsed.
+      # Without them every Swift file is parsed, and penny-bot's generated API client (190 KB) took
+      # about 80 s to parse in a worker at --jobs 16 (measured).
+      - pattern-either:
+          - pattern-regex: '(?s)\A(?=.*import\s+Vapor).*'
+          - pattern-regex: '(?s)\A(?=.*import\s+Hummingbird).*'
+      - pattern-either:
+          - pattern-inside: |
+              import Vapor
+              ...
+          - pattern-inside: |
+              import Hummingbird
+              ...
+      - pattern-either:
+          - patterns:
+              - pattern-either:
+                  - pattern: $R.get(..., $P, ...)
+                  - pattern: $R.post(..., $P, ...)
+                  - pattern: $R.put(..., $P, ...)
+                  - pattern: $R.on($M, ..., $P, ...)
+                  - pattern: $R.grouped(..., $P, ...).get(...)
+                  - pattern: $R.grouped(..., $P, ...).post(...)
+                  # A group on the sign-up path, with its routes in a closure (Vapor) or a chain
+                  # (Hummingbird): one match for the group.
+                  - pattern: $R.group(..., $P, ...)
+              - metavariable-regex:
+                  metavariable: $P
+                  regex: '^"/?((api|v[0-9]+|auth|accounts?|users?)/)*(sign-?up|register|registration|create-?account)/?"$'
+              # The builder: a route group or a variable named for staff, or one behind a guard.
+              - metavariable-regex:
+                  metavariable: $R
+                  regex: '^(?!(?i:.*(admin|staff|internal|backoffice|protected|guardMiddleware|redirectMiddleware))).*'
+          # A Vapor Leaf (or other) view named for sign-up, rendered for the browser.
+          - patterns:
+              - pattern: $Q.view.render($P, ...)
+              - metavariable-regex:
+                  metavariable: $P
+                  regex: '^"([\w-]+/)*(sign-?up|register|registration|create-?account)(\.leaf)?"$'
+      # A route declared inside a staff group's closure: `app.group("admin") { admin in ... }`.
+      - pattern-not-inside:
+          patterns:
+            - pattern: $G.group(..., $A, ...)
+            - metavariable-regex:
+                metavariable: $A
+                regex: '^"/?(api/)?(admin|staff|internal|manage|backoffice|operators?)(/[^"]*)?"$'
+    metadata:
+      activity: ships_consumer_interface
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/ships-consumer-interface
+      provenance: ungovr-original
+      license: MIT
