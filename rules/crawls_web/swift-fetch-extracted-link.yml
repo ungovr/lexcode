@@ -1,0 +1,129 @@
+rules:
+  - id: lexcode.crawl.swift-fetch-extracted-link
+    languages: [swift]
+    severity: INFO
+    message: Fetches a link taken from a page it has read (an anchor's href, an image's src), which is following links from site to site, crawling the web (crawls_web).
+    mode: taint
+    # The link is read from a parsed page: SwiftSoup's `attr` and `absUrl`, Kanna's and Fuzi's
+    # subscript, Fuzi's `attr`. Each library is one branch with its own import guard, so a JSON
+    # dictionary's `["href"]` (an API's own pagination links) in a file without an HTML parser is
+    # not a source, and one library's import never admits another's call.
+    pattern-sources:
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+\s+)*import\s+(?:\w+\s+)?SwiftSoup\b).*'
+          - pattern-either:
+              - pattern: $E.attr($A)
+              - pattern: $E.absUrl($A)
+          - metavariable-regex: &link_attribute
+              metavariable: $A
+              regex: '^"(abs:)?(href|src)"$'
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+\s+)*import\s+(?:\w+\s+)?Kanna\b).*'
+          - pattern: $E[$A]
+          - metavariable-regex: *link_attribute
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:@\w+\s+)*import\s+(?:\w+\s+)?Fuzi\b).*'
+          - pattern-either:
+              - pattern: $E[$A]
+              - pattern: $E.attr($A)
+          - metavariable-regex: *link_attribute
+    # A crawl frontier: links appended to a queue or inserted into a set are fetched from it later.
+    pattern-propagators:
+      - pattern: $Q.append($V)
+        from: $V
+        to: $Q
+      - pattern: '$Q.append(contentsOf: $V)'
+        from: $V
+        to: $Q
+      - pattern: $Q.insert($V)
+        from: $V
+        to: $Q
+    # The downloads, their address in `$ADDR`. Alamofire's `AF`, AsyncHTTPClient's request and
+    # Kanna's `HTML(url:)` are written by their short names as well as in full: the list is also
+    # read inside a sub-pattern below, where the engine no longer sees the file's imports. The value
+    # must carry a link read under an HTML library's import, which is what keeps a short name
+    # precise here. A link joined onto the app's own server (a loopback host) is the app reading its
+    # own pages.
+    pattern-sinks:
+      # The address given to a download.
+      - patterns:
+          - pattern-either: &downloads
+              - pattern: '$S.data(from: $ADDR, ...)'
+              - pattern: '$S.bytes(from: $ADDR, ...)'
+              - pattern: '$S.download(from: $ADDR, ...)'
+              - pattern: '$S.dataTask(with: $ADDR, ...)'
+              - pattern: '$S.downloadTask(with: $ADDR, ...)'
+              - pattern: 'URLRequest(url: $ADDR, ...)'
+              - pattern: 'Foundation.URLRequest(url: $ADDR, ...)'
+              - pattern: 'String(contentsOf: $ADDR, ...)'
+              - pattern: 'Data(contentsOf: $ADDR, ...)'
+              - pattern: 'Foundation.Data(contentsOf: $ADDR, ...)'
+              - pattern: 'HTTPClientRequest(url: $ADDR)'
+              - patterns:
+                  - pattern: '$C.get(url: $ADDR, ...)'
+                  - metavariable-regex:
+                      # A receiver named for an HTTP client, not a database, cache or store.
+                      metavariable: $C
+                      regex: '^(?:self\.)?(?![\w.]*(?:(?<![a-z])[dD]b|DB|[dD]atabase|[sS]ql|SQL|[pP]ool|[rR]edis|[cC]ache|[qQ]ueue|[sS]tore|[sS]torage|[kK]eychain))[\w.]*(?:[hH]ttp|HTTP|[cC]lient)[\w.]*$'
+              - pattern: '$R.client.get($ADDR, ...)'
+              - pattern: 'AF.request($ADDR, ...)'
+              - pattern: 'AF.download($ADDR, ...)'
+              - pattern: 'HTML(url: $ADDR, ...)'
+          - focus-metavariable: $ADDR
+          - metavariable-regex: &not_loopback
+              metavariable: $ADDR
+              regex: '(?s)^(?!.*"https?://(?:localhost|127\.|0\.0\.0\.0|\[::1\])).*$'
+      # Taint does not pass through Swift's optional binding, so a link bound with `guard let` or
+      # `if let` (`guard let url = URL(string: href)`) is read at the binding: its value is the sink
+      # when a later statement downloads the bound name. This sees a binding whose value is a call
+      # (`URL(string: href)`); one whose value is a bare name or a field is not seen
+      # (rules/README.md).
+      - patterns:
+          - pattern-either:
+              - pattern: |
+                  guard let $H = $X else { ... }
+                  ...
+                  $STMT
+              - pattern: |
+                  guard let $H = $X, ... else { ... }
+                  ...
+                  $STMT
+              - pattern: |
+                  guard $COND, let $H = $X, ... else { ... }
+                  ...
+                  $STMT
+              - pattern: |
+                  if let $H = $X {
+                    ...
+                    $STMT
+                    ...
+                  }
+              - pattern: |
+                  if let $H = $X, $COND {
+                    ...
+                    $STMT
+                    ...
+                  }
+              - pattern: |
+                  if $COND, let $H = $X {
+                    ...
+                    $STMT
+                    ...
+                  }
+          - metavariable-pattern:
+              metavariable: $STMT
+              patterns:
+                - pattern-either: *downloads
+                - metavariable-pattern:
+                    metavariable: $ADDR
+                    pattern: $H
+          - focus-metavariable: $X
+          - metavariable-regex:
+              metavariable: $X
+              regex: '(?s)^(?!.*"https?://(?:localhost|127\.|0\.0\.0\.0|\[::1\])).*$'
+    metadata:
+      activity: crawls_web
+      mentioned: performs
+      definition: https://lexlint.io/activities/crawls-web
+      provenance: ungovr-original
+      license: MIT

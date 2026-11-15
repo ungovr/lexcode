@@ -1,0 +1,117 @@
+rules:
+  - id: lexcode.crawl.swift-fetch-loop-over-urls
+    languages: [swift]
+    severity: INFO
+    message: Fetches each URL in a list held in a variable, which may be crawling sites the operator does not run (crawls_web).
+    # The loop variable is the whole address, or the whole string given to `URL(string:)` or
+    # Vapor's `URI(string:)`. A loop over ids that builds each address on the app's own base
+    # (`base.appendingPathComponent(id)`, `"https://api.example.com/items/\(id)"`), or a single call
+    # to a documented API, does not bind it. Only downloads count: a request whose method is set
+    # (`httpMethod`, AsyncHTTPClient's `method`, Alamofire's `method:`) is read as a delivery
+    # (webhooks), so an explicit GET is missed with it. The Foundation readers that also read files
+    # on the device (`String(contentsOf:)`, `Data(contentsOf:)`) are left out here, since a loop
+    # over files is the usual reason to call them in a loop, and so is a list named for files on the
+    # device.
+    patterns:
+      # A pre-filter. The loop scopes and the receivers below are metavariables, and the call names
+      # (`get`, `data`) are common words, so without it the engine parses every Swift file it is
+      # handed: a generated 1 MB OpenAPI file in penny-bot alone took 80 s. Each check names a
+      # token of the calls below, one literal first, as a whole-file look-ahead (CONTRIBUTING.md,
+      # Cost).
+      - pattern-either:
+          - pattern-regex: '(?s)\A(?=.*\.(?:data|bytes|download|dataTask|downloadTask)\().*'
+          - pattern-regex: '(?s)\A(?=.*Request\(\s*url:).*'
+          - pattern-regex: '(?s)\A(?=.*\.get\().*'
+          - pattern-regex: '(?s)\A(?=.*AF\s*\.\s*(?:request|download)\().*'
+          - pattern-regex: '(?s)\A(?=.*HTML\(\s*url:).*'
+      - pattern-either:
+          # A named loop variable: a `for` loop (also over `enumerated()`), or a closure parameter
+          # of a sequence method written out. A TaskGroup that adds one task per address sits in
+          # a `for` loop and is read through it. Each check sits beside the term that binds it
+          # (#13009); only the loop variable's name is read at the joined level.
+          - patterns:
+              - patterns:
+                  - pattern-either:
+                      - pattern-inside: |
+                          for $URL in $L { ... }
+                      - pattern-inside: |
+                          for ($I, $URL) in $L { ... }
+                      - patterns:
+                          - pattern-either:
+                              - pattern-inside: |
+                                  $L.$M { $URL in ... }
+                              - pattern-inside: |
+                                  $L.$M { ($URL) in ... }
+                          - metavariable-regex: &sequence_methods
+                              metavariable: $M
+                              regex: '^(forEach|map|compactMap|flatMap|concurrentForEach|concurrentMap|asyncForEach|asyncMap|asyncCompactMap|parallelMap)$'
+                  - metavariable-regex: &list_not_on_device
+                      # Not a list named for something on the device: a file, a path, the app bundle,
+                      # a local copy, the documents, caches or temporary directory, a resource.
+                      metavariable: $L
+                      regex: '(?s)^(?!.*(?:(?<![A-Za-z])[fF]ile|File|(?<![A-Za-z])[pP]ath|Path|[bB]undle|(?<![A-Za-z])[lL]ocal|Local|[dD]ocument|[dD]irectory|(?<![A-Za-z])[cC]ache|Cache|[rR]esource|(?<![A-Za-z])tmp|[tT]emp(?:orary)?(?![a-z]))).*$'
+                  - metavariable-regex:
+                      metavariable: $URL
+                      regex: '(?s)^(?!.*(?:(?<![A-Za-z])[fF]ile|File|(?<![A-Za-z])[pP]ath|Path|[bB]undle|(?<![A-Za-z])[lL]ocal|Local|[dD]ocument|[dD]irectory|(?<![A-Za-z])[cC]ache|Cache|[rR]esource|(?<![A-Za-z])tmp|[tT]emp(?:orary)?(?![a-z]))).*$'
+              # The download, its argument the loop variable itself, bare or wrapped once. The
+              # regular expression pins the shape and the sub-pattern below the name.
+              - patterns:
+                  - pattern-either: &downloads
+                      - pattern: '$S.data(from: $ARG, ...)'
+                      - pattern: '$S.bytes(from: $ARG, ...)'
+                      - pattern: '$S.download(from: $ARG, ...)'
+                      - pattern: '$S.dataTask(with: $ARG, ...)'
+                      - pattern: '$S.downloadTask(with: $ARG, ...)'
+                      - pattern: 'Foundation.URLRequest(url: $ARG, ...)'
+                      - pattern: 'URLRequest(url: $ARG, ...)'
+                      - pattern: 'AsyncHTTPClient.HTTPClientRequest(url: $ARG)'
+                      - patterns:
+                          - pattern: '$C.get(url: $ARG, ...)'
+                          - metavariable-regex:
+                              # A receiver named for an HTTP client, not a database, cache or store.
+                              metavariable: $C
+                              regex: '^(?:self\.)?(?![\w.]*(?:(?<![a-z])[dD]b|DB|[dD]atabase|[sS]ql|SQL|[pP]ool|[rR]edis|[cC]ache|[qQ]ueue|[sS]tore|[sS]torage|[kK]eychain))[\w.]*(?:[hH]ttp|HTTP|[cC]lient)[\w.]*$'
+                      - pattern: '$R.client.get($ARG, ...)'
+                      - pattern: 'Alamofire.AF.request($ARG, ...)'
+                      - pattern: 'Alamofire.AF.download($ARG, ...)'
+                      - pattern: 'Kanna.HTML(url: $ARG, ...)'
+                  - metavariable-regex:
+                      metavariable: $ARG
+                      regex: '^(\w+|UR[LI]\(string:\s*\w+\)!?)$'
+              - metavariable-pattern:
+                  metavariable: $ARG
+                  pattern: $URL
+          # The implicit closure parameter `$0`, which a pattern cannot name, so its text is read.
+          - patterns:
+              - patterns:
+                  - pattern-inside: |
+                      $L.$M { ... }
+                  - metavariable-regex: *sequence_methods
+                  - metavariable-regex: *list_not_on_device
+              - patterns:
+                  - pattern-either: *downloads
+                  - metavariable-regex:
+                      metavariable: $ARG
+                      regex: '^(\$0|UR[LI]\(string:\s*\$0\)!?)$'
+      # A request whose method is then set is a delivery, not a download.
+      - pattern-not-inside: |
+          var $REQ = URLRequest(url: $ARG, ...)
+          ...
+          $REQ.httpMethod = $VERB
+      - pattern-not-inside: |
+          var $REQ = Foundation.URLRequest(url: $ARG, ...)
+          ...
+          $REQ.httpMethod = $VERB
+      - pattern-not-inside: |
+          var $REQ = AsyncHTTPClient.HTTPClientRequest(url: $ARG)
+          ...
+          $REQ.method = $VERB
+      - pattern-not: 'Alamofire.AF.request($ARG, method: $VERB, ...)'
+    metadata:
+      activity: crawls_web
+      mentioned: performs
+      definition: https://lexlint.io/activities/crawls-web
+      provenance: ungovr-original
+      license: MIT
+      strength: signal
+      host_metavar: $URL
