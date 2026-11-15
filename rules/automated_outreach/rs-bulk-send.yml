@@ -1,0 +1,20 @@
+# One call that sends one message to many recipients is outreach by construction: Amazon SES's
+# bulk send (SES v2 `send_bulk_email`, SES v1 `send_bulk_templated_email`) and Resend's batch send.
+# The AWS SDK clients are builders started from the client (`client.send_bulk_email()`), so the call
+# is matched by its zero-argument start. An SNS topic publish is not here: a topic is as often an
+# internal event bus as a mailing list.
+rules:
+  - id: lexcode.outreach.rs-bulk-send
+    languages: [rust]
+    severity: INFO
+    message: Sends one message to many recipients in a single batch call, which is sending automated outreach (automated_outreach).
+    pattern-either:
+      - pattern: $C.send_bulk_email()
+      - pattern: $C.send_bulk_templated_email()
+      - pattern: $R.batch.send(...)
+    metadata:
+      activity: automated_outreach
+      mentioned: performs
+      definition: https://lexlint.io/activities/automated-outreach
+      provenance: ungovr-original
+      license: MIT

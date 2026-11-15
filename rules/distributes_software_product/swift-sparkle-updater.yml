@@ -1,0 +1,31 @@
+rules:
+  - id: lexcode.distribute.swift-sparkle-updater
+    languages: [swift]
+    severity: INFO
+    message: Updates a macOS app from its download server with Sparkle (an updater controller, an updater or Sparkle 1's shared updater), which is packaged desktop software made for others to install (distributes_software_product).
+    # Sparkle comes only from `import Sparkle`, so each type is written module-qualified: the engine
+    # resolves the import, and an app's own type of the same name in a file without it is not
+    # Sparkle's. The SPU and SU prefixes are abbreviations, not the product's name, so no short form
+    # is added; an `@_exported import Sparkle` in another file is the recorded gap. A controller
+    # created in a nib or storyboard has no Swift call and is not found.
+    pattern-either:
+      - pattern: Sparkle.SPUStandardUpdaterController(...)
+      - pattern: Sparkle.SPUUpdater(...)
+      - pattern: Sparkle.SUUpdater.shared()
+      - pattern: Sparkle.SUUpdater(...)
+    paths:
+      exclude:
+        - "**/example/**"
+        - "**/examples/**"
+        - "**/Example/**"
+        - "**/Examples/**"
+        - "**/sample/**"
+        - "**/samples/**"
+        - "**/demo/**"
+        - "**/demos/**"
+    metadata:
+      activity: distributes_software_product
+      mentioned: performs
+      definition: https://lexlint.io/activities/distributes-software-product
+      provenance: ungovr-original
+      license: MIT

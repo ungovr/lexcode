@@ -1,0 +1,263 @@
+rules:
+  - id: lexcode.audio.rs-speech-reply-to-response
+    languages: [rust]
+    severity: INFO
+    message: Sends speech or sound a text-to-speech or audio model made back in an HTTP response, a socket or an app window, which is generating audio with AI that reaches users (generates_audio).
+    mode: taint
+    # A library item is written by its full crate path: the engine resolves a file's use lines
+    # (one level of grouping, `use <crate> as <alias>`, and a glob such as
+    # `use loco_rs::prelude::*`), so the pattern also matches the short form, and never an app's
+    # own item of the same short name in a file without that use. The engine does not resolve an
+    # item imported through a path inside a group (`use axum::{response::Html, Json}`), the way
+    # these crates' own documentation imports, so such an item is also read in its short form, but
+    # only in a file whose use lines import that name from that crate.
+    # A client's methods are matched through the chain from the client (`$C.chat().create(...)`),
+    # since the engine does not know a Rust receiver's type. The method names (`chat().create`,
+    # `generate_image`, `generate_content`) are names apps give their own types too, so each source
+    # counts only in a file whose use lines name its crate; a client held in application state and
+    # called in a file that imports nothing of the crate is missed. A name that apps use even more
+    # (`prompt`, `generate`, `sample`, `images().create`) is a source only on a value labelled by
+    # the library's own constructor.
+    # A call inside a macro body (`format!`, `json!`, `select!`) is invisible to the engine, so
+    # `Json(json!({ "reply": reply }))` is not followed.
+    pattern-sources:
+      # async-openai: text-to-speech, `audio().speech(request)` before 0.29 and
+      # `audio().speech().create(request)` since. A transcription or translation is not a source:
+      # it reads a person's recording (processes_voice).
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+async_openai\b).*'
+          - pattern-either:
+              - pattern: $C.audio().speech(...)
+              - pattern: $C.audio().speech().create(...)
+              - pattern: $C.audio().speech().create_stream(...)
+              - pattern: $C.audio().speech().create_stream_byot(...)
+      # rig: an audio generation model's request, built and sent.
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+(?:rig|rig_core)\b).*'
+          - pattern: $M.audio_generation_request()
+      # mistral.rs: a local speech model.
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+mistralrs\b).*'
+          - pattern: $M.generate_speech(...)
+      # Amazon Polly through the AWS SDK for Rust: speech synthesized from text.
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+aws_sdk_polly\b).*'
+          - pattern: $C.synthesize_speech()
+      # A speech or sound model called over HTTP (reqwest's post or get): OpenAI's speech endpoint
+      # and ElevenLabs' text-to-speech, sound effects and music. The call is the source, not the
+      # address.
+      - patterns:
+          - pattern-either:
+              - pattern: $HTTP.post($URL)
+              - pattern: $HTTP.get($URL)
+          - metavariable-regex:
+              metavariable: $URL
+              regex: '^&?(?:format!\(\s*)?"https://(?:api\.openai\.com/v1/audio/speech|api\.elevenlabs\.io/v1/(?:text-to-speech/[^"?/]+(?:/stream)?|sound-generation|music(?:/stream)?))[?"]'
+      # A stream from one of the calls above, read with `while let`: the engine does not carry
+      # taint from a `while let` scrutinee into the names it binds (it does for `if let`), so
+      # those names are a source of their own inside the loop, in a file whose use lines name one
+      # of the crates. The use check sits outside a nested block: beside the pattern-inside terms
+      # at one level it removed every match.
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+async_openai\b).*'
+          - patterns:
+              - pattern-inside: |
+                  let $STREAM = $OPEN;
+                  ...
+              - metavariable-pattern:
+                  metavariable: $OPEN
+                  pattern-either:
+                    - pattern: $C.audio().speech().create_stream(...)
+                    - pattern: $C.audio().speech().create_stream_byot(...)
+              - pattern-either:
+                  - pattern-inside: |
+                      while let Some($ITEM) = <... $STREAM ...> { ... }
+                  - pattern-inside: |
+                      while let Some(Ok($ITEM)) = <... $STREAM ...> { ... }
+                  - pattern-inside: |
+                      while let Ok(Some($ITEM)) = <... $STREAM ...> { ... }
+              - pattern: $ITEM
+    pattern-propagators:
+      # Output gathered into a string, a buffer or a list is sent on with it.
+      - pattern: $S.push_str($X)
+        from: $X
+        to: $S
+        by-side-effect: true
+      - pattern: $S.push($X)
+        from: $X
+        to: $S
+        by-side-effect: true
+      - pattern: $S.extend($X)
+        from: $X
+        to: $S
+        by-side-effect: true
+      - pattern: $S.extend_from_slice($X)
+        from: $X
+        to: $S
+        by-side-effect: true
+    pattern-sinks:
+      # The five rs- generation rules (text, images, audio, video, content) share this sink set
+      # word for word; a change goes into all five.
+      # axum: the Json and Html responses, a body, a server-sent event, a WebSocket message, a
+      # response, and any value turned into a response (`IntoResponse`, axum's and Poem's trait).
+      - pattern: axum::Json(...)
+      - pattern: axum::response::Json(...)
+      - pattern: axum::response::Html(...)
+      - pattern: axum::body::Body::from(...)
+      - pattern: axum::response::sse::Event::default().data(...)
+      - pattern: axum::response::sse::Event::default().json_data(...)
+      - pattern: axum::response::sse::Sse::new(...)
+      - pattern: axum::extract::ws::Message::Text(...)
+      - pattern: axum::extract::ws::Message::Binary(...)
+      - pattern: axum::response::Response::new(...)
+      - pattern: axum::http::Response::new(...)
+      - patterns:
+          - pattern: $X.into_response()
+          - focus-metavariable: $X
+      # actix-web: the Json responder, and a response builder's body, JSON or stream. The builder
+      # is read from its constructor, so reqwest's `.body(...)` on an outgoing request is not a
+      # response.
+      - pattern: actix_web::web::Json(...)
+      - patterns:
+          - pattern-either:
+              - pattern: $B.body($X)
+              - pattern: $B.json($X)
+              - pattern: $B.streaming($X)
+          - metavariable-pattern:
+              metavariable: $B
+              pattern-either:
+                - pattern: actix_web::HttpResponse::$S()
+                - pattern: actix_web::HttpResponse::build(...)
+                - pattern: actix_web::HttpResponseBuilder::new(...)
+          - focus-metavariable: $X
+      # The http crate's response builder, as hyper, axum and Poem re-export it, and http's and
+      # hyper's own response and body types.
+      - patterns:
+          - pattern: $B.body($X)
+          - metavariable-pattern:
+              metavariable: $B
+              pattern-either:
+                - pattern: http::Response::builder()
+                - pattern: hyper::Response::builder()
+                - pattern: axum::response::Response::builder()
+                - pattern: axum::http::Response::builder()
+                - pattern: poem::Response::builder()
+          - focus-metavariable: $X
+      - pattern: http::Response::new(...)
+      - pattern: hyper::Response::new(...)
+      - pattern: hyper::Body::from(...)
+      - pattern: http_body_util::Full::new(...)
+      # Rocket: the Json responder, the raw content responders and an event stream's event.
+      - pattern: rocket::serde::json::Json(...)
+      - pattern: rocket::response::content::RawHtml(...)
+      - pattern: rocket::response::content::RawText(...)
+      - pattern: rocket::response::content::RawJson(...)
+      - pattern: rocket::response::stream::Event::data(...)
+      - pattern: rocket::response::stream::Event::json(...)
+      # warp: a JSON or HTML reply, a server-sent event and a WebSocket message.
+      - pattern: warp::reply::json(...)
+      - pattern: warp::reply::html(...)
+      - pattern: warp::sse::Event::default().data(...)
+      - pattern: warp::ws::Message::text(...)
+      - pattern: warp::ws::Message::binary(...)
+      # Poem and poem-openapi: the response payloads and a server-sent event.
+      - pattern: poem::web::Json(...)
+      - pattern: poem::web::Html(...)
+      - pattern: poem::web::sse::Event::message(...)
+      - pattern: poem_openapi::payload::Json(...)
+      - pattern: poem_openapi::payload::PlainText(...)
+      - pattern: poem_openapi::payload::Html(...)
+      - pattern: poem_openapi::payload::Binary(...)
+      # Loco: a controller's format helpers, through the controller module or Loco's prelude.
+      - pattern: loco_rs::controller::format::json(...)
+      - pattern: loco_rs::controller::format::text(...)
+      - pattern: loco_rs::controller::format::html(...)
+      - pattern: loco_rs::prelude::format::json(...)
+      - pattern: loco_rs::prelude::format::text(...)
+      - pattern: loco_rs::prelude::format::html(...)
+      # A WebSocket message through tungstenite, on its own or through tokio-tungstenite.
+      - pattern: tungstenite::Message::Text(...)
+      - pattern: tungstenite::Message::Binary(...)
+      - pattern: tokio_tungstenite::tungstenite::Message::Text(...)
+      - pattern: tokio_tungstenite::tungstenite::Message::Binary(...)
+      # The same response types in their short form, for a file that imports them through a path
+      # inside a use group. Each name counts only where a use statement of its own crates names it,
+      # so an app's own `Message` or reqwest's `Body` in a file that imports other things from axum
+      # is not a response.
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+(?:axum|rocket|poem|poem_openapi)\b[^;]*\bJson\b).*'
+          - pattern: Json(...)
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+(?:axum|poem|poem_openapi)\b[^;]*\bHtml\b).*'
+          - pattern: Html(...)
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+poem_openapi\b[^;]*\bPlainText\b).*'
+          - pattern: PlainText(...)
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+poem_openapi\b[^;]*\bBinary\b).*'
+          - pattern: Binary(...)
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+rocket\b[^;]*\bRawHtml\b).*'
+          - pattern: RawHtml(...)
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+rocket\b[^;]*\bRawText\b).*'
+          - pattern: RawText(...)
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+rocket\b[^;]*\bRawJson\b).*'
+          - pattern: RawJson(...)
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+(?:axum|rocket|poem)\b[^;]*\bEvent\b).*'
+          - pattern-either:
+              - pattern: Event::default().data(...)
+              - pattern: Event::default().json_data(...)
+              - pattern: Event::data(...)
+              - pattern: Event::json(...)
+              - pattern: Event::message(...)
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+axum\b[^;]*\bSse\b).*'
+          - pattern: Sse::new(...)
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+(?:axum|hyper|poem)\b[^;]*\bBody\b).*'
+          - pattern: Body::from(...)
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+(?:axum|tungstenite|tokio_tungstenite)\b[^;]*\bMessage\b).*'
+          - pattern-either:
+              - pattern: Message::Text(...)
+              - pattern: Message::Binary(...)
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+(?:axum|hyper|http|poem)\b[^;]*\bResponse\b).*'
+          - pattern: Response::new(...)
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+(?:axum|hyper|http|poem)\b[^;]*\bResponse\b).*'
+          - pattern: $B.body($X)
+          - metavariable-pattern:
+              metavariable: $B
+              pattern: Response::builder()
+          - focus-metavariable: $X
+      # Tauri: a command's value is handed to the app's own window, and an event's payload goes
+      # to the front end listening for it (Tauri's Emitter; socketioxide's emit reaches a
+      # connected client the same way). `emit` is a name event buses and compilers use too, so it
+      # counts only in a file whose use lines name tauri or socketioxide.
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  #[tauri::command]
+                  fn $CMD(...) -> $R { ... }
+              - pattern-inside: |
+                  #[tauri::command]
+                  async fn $CMD(...) -> $R { ... }
+          - pattern: Ok($X)
+          - focus-metavariable: $X
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+(?:tauri|socketioxide)\b).*'
+          - pattern-either:
+              - pattern: $W.emit($EVENT, $X)
+              - pattern: $W.emit_all($EVENT, $X)
+              - pattern: $W.emit_to($TARGET, $EVENT, $X)
+          - focus-metavariable: $X
+    metadata:
+      activity: generates_audio
+      mentioned: performs
+      definition: https://lexlint.io/activities/generates-audio
+      provenance: ungovr-original
+      license: MIT

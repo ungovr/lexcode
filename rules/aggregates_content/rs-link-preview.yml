@@ -1,0 +1,44 @@
+# A link preview reads another site's page for its title, description and image (its Open Graph
+# or Twitter card tags) and shows them beside the link: the definition's "a search or preview
+# feature that shows thumbnails or snippets of other sites' pages". A bare link a person posts,
+# stored and shown as a link, is the definition's exclusion, and it is not matched: what is
+# matched is the reading of the page's metadata.
+# - webpage: `HTML::from_string` over a page the app holds (not a literal), and `Webpage::from_url`,
+#   which fetches the page itself.
+# - opengraph: `scrape` (fetches) and `extract` (reads a page the app holds).
+# - scraper: a `Selector::parse` that names an `og:` or `twitter:` title, description or image tag.
+# Items are written by crate path, so an app's own `HTML`, `Webpage` or `Selector` under
+# `use crate::...` is not taken for them. Writing Open Graph tags for the app's own pages is
+# publishing, not reading, and a selector for prices or links is not a preview. A fetch of a
+# loopback or file address is the app's own page.
+rules:
+  - id: lexcode.aggregate.rs-link-preview
+    languages: [rust]
+    severity: INFO
+    message: Reads another site's page for its title, description and preview image (Open Graph or Twitter card tags), which is showing snippets and thumbnails of other publishers' pages (aggregates_content).
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: webpage::HTML::from_string($X, ...)
+              - pattern: opengraph::extract($X, ...)
+          - metavariable-regex:
+              metavariable: $X
+              regex: (?s)^(?!&?(mut\s+)?b?(?:r#*)?").*$
+      - patterns:
+          - pattern-either:
+              - pattern: webpage::Webpage::from_url($URL, ...)
+              - pattern: opengraph::scrape($URL, ...)
+          - metavariable-regex:
+              metavariable: $URL
+              regex: (?s)^(?!&?(?:r#*)?"(https?://(localhost|127\.|0\.0\.0\.0|\[::1\])|file:)).*$
+      - patterns:
+          - pattern: scraper::Selector::parse($S)
+          - metavariable-regex:
+              metavariable: $S
+              regex: (?s)^(?:r#*)?".*(?<![\w-])(og|twitter):(title|description|image)\b
+    metadata:
+      activity: aggregates_content
+      mentioned: performs
+      definition: https://lexlint.io/activities/aggregates-content
+      provenance: ungovr-original
+      license: MIT

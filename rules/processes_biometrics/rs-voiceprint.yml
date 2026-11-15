@@ -1,0 +1,46 @@
+# A voiceprint: a speaker's voice turned into a template that identifies or verifies the person.
+# - Vosk's speaker model (x-vector speaker embeddings), loaded, or given to a recognizer;
+# - sherpa-rs's speaker identification: the embedding extractor and the manager that registers and
+#   searches speakers. Its examples import the module (`use sherpa_rs::speaker_id;`) or the items
+#   through a nested group, which the engine does not resolve, so the short forms count in a file
+#   whose `use` names sherpa_rs;
+# - Amazon Connect Voice ID (the AWS SDK for Rust): enrolling a speaker, registering fraudsters, and
+#   evaluating a caller's session. `evaluate_session` is a generic name, so it counts only in a file
+#   that names the `aws_sdk_voiceid` crate;
+# - the REST endpoints written in a string: VoiceIt enrollment, verification and identification, and
+#   Azure AI Speech speaker recognition.
+# Recognizing what was said (rs-local-speech-engines) and separating speakers in a recording
+# (diarization) name no one and are processes_voice.
+rules:
+  - id: lexcode.biometric.rs-voiceprint
+    languages: [rust]
+    severity: INFO
+    message: Enrolls, verifies or identifies a speaker from a voiceprint (Vosk speaker model, sherpa-rs speaker embeddings, Amazon Connect Voice ID, VoiceIt or Azure speaker recognition), which is processing biometric data (processes_biometrics).
+    pattern-either:
+      - pattern: vosk::SpeakerModel::new(...)
+      - pattern: vosk::Recognizer::new_with_speaker(...)
+      # A text-to-speech engine may choose its own "speaker model" (a synthetic voice), so the method
+      # counts only in a file whose `use` names vosk.
+      - patterns:
+          - pattern: $R.set_speaker_model(...)
+          - pattern-regex: (?sm)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+vosk\b).*
+      - pattern: sherpa_rs::speaker_id::EmbeddingExtractor::new(...)
+      - pattern: sherpa_rs::embedding_manager::EmbeddingManager::new(...)
+      - patterns:
+          - pattern-either:
+              - pattern: EmbeddingExtractor::new(...)
+              - pattern: EmbeddingManager::new(...)
+          - pattern-regex: (?sm)\A(?=.*^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+sherpa_rs\b).*
+      - pattern: $C.start_speaker_enrollment_job()
+      - pattern: $C.start_fraudster_registration_job()
+      - patterns:
+          - pattern: $C.evaluate_session()
+          - pattern-regex: (?s)\A(?=.*\baws_sdk_voiceid\b).*
+      - pattern-regex: |-
+          "[^"\n]*(\bapi\.voiceit\.io/(enrollments|verification|identification)\b|/speaker-recognition/(verification|identification)/|/speaker/(verification|identification)/v\d)
+    metadata:
+      activity: processes_biometrics
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-biometrics
+      provenance: ungovr-original
+      license: MIT

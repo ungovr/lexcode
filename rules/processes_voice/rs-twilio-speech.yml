@@ -1,0 +1,31 @@
+# A Twilio voice webhook answered with TwiML that takes the caller's speech: a Gather whose input
+# includes speech (speech recognition), the Record verb (a voice message, as in voicemail), a
+# real-time Transcription started on the call, and a ConversationRelay session (a voice agent that
+# hears the caller). Rust apps write TwiML as a string, so the rule reads string text: a plain
+# literal (`\"`-escaped attributes), a raw string and a `format!` template are all source text.
+#
+# `<Record` is matched only with an attribute, as `<Record/>` or as `<Record></Record>`, so a type
+# argument (`Vec<Record>`) is not taken for the verb, and only in a file holding a `<Response>`. `<Say>` and `<Play>` read text or play a file
+# to the caller and are left out. A Dial or Conference that records a call between people is
+# rs-twilio-twiml-record under records_calls.
+rules:
+  - id: lexcode.voice.rs-twilio-speech
+    languages: [rust]
+    severity: INFO
+    message: Takes a caller's speech through Twilio TwiML, with speech recognition, a recorded voice message, a live transcription or a voice-agent relay, which is processing human voices (processes_voice).
+    pattern-either:
+      - pattern-regex: <Gather\b[^>]*?\binput=\\?"[^"\\]*\bspeech\b
+      # A Yew or Leptos component (`html! { <Record id=1 /> }`, `view! { <Record .. /> }`) and an XML
+      # element of another format share the tag, so `<Record` counts only in a file that also writes a
+      # TwiML `<Response>` element, which every TwiML document has.
+      - patterns:
+          - pattern-regex: <Record(\s+[A-Za-z]+=|\s*/>|>\s*</Record>)
+          - pattern-regex: (?s)\A(?=.*<Response\b).*
+      - pattern-regex: <Start>\s*<Transcription\b
+      - pattern-regex: <ConversationRelay\s+[A-Za-z]+=
+    metadata:
+      activity: processes_voice
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-voice
+      provenance: ungovr-original
+      license: MIT
