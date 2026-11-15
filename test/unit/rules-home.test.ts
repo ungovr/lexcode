@@ -59,8 +59,31 @@ describe('LEXCODE_RULES_HOME', () => {
         source: 'https://packagist.org/packages/twilio/sdk',
       },
     ]);
-    vi.stubEnv('LEXCODE_RULES_HOME', tree({ ...base, 'components/cargo.yml': composer.replace('ecosystem: composer', 'ecosystem: cargo') }));
-    expect(() => loadRuleSet()).toThrow(/ecosystem must be one of npm, pypi, golang, gem, maven, composer, nuget, files/);
+    vi.stubEnv('LEXCODE_RULES_HOME', tree({ ...base, 'components/hex.yml': composer.replace('ecosystem: composer', 'ecosystem: hex') }));
+    expect(() => loadRuleSet()).toThrow(/ecosystem must be one of npm, pypi, golang, gem, maven, composer, nuget, cargo, swift, cocoapods, files/);
+  });
+
+  it('takes cargo, swift and cocoapods component maps, and loads without any of them', () => {
+    const copy = (f: string): string => readFileSync(resolve(RULES_HOME, f), 'utf8');
+    const base = { 'classes.yml': copy('classes.yml'), 'registry.snapshot.json': copy('registry.snapshot.json'), 'ruleset.yml': copy('ruleset.yml') };
+    const map = (ecosystem: string, match: string): string =>
+      [`ecosystem: ${ecosystem}`, 'entries:', `  - match: "${match}"`, '    enables: [automated_outreach]', '    says: "a"', '    source: https://example.org', ''].join('\n');
+    vi.stubEnv('LEXCODE_RULES_HOME', tree(base));
+    expect(loadRuleSet().components).toEqual([]);
+    vi.stubEnv(
+      'LEXCODE_RULES_HOME',
+      tree({
+        ...base,
+        'components/cargo.yml': map('cargo', 'async-openai'),
+        'components/swift.yml': map('swift', 'github.com/twilio/twilio-voice-ios'),
+        'components/cocoapods.yml': map('cocoapods', 'Firebase/Messaging'),
+      }),
+    );
+    expect(loadRuleSet().components.map((c) => [c.ecosystem, c.match])).toEqual([
+      ['cargo', 'async-openai'],
+      ['cocoapods', 'Firebase/Messaging'],
+      ['swift', 'github.com/twilio/twilio-voice-ios'],
+    ]);
   });
 
   it('takes a nuget component map', () => {

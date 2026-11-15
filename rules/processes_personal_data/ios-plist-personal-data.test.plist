@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- lexcode-expect: 8 -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Find stops near you.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Tell you when your stop is close.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>Tell you when your stop is close.</string>
+	<key>NSLocationUsageDescription</key>
+	<string>Find stops near you.</string>
+	<key>NSContactsUsageDescription</key>
+	<string>Invite people from your address book.</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>Read your workouts.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>Save your rides as workouts.</string>
+	<key>NSHealthClinicalHealthRecordsShareUsageDescription</key>
+	<string>Read your allergy records.</string>
+	<key>UILaunchStoryboardName</key>
+	<string>LaunchScreen</string>
+</dict>
+</plist>

@@ -135,10 +135,19 @@ describe('scan with a stand-in engine', () => {
   });
 
   it('counts the bundled, minified and generated files it skipped by name in one notice', async () => {
-    const root = tree({ 'src/a.py': 'x = 1\n', 'web/jquery.min.js': 'x\n', 'src/App/Routes.g.cs': 'x\n', 'src/App/Main.g.i.cs': 'x\n' });
+    const root = tree({
+      'src/a.py': 'x = 1\n',
+      'web/jquery.min.js': 'x\n',
+      'src/App/Routes.g.cs': 'x\n',
+      'src/App/Main.g.i.cs': 'x\n',
+      'ios/App/L10n.generated.swift': 'x\n',
+      'ios/App/Assets+Generated.swift': 'x\n',
+      'ios/App/api.pb.swift': 'x\n',
+      'ios/App/api.grpc.swift': 'x\n',
+    });
     const rec = await scan({ root, rulesDirs: [], rs: stubRuleSet(), enginePath: STUB, includeTests: false, snippets: false });
     expect(rec.notices).toContain(
-      'skipped 3 bundled, minified or generated files (named *.min.js, *.bundle.js, vendor.*.js, *.vendor.js, *.g.cs or *.g.i.cs)',
+      'skipped 7 bundled, minified or generated files (named *.min.js, *.bundle.js, vendor.*.js, *.vendor.js, *.g.cs, *.g.i.cs, *.generated.swift, *+Generated.swift, *.pb.swift or *.grpc.swift)',
     );
   });
 

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- lexcode-expect: 0 -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>NSPrivacyTracking</key>
+	<false/>
+	<!-- An empty list, written the long way: no domain is declared. -->
+	<key>NSPrivacyTrackingDomains</key>
+	<array>
+	</array>
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array>
+	</array>
+</dict>
+</plist>
