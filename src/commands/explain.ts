@@ -12,7 +12,18 @@ const CLASS_MEANING: Record<string, string> = {
   'declaration-only': 'never read from code; only a declaration can carry it',
 };
 
-const PURL_ECOSYSTEM: Record<string, Dependency['ecosystem']> = { npm: 'npm', pypi: 'pypi', golang: 'golang', gem: 'gem', maven: 'maven', composer: 'composer', nuget: 'nuget' };
+const PURL_ECOSYSTEM: Record<string, Dependency['ecosystem']> = {
+  npm: 'npm',
+  pypi: 'pypi',
+  golang: 'golang',
+  gem: 'gem',
+  maven: 'maven',
+  composer: 'composer',
+  nuget: 'nuget',
+  cargo: 'cargo',
+  swift: 'swift',
+  cocoapods: 'cocoapods',
+};
 
 type Explained =
   | { kind: 'purl'; purl: string; enables: string[]; unsupported?: string }
@@ -28,13 +39,23 @@ function decode(s: string, purl: string): string {
 }
 
 /** pkg:<type>/<namespace/name>[@version][?qualifiers][#subpath] */
-function parsePurl(purl: string): { type: string; name: string; version?: string } {
+function parsePurl(purl: string): { type: string; name: string; version?: string; subpath?: string } {
   const body = purl.replace(/[?#].*$/, '');
   const m = /^pkg:([A-Za-z0-9.+-]+)\/(.+?)(?:@([^@/]+))?$/.exec(body);
   if (!m) throw new ToolError(`${purl} is not a valid package URL. The form is pkg:<type>/<name>@<version>, for example pkg:npm/%40segment/analytics-next@1.77.0.`);
   const name = (m[2] as string).split('/').map((seg) => decode(seg, purl)).join('/');
   const version = m[3] === undefined ? undefined : decode(m[3], purl);
-  return { type: (m[1] as string).toLowerCase(), name, ...(version === undefined ? {} : { version }) };
+  const hash = purl.indexOf('#');
+  const subpath =
+    hash < 0
+      ? ''
+      : purl
+          .slice(hash + 1)
+          .split('/')
+          .filter((seg) => seg !== '' && seg !== '.' && seg !== '..')
+          .map((seg) => decode(seg, purl))
+          .join('/');
+  return { type: (m[1] as string).toLowerCase(), name, ...(version === undefined ? {} : { version }), ...(subpath ? { subpath } : {}) };
 }
 
 function resolveArg(arg: string, rs: RuleSet): Explained {
@@ -43,7 +64,13 @@ function resolveArg(arg: string, rs: RuleSet): Explained {
     const ecosystem = PURL_ECOSYSTEM[parsed.type];
     if (ecosystem === undefined) return { kind: 'purl', purl: arg, enables: [], unsupported: parsed.type };
     // A Maven purl is pkg:maven/<group>/<artifact>; the dependency name is <group>:<artifact>.
-    const name = ecosystem === 'maven' ? parsed.name.replace(/\/([^/]*)$/, ':$1') : parsed.name;
+    // A CocoaPods subspec is pkg:cocoapods/<pod>#<subspec path>; the dependency name is <pod>/<subspec path>.
+    const name =
+      ecosystem === 'maven'
+        ? parsed.name.replace(/\/([^/]*)$/, ':$1')
+        : ecosystem === 'cocoapods' && parsed.subpath
+          ? `${parsed.name}/${parsed.subpath}`
+          : parsed.name;
     const dep: Dependency = { ecosystem, name, ...(parsed.version ? { version: parsed.version } : {}), manifest: 'purl' };
     const hit = matchComponents([dep], [], rs.components).components[0];
     return { kind: 'purl', purl: arg, enables: hit ? [...hit.enables] : [] };

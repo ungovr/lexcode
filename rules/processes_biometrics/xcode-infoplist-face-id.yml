@@ -1,0 +1,29 @@
+rules:
+  - id: lexcode.biometric.xcode-infoplist-face-id
+    languages: [generic]
+    severity: INFO
+    message: Sets INFOPLIST_KEY_NSFaceIDUsageDescription in an Xcode project, so the app asks the phone to confirm the user with Face ID, which may be using biometric data (processes_biometrics).
+    # The build-setting copy of the key lexcode.biometric.ios-plist-face-id reads, at signal strength for
+    # the same reason: the system compares the face and the app receives only a yes or a no. An empty
+    # value declares nothing and is left out.
+    pattern-regex: '(?m)^[ \t]*+"?INFOPLIST_KEY_NSFaceIDUsageDescription(?:\[[^\]\n]*+\])?"?[ \t]*+=[ \t]*+(?!""[ \t]*+;|;)'
+    paths:
+      include:
+        - "project.pbxproj"
+        - "xcode-infoplist-face-id.*"
+      exclude:
+        - "**/example/**"
+        - "**/examples/**"
+        - "**/sample/**"
+        - "**/samples/**"
+        - "**/demo/**"
+        - "**/demos/**"
+        - "**/Tests/**"
+        - "**/UITests/**"
+    metadata:
+      activity: processes_biometrics
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/processes-biometrics
+      provenance: ungovr-original
+      license: MIT

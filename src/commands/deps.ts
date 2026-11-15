@@ -1,6 +1,8 @@
 import { resolve } from 'node:path';
 import { loadSidecar } from '../config/sidecar.js';
 import { matchComponents } from '../components/match.js';
+import { readCargo } from '../manifests/cargo.js';
+import { readCocoapods } from '../manifests/cocoapods.js';
 import { readGo } from '../manifests/go.js';
 import { readNpm } from '../manifests/npm.js';
 import { normalizePypiName } from '../manifests/purl.js';
@@ -53,7 +55,7 @@ export function collectDeps(roots: string[], rs: RuleSet): DepRow[] {
       includeTests: false,
     };
     const files = listFiles(root, spec).files;
-    const deps = [readNpm(root, files), readPypi(root, files), readGo(root, files), readRuby(root, files), readMaven(root, files), readGradle(root, files), readComposer(root, files), readNuget(root, files)].flatMap((r) => r.deps);
+    const deps = [readNpm(root, files), readPypi(root, files), readGo(root, files), readRuby(root, files), readMaven(root, files), readGradle(root, files), readComposer(root, files), readNuget(root, files), readCargo(root, files), readCocoapods(root, files)].flatMap((r) => r.deps);
     for (const dep of deps) {
       const k = key(dep);
       let row = rows.get(k);

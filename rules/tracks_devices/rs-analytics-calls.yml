@@ -1,0 +1,35 @@
+rules:
+  - id: lexcode.tracking.rs-analytics-calls
+    languages: [rust]
+    severity: INFO
+    message: Sends events to a third-party analytics service that follows the user or device with its own id (Segment, PostHog or the Google Analytics Measurement Protocol), which is tracking devices (tracks_devices).
+    # Constant propagation is off so that a const URL is matched once, where it is written.
+    options:
+      constant_propagation: false
+    pattern-either:
+      # Segment (analytics-rust, crate segment): a client or batcher built. Every Segment
+      # message carries a userId or an anonymousId. Written by crate path, which the engine
+      # resolves through `use` and aliases, so the app's own HttpClient is not read as it.
+      - pattern: segment::HttpClient::default()
+      - pattern: segment::HttpClient::new(...)
+      - pattern: segment::AutoBatcher::new(...)
+      - pattern: segment::Batcher::new(...)
+      # PostHog (posthog-rs): a client built or the global one set up, an event made for a
+      # distinct id, and a capture. An anonymous event (Event::new_anon) alone is not matched.
+      - pattern: posthog_rs::client(...)
+      - pattern: posthog_rs::init_global(...)
+      - pattern: posthog_rs::capture(...)
+      - pattern: posthog_rs::Event::new(...)
+      # Google Analytics Measurement Protocol: a hit sent to the collect endpoint, matched on
+      # the string's text (a string inside format! is read).
+      - patterns:
+          - pattern: '"$U"'
+          - metavariable-regex:
+              metavariable: $U
+              regex: (?i)^(r#*")?(https?:)?(//)?(www\.|ssl\.|region1\.)?google-analytics\.com/(mp/|g/|debug/mp/)?collect\b
+    metadata:
+      activity: tracks_devices
+      mentioned: performs
+      definition: https://lexlint.io/activities/tracks-devices
+      provenance: ungovr-original
+      license: MIT

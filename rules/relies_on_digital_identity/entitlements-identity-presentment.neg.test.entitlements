@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- lexcode-expect: 0 -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Apple Pay: Apple says its entitlement is not recognized for identity verification. -->
+	<key>com.apple.developer.in-app-payments</key>
+	<array>
+		<string>merchant.com.example</string>
+	</array>
+	<!-- Sign in with Apple is an account, not an identity document. -->
+	<key>com.apple.developer.applesignin</key>
+	<array>
+		<string>Default</string>
+	</array>
+	<!-- The companion merchant-identifiers key alone grants no document request. -->
+	<key>com.apple.developer.in-app-identity-presentment.merchant-identifiers</key>
+	<array>
+		<string>merchant.com.example</string>
+	</array>
+</dict>
+</plist>
