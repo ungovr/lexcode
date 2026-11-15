@@ -1,0 +1,28 @@
+rules:
+  - id: lexcode.personal.swift-device-location
+    languages: [swift]
+    severity: INFO
+    message: Reads the person's location from the device with Core Location (a location manager started, a one-time location, significant-change or visit monitoring, or the live updates stream), which is processing personal data (processes_personal_data).
+    # Core Location comes only from its own import. The engine has no typed metavariable for Swift
+    # (a receiver's declared type is not matched), so a location manager's reading calls are
+    # matched by their names on any receiver in a file that imports CoreLocation. The names are
+    # Core Location's own. The compass heading, a geocoded address and the authorization status
+    # are not the person's position, and are not matched.
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: $L.startUpdatingLocation()
+              - pattern: $L.requestLocation()
+              - pattern: $L.startMonitoringSignificantLocationChanges()
+              - pattern: $L.startMonitoringVisits()
+          - pattern-inside: |
+              import CoreLocation
+              ...
+      # The async stream (iOS 17), a direct static call the engine resolves under `await`.
+      - pattern: CoreLocation.CLLocationUpdate.liveUpdates(...)
+    metadata:
+      activity: processes_personal_data
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-personal-data
+      provenance: ungovr-original
+      license: MIT
