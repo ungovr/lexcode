@@ -1,0 +1,67 @@
+// !$*UTF8*$!
+// lexcode-expect: 1
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXNativeTarget section */
+		488734162CDCA2DB00B400A3 /* FieldNotes */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 4887343B2CDCA2DD00B400A3 /* Build configuration list for PBXNativeTarget "FieldNotes" */;
+			buildPhases = (
+				488734132CDCA2DB00B400A3 /* Sources */,
+				488734142CDCA2DB00B400A3 /* Frameworks */,
+				488734152CDCA2DB00B400A3 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = FieldNotes;
+			productName = FieldNotes;
+			productReference = 488734172CDCA2DB00B400A3 /* FieldNotes.app */;
+			productType = "com.apple.product-type.application";
+		};
+		488734282CDCA2DD00B400A3 /* FieldNotesTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 488734402CDCA2DD00B400A3 /* Build configuration list for PBXNativeTarget "FieldNotesTests" */;
+			buildPhases = (
+				488734252CDCA2DD00B400A3 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				4887342B2CDCA2DD00B400A3 /* PBXTargetDependency */,
+			);
+			name = FieldNotesTests;
+			productName = FieldNotesTests;
+			productReference = 488734292CDCA2DD00B400A3 /* FieldNotesTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin XCBuildConfiguration section */
+		488734392CDCA2DD00B400A3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				SDKROOT = iphoneos;
+			};
+			name = Debug;
+		};
+		4887343C2CDCA2DD00B400A3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.fieldnotes;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+	};
+	rootObject = 4887340F2CDCA2DB00B400A3 /* Project object */;
+}

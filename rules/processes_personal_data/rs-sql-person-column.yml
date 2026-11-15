@@ -1,0 +1,27 @@
+rules:
+  - id: lexcode.personal.rs-sql-person-column
+    languages: [rust]
+    severity: INFO
+    message: Writes an email, phone number, name, date of birth, government identifier, IP address or password hash into a database table with an SQL INSERT or UPDATE, which is processing personal data (processes_personal_data).
+    # The SQL text is the evidence, wherever the string sits: in sqlx's query macros and
+    # functions, Diesel's sql_query, a tokio-postgres or rusqlite execute, or a const the app
+    # passes to one of them. A pattern on the call would miss the const form, and sqlx's macros
+    # do not match as a call when their arguments end in a trailing comma, which rustfmt writes.
+    # The column has to be one the statement writes: in an INSERT, a name in its column list; in
+    # an UPDATE, a column assigned before any WHERE. A column named only in a WHERE clause or a
+    # SELECT list is a lookup, not a store.
+    # Constant propagation is off so that a const statement is matched once, where it is
+    # written, and not again at each call that passes it.
+    options:
+      constant_propagation: false
+    patterns:
+      - pattern: '"$SQL"'
+      - metavariable-regex:
+          metavariable: $SQL
+          regex: '(?is)^.*?(?:\binsert\s+(?:or\s+\w+\s+)?into\s+[\w."`]+\s*\((?:[^()]*?[\s,"`])?(?:e_?mail|email_?(?:address|addr)|(?:user|contact|work|primary|customer|billing|normalized|unconfirmed|subscriber|recipient|personal|account|backup|recovery|notification)_?e_?mail(?:_?address)?|phone(?:_?(?:number|no|num))?|mobile(?:_?(?:number|phone|no))?|telephone|first_?name|last_?name|full_?name|given_?name|family_?name|surname|date_?of_?birth|dob|birth_?(?:date|day)|birthday|ssn|social_?security(?:_?(?:number|no))?|national_?(?:id|insurance)(?:_?number)?|passport(?:_?(?:number|no))?|tax_?(?:id|number)|drivers?_?licen[sc]e(?:_?(?:number|no))?|ip|ip_?(?:address|addr)|last_?(?:login_?)?ip(?:_?address)?|client_?ip(?:_?address)?|remote_?(?:addr|ip|address)|password|passwd|password_?(?:hash|digest|encrypted)|(?:hashed|encrypted)_?password)["`]?\s*[,)]|\bupdate\s+[\w."`]+\s+set\s+(?:(?:(?!\bwhere\b)[^;])*?[\s,"`])?(?:e_?mail|email_?(?:address|addr)|(?:user|contact|work|primary|customer|billing|normalized|unconfirmed|subscriber|recipient|personal|account|backup|recovery|notification)_?e_?mail(?:_?address)?|phone(?:_?(?:number|no|num))?|mobile(?:_?(?:number|phone|no))?|telephone|first_?name|last_?name|full_?name|given_?name|family_?name|surname|date_?of_?birth|dob|birth_?(?:date|day)|birthday|ssn|social_?security(?:_?(?:number|no))?|national_?(?:id|insurance)(?:_?number)?|passport(?:_?(?:number|no))?|tax_?(?:id|number)|drivers?_?licen[sc]e(?:_?(?:number|no))?|ip|ip_?(?:address|addr)|last_?(?:login_?)?ip(?:_?address)?|client_?ip(?:_?address)?|remote_?(?:addr|ip|address)|password|passwd|password_?(?:hash|digest|encrypted)|(?:hashed|encrypted)_?password)["`]?\s*=)'
+    metadata:
+      activity: processes_personal_data
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-personal-data
+      provenance: ungovr-original
+      license: MIT

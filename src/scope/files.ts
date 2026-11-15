@@ -173,10 +173,11 @@ const TEST_DIR_SUFFIXES = ['.Tests', '.Test', '.UnitTests', '.IntegrationTests',
 );
 /**
  * Xcode's test-target directories, `<App>Tests` and `<App>UITests` beside the app's own target (`WikipediaTests/`,
- * `WikipediaUITests/`). Case-sensitive, unlike TEST_DIRS: Xcode writes the suffix this way, and the character before
- * it must be a lower-case letter or a digit, so `Contests/` and `Latests/` are read. Skipped unless `includeTests`.
+ * `WikipediaUITests/`), and a bare `UITests/` or an acronym before the suffix (`APITests/`, `SDKTests/`, `iOSTests/`).
+ * Case-sensitive, unlike TEST_DIRS: Xcode writes the suffix with a capital T, so `Contests/` and `Latests/` are read.
+ * Skipped unless `includeTests`.
  */
-const XCODE_TEST_TARGET = /[a-z0-9](?:UI)?Tests$/;
+const XCODE_TEST_TARGET = /Tests$/;
 /**
  * File names of bundled or minified code: someone else's library copied in,
  * never the project's own code, and the costliest files to parse (a vendored

@@ -1,0 +1,31 @@
+rules:
+  - id: lexcode.personal.swift-health-read
+    languages: [swift]
+    severity: INFO
+    message: Reads the person's health records or characteristics from HealthKit (a sample, statistics or anchored query, or their date of birth, sex or blood type), which is processing personal data (processes_personal_data).
+    # HealthKit comes only from its own import, so its query types are module-qualified. The
+    # characteristic reads are methods of a health store, matched by name on any receiver in a
+    # file that imports HealthKit. Checking whether Health is available reads nothing about the
+    # person.
+    pattern-either:
+      - pattern: HealthKit.HKSampleQuery(...)
+      - pattern: HealthKit.HKStatisticsQuery(...)
+      - pattern: HealthKit.HKStatisticsCollectionQuery(...)
+      - pattern: HealthKit.HKAnchoredObjectQuery(...)
+      - pattern: HealthKit.HKSampleQueryDescriptor(...)
+      - pattern: HealthKit.HKAnchoredObjectQueryDescriptor(...)
+      - pattern: HealthKit.HKStatisticsCollectionQueryDescriptor(...)
+      - patterns:
+          - pattern-either:
+              - pattern: $S.dateOfBirthComponents()
+              - pattern: $S.biologicalSex()
+              - pattern: $S.bloodType()
+          - pattern-inside: |
+              import HealthKit
+              ...
+    metadata:
+      activity: processes_personal_data
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-personal-data
+      provenance: ungovr-original
+      license: MIT

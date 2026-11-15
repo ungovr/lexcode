@@ -1,0 +1,29 @@
+rules:
+  - id: lexcode.personal.entitlements-healthkit
+    languages: [generic]
+    severity: INFO
+    message: Grants the app the HealthKit entitlement (com.apple.developer.healthkit) in an Apple entitlements file, so it can read or write the person's health data, which may be processing personal data (processes_personal_data).
+    # The key with the <true/> that follows it; false is left out. Its companion keys (.access,
+    # .background-delivery) come with it and are not matched again. The engine's xml rules do not read an
+    # .entitlements file, so this is a generic rule over its text.
+    pattern-regex: '<key>com\.apple\.developer\.healthkit</key>\s*+<true\s*/>'
+    paths:
+      include:
+        - "*.entitlements"
+        - "entitlements-healthkit.*"
+      exclude:
+        - "**/example/**"
+        - "**/examples/**"
+        - "**/sample/**"
+        - "**/samples/**"
+        - "**/demo/**"
+        - "**/demos/**"
+        - "**/Tests/**"
+        - "**/UITests/**"
+    metadata:
+      activity: processes_personal_data
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/processes-personal-data
+      provenance: ungovr-original
+      license: MIT
