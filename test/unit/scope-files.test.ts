@@ -394,6 +394,31 @@ describe('the skip list', () => {
     expect(r.skippedBundled).toBe(4);
   });
 
+  // swift-openapi-generator writes Sources/<Target>/GeneratedSources/*.swift (penny-bot's
+  // Lambdas/GitHubAPI/GeneratedSources/Types.swift is 80 s of engine time). The name is case-sensitive.
+  it.each([true, false])('a GeneratedSources directory is skipped and counted as generated code (git listing: %s)', (viaGit) => {
+    const root = repo(
+      [
+        'Sources/App/Generated.swift',
+        'Sources/App/main.swift',
+        'GeneratedSources/Types.swift',
+        'Lambdas/GitHubAPI/GeneratedSources/Types.swift',
+        'Lambdas/GitHubAPI/GeneratedSources/Client.swift',
+        'Sources/App/generatedsources/Lower.swift',
+        'Sources/App/MyGeneratedSources/Mine.swift',
+      ],
+      { git: viaGit },
+    );
+    const r = listFiles(root, plain);
+    expect(r.files).toEqual([
+      'Sources/App/Generated.swift',
+      'Sources/App/MyGeneratedSources/Mine.swift',
+      'Sources/App/generatedsources/Lower.swift',
+      'Sources/App/main.swift',
+    ]);
+    expect(r.skippedBundled).toBe(3);
+  });
+
   it('generated .g.cs files are skipped and counted as bundled ones are, and .Designer.cs files are read', () => {
     const root = repo([
       'src/App/Program.cs',

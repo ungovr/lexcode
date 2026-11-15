@@ -144,10 +144,11 @@ describe('scan with a stand-in engine', () => {
       'ios/App/Assets+Generated.swift': 'x\n',
       'ios/App/api.pb.swift': 'x\n',
       'ios/App/api.grpc.swift': 'x\n',
+      'Sources/API/GeneratedSources/Types.swift': 'x\n',
     });
     const rec = await scan({ root, rulesDirs: [], rs: stubRuleSet(), enginePath: STUB, includeTests: false, snippets: false });
     expect(rec.notices).toContain(
-      'skipped 7 bundled, minified or generated files (named *.min.js, *.bundle.js, vendor.*.js, *.vendor.js, *.g.cs, *.g.i.cs, *.generated.swift, *+Generated.swift, *.pb.swift or *.grpc.swift)',
+      'skipped 8 bundled, minified or generated files (named *.min.js, *.bundle.js, vendor.*.js, *.vendor.js, *.g.cs, *.g.i.cs, *.generated.swift, *+Generated.swift, *.pb.swift or *.grpc.swift, or under a GeneratedSources directory)',
     );
   });
 
