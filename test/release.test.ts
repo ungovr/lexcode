@@ -196,6 +196,29 @@ describe('release: the rule set is complete and well formed', () => {
     ).toEqual([]);
   });
 
+  // Swift (v1.5, Decision 16). Only a rule whose languages include swift counts:
+  // the Apple configuration rules (ios-, xcode- and entitlements- rules over
+  // Info.plist, project.pbxproj and .entitlements, read as xml or generic text)
+  // are additional evidence, not Swift. No exemption was ruled.
+  it('every evidence-class id has a Swift rule', () => {
+    expect(evidenceIdsWithoutRule((r) => r.languages.includes('swift'))).toEqual([]);
+  });
+
+  // Rust (v1.5, Decision 16). The one Rust exemption is
+  // distributes_software_product, whose package evidence lives in Cargo.toml
+  // (`[package]` metadata, `publish`, a release packaging section) as Java's
+  // lives in its build files: it may be met by a cargo- rule instead of a Rust
+  // source rule (rs-self-updater meets it from Rust as well). No other
+  // exemption was ruled.
+  it('every evidence-class id has a Rust rule', () => {
+    const cargoRule = (r: RuleMeta): boolean => /^cargo-/.test(basename(r.file));
+    expect(
+      evidenceIdsWithoutRule(
+        (r) => r.languages.includes('rust') || (r.activity === 'distributes_software_product' && cargoRule(r)),
+      ),
+    ).toEqual([]);
+  });
+
   // The engine's `paths` excludes are unanchored globs, so `**/samples/**`
   // also drops a JVM package path (com/google/samples/apps/..., org/springframework/
   // samples/petclinic, every com/example package). A Java or Kotlin source rule

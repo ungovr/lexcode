@@ -54,6 +54,8 @@ const LANGS = {
   '.tsx': TYPESCRIPT,
   '.go': { language: 'go', bare: 'C0', unit: 'type C%N struct {\n\ta int\n\tb int\n}\n\nfunc (c C%N) M(p int) int {\n\tx := p + 1\n\treturn x\n}\n\n', head: 'package demo\n\n' },
   '.cs': { language: 'csharp', bare: 'C0', unit: 'public class C%N { private int a = 1; private int b = 2; public int M(int p) { var x = p + 1; return x * 2; } }\n' },
+  '.swift': { language: 'swift', bare: 'C0', unit: 'final class C%N { private let a = 1; private let b = 2; func m() -> Int { let x = a + b; return x * 2 } }\n' },
+  '.rs': { language: 'rust', bare: 'f0', unit: 'fn f%N(a: i64, b: i64) -> i64 { let x = a + b; x * 2 }\n' },
 };
 
 function args() {
