@@ -276,11 +276,15 @@ pairing:
 The nested form matches the same ranges and took those rules to about 3 s. A
 check on a metavariable that two terms bind stays at the joined level. Before a
 release, `node scripts/rule-cost.mjs` times each rule with a positive fixture in
-Java, Kotlin, PHP, Ruby, Python, JavaScript, TypeScript or Go on that fixture
-followed by filler, at 90 KB and 900 KB, beside a bare rule that only parses the
-same filler. It names a rule whose time grows more than twice as fast as the bare
-rule's for the 10x file, or that takes more than five times the bare rule's time
-on 900 KB, and every rule the engine failed on.
+Java, Kotlin, PHP, Ruby, Python, JavaScript, TypeScript, Go, C#, Swift or Rust
+on that fixture followed by filler, at 90 KB and 900 KB, beside a bare rule that
+only parses the same filler. It names a rule whose time grows more than twice as
+fast as the bare rule's for the 10x file, or that takes more than five times the
+bare rule's time on 900 KB, and every rule the engine failed on. A Swift rule
+over a bound is timed again on a second filler of plain classes, which the pinned
+engine's Swift scanner bug (a quadratic parse of a class with a modifier) cannot
+slow, and those figures decide. `node scripts/rule-cost-check.mjs` checks that
+the script still names a quadratic Swift rule and passes a rule the bug slows.
 
 ### Kotlin pattern notes
 

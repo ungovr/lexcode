@@ -12,8 +12,9 @@ waits for a reviewer to approve the `npm` environment.
 
 1. The rule set's gate passes: `LEXCODE_GATE=1 npm test` (every
    evidence-class activity has a rule with positive and negative fixtures).
-2. On a quiet machine, `npm run build`, then `node scripts/rule-cost.mjs`
-   (about 20 minutes). Every rule it names, over a bound or failed, is fixed or
+2. On a quiet machine, `npm run build`, then `node scripts/rule-cost-check.mjs`
+   (about two minutes) and `node scripts/rule-cost.mjs` (about an hour with the
+   Swift and Rust rules). Every rule it names, over a bound or failed, is fixed or
    has an open issue that the release's issue links. The bounds and why they
    matter are in CONTRIBUTING.md, Cost.
 3. The truth sets pass with zero false FAIL, and the recall table in

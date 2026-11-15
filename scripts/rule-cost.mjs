@@ -16,10 +16,10 @@
 //   weight  the rule's 900 KB time over the bare rule's. A rule that costs several parses runs out of its
 //           30 s on a slower machine.
 // Each size is timed in an engine run of its own, and each time is the lowest of up to three runs, because load
-// on the machine only adds time; a rule within both bounds after its first run is not run again. A Swift run the
-// engine's scanner bug hit (SCANNER_HIT below) is run again under other file names, and a rule hit every time is
-// named as not measured, not as over a bound. The script names every rule over a bound, and every rule the engine
-// failed on, and exits 1 if there is any.
+// on the machine only adds time; a rule within both bounds after its first run is not run again. A Swift rule over a
+// bound is measured again on a second filler the engine's Swift scanner bug cannot touch (`plain`, below), and its
+// figures there decide. The script names every rule over a bound, and every rule the engine failed on, and exits 1
+// if there is any.
 //
 // It needs the built CLI for the engine's path (`npm run build`, then `lexcode engine fetch` once), or
 // LEXCODE_ENGINE=<path>. Rules for build and config files (Gradle, Maven, Composer, package manifests) are
@@ -50,21 +50,19 @@ const ATTEMPTS = 3;
 const SMALL_NAME = 'unit-090kb';
 const LARGE_NAME = 'unit-900kb';
 /**
- * The same scanner bug also follows the allocations made before the file is parsed, not only the path's length
- * (fname-cost-report: whatever small allocation was freed last decides the scanner's state), so loading some
- * rules leaves the slot dirty and the 900 KB Swift file parses in about 56 s under any name. Each size is
- * therefore timed in an engine run of its own, and a Swift run whose 900 KB time is over SCANNER_HIT times 10
- * times its 90 KB time (a clean parse grows about 9x) is taken as hit by the bug and run again, up to three
- * times, under the next names below. A rule hit every time is reported as not measured; a pair of names for
- * the first run and one per rerun, each 12 characters or more.
+ * The same scanner bug also follows the allocations made before a file is parsed, not only the path's length:
+ * whatever small allocation was freed last decides the scanner's state, so loading some rules leaves it dirty and
+ * the 900 KB Swift filler parses in about 56 s under any name (25 of the 71 Swift rules on Opengrep 1.33.1, the
+ * same 56 s for one rule under four names, measured for #13199). The engine's own account cannot tell that from a
+ * slow rule: `--time` reports a rule's matching inside `parse_time` (a quadratic scratch rule: 900 KB run 83.6 s,
+ * parse 77.9 s, match 0), so `parse_time` is not used. What the bug needs is a class with a modifier or attribute
+ * (`final class`, `public class`, `@objc class`); a plain `class` is never slowed. So a Swift rule over a bound on
+ * the filler below is measured again on LANGS['.swift'].plain, a filler of plain classes with no modifier at all,
+ * against a bare rule on that filler, and those figures decide: a rule slowed only by the bug is within its bounds
+ * there, and a rule that is itself slow is over on both. A bare Swift rule whose 900 KB time is over BARE_HIT times
+ * its 90 KB time (a clean parse grows about 10x) stops the script: every Swift ratio divides by it.
  */
-const SCANNER_HIT = 4;
-const RUN_NAMES = [
-  [SMALL_NAME, LARGE_NAME],
-  ['unit-090kb-rerun-1', 'unit-900kb-rerun-1'],
-  ['u-090kb-second-rerun-x2', 'u-900kb-second-rerun-x2'],
-  ['unit-sized-090kb-third-rerun', 'unit-sized-900kb-third-rerun'],
-];
+const BARE_HIT = 40;
 /** One engine run on the two files; far above any rule worth keeping, so a runaway rule fails instead of hanging. */
 const SCAN_CAP_MS = 15 * 60 * 1000;
 
@@ -83,7 +81,13 @@ const LANGS = {
   '.tsx': TYPESCRIPT,
   '.go': { language: 'go', bare: 'C0', unit: 'type C%N struct {\n\ta int\n\tb int\n}\n\nfunc (c C%N) M(p int) int {\n\tx := p + 1\n\treturn x\n}\n\n', head: 'package demo\n\n' },
   '.cs': { language: 'csharp', bare: 'C0', unit: 'public class C%N { private int a = 1; private int b = 2; public int M(int p) { var x = p + 1; return x * 2; } }\n' },
-  '.swift': { language: 'swift', bare: 'C0', unit: 'final class C%N { private let a = 1; private let b = 2; func m() -> Int { let x = a + b; return x * 2 } }\n' },
+  '.swift': {
+    language: 'swift',
+    bare: 'C0',
+    unit: 'final class C%N { private let a = 1; private let b = 2; func m() -> Int { let x = a + b; return x * 2 } }\n',
+    // the second filler for a rule over a bound: no modifier anywhere, so the engine's Swift scanner bug cannot slow it
+    plain: 'class C%N { let a = 1; let b = 2; func m() -> Int { let x = a + b; return x * 2 } }\n',
+  },
   '.rs': { language: 'rust', bare: 'f0', unit: 'fn f%N(a: i64, b: i64) -> i64 { let x = a + b; x * 2 }\n' },
 };
 
@@ -180,32 +184,29 @@ async function lowest(engine, config, dir, files, enough = () => false) {
   return { best };
 }
 
-/** A Swift pair of times the engine's scanner bug hit (see SCANNER_HIT). */
-function scannerHit(ext, small, large) {
-  return ext === '.swift' && large > SCANNER_HIT * 10 * small;
-}
-
-/**
- * Writes the two files under each pair of RUN_NAMES in turn and times them with `lowest`, until a run is not hit by
- * the Swift scanner bug. Returns `{ small, large }`, `{ error }`, `{ notRun: true }`, or `{ scannerBug, small, large }`
- * with the last run's times when every run was hit.
- */
-async function timePair(engine, config, dir, ext, text, enough) {
-  let last;
-  for (const [smallName, largeName] of RUN_NAMES) {
-    const small = `${smallName}${ext}`;
-    const large = `${largeName}${ext}`;
-    writeFileSync(join(dir, small), text.small);
-    writeFileSync(join(dir, large), text.large);
-    const r = await lowest(engine, config, dir, [small, large], (t) => enough({ small: t[small], large: t[large] }));
-    rmSync(join(dir, small), { force: true });
-    rmSync(join(dir, large), { force: true });
+/** Writes the two files and times them with `lowest`: `{ small, large }`, `{ error }` or `{ notRun: true }`. */
+async function timePair(engine, config, dir, ext, text, enough = () => false) {
+  const small = `${SMALL_NAME}${ext}`;
+  const large = `${LARGE_NAME}${ext}`;
+  writeFileSync(join(dir, small), text.small);
+  writeFileSync(join(dir, large), text.large);
+  try {
+    const r = await lowest(engine, config, dir, [small, large], (t) => t[small] !== undefined && t[large] !== undefined && enough({ small: t[small], large: t[large] }));
     if (r.error) return { error: r.error };
     if (r.best[small] === undefined || r.best[large] === undefined) return { notRun: true };
-    last = { small: r.best[small], large: r.best[large] };
-    if (!scannerHit(ext, last.small, last.large)) return last;
+    return { small: r.best[small], large: r.best[large] };
+  } finally {
+    rmSync(join(dir, small), { force: true });
+    rmSync(join(dir, large), { force: true });
   }
-  return { scannerBug: true, ...last };
+}
+
+/** The bare rule's figures on one filler, or a reason it has none. */
+async function bareOn(engine, dir, ext, l, unit) {
+  const r = await timePair(engine, join(dir, 'bare.yml'), dir, ext, { small: fill(l.head ?? '', unit, SMALL_KB), large: fill(l.head ?? '', unit, LARGE_KB) });
+  if (r.error || r.notRun) return { why: r.error ?? 'no time for its files' };
+  if (ext === '.swift' && r.large > BARE_HIT * r.small) return { why: `the engine's Swift scanner bug hit it (${r.small.toFixed(2)} -> ${r.large.toFixed(2)} s)` };
+  return { small: r.small, large: r.large, growth: r.large / Math.max(r.small, 0.01) };
 }
 
 async function baselines(engine, exts) {
@@ -215,14 +216,16 @@ async function baselines(engine, exts) {
     const dir = mkdtempSync(join(tmpdir(), 'lexcode-cost-'));
     try {
       writeFileSync(join(dir, 'bare.yml'), `rules:\n  - id: bare\n    languages: [${l.language}]\n    severity: INFO\n    message: bare\n    pattern: ${l.bare}\n`);
-      const text = { small: fill(l.head ?? '', l.unit, SMALL_KB), large: fill(l.head ?? '', l.unit, LARGE_KB) };
-      const r = await timePair(engine, join(dir, 'bare.yml'), dir, ext, text, (t) => t.small !== undefined && t.large !== undefined && scannerHit(ext, t.small, t.large));
-      if (r.error || r.notRun || r.scannerBug) {
-        const why = r.error ?? (r.scannerBug ? `the engine's Swift scanner bug hit every run (${r.small.toFixed(2)} -> ${r.large.toFixed(2)} s)` : 'no time for its files');
-        process.stderr.write(`the bare ${l.language} rule did not run: ${why}\n`);
-        return undefined;
+      for (const [key, unit] of [['unit', l.unit], ['plain', l.plain]]) {
+        if (unit === undefined) continue;
+        const b = await bareOn(engine, dir, ext, l, unit);
+        if (b.why) {
+          process.stderr.write(`the bare ${l.language} rule${key === 'plain' ? ' (plain filler)' : ''} did not run: ${b.why}\n`);
+          return undefined;
+        }
+        if (key === 'unit') base[ext] = b;
+        else base[ext].plain = b;
       }
-      base[ext] = { small: r.small, large: r.large, growth: r.large / Math.max(r.small, 0.01) };
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -235,24 +238,26 @@ async function measure(engine, base, { rule, fixture }) {
   const l = LANGS[ext];
   const head = readFileSync(fixture, 'utf8');
   const dir = mkdtempSync(join(tmpdir(), 'lexcode-cost-'));
-  const ratios = (t) => ({
-    growth: t.large / Math.max(t.small, 0.01) / base[ext].growth,
-    weight: t.large / base[ext].large,
-  });
+  const ratios = (t, b) => ({ growth: t.large / Math.max(t.small, 0.01) / b.growth, weight: t.large / b.large });
+  const within = (q) => q.growth <= GROWTH_MAX && q.weight <= WEIGHT_MAX;
   try {
-    const text = { small: fill(head, l.unit, SMALL_KB), large: fill(head, l.unit, LARGE_KB) };
-    const r = await timePair(engine, rule, dir, ext, text, (t) => {
-      if (t.small === undefined || t.large === undefined) return false;
-      // a hit run is the same on every attempt under the same names (probed), so go on to the next names
-      if (scannerHit(ext, t.small, t.large)) return true;
-      const q = ratios(t);
-      return q.growth <= GROWTH_MAX && q.weight <= WEIGHT_MAX;
-    });
+    // A Swift rule over a bound on the first round goes straight to the plain filler, which decides: more rounds
+    // of a 56 s parse would not change that.
+    const r = await timePair(engine, rule, dir, ext, { small: fill(head, l.unit, SMALL_KB), large: fill(head, l.unit, LARGE_KB) }, (t) =>
+      l.plain !== undefined || within(ratios(t, base[ext])),
+    );
     if (r.error) return { rule, failed: r.error };
     if (r.notRun) return { rule, notRun: true };
-    if (r.scannerBug) return { rule, scannerBug: true, small: r.small, hitLarge: r.large };
-    const q = ratios(r);
-    return { rule, small: r.small, large: r.large, ...q, over: q.growth > GROWTH_MAX || q.weight > WEIGHT_MAX };
+    const q = ratios(r, base[ext]);
+    if (within(q) || l.plain === undefined) return { rule, small: r.small, large: r.large, ...q, over: !within(q) };
+    // over on the first filler: the plain filler decides (see BARE_HIT)
+    const p = await timePair(engine, rule, dir, ext, { small: fill(head, l.plain, SMALL_KB), large: fill(head, l.plain, LARGE_KB) }, (t) =>
+      within(ratios(t, base[ext].plain)),
+    );
+    if (p.error) return { rule, failed: `${p.error} (plain filler)` };
+    if (p.notRun) return { rule, small: r.small, large: r.large, ...q, over: true };
+    const pq = ratios(p, base[ext].plain);
+    return { rule, small: p.small, large: p.large, ...pq, over: !within(pq), first: { small: r.small, large: r.large } };
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -281,28 +286,26 @@ const todo = rulesWithFixtures(RULES).filter((r) => !only || only.test(relative(
 const base = await baselines(engine, [...new Set(todo.map((r) => extname(r.fixture)))]);
 if (!base) process.exit(2);
 process.stderr.write(
-  `bare rule, ${SMALL_KB} KB -> ${LARGE_KB} KB: ${Object.entries(base).map(([e, b]) => `${e} ${b.small.toFixed(2)} -> ${b.large.toFixed(2)} s (${b.growth.toFixed(1)}x)`).join(', ')}\n`,
+  `bare rule, ${SMALL_KB} KB -> ${LARGE_KB} KB: ${Object.entries(base)
+    .flatMap(([e, b]) => [[e, b], ...(b.plain ? [[`${e} plain`, b.plain]] : [])])
+    .map(([e, b]) => `${e} ${b.small.toFixed(2)} -> ${b.large.toFixed(2)} s (${b.growth.toFixed(1)}x)`)
+    .join(', ')}\n`,
 );
 const results = await pool(todo, jobs, (r) => measure(engine, base, r));
 const timed = results.filter((r) => r.large !== undefined).sort((a, b) => b.weight - a.weight);
 const fmt = (n, d = 2) => n.toFixed(d).padStart(7);
 process.stdout.write(`${'rule'.padEnd(64)} ${'90 KB'.padStart(7)} ${'900 KB'.padStart(7)} ${'growth'.padStart(7)} ${'weight'.padStart(7)}\n`);
 for (const r of timed) {
-  process.stdout.write(`${relative(RULES, r.rule).padEnd(64)} ${fmt(r.small)} ${fmt(r.large)} ${fmt(r.growth, 1)}x ${fmt(r.weight, 1)}x${r.over ? '  OVER' : ''}\n`);
+  const second = r.first ? `  plain filler (first filler ${r.first.small.toFixed(2)} -> ${r.first.large.toFixed(2)} s)` : '';
+  process.stdout.write(`${relative(RULES, r.rule).padEnd(64)} ${fmt(r.small)} ${fmt(r.large)} ${fmt(r.growth, 1)}x ${fmt(r.weight, 1)}x${r.over ? '  OVER' : ''}${second}\n`);
 }
 const notRun = results.filter((r) => r.notRun);
 if (notRun.length) process.stdout.write(`not run (the rule's paths keep the engine off the file): ${notRun.map((r) => relative(RULES, r.rule)).join(', ')}\n`);
-const hit = results.filter((r) => r.scannerBug);
-for (const r of hit) {
-  process.stdout.write(
-    `engine scanner bug, not measured: ${relative(RULES, r.rule)} (hit in all ${RUN_NAMES.length} runs; last ${r.small.toFixed(2)} -> ${r.hitLarge.toFixed(2)} s)\n`,
-  );
-}
 const failed = results.filter((r) => r.failed);
 for (const r of failed) process.stdout.write(`FAILED ${relative(RULES, r.rule)}: ${r.failed}\n`);
 const over = timed.filter((r) => r.over);
 process.stdout.write(
   `${timed.length} rules timed; ${over.length} over a bound (growth over ${GROWTH_MAX}x the bare parse's, or weight over ${WEIGHT_MAX}x it); ` +
-    `${failed.length} failed; ${hit.length} not measured (the engine's Swift scanner bug)\n`,
+    `${failed.length} failed; ${timed.filter((r) => r.first).length} measured again on the plain Swift filler (${timed.filter((r) => r.first && !r.over).length} within bounds there)\n`,
 );
 process.exit(over.length || failed.length ? 1 : 0);
