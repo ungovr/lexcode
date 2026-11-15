@@ -1,0 +1,44 @@
+# Speech to text through a vendor's API: Amazon Transcribe (batch, medical, scribe, call analytics and
+# streaming, the AWS SDK for Rust's builders started from the client, so each is matched by its
+# zero-argument start), OpenAI audio transcription and translation through async-openai
+# (`client.audio().transcribe(..)` and its variants, and the newer `client.audio().transcription()`
+# group) and openai-api-rs (`audio_transcription`), Deepgram's `transcription()` client, and a
+# speech-to-text endpoint written in a string (AssemblyAI, Deepgram, Rev.ai, Speechmatics, Gladia,
+# ElevenLabs, Google, Azure, and any OpenAI-compatible `/v1/audio/transcriptions` server). The string
+# check reads the source text, so an address built in `format!` is found too.
+#
+# Text to speech is left out: `client.audio().speech(..)`, Polly's `synthesize_speech()` and a TTS
+# endpoint read typed text aloud and process no one's voice.
+rules:
+  - id: lexcode.voice.rs-transcription-sdk
+    languages: [rust]
+    severity: INFO
+    message: Sends recorded speech to a speech-to-text service from Rust, which is transcribing human voices (processes_voice).
+    pattern-either:
+      - pattern: $C.start_transcription_job()
+      - pattern: $C.start_medical_transcription_job()
+      - pattern: $C.start_medical_scribe_job()
+      - pattern: $C.start_call_analytics_job()
+      - pattern: $C.start_stream_transcription()
+      - pattern: $C.start_medical_stream_transcription()
+      - pattern: $C.start_call_analytics_stream_transcription()
+      - patterns:
+          - pattern: $C.audio().$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(transcribe|transcription|translate|translation)(_\w+)?$
+      - pattern: $C.audio_transcription(...)
+      - pattern: $C.audio_translation(...)
+      - patterns:
+          - pattern: $C.transcription().$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(prerecorded|prerecorded_callback|stream_request|stream_request_with_options|make_prerecorded_request_builder|make_prerecorded_callback_request_builder)$
+      - pattern-regex: |-
+          "[^"\n]*(\bapi\.assemblyai\.com/v2/(transcript|upload|realtime)|\bapi\.deepgram\.com/v1/listen|\bapi\.rev\.ai/speechtotext/|\basr\.api\.speechmatics\.com/v2/jobs|\bapi\.gladia\.io/v2/(pre-recorded|live|transcription)|\bapi\.elevenlabs\.io/v1/speech-to-text|\bspeech\.googleapis\.com/v[0-9a-z]+/(speech:|projects/)|\bstt\.speech\.microsoft\.com/speech/recognition|/speechtotext/(v3\.\d+/)?transcriptions|/v1/audio/(transcriptions|translations)\b)
+    metadata:
+      activity: processes_voice
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-voice
+      provenance: ungovr-original
+      license: MIT

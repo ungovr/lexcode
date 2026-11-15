@@ -1,0 +1,68 @@
+# A speech recognizer run inside the app: whisper-rs (whisper.cpp) loading a model, a Vosk
+# recognizer, Candle's Whisper (its log-mel front end and the model), rwhisper (Kalosm), and
+# sherpa-rs's recognizers and speaker diarization. Each is written by its crate path, which the engine
+# resolves through a plain `use`, a single-level grouped `use` and `use <crate> as <alias>`; an app's
+# own `WhisperContext` or `Recognizer` in a file without the crate is not taken for it. A `use` whose
+# group nests a path (`use sherpa_rs::{whisper::WhisperRecognizer, ..}`) is not resolved on
+# Opengrep 1.33.1; where a crate's own examples import that way (sherpa-rs) or through a re-export
+# (Kalosm), the short form is matched too, in a file whose `use` names the crate.
+#
+# Vosk's speaker model and sherpa-rs's speaker embeddings are voiceprints and are matched by
+# rs-voiceprint under processes_biometrics; a Vosk recognizer built with a speaker model is a speech
+# recognizer too, so it is here as well. Speech synthesis (Piper, sherpa-rs TTS) is left out.
+rules:
+  - id: lexcode.voice.rs-local-speech-engines
+    languages: [rust]
+    severity: INFO
+    message: Runs a speech recognizer inside the app (whisper-rs, Vosk, Candle's Whisper, rwhisper or sherpa-rs), which is transcribing human voices (processes_voice).
+    pattern-either:
+      # whisper-rs
+      - pattern: whisper_rs::WhisperContext::new_with_params(...)
+      - pattern: whisper_rs::WhisperContext::new(...)
+      - pattern: whisper_rs::WhisperContext::new_from_buffer_with_params(...)
+      - pattern: whisper_rs::WhisperContext::new_from_buffer(...)
+      # Vosk
+      - pattern: vosk::Recognizer::new(...)
+      - pattern: vosk::Recognizer::new_with_grammar(...)
+      - pattern: vosk::Recognizer::new_with_speaker(...)
+      # Candle's Whisper: audio turned into the model's input, and the model loaded
+      - pattern: candle_transformers::models::whisper::audio::pcm_to_mel(...)
+      - pattern: candle_transformers::models::whisper::model::Whisper::load(...)
+      - pattern: candle_transformers::models::whisper::quantized_model::Whisper::load(...)
+      # rwhisper, also re-exported by Kalosm as `kalosm::sound::Whisper`, whose examples import it
+      # with a glob (`use kalosm::sound::*;`): the short form counts in a file with a `use` of either.
+      - pattern: rwhisper::Whisper::new(...)
+      - pattern: rwhisper::Whisper::builder()
+      - pattern: rwhisper::WhisperBuilder::default()
+      - patterns:
+          - pattern-either:
+              - pattern: Whisper::new(...)
+              - pattern: Whisper::builder()
+              - pattern: WhisperBuilder::default()
+          - pattern-either:
+              - pattern-regex: (?sm)\A(?=.*^[ \t]*(?:pub\s+)?use\s+rwhisper\b).*
+              - pattern-regex: (?sm)\A(?=.*^[ \t]*(?:pub\s+)?use\s+kalosm\b).*
+      # sherpa-rs: offline recognizers and diarization. Its examples import the recognizers through a
+      # nested group (`use sherpa_rs::{read_audio_file, whisper::{WhisperConfig, WhisperRecognizer}};`),
+      # which the engine does not resolve, so the short form counts in a file with a `use sherpa_rs`.
+      - pattern: sherpa_rs::whisper::WhisperRecognizer::new(...)
+      - pattern: sherpa_rs::moonshine::MoonshineRecognizer::new(...)
+      - pattern: sherpa_rs::paraformer::ParaformerRecognizer::new(...)
+      - pattern: sherpa_rs::sense_voice::SenseVoiceRecognizer::new(...)
+      - pattern: sherpa_rs::zipformer::ZipFormer::new(...)
+      - pattern: sherpa_rs::diarize::Diarize::new(...)
+      - patterns:
+          - pattern-either:
+              - pattern: WhisperRecognizer::new(...)
+              - pattern: MoonshineRecognizer::new(...)
+              - pattern: ParaformerRecognizer::new(...)
+              - pattern: SenseVoiceRecognizer::new(...)
+              - pattern: ZipFormer::new(...)
+              - pattern: Diarize::new(...)
+          - pattern-regex: (?sm)\A(?=.*^[ \t]*(?:pub\s+)?use\s+sherpa_rs\b).*
+    metadata:
+      activity: processes_voice
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-voice
+      provenance: ungovr-original
+      license: MIT
