@@ -3,8 +3,9 @@ rules:
     languages: [java]
     severity: INFO
     message: Encrypts data or agrees keys with a cryptography library the product bundles (Bouncy Castle, Tink, libsodium, Jasypt, Spring Security Crypto, JOSE encryption, the Signal protocol or the AWS Encryption SDK), which is shipping encryption (ships_encryption).
-    # The platform's own cryptography (javax.crypto Cipher and KeyAgreement, SecretKeyFactory,
-    # MessageDigest, Mac, TLS) is not evidence; a cipher built through a bundled provider is.
+    # A cipher built through the Bouncy Castle provider is read here; one through the JDK's own
+    # provider is java-platform-encryption's, so no call is counted twice. Hashing, MACs, signing and
+    # key derivation in these libraries are not read.
     pattern-either:
       # Bouncy Castle lightweight API, OpenPGP and CMS
       - pattern: new GCMBlockCipher(...)

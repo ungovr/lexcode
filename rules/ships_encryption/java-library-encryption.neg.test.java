@@ -1,10 +1,9 @@
 // lexcode-expect: 0
-// Cryptography that is the platform's own, and cryptography-library code that is not encrypting
-// or agreeing keys. The platform's cryptography APIs are not evidence: javax.crypto's Cipher
-// (plain, and through the JDK's own provider), KeyAgreement and the PBKDF2 SecretKeyFactory,
-// the digests, HMACs, signatures and stock TLS beside them. Library code that does something
-// else is excluded too: Bouncy Castle digests, signers and certificate parsing, Tink's MAC and
-// signature primitives, Nimbus JOSE signing (a JWS, not a JWE) and JJWT signing. Last, project
+// Cryptography that is not encrypting or agreeing keys, from the platform and from libraries: the
+// PBKDF2 SecretKeyFactory, the digests, HMACs, signatures and stock TLS of the JDK, Bouncy Castle
+// digests, signers and certificate parsing, Tink's MAC and signature primitives, Nimbus JOSE
+// signing (a JWS, not a JWE) and JJWT signing. (A javax.crypto Cipher or KeyAgreement through the
+// JDK's own provider is shipping encryption too; java-platform-encryption reads it.) Last, project
 // classes that share a library's method names, with no import of the library: a Vault with an
 // encryptWith method, a Utils with getCipherInstance, a Box, the six Nimbus encrypter names and a
 // CryptoOutputStream. JJWT and Tink are used by their
@@ -33,8 +32,6 @@ import java.security.KeyStore;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.security.Signature;
-import javax.crypto.Cipher;
-import javax.crypto.KeyAgreement;
 import javax.crypto.SecretKey;
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
@@ -53,23 +50,6 @@ public class PlatformCrypto {
 
   public PlatformCrypto(KeysetHandle keyset) {
     this.keyset = keyset;
-  }
-
-  public byte[] platformCipher(SecretKey key, byte[] iv, byte[] plain) throws Exception {
-    Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
-    cipher.init(Cipher.ENCRYPT_MODE, key);
-    return cipher.doFinal(plain);
-  }
-
-  public Cipher platformCipherFromTheJdkProvider() throws Exception {
-    return Cipher.getInstance("AES/CBC/PKCS5Padding", "SunJCE");
-  }
-
-  public byte[] platformAgreement(java.security.PrivateKey mine, java.security.PublicKey theirs) throws Exception {
-    KeyAgreement agreement = KeyAgreement.getInstance("ECDH");
-    agreement.init(mine);
-    agreement.doPhase(theirs, true);
-    return agreement.generateSecret();
   }
 
   public byte[] platformPbkdf2(char[] password, byte[] salt) throws Exception {

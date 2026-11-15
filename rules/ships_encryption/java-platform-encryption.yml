@@ -1,0 +1,43 @@
+rules:
+  - id: lexcode.crypto.java-platform-encryption
+    languages: [java]
+    severity: INFO
+    message: Encrypts data or agrees keys with the JDK's own cryptography (a javax.crypto Cipher or KeyAgreement), which is shipping encryption (ships_encryption).
+    # A cipher or a key agreement keeps data confidential whoever wrote the code that runs it, so the
+    # JDK's own provider counts as a bundled library does. A cipher built through the Bouncy Castle
+    # provider (`Cipher.getInstance(t, "BC")`) is java-library-encryption's and is not read here, so
+    # the two rules never count one call twice. Hashing (MessageDigest), a MAC (Mac), password
+    # hashing and key derivation (SecretKeyFactory, Spring's password encoders), signing
+    # (Signature), random bytes (SecureRandom) and HTTPS through a stock client are not read. Cipher
+    # and KeyAgreement are names an app could give its own class, so each call needs its import.
+    patterns:
+      - pattern-either:
+          - patterns:
+              - pattern: Cipher.getInstance(...)
+              - pattern-either:
+                  - pattern-inside: |
+                      import javax.crypto.Cipher;
+                      ...
+                  - pattern-inside: |
+                      import javax.crypto.*;
+                      ...
+          - patterns:
+              - pattern: KeyAgreement.getInstance(...)
+              - pattern-either:
+                  - pattern-inside: |
+                      import javax.crypto.KeyAgreement;
+                      ...
+                  - pattern-inside: |
+                      import javax.crypto.*;
+                      ...
+          - pattern: javax.crypto.Cipher.getInstance(...)
+          - pattern: javax.crypto.KeyAgreement.getInstance(...)
+      - pattern-not: Cipher.getInstance($A, "BC")
+      - pattern-not: Cipher.getInstance($A, BouncyCastleProvider.PROVIDER_NAME)
+      - pattern-not: javax.crypto.Cipher.getInstance($A, "BC")
+    metadata:
+      activity: ships_encryption
+      mentioned: performs
+      definition: https://lexlint.io/glossary#ships-encryption
+      provenance: ungovr-original
+      license: MIT
