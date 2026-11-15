@@ -1,0 +1,119 @@
+rules:
+  - id: lexcode.crawl.swift-html-of-fetched-page
+    languages: [swift]
+    severity: INFO
+    message: Downloads a web page and reads its HTML with an HTML parser (SwiftSoup, Kanna, Fuzi), which is scraping a site the operator may not run (crawls_web).
+    # Taint does not reach through Swift's optional binding (`guard let html = String(data: data,
+    # ...)`, `guard let data = data`, `if let`) on Opengrep 1.33.1, and that is how a downloaded
+    # page is usually turned into text. So the rule reads one function at a time: an HTML parser
+    # call in a function (or initializer) whose body also downloads a page. A page parsed apart
+    # from where it was downloaded (one function fetches, another parses) is not seen
+    # (rules/README.md), and neither is top-level code outside any function.
+    #
+    # The parsers are written module-qualified. The engine resolves `import Kanna` and `import
+    # Fuzi` for them, so an app's own `HTML(html:)` function or `HTMLDocument` type in a file that
+    # does not import the library is not taken for it. `SwiftSoup.parse` is SwiftSoup's own
+    # module-level function, and the engine also reads a bare `parse(html)` under `import
+    # SwiftSoup` as it; an app function named `parse` in a file that imports SwiftSoup would be
+    # read as SwiftSoup's too. HTML the app holds itself (a bundled page, a string it built) is not
+    # matched, because no download sits beside it.
+    patterns:
+      - pattern-either:
+          # Kanna downloads the page itself when given an address.
+          - patterns:
+              - pattern: 'Kanna.HTML(url: $URL, ...)'
+              - metavariable-regex:
+                  metavariable: $URL
+                  regex: '(?s)^(?!.*(?:(?<![A-Za-z])[fF]ile|File|(?<![A-Za-z])[pP]ath|Path|[bB]undle|(?<![A-Za-z])[lL]ocal|Local|[dD]ocument|[dD]irectory|(?<![A-Za-z])[cC]ache|Cache|[rR]esource|(?<![A-Za-z])tmp|[tT]emp(?:orary)?(?![a-z]))).*$'
+              - metavariable-regex:
+                  metavariable: $URL
+                  regex: '(?s)^(?!(?:UR[LI]\(string:\s*)?#*"(?:https?://(?:localhost|127\.|0\.0\.0\.0|\[::1\])|file:|/(?!/))).*$'
+          # A parser call in a function whose body also downloads a page: URLSession (async, or a
+          # data task), the Foundation readers given an address that is not named for a file on
+          # the device, AsyncHTTPClient's client named for one, and Vapor's client, all named by
+          # their methods and labels (URLSession and Data come through umbrella imports the engine
+          # does not follow); then AsyncHTTPClient's request and Alamofire's `AF`, each in its own
+          # branch under its import, because a body is read apart from the file's imports. A
+          # loopback host, a file address or a path relative to the app is not another site.
+          - patterns:
+              - pattern-inside: |
+                  func $F(...) { $...BODY }
+              - pattern-either:
+                  - pattern: SwiftSoup.parse(...)
+                  - pattern: 'Kanna.HTML(html: $SRC, ...)'
+                  - pattern: 'Fuzi.HTMLDocument(string: $SRC, ...)'
+                  - pattern: 'Fuzi.HTMLDocument(data: $SRC, ...)'
+              - metavariable-pattern:
+                  metavariable: $...BODY
+                  patterns:
+                    - pattern-either:
+                        - pattern: '$S.data(from: $URL, ...)'
+                        - pattern: '$S.bytes(from: $URL, ...)'
+                        - pattern: '$S.data(for: $URL, ...)'
+                        - pattern: '$S.bytes(for: $URL, ...)'
+                        - pattern: '$S.dataTask(with: $URL, ...)'
+                        - patterns:
+                            - pattern: 'String(contentsOf: $URL, ...)'
+                            - metavariable-regex:
+                                metavariable: $URL
+                                regex: '(?s)^(?!.*(?:(?<![A-Za-z])[fF]ile|File|(?<![A-Za-z])[pP]ath|Path|[bB]undle|(?<![A-Za-z])[lL]ocal|Local|[dD]ocument|[dD]irectory|(?<![A-Za-z])[cC]ache|Cache|[rR]esource|(?<![A-Za-z])tmp|[tT]emp(?:orary)?(?![a-z]))).*$'
+                        - patterns:
+                            - pattern: 'Data(contentsOf: $URL, ...)'
+                            - metavariable-regex:
+                                metavariable: $URL
+                                regex: '(?s)^(?!.*(?:(?<![A-Za-z])[fF]ile|File|(?<![A-Za-z])[pP]ath|Path|[bB]undle|(?<![A-Za-z])[lL]ocal|Local|[dD]ocument|[dD]irectory|(?<![A-Za-z])[cC]ache|Cache|[rR]esource|(?<![A-Za-z])tmp|[tT]emp(?:orary)?(?![a-z]))).*$'
+                        - patterns:
+                            - pattern: '$C.get(url: $URL, ...)'
+                            - metavariable-regex:
+                                metavariable: $C
+                                regex: '^(?:self\.)?(?![\w.]*(?:(?<![a-z])[dD]b|DB|[dD]atabase|[sS]ql|SQL|[pP]ool|[rR]edis|[cC]ache|[qQ]ueue|[sS]tore|[sS]torage|[kK]eychain))[\w.]*(?:[hH]ttp|HTTP|[cC]lient)[\w.]*$'
+                        - pattern: '$R.client.get($URL, ...)'
+                    - metavariable-regex:
+                        metavariable: $URL
+                        regex: '(?s)^(?!(?:UR[LI]\(string:\s*)?#*"(?:https?://(?:localhost|127\.|0\.0\.0\.0|\[::1\])|file:|/(?!/))).*$'
+          - patterns:
+              - pattern-inside: |
+                  func $F(...) { $...BODY }
+              - pattern-inside: |
+                  import AsyncHTTPClient
+                  ...
+              - pattern-either:
+                  - pattern: SwiftSoup.parse(...)
+                  - pattern: 'Kanna.HTML(html: $SRC, ...)'
+                  - pattern: 'Fuzi.HTMLDocument(string: $SRC, ...)'
+                  - pattern: 'Fuzi.HTMLDocument(data: $SRC, ...)'
+              - metavariable-pattern:
+                  metavariable: $...BODY
+                  patterns:
+                    - pattern-either:
+                        - pattern: 'HTTPClientRequest(url: $URL)'
+                    - metavariable-regex:
+                        metavariable: $URL
+                        regex: '(?s)^(?!(?:UR[LI]\(string:\s*)?#*"(?:https?://(?:localhost|127\.|0\.0\.0\.0|\[::1\])|file:|/(?!/))).*$'
+          - patterns:
+              - pattern-inside: |
+                  func $F(...) { $...BODY }
+              - pattern-inside: |
+                  import Alamofire
+                  ...
+              - pattern-either:
+                  - pattern: SwiftSoup.parse(...)
+                  - pattern: 'Kanna.HTML(html: $SRC, ...)'
+                  - pattern: 'Fuzi.HTMLDocument(string: $SRC, ...)'
+                  - pattern: 'Fuzi.HTMLDocument(data: $SRC, ...)'
+              - metavariable-pattern:
+                  metavariable: $...BODY
+                  patterns:
+                    - pattern-either:
+                        - pattern: 'AF.request($URL, ...)'
+                        - pattern: 'AF.download($URL, ...)'
+                    - metavariable-regex:
+                        metavariable: $URL
+                        regex: '(?s)^(?!(?:UR[LI]\(string:\s*)?#*"(?:https?://(?:localhost|127\.|0\.0\.0\.0|\[::1\])|file:|/(?!/))).*$'
+    metadata:
+      activity: crawls_web
+      mentioned: performs
+      definition: https://lexlint.io/activities/crawls-web
+      provenance: ungovr-original
+      license: MIT
+      host_metavar: $URL

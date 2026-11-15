@@ -1,0 +1,50 @@
+rules:
+  - id: lexcode.crawl.swift-webview-scrape
+    languages: [swift]
+    severity: INFO
+    message: Loads a web page into a WKWebView and pulls the whole page's markup, text or links out of it with JavaScript, which is scraping the page by automated means (crawls_web).
+    # WebKit comes only with its own import, and a web view is reached through properties and
+    # delegate parameters the engine cannot type, so the file's `import WebKit` stands in for the
+    # type. The script must read the whole document (its HTML, its text, or its list of links);
+    # reading a title, a scroll height or one element the app's own page script exposes is not
+    # matched. The extraction runs on its own: in a navigation delegate callback that receives the
+    # finished navigation (the engine compares the function name and the parameter types, not the
+    # argument labels, so `didCommit` reads as `didFinish` does), in a file that loads a request
+    # into a web view; or in the same function, after the request is loaded. A web view that only
+    # shows the app's own HTML (`loadHTMLString`, `loadFileURL`) loads no request. A script held in
+    # a variable is not read (rules/README.md).
+    patterns:
+      - pattern-inside: |
+          import WebKit
+          ...
+      # The file loads a request into a web view (`load(URLRequest(...))`, or a request held in a
+      # variable). Read as a whole-file check, because the delegate callback and the load sit in
+      # different functions.
+      - pattern-regex: '(?s)\A(?=.*\.load\(\s*(?:URLRequest\(|request\b|req\b|\w+Request\b)).*'
+      - pattern-either:
+          - pattern: $V.evaluateJavaScript($JS, ...)
+          - pattern: $V.callAsyncJavaScript($JS, ...)
+      - metavariable-regex:
+          metavariable: $JS
+          regex: '(?s)^#*"(?:"")?.*(?:document\.(?:documentElement|body|all\[0\])\.(?:outerHTML|innerHTML|innerText|textContent)|XMLSerializer\(\)\.serializeToString\(\s*document|document\.getElementsByTagName\(\s*\\?[''"]html\\?[''"]\s*\)\[0\]\.(?:outer|inner)HTML|document\.links|document\.querySelectorAll\(\s*\\?[''"]a(?:\[href\])?\\?[''"]\s*\)).*$'
+      - pattern-either:
+          - patterns:
+              - pattern-inside: |
+                  func webView(_ $W: $T, didFinish $N: $NT) { ... }
+              - metavariable-regex:
+                  metavariable: $NT
+                  regex: '^WKNavigation!?$'
+          - patterns:
+              - pattern-inside: |
+                  $W.load($REQ)
+                  ...
+              # Not the app's own server: a loopback host or a file address.
+              - metavariable-regex:
+                  metavariable: $REQ
+                  regex: '(?s)^(?!.*"(?:https?://(?:localhost|127\.|0\.0\.0\.0|\[::1\])|file:)).*$'
+    metadata:
+      activity: crawls_web
+      mentioned: performs
+      definition: https://lexlint.io/activities/crawls-web
+      provenance: ungovr-original
+      license: MIT
