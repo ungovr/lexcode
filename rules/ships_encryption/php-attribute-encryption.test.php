@@ -1,8 +1,9 @@
 <?php
-// lexcode-expect: 7
+// lexcode-expect: 8
 // Eloquent models whose columns Laravel encrypts on save: the encrypted casts in a $casts
 // property and in a casts() method, and the encrypted collection and array-object cast classes,
-// imported, aliased and fully qualified.
+// imported, aliased and fully qualified. Every column holds ordinary data; shipping_address only
+// holds the letters of a short access-control word inside another word.
 
 namespace App\Models;
 
@@ -25,11 +26,12 @@ class Integration extends Model
     protected function casts(): array
     {
         return [
-            'api_token' => 'encrypted',
+            'iban' => 'encrypted',
             'options' => EncryptedObject::class,
             'webhooks' => \Illuminate\Database\Eloquent\Casts\AsEncryptedCollection::of(Webhook::class),
             'enabled' => 'boolean',
-            'secrets' => "encrypted:collection",
+            'addresses' => "encrypted:collection",
+            'shipping_address' => 'encrypted',
         ];
     }
 }
