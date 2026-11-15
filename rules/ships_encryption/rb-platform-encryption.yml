@@ -1,0 +1,37 @@
+rules:
+  - id: lexcode.crypto.rb-platform-encryption
+    languages: [ruby]
+    severity: INFO
+    message: Encrypts data or agrees keys with Ruby's own OpenSSL bindings (an OpenSSL::Cipher, RSA encryption or a Diffie-Hellman key agreement), which is shipping encryption (ships_encryption).
+    # A cipher, RSA encryption or a key agreement keeps data confidential whoever wrote the code that
+    # runs it, so the standard library's OpenSSL counts as a bundled gem does. A named cipher class is
+    # one of OpenSSL::Cipher's own (AES, AES128, AES192, AES256, BF, CAST5, DES, IDEA, RC2, RC4, RC5),
+    # so OpenSSL::Cipher::CipherError is not read. public_encrypt, private_decrypt and dh_compute_key
+    # are read on any receiver in a file that names OpenSSL, since an app's own object may answer to
+    # those names. Hashing (Digest, OpenSSL::Digest), a MAC (OpenSSL::HMAC), password hashing and key
+    # derivation (BCrypt, OpenSSL::KDF, OpenSSL::PKCS5), signing (a key's sign, JWT,
+    # MessageVerifier), random bytes (SecureRandom) and HTTPS through Net::HTTP or an SSLContext are
+    # not read.
+    pattern-either:
+      - pattern: OpenSSL::Cipher.new(...)
+      - pattern: ::OpenSSL::Cipher.new(...)
+      - patterns:
+          - pattern-either:
+              - pattern: OpenSSL::Cipher::$C.new(...)
+              - pattern: ::OpenSSL::Cipher::$C.new(...)
+          - metavariable-regex:
+              metavariable: $C
+              regex: ^(?:AES|AES128|AES192|AES256|BF|CAST5|DES|IDEA|RC2|RC4|RC5)$
+      - patterns:
+          # A whole-file guard: the file names OpenSSL (a `require "openssl"` or the key's class)
+          - pattern-regex: '(?s)\A(?=.*OpenSSL).*'
+          - pattern-either:
+              - pattern: $K.public_encrypt(...)
+              - pattern: $K.private_decrypt(...)
+              - pattern: $K.dh_compute_key(...)
+    metadata:
+      activity: ships_encryption
+      mentioned: performs
+      definition: https://lexlint.io/glossary#ships-encryption
+      provenance: ungovr-original
+      license: MIT

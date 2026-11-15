@@ -1,9 +1,8 @@
 # lexcode-expect: 0
 # Hashing, signing, password hashing, random bytes and stock TLS are not
-# shipping encryption; neither is the platform's own cryptography (Ruby's
-# standard-library OpenSSL bindings, the same bar as Go's crypto/aes and Node's
-# crypto module in the neighboring negative fixtures) or an app's own
-# class that happens to use the same method names.
+# shipping encryption, and neither is an app's own class that happens to use
+# the same method names. (A cipher from Ruby's own OpenSSL bindings is
+# shipping encryption too; rb-platform-encryption reads it.)
 require "digest"
 require "net/http"
 require "openssl"
@@ -79,41 +78,6 @@ class Fetcher
   end
 end
 
-# The standard library's OpenSSL bindings are the platform's own cryptography.
-class PlatformCrypto
-  def seal(plain, key)
-    cipher = OpenSSL::Cipher.new("aes-256-gcm")
-    cipher.encrypt
-    cipher.key = key
-    iv = cipher.random_iv
-    [iv, cipher.update(plain) + cipher.final, cipher.auth_tag]
-  end
-
-  def open_cbc(data, key, iv)
-    cipher = ::OpenSSL::Cipher.new("aes-256-cbc").decrypt
-    cipher.key = key
-    cipher.iv = iv
-    cipher.update(data) + cipher.final
-  end
-
-  def named_classes
-    [OpenSSL::Cipher::AES.new(256, :CBC), OpenSSL::Cipher::AES256.new(:CBC)]
-  end
-
-  def rsa(public_key, private_key, secret)
-    sealed = public_key.public_encrypt(secret, OpenSSL::PKey::RSA::PKCS1_OAEP_PADDING)
-    private_key.private_decrypt(sealed, OpenSSL::PKey::RSA::PKCS1_OAEP_PADDING)
-  end
-
-  def smime(certs, data)
-    OpenSSL::PKCS7.encrypt(certs, data, OpenSSL::Cipher.new("aes-256-cbc"))
-  end
-
-  def protect_pem(key, passphrase)
-    key.to_pem(OpenSSL::Cipher.new("aes-256-cbc"), passphrase)
-  end
-end
-
 # Cipher errors are exceptions, not ciphers.
 class Failures
   def boom
@@ -139,5 +103,4 @@ class Vault
 end
 
 store = Vault.new
-store.public_encrypt("x")
 puts store.encrypt("x")
