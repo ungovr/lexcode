@@ -2,7 +2,7 @@ rules:
   - id: lexcode.personal.rs-client-ip-captured
     languages: [rust]
     severity: INFO
-    message: Writes the visitor's IP address into a log line or a database row, which is processing personal data (processes_personal_data).
+    message: Writes the visitor's IP address into a log line or a database row (an INSERT or UPDATE), which is processing personal data (processes_personal_data).
     mode: taint
     pattern-sources:
       - pattern-either:
@@ -65,6 +65,24 @@ rules:
     options:
       taint_assume_safe_comparisons: true
       taint_assume_safe_booleans: true
+    # The address is not what is kept when it only feeds a membership test or a check whose
+    # answer is logged (an allow list, a loopback or private-range test, a prefix test, a ban-list
+    # check). The engine cannot type a Rust method call, so taint_assume_safe_booleans does not
+    # see these: they are named.
+    pattern-sanitizers:
+      - pattern: $X.contains(...)
+      - pattern: $X.starts_with(...)
+      - pattern: $X.ends_with(...)
+      - patterns:
+          - pattern-either:
+              - pattern: $F(...)
+              - pattern: $C.$F(...)
+          # A Result or Option test at the end of a chain is not a check on the address: the
+          # sanitizer covers the whole chain, so `query("INSERT ...").bind(ip).execute(db).await.is_ok()`
+          # would hide its own write.
+          - metavariable-regex:
+              metavariable: $F
+              regex: ^(.*::)?(?!is_(ok|err|some|none)$)(is|has|can|check|verify|validate|allow|allows|matches)(_\w+)?$
     pattern-sinks:
       - pattern-either:
           # A log line. The engine reads a plain identifier argument of a logging macro; a
@@ -86,15 +104,37 @@ rules:
           - pattern: info!(...)
           - pattern: warn!(...)
           - pattern: error!(...)
-          # A database row: sqlx's query macros and binds, Diesel's insert and update, SeaORM's
-          # active values.
-          - pattern: sqlx::query!(...)
-          - pattern: sqlx::query_as!(...)
-          - pattern: sqlx::query_scalar!(...)
-          # A bind is matched on any receiver: binds chain (`.bind(a).bind(ip)`), so a pattern
-          # rooted at sqlx::query(...) would reach only the first one. The taint source keeps it
-          # to a visitor's address.
-          - pattern: $Q.bind(...)
+          # A database row: a write only. A lookup of the address (a ban list, a count of recent
+          # attempts) is not keeping it, so an sqlx query macro is a sink only when its statement
+          # is an INSERT or UPDATE. The arguments are bound as one token run (`$...ARGS`), which
+          # also matches the trailing-comma form a `$SQL, ...` pattern misses; the statement may
+          # follow a type argument (query_as!) and a comment.
+          - patterns:
+              - pattern-either:
+                  - pattern: sqlx::query!($...ARGS)
+                  - pattern: sqlx::query_as!($...ARGS)
+                  - pattern: sqlx::query_scalar!($...ARGS)
+                  - pattern: sqlx::query_unchecked!($...ARGS)
+                  - pattern: sqlx::query_as_unchecked!($...ARGS)
+              - metavariable-regex:
+                  metavariable: $...ARGS
+                  regex: (?is)^(?:\s|//[^\n]*)*(?:[\w:]+\s*,(?:\s|//[^\n]*)*)?(?:r#*)?"\s*(?:insert|update)\b
+          # A bind on a query built from an INSERT or UPDATE statement. Binds chain
+          # (`.bind(a).bind(ip)`), so the bind is matched on any receiver and the receiver's
+          # chain is searched for the query and its statement.
+          - patterns:
+              - pattern: $Q.bind(...)
+              - metavariable-pattern:
+                  metavariable: $Q
+                  patterns:
+                    - pattern-either:
+                        - pattern: sqlx::query($SQL)
+                        - pattern: sqlx::query_as($SQL)
+                        - pattern: sqlx::query_scalar($SQL)
+                        - pattern: diesel::sql_query($SQL)
+                    - metavariable-regex:
+                        metavariable: $SQL
+                        regex: (?is)^(?:r#*)?"\s*(?:insert|update)\b
           - pattern: diesel::insert_into(...).values(...)
           - pattern: diesel::update(...).set(...)
           - pattern: sea_orm::ActiveValue::Set(...)

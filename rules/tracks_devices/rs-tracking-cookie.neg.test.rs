@@ -15,7 +15,11 @@ pub fn sign_in(session: Uuid) -> HttpResponse {
 pub fn withdraw() -> HttpResponse {
     let mut c = Cookie::new("_ga", "");
     c.make_removal();
-    HttpResponse::Ok().cookie(c).finish()
+    let mut fb = Cookie::new("_fbp", "".to_string());
+    fb.make_removal();
+    let mut v = Cookie::build("visitor_id", String::from("")).finish();
+    v.make_removal();
+    HttpResponse::Ok().cookie(c).cookie(fb).cookie(v).finish()
 }
 
 // Preferences and CSRF: no identifier of the device.

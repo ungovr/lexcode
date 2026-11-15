@@ -1,4 +1,4 @@
-// lexcode-expect: 7
+// lexcode-expect: 8
 use actix_web::{HttpRequest, HttpResponse};
 use axum::extract::{ConnectInfo, State};
 use axum::http::HeaderMap;
@@ -25,6 +25,12 @@ pub async fn hello(req: HttpRequest) -> HttpResponse {
     let addr = req.peer_addr();
     info!("hello from {:?}", addr);
     HttpResponse::Ok().finish()
+}
+
+// A write whose result is tested: the is_ok() is on the write, not a check on the address.
+pub async fn remember(req: HttpRequest, pool: PgPool) -> bool {
+    let ip = req.connection_info().realip_remote_addr().map(str::to_owned);
+    sqlx::query("INSERT INTO sightings (ip) VALUES ($1)").bind(ip).execute(&pool).await.is_ok()
 }
 
 // axum: a destructured ConnectInfo stored with each visit.

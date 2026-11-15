@@ -17,6 +17,34 @@ pub fn limit(req: &HttpRequest, hits: &Mutex<HashMap<String, u32>>) -> bool {
     *n > 100
 }
 
+// A ban-list lookup and a count of recent attempts: the address is matched, not kept.
+pub async fn banned(req: HttpRequest, pool: sqlx::PgPool) -> bool {
+    let ip = req.connection_info().realip_remote_addr().unwrap_or("").to_owned();
+    let hit = sqlx::query("SELECT 1 FROM banned_ips WHERE ip = $1")
+        .bind(ip.clone())
+        .fetch_optional(&pool)
+        .await
+        .ok()
+        .flatten()
+        .is_some();
+    let recent = sqlx::query!("SELECT count(*) AS n FROM login_attempts WHERE ip = $1", ip)
+        .fetch_one(&pool)
+        .await;
+    hit || recent.is_err()
+}
+
+// Checks on the address whose boolean answer is logged: a loopback test, an allow list, a prefix.
+pub async fn classify(req: HttpRequest, allowed: Vec<std::net::IpAddr>) {
+    let addr = req.peer_addr().unwrap();
+    let is_local = addr.ip().is_loopback();
+    info!("local request {}", is_local);
+    let ok = allowed.contains(&addr.ip());
+    tracing::debug!("allow-listed {}", ok);
+    let real = req.connection_info().realip_remote_addr().unwrap_or("").to_owned();
+    let internal = real.starts_with("10.");
+    info!("internal {}", internal);
+}
+
 // A log line without the address.
 pub async fn health(req: HttpRequest) -> HttpResponse {
     info!("health check on {}", req.path());

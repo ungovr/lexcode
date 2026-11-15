@@ -38,7 +38,7 @@ rules:
       # withdrawn on a consent change), not set.
       - metavariable-regex:
           metavariable: $V
-          regex: ^(?!(""|String::new\(\)|String::default\(\))$)
+          regex: ^(?!(""|""\.to_string\(\)|""\.to_owned\(\)|""\.into\(\)|String::from\(""\)|String::new\(\)|String::default\(\))$)
       - focus-metavariable: $N
     metadata:
       activity: tracks_devices
