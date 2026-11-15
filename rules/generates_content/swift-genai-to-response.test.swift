@@ -1,4 +1,4 @@
-// lexcode-expect: 6
+// lexcode-expect: 7
 // An iOS app that shows Gemini's answers, through Firebase AI Logic and Google's Generative AI SDK.
 import FirebaseAILogic
 import GoogleGenerativeAI
@@ -33,6 +33,13 @@ final class StoryModel: ObservableObject {
         let chat = model.startChat()
         let response = try await chat.sendMessage(line)
         story = response.text ?? ""
+    }
+
+    func writeLater(_ prompt: String) {
+        Task { [weak self] in
+            let response = try await self?.model.generateContent(prompt)
+            self?.story = response?.text ?? ""
+        }
     }
 
     func picture(_ prompt: String) async throws {

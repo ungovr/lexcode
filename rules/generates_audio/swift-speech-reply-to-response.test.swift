@@ -1,4 +1,4 @@
-// lexcode-expect: 5
+// lexcode-expect: 6
 // An app that speaks with OpenAI's text-to-speech models (MacPaw and SwiftOpenAI clients) and a Vapor
 // service that returns Amazon Polly speech.
 import AVFoundation
@@ -23,6 +23,14 @@ final class Narrator {
         let result = try await openAI.audioCreateSpeech(query: query)
         player = try AVAudioPlayer(data: result.audio, fileTypeHint: "mp3")
         player?.play()
+    }
+
+    func narrateWeakly(_ query: AudioSpeechQuery) {
+        openAI.audioCreateSpeech(query: query) { [weak self] result in
+            if case .success(let speech) = result {
+                self?.narrationData = speech.audio
+            }
+        }
     }
 
     func narrateLater(_ query: AudioSpeechQuery) {

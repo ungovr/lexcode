@@ -6,9 +6,10 @@ rules:
     # The Swift counterpart of the Android and .NET MAUI text-to-speech rules, and a signal for the same
     # reason: AVSpeechSynthesizer speaks whatever string it is handed, and most often that is the app's own
     # fixed text read aloud for accessibility, which the definition does not count. An utterance is built
-    # only to be spoken, so the rule reads its constructor. AVSpeechUtterance comes only with AVFoundation
-    # (or an umbrella that re-exports it, such as AVKit), so it is written module-qualified only; the
-    # engine matches the short form under `import AVFoundation` and not an app type of the same name.
+    # only to be spoken, so the rule reads its constructor. AVSpeechUtterance comes with AVFoundation, so it
+    # is written module-qualified only; the engine matches the short form under `import AVFoundation` and
+    # not an app type of the same name. It does not follow an umbrella import (`import AVKit` or
+    # `import AVFAudio` alone), which is a known gap.
     pattern-either:
       - pattern: 'AVFoundation.AVSpeechUtterance(string: $X)'
       - pattern: 'AVFoundation.AVSpeechUtterance(attributedString: $X)'

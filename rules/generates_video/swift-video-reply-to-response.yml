@@ -112,6 +112,13 @@ rules:
           - pattern: $X
         from: $S
         to: $X
+      - patterns:
+          - pattern-inside: |
+              guard case .success(let $X) = $S else { ... }
+              ...
+          - pattern: $X
+        from: $S
+        to: $X
     pattern-sinks:
       - patterns:
           - pattern-either:
@@ -146,7 +153,7 @@ rules:
               }
           - metavariable-regex:
               metavariable: $S
-              regex: (?i)^(self\.)?_?\w*(video|clip|movie|footage|messages|replies|responses|answers|results|outputs|suggestions|transcript|images|photos|pictures|clips|videos)\w*$
+              regex: (?i)^(self[?!]?\.)?_?\w*(video|clip|movie|footage|clips|videos)\w*$
           - focus-metavariable: $X
       - pattern: 'AVFoundation.AVPlayer(url: $X)'
       - pattern: 'AVFoundation.AVPlayerItem(url: $X)'
@@ -192,11 +199,10 @@ rules:
               - pattern: $REQ.eventLoop.makeSucceededFuture($X)
       - patterns:
           - pattern-either:
-              - pattern: $WS.send($X)
               - pattern: $WS.send($X, ...)
           - metavariable-regex:
               metavariable: $WS
-              regex: (?i)^(self\.)?_?\w*(ws|websocket|socket)$
+              regex: (?i)^(self[?!]?\.)?_?\w*(ws|websocket|socket)$
       - pattern: 'APIGatewayV2Response(..., body: $X, ...)'
       - pattern: 'APIGatewayResponse(..., body: $X, ...)'
     metadata:

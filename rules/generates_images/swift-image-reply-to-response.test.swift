@@ -1,4 +1,4 @@
-// lexcode-expect: 6
+// lexcode-expect: 7
 // An iOS app that shows pictures made by OpenAI's image models (MacPaw and SwiftOpenAI clients),
 // Firebase AI Logic's Imagen and Apple's Image Playground ImageCreator.
 import FirebaseAILogic
@@ -43,6 +43,14 @@ final class ArtModel: ObservableObject {
         let response = try await imagen.generateImages(prompt: prompt)
         guard let first = response.images.first else { return }
         image = UIImage(data: first.data)
+    }
+
+    func paintWeakly(_ query: ImagesQuery) {
+        openAI.images(query: query) { [weak self] result in
+            if case .success(let images) = result {
+                self?.artworkURL = URL(string: images.data.first?.url ?? "")
+            }
+        }
     }
 
     func paintOnDevice(_ prompt: String) async throws {

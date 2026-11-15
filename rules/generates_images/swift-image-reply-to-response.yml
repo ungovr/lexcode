@@ -36,7 +36,7 @@ rules:
                   - pattern: '$S.legacyCreateImages(parameters: $P)'
                   - pattern: '$S.legacyEditImage(parameters: $P)'
                   - pattern: '$S.legacyCreateImageVariations(parameters: $P)'
-                  - pattern: '$C.images(for: $P, ...)'
+                  - pattern: '$C.images(for: $P, style: $ST, limit: $LM)'
                   - pattern: '$M.generateImages(...)'
           - patterns:
               - pattern-regex: '(?s)\A(?=.*\bimport\s+AWSBedrockRuntime\b).*'
@@ -44,7 +44,7 @@ rules:
                   - pattern-regex: '(?s)\A(?=.*"amazon\.nova-canvas).*'
                   - pattern-regex: '(?s)\A(?=.*"amazon\.titan-image-generator).*'
                   - pattern-regex: '(?s)\A(?=.*"stability\.).*'
-              - pattern-either: &calls_bedrock_image
+              - pattern-either:
                   - pattern: '$C.invokeModel(input: $I)'
       - pattern-either:
           - patterns:
@@ -63,11 +63,23 @@ rules:
                         ...
                       }
                   - pattern: |
+                      $C.images(query: $Q) { [weak self] $R in
+                        ...
+                      }
+                  - pattern: |
                       $C.imageEdits(query: $Q) { $R in
                         ...
                       }
                   - pattern: |
+                      $C.imageEdits(query: $Q) { [weak self] $R in
+                        ...
+                      }
+                  - pattern: |
                       $C.imageVariations(query: $Q) { $R in
+                        ...
+                      }
+                  - pattern: |
+                      $C.imageVariations(query: $Q) { [weak self] $R in
                         ...
                       }
               - focus-metavariable: $R
@@ -169,6 +181,13 @@ rules:
           - pattern: $X
         from: $S
         to: $X
+      - patterns:
+          - pattern-inside: |
+              guard case .success(let $X) = $S else { ... }
+              ...
+          - pattern: $X
+        from: $S
+        to: $X
     pattern-sinks:
       - patterns:
           - pattern-either:
@@ -203,7 +222,7 @@ rules:
               }
           - metavariable-regex:
               metavariable: $S
-              regex: (?i)^(self\.)?_?\w*(image|photo|picture|artwork|avatar|illustration|drawing|sticker|messages|replies|responses|answers|results|outputs|suggestions|transcript|images|photos|pictures|clips|videos)\w*$
+              regex: (?i)^(self[?!]?\.)?_?\w*(image|photo|picture|artwork|avatar|illustration|drawing|sticker|images|photos|pictures)\w*$
           - focus-metavariable: $X
       - pattern: $V.image = $X
       - pattern: '$V.setImage($X, for: $ST)'
@@ -254,11 +273,10 @@ rules:
               - pattern: $REQ.eventLoop.makeSucceededFuture($X)
       - patterns:
           - pattern-either:
-              - pattern: $WS.send($X)
               - pattern: $WS.send($X, ...)
           - metavariable-regex:
               metavariable: $WS
-              regex: (?i)^(self\.)?_?\w*(ws|websocket|socket)$
+              regex: (?i)^(self[?!]?\.)?_?\w*(ws|websocket|socket)$
       - pattern: 'APIGatewayV2Response(..., body: $X, ...)'
       - pattern: 'APIGatewayResponse(..., body: $X, ...)'
     metadata:

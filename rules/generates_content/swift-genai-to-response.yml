@@ -32,10 +32,6 @@ rules:
                   - pattern: '$M.generateContentStream(...)'
                   - pattern: '$H.sendMessage(...)'
                   - pattern: '$H.sendMessageStream(...)'
-                  - pattern: '$M.generateContent(...)'
-                  - pattern: '$M.generateContentStream(...)'
-                  - pattern: '$H.sendMessage(...)'
-                  - pattern: '$H.sendMessageStream(...)'
       - pattern-either:
           - patterns:
               - pattern-either:
@@ -130,6 +126,13 @@ rules:
           - pattern: $X
         from: $S
         to: $X
+      - patterns:
+          - pattern-inside: |
+              guard case .success(let $X) = $S else { ... }
+              ...
+          - pattern: $X
+        from: $S
+        to: $X
     pattern-sinks:
       - patterns:
           - pattern-either:
@@ -164,7 +167,7 @@ rules:
               }
           - metavariable-regex:
               metavariable: $S
-              regex: (?i)^(self\.)?_?\w*(state|message|reply|response|answer|result|output|text|summary|story|caption|content|completion|suggestion|draft|translation|image|photo|picture|artwork|avatar|illustration|drawing|sticker|video|clip|movie|footage|audio|speech|sound|voice|narration|messages|replies|responses|answers|results|outputs|suggestions|transcript|images|photos|pictures|clips|videos)\w*$
+              regex: (?i)^(self[?!]?\.)?_?\w*(state|message|reply|response|answer|result|output|text|summary|story|caption|content|completion|suggestion|draft|translation|image|photo|picture|artwork|avatar|illustration|drawing|sticker|video|clip|movie|footage|audio|speech|sound|voice|narration|messages|replies|responses|answers|results|outputs|suggestions|transcript|images|photos|pictures|clips|videos|recordings|clips)\w*$
           - focus-metavariable: $X
       - pattern: $V.text = $X
       - pattern: $V.attributedText = $X
@@ -221,11 +224,10 @@ rules:
               - pattern: $REQ.eventLoop.makeSucceededFuture($X)
       - patterns:
           - pattern-either:
-              - pattern: $WS.send($X)
               - pattern: $WS.send($X, ...)
           - metavariable-regex:
               metavariable: $WS
-              regex: (?i)^(self\.)?_?\w*(ws|websocket|socket)$
+              regex: (?i)^(self[?!]?\.)?_?\w*(ws|websocket|socket)$
       - pattern: 'APIGatewayV2Response(..., body: $X, ...)'
       - pattern: 'APIGatewayResponse(..., body: $X, ...)'
     metadata:

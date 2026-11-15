@@ -1,4 +1,4 @@
-// lexcode-expect: 3
+// lexcode-expect: 4
 // A Vapor service that starts an Amazon Nova Reel text-to-video job on Bedrock and hands the job to the
 // client, which plays the clip once it is ready.
 import AWSBedrockRuntime
@@ -36,6 +36,15 @@ final class ClipPreview {
 
     init(client: BedrockRuntimeClient) {
         self.client = client
+    }
+
+    var clipURL: URL?
+
+    func previewLater(_ input: StartAsyncInvokeInput) {
+        Task { [weak self] in
+            let output = try await self?.client.startAsyncInvoke(input: input)
+            self?.clipURL = URL(string: "https://cdn.example.com/\(output?.invocationArn ?? "")/output.mp4")
+        }
     }
 
     func preview(_ input: StartAsyncInvokeInput) async throws {

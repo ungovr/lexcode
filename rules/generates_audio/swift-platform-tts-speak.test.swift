@@ -1,4 +1,4 @@
-// lexcode-expect: 3
+// lexcode-expect: 4
 // The app reads text aloud with AVSpeechSynthesizer: a plain string, an attributed string and SSML.
 import AVFoundation
 
@@ -13,6 +13,11 @@ final class ReadAloud {
 
     func readStyled(_ text: NSAttributedString) {
         synthesizer.speak(AVFoundation.AVSpeechUtterance(attributedString: text))
+    }
+
+    func readFetched(_ load: () async throws -> String) async throws {
+        let utterance = try await AVSpeechUtterance(string: load())
+        synthesizer.speak(utterance)
     }
 
     func readMarkup(_ ssml: String) {

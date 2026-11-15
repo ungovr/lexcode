@@ -1,4 +1,4 @@
-// lexcode-expect: 3
+// lexcode-expect: 4
 // Image Playground opened in the app: the SwiftUI sheet, written on one line and over several, and the
 // UIKit view controller.
 import ImagePlayground
@@ -30,6 +30,11 @@ final class AvatarViewController: UIViewController, ImagePlaygroundViewControlle
         let playground = ImagePlaygroundViewController()
         playground.delegate = self
         present(playground, animated: true)
+    }
+
+    nonisolated func presentLater(from host: UIViewController) async {
+        let playground = await ImagePlaygroundViewController()
+        await host.present(playground, animated: true)
     }
 
     func imagePlaygroundViewController(_ imagePlaygroundViewController: ImagePlaygroundViewController, didCreateImageAt imageURL: URL) {

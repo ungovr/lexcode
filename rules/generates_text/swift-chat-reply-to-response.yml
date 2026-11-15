@@ -21,7 +21,6 @@ rules:
               - pattern-either:
                   - pattern-regex: '(?s)\A(?=.*\bimport\s+OpenAI\b).*'
                   - pattern-regex: '(?s)\A(?=.*\bimport\s+SwiftOpenAI\b).*'
-                  - pattern-regex: '(?s)\A(?=.*\bimport\s+FoundationModels\b).*'
                   - pattern-regex: '(?s)\A(?=.*\bimport\s+AWSBedrockRuntime\b).*'
               - pattern-either: &calls_vendors
                   - pattern: '$C.chats(query: $Q)'
@@ -34,16 +33,18 @@ rules:
                   - pattern: '$S.startStreamedChat(parameters: $P)'
                   - pattern: '$S.responseCreate($P)'
                   - pattern: '$S.responseCreateStream($P)'
-                  - pattern: '$S.respond(...)'
-                  - pattern: '$S.streamResponse(...)'
                   - pattern: '$C.converse(input: $I)'
                   - pattern: '$C.converseStream(input: $I)'
+          - patterns:
+              - pattern-regex: '(?s)\A(?=.*\bimport\s+FoundationModels\b).*'
+              - pattern-either: &calls_foundationmodels
+                  - pattern: '$S.respond(...)'
+                  - pattern: '$S.streamResponse(...)'
       - pattern-either:
           - patterns:
               - pattern-either:
                   - pattern-regex: '(?s)\A(?=.*\bimport\s+OpenAI\b).*'
                   - pattern-regex: '(?s)\A(?=.*\bimport\s+SwiftOpenAI\b).*'
-                  - pattern-regex: '(?s)\A(?=.*\bimport\s+FoundationModels\b).*'
                   - pattern-regex: '(?s)\A(?=.*\bimport\s+AWSBedrockRuntime\b).*'
               - pattern-either:
                   - pattern: |
@@ -51,7 +52,15 @@ rules:
                         ...
                       }
                   - pattern: |
+                      $C.chats(query: $Q) { [weak self] $R in
+                        ...
+                      }
+                  - pattern: |
                       $C.completions(query: $Q) { $R in
+                        ...
+                      }
+                  - pattern: |
+                      $C.completions(query: $Q) { [weak self] $R in
                         ...
                       }
                   - pattern: |
@@ -59,7 +68,17 @@ rules:
                         ...
                       }
                   - pattern: |
+                      $C.responses.createResponse(query: $Q) { [weak self] $R in
+                        ...
+                      }
+                  - pattern: |
                       $C.chatsStream(query: $Q) { $R in
+                        ...
+                      } completion: { $E in
+                        ...
+                      }
+                  - pattern: |
+                      $C.chatsStream(query: $Q) { [weak self] $R in
                         ...
                       } completion: { $E in
                         ...
@@ -71,7 +90,19 @@ rules:
                         ...
                       }
                   - pattern: |
+                      $C.completionsStream(query: $Q) { [weak self] $R in
+                        ...
+                      } completion: { $E in
+                        ...
+                      }
+                  - pattern: |
                       $C.responses.createResponseStreaming(query: $Q) { $R in
+                        ...
+                      } completion: { $E in
+                        ...
+                      }
+                  - pattern: |
+                      $C.responses.createResponseStreaming(query: $Q) { [weak self] $R in
                         ...
                       } completion: { $E in
                         ...
@@ -82,7 +113,6 @@ rules:
               - pattern-either:
                   - pattern-regex: '(?s)\A(?=.*\bimport\s+OpenAI\b).*'
                   - pattern-regex: '(?s)\A(?=.*\bimport\s+SwiftOpenAI\b).*'
-                  - pattern-regex: '(?s)\A(?=.*\bimport\s+FoundationModels\b).*'
                   - pattern-regex: '(?s)\A(?=.*\bimport\s+AWSBedrockRuntime\b).*'
               - patterns:
                   - pattern-either:
@@ -96,12 +126,25 @@ rules:
                       metavariable: $E0
                       pattern-either: *calls_vendors
                   - pattern: $X
+          - patterns:
+              - pattern-regex: '(?s)\A(?=.*\bimport\s+FoundationModels\b).*'
+              - patterns:
+                  - pattern-either:
+                      - pattern-inside: |
+                          guard let $X = $E0 else { ... }
+                          ...
+                      - pattern-inside: |
+                          guard let $X = $E0, ... else { ... }
+                          ...
+                  - metavariable-pattern:
+                      metavariable: $E0
+                      pattern-either: *calls_foundationmodels
+                  - pattern: $X
       - pattern-either:
           - patterns:
               - pattern-either:
                   - pattern-regex: '(?s)\A(?=.*\bimport\s+OpenAI\b).*'
                   - pattern-regex: '(?s)\A(?=.*\bimport\s+SwiftOpenAI\b).*'
-                  - pattern-regex: '(?s)\A(?=.*\bimport\s+FoundationModels\b).*'
                   - pattern-regex: '(?s)\A(?=.*\bimport\s+AWSBedrockRuntime\b).*'
               - patterns:
                   - pattern-either:
@@ -114,6 +157,38 @@ rules:
                   - metavariable-pattern:
                       metavariable: $E0
                       pattern-either: *calls_vendors
+                  - pattern-either:
+                      - pattern-inside: |
+                          guard let $X = $E1 else { ... }
+                          ...
+                      - pattern-inside: |
+                          guard let $X = $E1, ... else { ... }
+                          ...
+                      - pattern-inside: |
+                          if let $X = $E1 {
+                            ...
+                          }
+                      - pattern-inside: |
+                          if let $X = $E1, ... {
+                            ...
+                          }
+                  - metavariable-pattern:
+                      metavariable: $E1
+                      pattern: $V
+                  - pattern: $X
+          - patterns:
+              - pattern-regex: '(?s)\A(?=.*\bimport\s+FoundationModels\b).*'
+              - patterns:
+                  - pattern-either:
+                      - pattern-inside: |
+                          let $V = $E0
+                          ...
+                      - pattern-inside: |
+                          var $V = $E0
+                          ...
+                  - metavariable-pattern:
+                      metavariable: $E0
+                      pattern-either: *calls_foundationmodels
                   - pattern-either:
                       - pattern-inside: |
                           guard let $X = $E1 else { ... }
@@ -167,6 +242,13 @@ rules:
           - pattern: $X
         from: $S
         to: $X
+      - patterns:
+          - pattern-inside: |
+              guard case .success(let $X) = $S else { ... }
+              ...
+          - pattern: $X
+        from: $S
+        to: $X
     pattern-sinks:
       - patterns:
           - pattern-either:
@@ -201,7 +283,7 @@ rules:
               }
           - metavariable-regex:
               metavariable: $S
-              regex: (?i)^(self\.)?_?\w*(state|message|reply|response|answer|result|output|text|summary|story|caption|content|completion|suggestion|draft|translation|messages|replies|responses|answers|results|outputs|suggestions|transcript|images|photos|pictures|clips|videos)\w*$
+              regex: (?i)^(self[?!]?\.)?_?\w*(state|message|reply|response|answer|result|output|text|summary|story|caption|content|completion|suggestion|draft|translation|messages|replies|responses|answers|results|outputs|suggestions|transcript)\w*$
           - focus-metavariable: $X
       - pattern: $V.text = $X
       - pattern: $V.attributedText = $X
@@ -250,11 +332,10 @@ rules:
               - pattern: $REQ.eventLoop.makeSucceededFuture($X)
       - patterns:
           - pattern-either:
-              - pattern: $WS.send($X)
               - pattern: $WS.send($X, ...)
           - metavariable-regex:
               metavariable: $WS
-              regex: (?i)^(self\.)?_?\w*(ws|websocket|socket)$
+              regex: (?i)^(self[?!]?\.)?_?\w*(ws|websocket|socket)$
       - pattern: 'APIGatewayV2Response(..., body: $X, ...)'
       - pattern: 'APIGatewayResponse(..., body: $X, ...)'
     metadata:

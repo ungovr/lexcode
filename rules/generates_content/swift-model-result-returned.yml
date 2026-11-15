@@ -26,10 +26,6 @@ rules:
                   - pattern: '$M.generateContentStream(...)'
                   - pattern: '$H.sendMessage(...)'
                   - pattern: '$H.sendMessageStream(...)'
-                  - pattern: '$M.generateContent(...)'
-                  - pattern: '$M.generateContentStream(...)'
-                  - pattern: '$H.sendMessage(...)'
-                  - pattern: '$H.sendMessageStream(...)'
       - pattern-either:
           - patterns:
               - pattern-either:
@@ -121,6 +117,13 @@ rules:
               if case .success(let $X) = $S {
                 ...
               }
+          - pattern: $X
+        from: $S
+        to: $X
+      - patterns:
+          - pattern-inside: |
+              guard case .success(let $X) = $S else { ... }
+              ...
           - pattern: $X
         from: $S
         to: $X

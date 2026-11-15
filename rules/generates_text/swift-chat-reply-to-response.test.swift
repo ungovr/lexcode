@@ -1,4 +1,4 @@
-// lexcode-expect: 14
+// lexcode-expect: 16
 // An iOS app that writes text with MacPaw's OpenAI client, SwiftOpenAI and Apple's Foundation Models
 // and shows it on screen. Each matched line puts the model's text where the person reads it.
 import FoundationModels
@@ -75,6 +75,20 @@ final class AssistantModel: ObservableObject {
         let result = try await openAI.chats(query: query)
         if let text = result.choices.first?.message.content {
             label.text = text
+        }
+    }
+
+    func askWeakly(_ query: ChatQuery) {
+        openAI.chats(query: query) { [weak self] result in
+            guard case .success(let chat) = result else { return }
+            self?.answer = chat.choices.first?.message.content ?? ""
+        }
+    }
+
+    func askInTask(_ query: ChatQuery) {
+        Task { [weak self] in
+            let result = try await self?.openAI.chats(query: query)
+            self?.summaryText = result?.choices.first?.message.content ?? ""
         }
     }
 
