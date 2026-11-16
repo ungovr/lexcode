@@ -1,5 +1,5 @@
 <?php
-// lexcode-expect: 20
+// lexcode-expect: 25
 // PHP's own openssl and sodium extensions used to keep data confidential: symmetric ciphers, RSA
 // encryption, an envelope, key agreement, the secret-key and public-key boxes, a sealed box, an
 // AEAD and a secret stream, with and without a leading backslash and over several lines.
@@ -103,5 +103,20 @@ class FieldCipher
     public function scalar(string $secret, string $peer): string
     {
         return sodium_crypto_scalarmult($secret, $peer); // 20
+    }
+
+    public function aegis(string $plain, string $ad, string $nonce, string $key): array
+    {
+        $sealed = sodium_crypto_aead_aegis256_encrypt($plain, $ad, $nonce, $key); // 21
+        return [
+            sodium_crypto_aead_aegis256_decrypt($sealed, $ad, $nonce, $key), // 22
+            \sodium_crypto_aead_aegis128l_decrypt($sealed, $ad, $nonce, $key), // 23
+        ];
+    }
+
+    public function legacy(string $plain, string $key, string $iv): string
+    {
+        $sealed = mcrypt_encrypt(MCRYPT_RIJNDAEL_128, $key, $plain, MCRYPT_MODE_CBC, $iv); // 24
+        return \mcrypt_decrypt(MCRYPT_RIJNDAEL_128, $key, $sealed, MCRYPT_MODE_CBC, $iv); // 25
     }
 }

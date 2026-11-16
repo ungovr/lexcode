@@ -45,7 +45,7 @@ class Integrity
 
     public function random(): array
     {
-        return [random_bytes(32), openssl_random_pseudo_bytes(16), openssl_pkey_new(['private_key_bits' => 2048])];
+        return [random_bytes(32), openssl_random_pseudo_bytes(16), openssl_pkey_new(['private_key_bits' => 2048]), mcrypt_create_iv(16)];
     }
 
     public function fetch(string $url): string
