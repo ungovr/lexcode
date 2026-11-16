@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Checks scripts/rule-cost.mjs against the engine: `node scripts/rule-cost-check.mjs [<rule-cost script>]`.
 //
-// Release-time only, beside rule-cost.mjs (it runs the real engine for about four minutes). It copies the script
+// Release-time only, beside rule-cost.mjs (it runs the real engine for about two minutes). It copies the script
 // into a scratch tree whose rules/ holds five Swift rules, runs it there, and fails unless:
 //   - swift-quadratic-check, a rule that is itself quadratic on any class (each class whose number ends in 00
 //     searches the rest of the file for a name that is never there), is named OVER;
@@ -56,6 +56,7 @@ try {
   mkdirSync(join(tree, 'scripts'));
   mkdirSync(join(tree, 'rules', 'check'), { recursive: true });
   copyFileSync(script, join(tree, 'scripts', 'rule-cost.mjs'));
+  copyFileSync(join(dirname(script), 'filler.mjs'), join(tree, 'scripts', 'filler.mjs')); // rule-cost.mjs imports its filler
   symlinkSync(join(ROOT, 'node_modules'), join(tree, 'node_modules'), 'dir'); // rule-cost.mjs reads rule files with yaml
   const rules = join(tree, 'rules', 'check');
   writeFileSync(join(rules, 'swift-quadratic-check.yml'), QUADRATIC);

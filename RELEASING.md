@@ -13,18 +13,29 @@ waits for a reviewer to approve the `npm` environment.
 1. The rule set's gate passes: `LEXCODE_GATE=1 npm test` (every
    evidence-class activity has a rule with positive and negative fixtures).
 2. On a quiet machine, `npm run build`, then `node scripts/rule-cost-check.mjs`
-   (about three minutes) and `node scripts/rule-cost.mjs` (about an hour with
+   (about two minutes) and `node scripts/rule-cost.mjs` (about an hour with
    the Swift and Rust rules). Every rule it names, over a bound or failed, is
    fixed or has an open issue that the release's issue links; a Swift rule it
    names as not cleared is timed by hand on real Swift with that rule's modifiers
    or attributes, and the result is recorded in the release's issue. The bounds
    and why they matter are in CONTRIBUTING.md, Cost.
 3. The truth sets pass with zero false FAIL, and the recall table in
-   `rules/README.md` is refreshed with its date. The truth sets and their
-   runner live with LexLint's own code; the maintainers run them.
+   `rules/README.md` is refreshed with its date: the runner's
+   `--write-readme <checkout>/rules/README.md` rewrites the block between
+   `<!-- recall:start -->` and `<!-- recall:end -->`, and nothing else. Each
+   per-app recall block (`<!-- <app>:start -->` to `<!-- <app>:end -->`) sits
+   outside it and names the build it measured. When a release adds or changes
+   rules for that app's language, scan the app at its pinned commit, run
+   `check --declaration` against its key, and refresh the block by hand: for
+   1.5.0, the `wikipedia-ios` (Swift) and `lemmy` (Rust) blocks, which measured
+   a `v1.5` branch build. The truth sets and their runner live with LexLint's
+   own code; the maintainers run them.
 4. Bump `version` in `package.json`, and `version` in `rules/ruleset.yml` when
    any rule or component-map entry changed. `npm install` to refresh the
-   lockfile's own version.
+   lockfile's own version. A rule-set bump also moves its three test pins:
+   `test/repos/rules-home/ruleset.yml` (a mirror the tests hold equal),
+   `test/unit/rules-load.test.ts` and the `version` line in
+   `test/unit/cli.test.ts`.
 5. Read the `package-lock.json` diff since the last release, line by line. A
    new dependency, direct or transitive, is named and justified in the
    release's issue.

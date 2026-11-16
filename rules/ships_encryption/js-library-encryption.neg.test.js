@@ -1,27 +1,16 @@
 // lexcode-expect: 0
 import crypto from 'node:crypto';
-import { createCipheriv, createHash, randomBytes } from 'crypto';
+import { createHash } from 'crypto';
 import https from 'node:https';
 
-// Node's own crypto module is the platform, not a bundled library.
-export function encryptWithNode(text, key) {
-  const iv = randomBytes(12);
-  const cipher = createCipheriv('aes-256-gcm', key, iv);
-  const body = Buffer.concat([cipher.update(text, 'utf8'), cipher.final()]);
-  return { iv, body, tag: cipher.getAuthTag() };
-}
-
+// Hashing, a MAC and a generated key encrypt nothing. (A cipher from Node's crypto module or Web
+// Crypto is shipping encryption too; js-platform-encryption reads it.)
 export function fingerprint(text) {
   return createHash('sha256').update(text).digest('hex');
 }
 
 export function sign(payload, secret) {
   return crypto.createHmac('sha256', secret).update(payload).digest('base64');
-}
-
-// Web Crypto is the browser's own API.
-export async function encryptInBrowser(data, key, iv) {
-  return crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, data);
 }
 
 export async function makeKey() {

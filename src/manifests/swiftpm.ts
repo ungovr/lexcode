@@ -9,7 +9,8 @@ import { ancestorDirs, baseName, describeParseError, dirOf, fileExists, joinRel,
  * `project.pbxproj`. lexcode never fetches anything and reads no SwiftPM cache.
  *
  * - **`Package.swift`** is Swift source, read with a string- and comment-aware scan, not a Swift parser.
- *   Each `.package(...)` call with a `url:` argument is a row at the line of `.package(`. A `path:` call
+ *   Each `.package(...)` call with a `url:` argument is a row at the line of `.package(`; a URL that is not
+ *   one string literal, or is built by interpolation, is not read, and a notice gives its line. A `path:` call
  *   (or a `file://` URL) is a local package, neither a row nor counted. An `id: "scope.name"` call is a
  *   registry package named `scope/name`. A package is development when every
  *   `.product(name: ..., package: "<identity>")` reference to it sits inside a `.testTarget(` call and
@@ -218,15 +219,23 @@ class SwiftScan {
   }
 }
 
-/** Index just past the `)` that closes the `(` at `open` in blanked code, or -1. */
-function closeParen(code: string, open: number): number {
-  let depth = 0;
-  for (let i = open; i < code.length; i++) {
+/**
+ * For each `(` in blanked code, the index of the `)` that closes it, or -1; matched once, with a stack, so a
+ * manifest of nested calls costs one pass (each call rescanning the rest of the file took 47.9 s on 50,000
+ * nested `.package(` calls, final review I-3). A `)` with no `(` open is passed over.
+ */
+function matchParens(code: string): Int32Array {
+  const close = new Int32Array(code.length).fill(-1);
+  const open: number[] = [];
+  for (let i = 0; i < code.length; i++) {
     const c = code[i];
-    if (c === '(') depth++;
-    else if (c === ')' && --depth === 0) return i + 1;
+    if (c === '(') open.push(i);
+    else if (c === ')') {
+      const at = open.pop();
+      if (at !== undefined) close[at] = i;
+    }
   }
-  return -1;
+  return close;
 }
 
 interface Call {
@@ -243,16 +252,16 @@ class UnbalancedError extends Error {
   }
 }
 
-/** Every `.<name>(` call in blanked code. */
-function calls(code: string, name: string): Call[] {
+/** Every `.<name>(` call in blanked code, in order; `close` is matchParens(code). */
+function calls(code: string, close: Int32Array, name: string): Call[] {
   const re = new RegExp(`\\.${name}\\s*\\(`, 'g');
   const out: Call[] = [];
   let m: RegExpExecArray | null;
   while ((m = re.exec(code))) {
     const open = m.index + m[0].length - 1;
-    const end = closeParen(code, open);
+    const end = close[open] as number;
     if (end < 0) throw new UnbalancedError(m.index);
-    out.push({ at: m.index, argStart: open + 1, argEnd: end - 1 });
+    out.push({ at: m.index, argStart: open + 1, argEnd: end });
   }
   return out;
 }
@@ -263,8 +272,11 @@ interface Arg {
   end: number;
 }
 
-/** The top-level arguments of a call, split at commas outside brackets. */
-function args(code: string, call: Call): Arg[] {
+/**
+ * The top-level arguments of a call, split at commas outside brackets. A nested call's parentheses are jumped
+ * over whole (`close`, from matchParens), so each character is read by the innermost call around it only.
+ */
+function args(code: string, close: Int32Array, call: Call): Arg[] {
   const out: Arg[] = [];
   let depth = 0;
   let from = call.argStart;
@@ -275,8 +287,9 @@ function args(code: string, call: Call): Arg[] {
   };
   for (let i = call.argStart; i < call.argEnd; i++) {
     const c = code[i];
-    if (c === '(' || c === '[' || c === '{') depth++;
-    else if (c === ')' || c === ']' || c === '}') depth--;
+    if (c === '(') i = close[i] as number; // balanced inside a call: matchParens found the call's own `)`
+    else if (c === '[' || c === '{') depth++;
+    else if (c === ']' || c === '}') depth--;
     else if (c === ',' && depth === 0) {
       push(i);
       from = i + 1;
@@ -286,8 +299,37 @@ function args(code: string, call: Call): Arg[] {
   return out;
 }
 
+/** The first top-level string literal that starts in `[start, end)`; `strings` is in source order, so a binary search. */
+function literalIn(strings: StrLit[], start: number, end: number): StrLit | undefined {
+  let lo = 0;
+  let hi = strings.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if ((strings[mid] as StrLit).start < start) lo = mid + 1;
+    else hi = mid;
+  }
+  const hit = strings[lo];
+  return hit !== undefined && hit.start < end ? hit : undefined;
+}
+
 function stringIn(strings: StrLit[], start: number, end: number): string | undefined {
-  return strings.find((t) => t.start >= start && t.start < end)?.value;
+  return literalIn(strings, start, end)?.value;
+}
+
+/**
+ * Whether the call at `at` sits inside one of `tests`' argument ranges. `tests` is in source order, so by
+ * `argStart`; the call is inside one exactly when the furthest `argEnd` among those that start before it
+ * passes it, which a running maximum answers with one binary search.
+ */
+function insideAny(tests: Call[], reach: number[], at: number): boolean {
+  let lo = 0;
+  let hi = tests.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if ((tests[mid] as Call).argStart < at) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo > 0 && (reach[lo - 1] as number) > at;
 }
 
 /** One `.package(...)` call that names a remote or registry package. */
@@ -306,15 +348,19 @@ interface ManifestRead {
   refs: { pkg: string; test: boolean }[];
   /** Where a `.package(url:` call's URL is built by string interpolation, which cannot be read. */
   interpolatedUrls: number[];
+  /** Where a `.package(url:` call's URL is not a string literal (a variable, a concatenation, a call). */
+  nonLiteralUrls: number[];
 }
 
 function readManifestText(text: string): ManifestRead {
   const scan = new SwiftScan(text);
   const { code, strings } = scan;
+  const close = matchParens(code);
   const packages: PackageCall[] = [];
   const interpolatedUrls: number[] = [];
-  for (const call of calls(code, 'package')) {
-    const a = args(code, call);
+  const nonLiteralUrls: number[] = [];
+  for (const call of calls(code, close, 'package')) {
+    const a = args(code, close, call);
     const arg = (label: string): string | undefined => {
       const hit = a.find((x) => x.label === label);
       return hit ? stringIn(strings, hit.start, hit.end) : undefined;
@@ -327,9 +373,17 @@ function readManifestText(text: string): ManifestRead {
       if (ex) exact = stringIn(strings, ex.start, ex.end);
     }
     const urlArg = a.find((x) => x.label === 'url');
-    if (urlArg && strings.find((t) => t.start >= urlArg.start && t.start < urlArg.end)?.interpolated) {
-      interpolatedUrls.push(call.at);
-      continue;
+    if (urlArg) {
+      // Strings and comments are blanked in `code`, so a URL written as one literal leaves only blanks there.
+      const literal = literalIn(strings, urlArg.start, urlArg.end);
+      if (literal === undefined || code.slice(urlArg.start, urlArg.end).trim() !== '') {
+        nonLiteralUrls.push(call.at);
+        continue;
+      }
+      if (literal.interpolated) {
+        interpolatedUrls.push(call.at);
+        continue;
+      }
     }
     const url = arg('url');
     const id = arg('id');
@@ -347,15 +401,17 @@ function readManifestText(text: string): ManifestRead {
     packages.push({ name, aliases, identity, ...(exact !== undefined ? { exact: exact.trim() } : {}), at: call.at });
   }
 
-  const tests = calls(code, 'testTarget');
+  const tests = calls(code, close, 'testTarget');
+  const reach: number[] = [];
+  for (const t of tests) reach.push(Math.max(t.argEnd, reach[reach.length - 1] ?? -1));
   const refs: ManifestRead['refs'] = [];
-  for (const call of calls(code, 'product')) {
-    const hit = args(code, call).find((x) => x.label === 'package');
+  for (const call of calls(code, close, 'product')) {
+    const hit = args(code, close, call).find((x) => x.label === 'package');
     const pkg = hit ? stringIn(strings, hit.start, hit.end) : undefined;
     if (pkg === undefined) continue;
-    refs.push({ pkg: pkg.trim().toLowerCase(), test: tests.some((t) => call.at > t.argStart && call.at < t.argEnd) });
+    refs.push({ pkg: pkg.trim().toLowerCase(), test: insideAny(tests, reach, call.at) });
   }
-  return { packages, refs, interpolatedUrls };
+  return { packages, refs, interpolatedUrls, nonLiteralUrls };
 }
 
 // ---- Package.resolved ------------------------------------------------------------------------
@@ -586,10 +642,27 @@ export function readSwiftPm(root: string, files: string[]): ReaderResult {
         else throw e;
         continue;
       }
-      for (const at of read.interpolatedUrls) notices.push(`${rel}:${lines.lineAt(at)}: a package URL built by string interpolation is not read`);
+      const unread = [
+        ...read.interpolatedUrls.map((at) => ({ at, why: 'built by string interpolation' })),
+        ...read.nonLiteralUrls.map((at) => ({ at, why: 'that is not a string literal' })),
+      ].sort((x, y) => x.at - y.at);
+      for (const u of unread) notices.push(`${rel}:${lines.lineAt(u.at)}: a package URL ${u.why} is not read`);
+      // Each package's references, counted once: all of them, and those inside a test target.
+      const uses = new Map<string, { all: number; test: number }>();
+      for (const r of read.refs) {
+        const u = uses.get(r.pkg) ?? { all: 0, test: 0 };
+        u.all++;
+        if (r.test) u.test++;
+        uses.set(r.pkg, u);
+      }
       for (const p of read.packages) {
-        const uses = read.refs.filter((r) => p.aliases.includes(r.pkg));
-        if (uses.length > 0 && uses.every((r) => r.test)) {
+        let all = 0;
+        let test = 0;
+        for (const alias of new Set(p.aliases)) {
+          all += uses.get(alias)?.all ?? 0;
+          test += uses.get(alias)?.test ?? 0;
+        }
+        if (all > 0 && test === all) {
           if (!seen.has(p.name.toLowerCase())) devSkipped++;
           seen.add(p.name.toLowerCase());
           continue;

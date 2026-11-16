@@ -35,3 +35,22 @@ class WebPushSubscriptionsController < ApplicationController
     current_user.push_subscriptions.create!(endpoint: params[:endpoint], p256dh: params[:p256dh], auth: params[:auth])
   end
 end
+
+class LoginCodesController < ApplicationController
+  # The one-time code built elsewhere and passed in by name, or through a translation key.
+  def create
+    client.messages.create(from: "+15550100", to: params[:phone], body: verification_message)
+    client.messages.create(from: "+15550100", to: params[:phone], body: I18n.t("sms.otp", code: @code))
+  end
+end
+
+class SignInTextsController < ApplicationController
+  # One-time codes and sign-in links named with underscores, or worded as 2FA or a link.
+  def create
+    client.messages.create(from: "+15550100", to: params[:phone], body: otp_message)
+    client.messages.create(from: "+15550100", to: params[:phone], body: login_code_text)
+    client.messages.create(from: "+15550100", to: params[:phone], body: I18n.t("sms.login_code"))
+    client.messages.create(from: "+15550100", to: params[:phone], body: "2FA: #{@code_value}")
+    client.messages.create(from: "+15550100", to: params[:phone], body: "Here is your sign-in link: #{@url}")
+  end
+end

@@ -65,6 +65,8 @@ const NOT_A_PREFILTER: Record<string, string> = {
   'lexcode.biometric.rb-biometric-rest-apis': 'the regex is the matcher: a rule-level pattern-regex over vendor URLs',
   'lexcode.voice.rb-transcription-http': 'the regex is the matcher: a rule-level pattern-regex over vendor URLs',
   'lexcode.calls.rb-meeting-recording-apis': 'the regex is the matcher: a rule-level pattern-regex over vendor URLs',
+  'lexcode.crypto.rb-platform-encryption':
+    'the regex is the selector: public_encrypt, private_decrypt and dh_compute_key are read on any receiver only in a file that names OpenSSL, so a twin without it matches an app object answering to those names (#13318)',
   'lexcode.identity.rb-idv-vendor-api-call':
     'the regex is the selector: the URL literal picks the call, and the AST patterns beside it (any Faraday or get call) are only the enclosing context, so a twin without it matches every HTTP call',
 };

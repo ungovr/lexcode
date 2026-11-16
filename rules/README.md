@@ -10,7 +10,7 @@ UnGovr and MIT licensed. The recall table below is measured against the truth
 sets, per activity.
 
 <!-- recall:start -->
-Measured 2026-11-14 over the UnGovr monorepo, 11 pinned starter templates and 4 real apps,
+Measured 2026-11-15 over the UnGovr monorepo, 11 pinned starter templates and 4 real apps,
 against answer keys, each read by an agent that had not seen the rules.
 Found counts evidence of either kind for the activity or its family; signal
 only counts the misses where lexcode showed a worth-a-look row and nothing
@@ -39,6 +39,13 @@ stronger. Recall is printed, never gated.
 | `tracks_devices` | 7 | 6 | 0 | sakai |
 | `trains_models` | 1 | 0 | 0 | moodle |
 <!-- recall:end -->
+
+The `ships_encryption` row, and the `ships_encryption` rows of the app readings
+below, were measured before the encryption rules were redrawn: the rules now
+read the platform's own ciphers and key agreement (the JDK's `Cipher`, .NET's
+`Aes`, Node's crypto module and the rest) and no longer read password hashing,
+and an encrypted attribute that holds only sign-in data no longer counts (see
+"Shipping encryption"). They are measured again at release.
 
 <!-- canvas:start -->
 ### Canvas LMS, read with Ruby
@@ -74,7 +81,7 @@ printed, never gated.
 | `processes_voice` | include: `speed_grader.tsx:1231`, `media_tracks_controller.rb:153` (ASR captions), `packages/canvas-media/src/MediaRecorder.js:31` | found, performs, 1 match; `lexcode.voice.speech-recognition-start` at `ui/features/speed_grader/jquery/speed_grader.tsx:1264` | Found, unchanged from the baseline: the `recognition.start()` call, in the same block as the reading's constructor. The Ruby ASR route and the media recorder are not matched |
 | `deploys_chatbot` | include: `app/services/ai_experiences/conversation_continue_service.rb:49`, `app/models/ai_experience.rb:20`, `lib/llm_conversation/http_client.rb:124` | missed (searched, not found) | Missed. Ruby evidence only: the conversation goes through Canvas's own `Net::HTTP` client, with a `role: "User"` payload that no chat rule's model-call shape matches |
 | `generates_content` | include: `app/services/study_assist.rb:228`, `app/models/discussion_topic_insight.rb:122`, `app/controllers/discussion_topics_api_controller.rb:1385`, `app/controllers/wiki_pages_api_controller.rb:716`, `app/services/rubric_llm_service.rb:215` (all `CedarClient`) | found, enables, 2 matches; `pkg:gem/inst_llm` (`Gemfile.d/app.rb:65`) and `pkg:gem/aws-sdk-bedrockruntime` (`:36`) | Found on `inst_llm`, which Canvas calls at `discussion_topic_insight.rb:82` and `discussion_topics_api_controller.rb:1408`. The `aws-sdk-bedrockruntime` match is a **false positive**: Canvas uses that client only to make embeddings for smart search (`lib/smart_search.rb:48`) |
-| `generates_text` | include: same call sites as `generates_content`; `lib/translation.rb:77` | missed (searched, not found) | Missed. Ruby evidence only: `CedarClient.prompt` is a Canvas class, and the one real model call is `InstLLMHelper.client(id).chat([messages], **options)`, a positional-array form that the chat rules do not list. No gem entry gives `inst_llm` this activity |
+| `generates_text` | include: same call sites as `generates_content`; `lib/translation.rb:77` | missed (searched, not found) | Missed. Ruby evidence only: `CedarClient.prompt` is a Canvas class, and the one real model call is `InstLLMHelper.client(id).chat([messages], **options)`, a positional-array form that the chat rules do not list. By design no gem entry gives `inst_llm` this activity: like every LLM SDK in the npm, PyPI and gem maps, it enables the family parent, `generates_content` (found above), and no source rule is written for a client only Instructure's own products use |
 | `aggregates_content` | include: `lib/external_feed_aggregator.rb:89` (`CanvasHttp.get(feed.url)`), scheduled at `config/initializers/periodic_jobs.rb:114` | found, performs 1 and enables 1; `lexcode.aggregate.rb-feedjira-parse` at `lib/external_feed_aggregator.rb:68`, `pkg:gem/feedjira` (`Gemfile.d/app.rb:96`) | Found, in the same file and the same feed pipeline: `Feedjira.parse` on the body fetched at `:89` |
 | `crawls_web` | include: `lib/external_feed_aggregator.rb:89`, `lib/course_link_validator.rb:318` (`CanvasHttp.head`, then `get`) | missed (searched, not found) | Missed. Ruby evidence only: both fetches go through `CanvasHttp`, a Canvas class that no rule names, and the feed fetch is not inside a loop over a URL list |
 | `operates_social_platform` | include: `app/models/discussion_entry.rb:21`, `app/models/discussion_topic.rb:20`, `app/models/conversation_message.rb:21` | signal only, 1 match; `lexcode.social.rb-direct-message` at `app/models/conversation_message.rb:30` | Signal only, in a file the reading cites (the Inbox message model). The discussion models are not matched |
@@ -116,7 +123,7 @@ printed, never gated.
 | `processes_voice` | include: `SakaiAudioRecorder.js:44`, `SakaiAccount.js:575`, `ProfileController.java:253`, `AudioUploadActionListener.java:53`, `assignment/tool/.../video-recorder.js:24` | found, performs, 1 match; `lexcode.voice.mediarecorder-microphone` at `SakaiAudioRecorder.js:46`; 4 signals `lexcode.voice.getusermedia-audio` (`SakaiAudioRecorder.js:39` and `:44`, `assignment/tool/.../video-recorder.js:24`, `library/.../sakai-recorder.js:113`) | Found, on the same code: the recorder component the reading lists first, with the assignment video recorder as a signal. The Java handlers that receive the clip (`ProfileController`, `AudioUploadActionListener`) are not matched |
 | `records_calls` | include: `MicrosoftCommonServiceImpl.java:2421`, `:2533`, `:2543`, `:2566`, `MeetingsController.java:778` (the reading calls it a close call) | missed (searched, not found) | Missed. Sakai reads Teams recordings through the Microsoft Graph client (`getOnlineMeetingRecordings`); the Java meeting-recording rule names LiveKit, Chime, Connect, Vonage, Zoom, notetaker bots and Daily, and Graph is not among them |
 | `crawls_web` | include: `BaseExternalCalendarSubscriptionService.java:816` and `:824`, `default.sakai.properties:2346`, `LinkMigrationHelperImpl.java:291`, `GetArchivesJob.java:80` (the reading calls it a close call) | found, enables, 1 match; `pkg:maven/com.microsoft.playwright/playwright@1.64.0` at `e2e-tests/pom.xml:43` | Found, on other evidence, not the reading's code: the dependency belongs to Sakai's browser-test module (`e2e-tests`) and carries no test scope, so it counts. The calendar fetch, the link follower and the archive job are not matched. Counted as found because it is an evidence row for the activity, though a person would not call it the right reason |
-| `ships_encryption` | include: `PasswordService.java:166` and `:174` (PBKDF2), `EncryptionUtilityServiceImpl.java:29` (Jasypt AES-256), `SimpleEncryption.java:45`, `MicrosoftConfigurationServiceImpl.java:48` | found, performs 1 and enables 2; `lexcode.crypto.java-library-encryption` at `kernel/kernel-impl/.../EncryptionUtilityServiceImpl.java:29` (`new AES256TextEncryptor()`), `pkg:maven/org.jasypt/jasypt@1.9.3` (`kernel/kernel-impl/pom.xml:311`) and `pkg:maven/org.bouncycastle/bcprov-jdk18on@1.85` (`:348`) | Found, on a line the reading cites. The other cited locations use the JDK's own crypto (PBKDF2, `Cipher` AES-CBC and AES-GCM), which the rules treat as the platform's, by ruling, so they are not matched; the row is found through Jasypt |
+| `ships_encryption` | include: `PasswordService.java:166` and `:174` (PBKDF2), `EncryptionUtilityServiceImpl.java:29` (Jasypt AES-256), `SimpleEncryption.java:45`, `MicrosoftConfigurationServiceImpl.java:48` | found, performs 1 and enables 2; `lexcode.crypto.java-library-encryption` at `kernel/kernel-impl/.../EncryptionUtilityServiceImpl.java:29` (`new AES256TextEncryptor()`), `pkg:maven/org.jasypt/jasypt@1.9.3` (`kernel/kernel-impl/pom.xml:311`) and `pkg:maven/org.bouncycastle/bcprov-jdk18on@1.85` (`:348`) | Found, on a line the reading cites. The other cited locations use the JDK's own crypto (PBKDF2, `Cipher` AES-CBC and AES-GCM), which the rules of that commit left to the platform, so they were not matched; the row was found through Jasypt. Since then `java-platform-encryption` reads a JDK `Cipher`, and PBKDF2 is password hashing, which no rule reads |
 | `distributes_software_product` | include: `README.md:28` and `:41`, `pack/pack-bin/pom.xml:12`, `docker/Dockerfile.source:19`, `pom.xml:24` | found, performs, 50 matches: `lexcode.distribute.maven-publish-plugin` at `master/pom.xml:163` (the Sonatype central-publishing plugin) and 49 `lexcode.distribute.package-json-publish-config` over `webcomponents/.../packages/*/package.json` | Found, on other code. The Maven publishing plugin is the reading's "API artifacts others embed"; the 49 package files are Sakai's `@sakai-ui` npm packages, each with a public `publishConfig`. The README, the binary pack and the Dockerfile are not matched |
 | `operates_social_platform` | include: `commons/README.md:3`, `commons/api/.../Post.java:38`, `ConversationsPost.java:40`, `MessageImpl.java:40`, `SocialNetworkingInfo.java:33` | signal only, 2 matches; `lexcode.social.java-post-model` at `commons/api/.../datamodel/Post.java:37` and `conversations/api/.../ConversationsPost.java:39` | Signal only, on two of the files the reading cites (the Commons wall post and the Conversations post). The forum message and the profile social links are not matched |
 
@@ -302,7 +309,8 @@ nopCommerce inserts an operator-pasted embed code for a chatbot that runs on the
 vendor's servers, and `ships_encryption`, which rests on .NET's own
 `System.Security.Cryptography` classes, ASP.NET Core Data Protection
 configuration and the GoogleAuthenticator package, none of which a C# rule or
-the NuGet component map names. The 2 signals are `ships_consumer_interface` and
+the NuGet component map named at that commit (`cs-platform-encryption` now
+reads the `System.Security.Cryptography` ciphers). The 2 signals are `ships_consumer_interface` and
 `operates_social_platform`, the two activities whose rules are signal class by
 design. Recall is printed, never gated. Paths below are relative to the
 repository root.
@@ -316,7 +324,7 @@ repository root.
 | `deploys_chatbot` | include: `src/Plugins/Nop.Plugin.Widgets.Jotform/JotformPlugin.cs:52`, `:94`, `:96`, `Components/WidgetJotformViewComponent.cs:9` and `:41` | missed (searched, not found; 7 rules tried) | Missed. The plugin registers a widget zone and returns the operator's pasted embed code as `new HtmlString(_jotformSettings.EmbedCode)` (`WidgetJotformViewComponent.cs:41`). There is no model SDK, conversation service or turn history in nopCommerce's code for a rule to name; the chatbot runs on Jotform's servers. The reading itself calls this row a close call |
 | `generates_content` | include: `src/Libraries/Nop.Services/ArtificialIntelligence/ArtificialIntelligenceDefaults.cs:13`, `:18`, `:27`, `:46`, `ArtificialIntelligenceHttpClient.cs:64`, `ArtificialIntelligenceService.cs:302`, `src/Presentation/Nop.Web/Areas/Admin/Controllers/ProductController.cs:1628`, `ArtificialIntelligenceController.cs:73` | no evidence under its own id; counted as found through the family, on `pkg:nuget/DeepL.net@1.22.1` at `src/Presentation/Nop.Web.Framework/Nop.Web.Framework.csproj:15` (see `generates_text`) | Found by family only, and not on the reading's lines. The reading rests this row on the built-in OpenAI, Gemini and DeepSeek service, which lexcode did not see: it builds a request in a helper object and sends it with `_httpClient.SendAsync(request)`, the endpoint a string property on a static class (`ArtificialIntelligenceDefaults.cs:18`, `:27`, `:46`). The C# rules name SDK classes and chat-completion calls, and none reads a hosted model's address |
 | `generates_text` | include: `src/Libraries/Nop.Services/ArtificialIntelligence/ArtificialIntelligenceDefaults.cs:58`, `:63`, `:68`, `:73`, `ArtificialIntelligenceHttpClient.cs:64`, `ArtificialIntelligenceService.cs:302` and `:364`, `src/Presentation/Nop.Web.Framework/Factories/TranslationModelFactory.cs:131`, `Nop.Web.Framework.csproj:15` and `:18` | found, enables 1; `pkg:nuget/DeepL.net@1.22.1` at `src/Presentation/Nop.Web.Framework/Nop.Web.Framework.csproj:15` | Found by dependency, on a line the reading cites, and on the path the reading calls the weaker case (the admin translate button). The language-model path the reading rests the row on is missed, for the reason given under `generates_content` |
-| `ships_encryption` | include: `src/Libraries/Nop.Services/Security/EncryptionService.cs:73`, `:110`, `:121`, `:141`, `src/Libraries/Nop.Services/Customers/CustomerRegistrationService.cs:115` and `:320`, `NopCustomerServiceDefaults.cs:23`, `src/Presentation/Nop.Web.Framework/Infrastructure/Extensions/ServiceCollectionExtensions.cs:263`, `src/Plugins/Nop.Plugin.MultiFactorAuth.GoogleAuthenticator/Services/GoogleAuthenticatorService.cs:181` and `:195`, and its csproj `:52` | missed (searched, not found; 21 rules tried) | Missed. `EncryptionService.cs:73` calls `Aes.Create()` or `TripleDES.Create()` from .NET's own `System.Security.Cryptography`, which the C# rules leave to the framework; they name bundled libraries (Bouncy Castle, NSec, libsodium, PgpCore, JOSE). Data protection is configured with `services.AddDataProtection().PersistKeysToFileSystem(...)` (`ServiceCollectionExtensions.cs:263`), while the data-protection rule reads `CreateProtector(...)` and `DataProtectionProvider.Create(...)`. The `GoogleAuthenticator` package (`csproj:52`) has no entry in the NuGet component map |
+| `ships_encryption` | include: `src/Libraries/Nop.Services/Security/EncryptionService.cs:73`, `:110`, `:121`, `:141`, `src/Libraries/Nop.Services/Customers/CustomerRegistrationService.cs:115` and `:320`, `NopCustomerServiceDefaults.cs:23`, `src/Presentation/Nop.Web.Framework/Infrastructure/Extensions/ServiceCollectionExtensions.cs:263`, `src/Plugins/Nop.Plugin.MultiFactorAuth.GoogleAuthenticator/Services/GoogleAuthenticatorService.cs:181` and `:195`, and its csproj `:52` | missed (searched, not found; 21 rules tried) | Missed. `EncryptionService.cs:73` calls `Aes.Create()` or `TripleDES.Create()` from .NET's own `System.Security.Cryptography`, which the C# rules of that commit left to the framework; they named bundled libraries (Bouncy Castle, NSec, libsodium, PgpCore, JOSE). Since then `cs-platform-encryption` reads the algorithm's encryptor, and an encryption that holds only passwords or other sign-in data is not `ships_encryption`. Data protection is configured with `services.AddDataProtection().PersistKeysToFileSystem(...)` (`ServiceCollectionExtensions.cs:263`), while the data-protection rule reads `CreateProtector(...)` and `DataProtectionProvider.Create(...)`. The `GoogleAuthenticator` package (`csproj:52`) has no entry in the NuGet component map |
 | `distributes_software_product` | include: `LICENSE.md:1`, `README.md:1` and `:56`, `Dockerfile:1`, `src/Presentation/Nop.Web/Nop.Web.csproj:7`, `src/Libraries/Nop.Core/NopVersion.cs:11` | found, performs, 5 matches of `lexcode.distribute.msbuild-nuget-package`, all on the `<PackageLicenseUrl>` line: `src/Libraries/Nop.Core/Nop.Core.csproj:9`, `src/Libraries/Nop.Data/Nop.Data.csproj:9`, `src/Libraries/Nop.Services/Nop.Services.csproj:9`, `src/Presentation/Nop.Web.Framework/Nop.Web.Framework.csproj:9` and `src/Presentation/Nop.Web/Nop.Web.csproj:9` | Found, in a file the reading cites (`Nop.Web.csproj`, two lines below its version at `:7`). The matches are the NuGet package metadata of 5 projects, not the Dockerfile, the license or the version constant |
 | `operates_social_platform` | include: `src/Plugins/Nop.Plugin.Misc.Forums/Domain/ForumTopic.cs:8`, `ForumPost.cs:8`, `Public/Controllers/BoardsController.cs:425` and `:726`, `Services/ForumInstallService.cs:74`, `src/Libraries/Nop.Core/Domain/Catalog/ProductReview.cs:36`, `src/Presentation/Nop.Web/Controllers/ProductController.cs:309`, `BlogController.cs:174`, `ProfileController.cs:29`, `src/Libraries/Nop.Core/Domain/Customers/CustomerSettings.cs:148`, 12 lines in all | signal only, 2 matches; `lexcode.social.cs-post-model` at `src/Plugins/Nop.Plugin.Misc.Forums/Domain/ForumPost.cs:43` and `lexcode.social.cs-direct-message` at `src/Libraries/Nop.Core/Domain/Customers/PrivateMessage.cs:21` | Signal only, by design: the social rules are signal class. One match is in a file the reading cites (`ForumPost.cs`), on its vote-count property; the other is the customer-to-customer private message, which the reading discusses under `records_text_chat` and does not cite for this row. Reviews, blog and news comments and profile pages are not matched |
 
@@ -795,9 +803,14 @@ import keeps its list of names for the wildcard arm.
 
 The definitions the rules follow, one line each:
 
-- The platform's own crypto (the JDK's and Android's) is not
-  `ships_encryption`; a bundled library that encrypts is, and bundled password
-  hashing is a signal.
+- A cipher or a key agreement is `ships_encryption` whether it runs through the
+  platform's own crypto (a javax.crypto `Cipher` or `KeyAgreement`) or a bundled
+  library, and each call is counted by one rule. A `Cipher.getInstance` whose
+  provider is Bouncy Castle by name (`"BC"` or `BouncyCastleProvider.PROVIDER_NAME`,
+  with `Cipher` imported or fully qualified) is the library rule's; every other
+  one, a Bouncy Castle provider passed as an object (`new BouncyCastleProvider()`,
+  `Security.getProvider("BC")`) included, is the platform rule's. Password
+  hashing is not `ships_encryption` (see "Shipping encryption" below).
 - Signing a PDF with a key is a signal.
 - An Android app is `ships_mobile_app` evidence only; it says nothing else.
 - Publishing to GitHub Packages is not `distributes_software_product`.
@@ -915,6 +928,11 @@ ruled before it is added.
   as the library's.
 - Model output sent back in a response is followed when it leaves as an array
   value (`['reply' => $reply]`) or through `->with('reply', $reply)`.
+- The openssl and sodium extensions' ciphers and key exchange are
+  `ships_encryption` evidence, as Laravel's encrypter and the bundled
+  libraries are. An encrypted cast on a column named for access-control data
+  (a two-factor secret, a token, an API key) is not, and neither is Laravel's
+  cookie encryption.
 
 ### Known PHP gaps
 
@@ -1094,11 +1112,13 @@ argued and ruled before it is added.
 - Generation evidence is a direct generating call whose result reaches a sink (a
   response, a view, a component field). A client or request object handed around
   (`GetService<IChatClient>()`, `GetChatClient(...)`, a new request) is a signal.
-- The platform's own cryptography (`System.Security.Cryptography`, ASP.NET Core
-  Data Protection) is left to the framework, as the JDK's is, while a bundled
-  library that encrypts (Bouncy Castle, NSec, libsodium, PgpCore, JOSE) is
-  `ships_encryption` evidence. Identity password hashing, PBKDF2 and Data
-  Protection are signals.
+- .NET's own cryptography used to keep data confidential (`AesGcm`, an `Aes`
+  encryptor, RSA encryption, `ECDiffieHellman`, `ProtectedData`) is
+  `ships_encryption` evidence, as a bundled library that encrypts (Bouncy
+  Castle, NSec, libsodium, PgpCore, JOSE) is. So is an ASP.NET Core Data
+  Protection protector the app creates, unless its purpose string names a
+  token, cookie, session or other sign-in secret. Password hashing, PBKDF2 and
+  the framework's own key ring and sign-in cookies are not.
 - A bare Twilio `VoiceResponse.Record` verb (voicemail) is `processes_voice`, not
   `records_calls`, and an in-app SignalR notification is a user interface push,
   not `automated_outreach`.
@@ -1141,6 +1161,16 @@ The engine sets most of these limits, and the rules' comments point here.
   `PackageLicenseExpression` or `PackageLicenseFile` for its license metadata
   only, or an app's own attribute named `Activity` with a `MainLauncher`
   property, matches.
+- Encryption: a symmetric algorithm's encryptor (`CreateEncryptor`,
+  `EncryptCbc` and the rest) is read where `System.Security.Cryptography`
+  itself is imported (a deeper namespace such as `X509Certificates` alone does
+  not count) or aliased, or where the algorithm was built fully qualified
+  earlier in the same scope. It is missed in a file that reaches the namespace
+  only through a `global using` elsewhere, and on an algorithm handed in from
+  another file with no import. RSA encryption whose padding is held in a
+  variable, and an `RSACryptoServiceProvider` held as a value from a factory or
+  a `var` set from a call, are missed. A Data Protection purpose held in a
+  variable is read whatever it protects.
 - Signals: the MVC sign-up arm needs a literal `return View(...)` or
   `=> View(...)`, and no rule reads an `@page` or `.cshtml` route, so a
   storefront of Razor components with no sign-up screen shows no
@@ -1155,7 +1185,7 @@ three ecosystems, and each names a dependency its own way:
 | Ecosystem | A dependency is named by | Package URL | Evidence rule id | Component map |
 |---|---|---|---|---|
 | `cargo` | the crate name | `pkg:cargo/<name>@<version>` | `lexcode.manifest.cargo` | `components/cargo.yml` |
-| `swift` | the repository, `host/owner/repo` | `pkg:swift/github.com/apple/swift-crypto@<version>` | `lexcode.manifest.swift` | `components/swift.yml` |
+| `swift` | the repository, `host/owner/repo` | `pkg:swift/github.com/alamofire/alamofire@<version>` | `lexcode.manifest.swift` | `components/swift.yml` |
 | `cocoapods` | the pod, as `Podfile.lock` writes it | `pkg:cocoapods/Firebase@10.29.0#Analytics` | `lexcode.manifest.cocoapods` | `components/cocoapods.yml` |
 
 A Swift package's name is its URL without the scheme, any `user@`, the `.git`
@@ -1198,8 +1228,10 @@ in another (`serde_json`, `serde-json`) is looked up by the spelling the manifes
 uses, in the lock and in the component map. A package whose own description says
 it hashes, signs or authenticates, and not that it encrypts, is not mapped to
 `ships_encryption`: the `sha2`, `hmac`, `argon2` and `bcrypt` crates, the signing
-and key-agreement crates, and the Swift package `jwt-kit`. The code rules read
-their calls instead.
+crates and the Swift package `jwt-kit`, none of which keeps data confidential.
+Key-agreement crates (`x25519-dalek`, `p256`) are not mapped either, a known gap
+since key agreement counts (#13318): `rs-library-encryption` reads
+`x25519-dalek`'s key agreement in the code, and `p256`'s ECDH is not read.
 
 ### Swift packages
 
@@ -1208,8 +1240,9 @@ A `Package.swift` holds each `.package(url: ...)` call as a row, at the line of
 `.package(path: ...)` call is a local package, neither a row nor counted, and a
 `.package(id: "scope.name", ...)` registry call is a row named `scope/name`. A
 `Package@swift-5.9.swift` is an alternate of the same file and is not read, and
-a URL built by string interpolation is not a row: the scan gives a notice with
-its line. In an Xcode project, `project.pbxproj` holds each
+a URL built by string interpolation, or not written as a string literal (a
+variable or a concatenation), is not a row: the scan gives a notice with its
+line. In an Xcode project, `project.pbxproj` holds each
 `XCRemoteSwiftPackageReference` as a row, at the line of its `repositoryURL`; an
 `XCLocalSwiftPackageReference` is ignored. The file is an OpenStep property list,
 which lexcode reads itself (nesting past 256 levels is a notice, not a crash); a
@@ -1344,6 +1377,11 @@ Known gaps in the configuration rules:
   single-target watchOS, tvOS or visionOS app among them, and a project with a
   Mac app and a separate iOS-only framework target matches. A last `SDKROOT` setting
   more than about 1 MB from the end of the file loses the match with no notice.
+- The rules also read the `Info.plist`, `PrivacyInfo.xcprivacy` and
+  `*.entitlements` files inside a `*.framework` or `*.xcframework` bundle
+  checked into the tree, so a vendored SDK's own privacy manifest or usage
+  strings can match as the app's. Of the Apple dependency folders, only `Pods/`
+  and `Carthage/` are skipped.
 
 ### The Swift and Rust gates
 
@@ -1373,15 +1411,24 @@ Any other exemption must be argued and ruled before it is added.
   response, a view, a stored property, a returned value). A function that
   returns a model's result with no sink in view is a signal. Rust has no
   result-returned signals.
-- Apple's own cryptography (CryptoKit, CommonCrypto, the Security framework) and
-  the platform's OpenSSL (TLS through the Rust `openssl` and `native-tls` crates)
-  are left to the platform. A bundled library that encrypts is `ships_encryption`
-  evidence (swift-crypto, which bundles BoringSSL, rustls with ring, RustCrypto
-  ciphers, age, libsodium bindings). A cipher called through the `openssl` crate,
-  and password hashing (bcrypt, argon2, scrypt, Vapor's Bcrypt), are signals for
-  `ships_encryption`. In Rust the same hashing is evidence of
-  `processes_personal_data`, since a password is personal data. A hash or a MAC
-  is not encryption.
+- A cipher or a key agreement is `ships_encryption` evidence whether it runs
+  through Apple's own cryptography (CryptoKit, CommonCrypto's `CCCrypt`, the
+  Security framework's SecKey encryption and key exchange:
+  `swift-platform-encryption`), the system's OpenSSL through the Rust `openssl`
+  crate (`rs-openssl-encryption`) or a bundled library (swift-crypto, which
+  bundles BoringSSL, rustls with ring, RustCrypto ciphers, age, libsodium
+  bindings). A CryptoKit-shaped call in a file that also imports swift-crypto's
+  `Crypto` is read by `swift-library-encryption` only. A general cryptography
+  library that also hashes, MACs or signs (swift-crypto, CryptoSwift,
+  swift-sodium, orion, sodiumoxide) has no component-map entry, as
+  `golang.org/x/crypto` has none: a product can link one only for an HMAC or a
+  signature, so only its cipher and key-agreement calls count. The Swift,
+  CocoaPods and Cargo maps list a library whose purpose is encryption (the
+  RustCrypto ciphers, age). HTTPS through
+  `URLSession`, `native-tls` or the `openssl` crate's TLS is not read, and
+  neither are hashing, a MAC, password hashing, key derivation and signing (see
+  "Shipping encryption"). In Rust, password hashing is evidence of
+  `processes_personal_data` instead, since a password is personal data.
 - A Swift package product, `.library(...)` in `Package.swift`, is a signal for
   `distributes_software_product`: no manifest field separates a published
   library from a local one. A crate is evidence when its `[package]` table lists
@@ -1475,9 +1522,13 @@ The engine sets most of these limits, and the rules' comments point here.
   about 1,800 appends in one function the engine drops the history rule's match.
 - **Identity, signatures and encryption.** No Swift rule reads a selfie with an
   ID document, a verifiable credential or a PDF signature, and identity vendors
-  beyond the six SDKs the rules name reach only the URL rule. End-to-end
-  encryption built on CryptoKit alone is unread, as the JDK's is, and no rule
-  reads a bundled TLS stack.
+  beyond the six SDKs the rules name reach only the URL rule. No Swift rule
+  or map entry reads a bundled TLS stack (swift-nio-ssl, which vendors
+  BoringSSL and comes in through AsyncHTTPClient or Vapor), so a server whose
+  only encryption is that TLS is missed, as a Rust app whose rustls is chosen
+  only by a Cargo feature is. A CryptoKit or CommonCrypto cipher cannot show
+  what it encrypts, so one that holds only a sign-in token still counts and is
+  for a person to confirm.
 - **Data and tracking.** No rule reads a Vapor server's client address or a
   device fingerprint, and an install ID the app mints for itself (a random UUID
   kept in its own store and sent with every request) is not read, so
@@ -1555,6 +1606,50 @@ The engine sets most of these limits, and the rules' comments point here.
   crate's item paths come from its documentation, since nothing is fetched, so a
   crate that moves an item is missed, never misread.
 - **Not extracted.** Handlebars templates (above).
+
+## Shipping encryption
+
+`ships_encryption` is code that encrypts data or agrees keys to keep data
+confidential, in its own code, through the platform's cryptography APIs or with
+a library it bundles, or that bundles or vendors a cryptography library that
+does. Export control reaches cryptography for confidentiality and carves out
+authentication, signatures, integrity and password protection, and it asks
+what the code does, not whose library does it. So the rules read:
+
+- A cipher, public-key encryption or a key agreement through the platform:
+  Node's crypto module and Web Crypto (`js-platform-encryption`), Go's
+  `crypto/cipher` modes with `crypto/aes` or `crypto/des`, RSA encryption and
+  `crypto/ecdh` (`go-platform-encryption`), javax.crypto `Cipher` and
+  `KeyAgreement` (`java-` and `kt-platform-encryption`), .NET's
+  `System.Security.Cryptography` (`cs-platform-encryption`) and Data
+  Protection (`cs-data-protection`), Ruby's `OpenSSL::Cipher` and RSA
+  (`rb-platform-encryption`), PHP's openssl and sodium extensions
+  (`php-platform-encryption`), and Apple's CryptoKit, CommonCrypto and
+  Security framework (`swift-platform-encryption`). Python's standard library
+  has no cipher, so Python has no platform rule, and neither has Rust; a Rust
+  app's ciphers come from crates (`rs-library-encryption`), and the `openssl`
+  crate's from the system's OpenSSL or a vendored copy
+  (`rs-openssl-encryption`).
+- The same through a bundled library (the `*-library-encryption` rules, the
+  framework, attribute and storage rules), and a cryptography library that
+  encrypts or agrees keys in the dependency tree (the component map).
+  `golang.org/x/crypto` has no map entry: Go links only the subpackages a
+  program imports, so `go-xcrypto-encryption` reads the cipher subpackages in
+  use, and an app that imports only `x/crypto/bcrypt` holds no cipher.
+- Never: hashing, a MAC, password hashing and key derivation (bcrypt, Argon2,
+  scrypt, PBKDF2), signing (JWT, ECDSA, RSA signatures), random bytes, or HTTPS
+  through the platform's stock client.
+- Not access-control data alone. Encrypting only passwords, PINs, tokens,
+  two-factor secrets, API keys or session data to control access is
+  authentication (15 C.F.R. 772.1). An encrypted model attribute or cast named
+  for such data (`encrypts :otp_secret`, `'two_factor_secret' => 'encrypted'`)
+  is not read, a Data Protection purpose that names one is not read, and no
+  rule reads a framework's encrypted cookies or sessions. A call-level cipher
+  cannot show what it encrypts, so it stays evidence for a person to confirm,
+  and so do the Android encrypted-storage rules, which cannot tell a stored
+  sign-in token from other data.
+- Algorithm and key strength are not read: the export lists share their
+  thresholds, and code does not show a runtime key size.
 
 ## A known gap: a file over 1 MB
 

@@ -196,6 +196,10 @@ The eight Swift taint rules for the `generates_*` activities share their
 sources, propagators and sinks, and `scripts/gen-swift-generation-rules.py`
 writes them: change those blocks there and run
 `python3 scripts/gen-swift-generation-rules.py`, never one rule file by hand.
+The five Rust ones (`rs-chat-`, `rs-image-`, `rs-speech-` and
+`rs-video-reply-to-response`, and `rs-genai-to-response`) share their sink set
+word for word with no generator: they are kept by hand, so a change to one
+rule's sinks is made in all five in the same commit.
 
 ### Cost
 
@@ -314,10 +318,143 @@ pairing:
 ```
 
 The nested form matches the same ranges and took those rules to about 3 s. A
-check on a metavariable that two terms bind stays at the joined level. Before a
-release, `node scripts/rule-cost.mjs` times each rule with a positive fixture in
-Java, Kotlin, PHP, Ruby, Python, JavaScript, TypeScript, Go, C#, Swift or Rust
-on that fixture followed by filler, at 90 KB and 900 KB, beside a bare rule that
+check on a metavariable that two terms bind stays at the joined level.
+
+A taint rule's sink costs in proportion to how often it matches. The engine
+finds every sink match in the file before its taint pass, and the pass then
+takes time that grows with the number of sink matches times the size of the
+file. With every `return` in the file as the sink, the Python and JavaScript
+`*-result-returned` rules took 15 to 25 s on a 900 KB file of small functions;
+the same Python rule with a sink that matched nothing took 0.7 s (#13034). Those
+rules now have two sinks: a return inside a function that makes the call, and a
+return that names a variable an earlier statement in an enclosing block (the
+module included) set from the call:
+
+```yaml
+- patterns:
+    - pattern: return $X
+    - pattern-either:
+        - pattern-inside: |
+            function $SINKFN(...) {
+              ...
+              <... $SINKC.chat.completions.$SINKM(...) ...>;
+              ...
+            }
+        - pattern-inside: |
+            function (...) {
+              ...
+              <... $SINKC.chat.completions.$SINKM(...) ...>;
+              ...
+            }
+- patterns:
+    - pattern: return $X
+    - pattern-either:
+        - pattern-inside: |
+            $SINKV = <... $SINKC.chat.completions.$SINKM(...) ...>;
+            ...
+    - metavariable-pattern:
+        metavariable: $X
+        pattern: $SINKV
+```
+
+The `metavariable-pattern` sees `$SINKV` already bound and searches `$X` for
+it, so `return reply.choices[0]` names `reply`, and a return that does not name
+the variable never becomes a sink. The return has to name the variable itself:
+a function that copies a field of a module-level result into a local and
+returns the local (`text = reply.choices[0].message.content; return text`) is
+not followed. Neither sink follows a result that one function stores (in a
+global, or on `self` or `this`) and another returns, or a chain built at module
+level from a model (`prompt.pipe(llm)`) and called by a method the rule does
+not list; the old sink did. `py-model-result-returned` has
+only the first sink: with its 63 call shapes the second cost 10 to 18 times the
+parse on 900 KB, so there a module-level model called directly (`llm(q)`) or by
+a method the rule does not list, and an answer made at module level and
+returned by a function, are lost too. Each rule's header comment says what it
+misses.
+
+In JavaScript and TypeScript, `function $SINKFN(...)` matches a declaration, a
+method, and a function or arrow given a name, and `function (...)` matches a
+callback, so each call needs both. In Python, `def $SINKFN(...):` with the call
+in a statement sequence finds it in an assignment, a `with` or `if` header, a
+loop and a `try`, but a sequence does not reach inside `async with` or
+`async for`. The Python rules add `async def $SINKFN(...):` over `$...SINKBODY`
+with a `metavariable-pattern` that searches the body, and the same for a
+lambda. Spell each call out with its names, and leave off the sources' argument
+checks so every call a source matches is in the scope. A call pattern with no
+name in it (`<... $SINKCALL(...) ...>` checked by a `metavariable-regex`) pairs
+every call with every function around it: it ran 28 s on a 2.4 MB JavaScript
+bundle and stopped with "Too many matches" on a 19 KB Python file, and a regex
+on the call's text misses a call imported under a bare name
+(`from litellm import completion`), which a pattern finds.
+`test/unit/taint-sinks.test.ts` runs every taint rule's sinks over filler that
+calls nothing a rule looks for and fails on any match. The filler has no
+controller classes, route decorators or calls, so a sink scoped by one of those
+matches nothing there whatever it costs; `scripts/rule-cost.mjs` is the check
+for those. Each of the six rules has two more positive fixtures:
+`*.test.shapes.*` holds the shapes each sink form exists for (`async with`, a
+lambda, callbacks, a result set at module level), and `*.test.calls.*` holds
+one function per call the sinks list, in each form that reaches it. The Java,
+Kotlin and Ruby ones have a `*.test.calls.*` too. Deleting any one sink entry
+or form drops a match in them (362 checked for Python and JS/TS, 389 for Java,
+Kotlin and Ruby, #13034), so a call added to a rule's list needs its function
+in `*.test.calls.*`. That check also found entries another entry already
+covers, and they were dropped: a call is left out of a list when a shorter
+entry matches it (`completions(...)` matches `chat().completions().create(...)`,
+`converse(...)` matches `converse { ... }`, a Ruby `chat(...)` matches
+`RubyLLM.chat(...)`), and a rule's header says so.
+
+The Java, Kotlin and Ruby `*-result-returned` rules have the same two sinks,
+each in its language's form. In Java a call statement in a method's sequence
+(`$SINKRET $SINKFN(...) { ... CALL; ... }`) matches a statement that holds the
+call: a declaration, a return, a nested block, a lambda or anonymous class in
+the method, a try-with-resources header. It does not reach an `if`, `for` or
+`while` header, and Java has no way to bind a method body for a search, so the
+rules add a for-each and an `if` header form per call
+(`for ($SINKT $SINKE : <... CALL ...>) $SINKS;`), and a block lambda form
+(`(...) -> { ... CALL; ... }`) for code in a field or an initializer.
+The second sink is a field the class sets from a call
+(`class $SINKCLS { ... $SINKT $SINKV = <... CALL ...>; ... }`), named by the
+return as `$SINKV` or `this.$SINKV`. In Kotlin a statement sequence under `fun`
+does not reach inside `if`, `try` or `when`, so the scope is a search of the
+body (`fun $SINKFN(...) { $...SINKBODY }` with a `metavariable-pattern`, which
+matches a function with a return type too) and of an expression body, and the
+second sink is a `val` set from a call at the top level, in a class or in a
+function, named by a return or an expression body after it: a member declared
+before the `val`, or a `val` derived from it, is not followed. There, write the expression-bodied function as
+`pattern: fun $F(...) = $X`, not `pattern-inside`: with `pattern-inside`, a
+`val` declared inside the body made the `val`'s own statement the sink, which
+holds the source call, and 15 false matches appeared in four codebases. In
+Ruby a statement sequence under `def` reaches blocks, `if` and `begin`, but not
+a call used as the receiver of `[...]` (`client.chat(...)["choices"]`, the usual
+ruby-openai shape) or one in a ternary, an `if` or `case` expression, a
+condition or parentheses, so the scope is a body search under `def` and
+`def self.`, as in Kotlin. A `def` with a method-level `rescue` or `ensure` is a
+try node to the engine, which neither form reaches, so each call also scopes
+the statements from the one that holds it (`<... CALL ...>` then `...`) to the
+end of its block, inside a `def`. Without the `def`, the last expression of an
+RSpec block after a call counted as a return: 88 false matches in the specs of
+two gems. Ruby has no second sink: the old every-return sink followed
+neither a constant nor an instance variable into a method. The Kotlin body
+search does not reach the parameter list, so a source call in a Kotlin default
+parameter is not followed; in Ruby the statement form reaches it.
+
+`scripts/rule-cost.mjs` times a rule on its plain positive fixture
+(`<stem>.test.<ext>`), where the source call is inside a function, not on a
+variant such as `*.test.calls.*`, which holds every source call of the rule at
+once, many of them at module level. A source at module level costs more, because
+its taint reaches every function in the file: on 900 KB of filler under one
+module-level call, `py-chat-result-returned` took 4.5 s (3.1 s without the
+second sink, 16.9 s with the old every-return sink) and
+`js-chat-result-returned` 8.4 s (6.4 s, 25.9 s). In Kotlin the same file took
+`kt-chat-result-returned` 22.9 s: 16.1 s with no sink at all, 20.7 s without
+the `val` sink, 33.1 s with the old sink. Each further top-level `val` set from
+a call makes the returns after it candidates for the `val` sink: with 26 of
+them ahead of the filler the rule took 28.6 s, against 22.9 s for the old sink.
+
+Before a release, `node scripts/rule-cost.mjs` times each rule with a positive
+fixture in Java, Kotlin, PHP, Ruby, Python, JavaScript, TypeScript, Go, C#,
+Swift or Rust on that fixture followed by filler (`scripts/filler.mjs`, where
+every function returns a variable), at 90 KB and 900 KB, beside a bare rule that
 only parses the same filler. It names a rule whose time grows more than twice as
 fast as the bare rule's for the 10x file, or that takes more than five times the
 bare rule's time on 900 KB, and every rule the engine failed on. It names its

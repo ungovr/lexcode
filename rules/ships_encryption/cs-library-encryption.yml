@@ -3,10 +3,11 @@ rules:
     languages: [csharp]
     severity: INFO
     message: Encrypts data or agrees keys with a cryptography library the product bundles (Bouncy Castle, NSec, libsodium, PgpCore, JOSE encryption, the Signal protocol or the AWS Encryption SDK), which is shipping encryption (ships_encryption).
-    # The platform's own cryptography (System.Security.Cryptography: Aes, AesGcm, RSA, ECDiffieHellman,
-    # ProtectedData, hashing, HMAC and key derivation; SslStream and HttpClient for TLS) is not evidence;
-    # a library the app bundles is. Each library type is written fully qualified: the engine resolves a
-    # `using` and an alias to it, and never the app's own class of the same short name. A namespace part
+    # .NET's own ciphers (System.Security.Cryptography: AesGcm, an Aes encryptor, RSA encryption,
+    # ECDiffieHellman, ProtectedData) are cs-platform-encryption's, so no call is counted twice; hashing,
+    # HMAC, key derivation and TLS through SslStream or HttpClient are read by neither. Each library
+    # type is written fully qualified: the engine resolves a `using` and an alias to it, and never the
+    # app's own class of the same short name. A namespace part
     # cannot be a metavariable (`new Org.BouncyCastle.Crypto.Modes.$C(...)` misses the `using` form), so
     # each class is written out, with its target-typed `new()` form beside it. Both carry `{ ... }`:
     # `new T(...)` alone misses a constructor with an object initializer (`new T(k) { Iv = iv }`), and

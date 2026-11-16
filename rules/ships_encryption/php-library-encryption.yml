@@ -3,11 +3,11 @@ rules:
     languages: [php]
     severity: INFO
     message: Encrypts data, agrees keys or opens a secure connection with a cryptography library the product bundles (Laravel's encrypter, defuse/php-encryption, Halite, phpseclib or a JWE builder), which is shipping encryption (ships_encryption).
-    # PHP's own cryptography (the openssl and sodium extensions, hash_hmac, random_bytes,
-    # password_hash) is the platform's and is not evidence; a library the app bundles is. The engine
-    # does not resolve `use` imports, so each library class is read three ways: fully qualified, by
-    # its short name under its own import, and by an alias under an aliased import. One branch per
-    # library, so one library's import cannot admit another's call.
+    # The openssl and sodium extensions' ciphers are php-platform-encryption's, and hash_hmac,
+    # random_bytes and password_hash are read by neither rule; this rule reads a library the app
+    # bundles. The engine does not resolve `use` imports, so each library class is read three ways:
+    # fully qualified, by its short name under its own import, and by an alias under an aliased
+    # import. One branch per library, so one library's import cannot admit another's call.
     # The engine's `use X;` also matches `use X as Y;`, so each short-name branch steps aside where
     # the class is aliased and the short name may be the app's own.
     pattern-either:

@@ -114,11 +114,16 @@ entries:
     source: https://crates.io/crates/aws-sdk-pinpointsmsvoicev2
 
   # Bundled cryptography
-  # Only a crate whose own description says it encrypts, or that it is a cryptographic library, is listed.
-  # Hashing, MACs, password hashing, signatures and key exchange sign or hash; they do not encrypt, so argon2,
-  # bcrypt, scrypt, pbkdf2, hmac, sha1, sha2, md5, blake3, ed25519-dalek, x25519-dalek and p256 are left out
-  # (password hashing is a code-level signal, rs-password-hashing). rsa is left out because its description
-  # ("Pure Rust RSA implementation") does not say it encrypts, and ring because its description is "An experiment.".
+  # Only a crate whose own description says its purpose is encryption is listed (#13318). Hashing, MACs,
+  # password hashing and signatures keep nothing confidential, so argon2, bcrypt, scrypt, pbkdf2, hmac, sha1,
+  # sha2, md5, blake3 and ed25519-dalek are left out. A general cryptography library that mixes those with its
+  # ciphers has no entry either, as golang.org/x/crypto has none: an app can link one only for a hash, a MAC or
+  # a signature, which holds no cipher it uses. So orion ("Usable, easy and safe pure-Rust crypto"),
+  # sodiumoxide ("Fast cryptographic library for Rust (bindings to libsodium)"), ring, aws-lc-rs and openssl are
+  # not listed, and rules/ships_encryption/rs-library-encryption.yml and rs-openssl-encryption.yml read their
+  # cipher and key-agreement calls in use instead. rsa is left out because its description ("Pure Rust RSA
+  # implementation") does not say it encrypts. The key-agreement crates x25519-dalek and p256 are not listed
+  # yet (a known gap in rules/README.md); rs-library-encryption reads x25519-dalek's key agreement in the code.
   - match: "aes"
     enables: [ships_encryption]
     says: "Pure Rust implementation of the Advanced Encryption Standard (a.k.a. Rijndael)"
@@ -135,11 +140,3 @@ entries:
     enables: [ships_encryption]
     says: "[BETA] A simple, secure, and modern encryption library."
     source: https://crates.io/crates/age
-  - match: "orion"
-    enables: [ships_encryption]
-    says: "Usable, easy and safe pure-Rust crypto"
-    source: https://crates.io/crates/orion
-  - match: "sodiumoxide"
-    enables: [ships_encryption]
-    says: "Fast cryptographic library for Rust (bindings to libsodium)"
-    source: https://crates.io/crates/sodiumoxide

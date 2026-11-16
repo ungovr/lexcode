@@ -17,7 +17,7 @@
 //           30 s on a slower machine.
 // Each size is timed in an engine run of its own, and each time is the lowest of up to three runs, because load
 // on the machine only adds time; a rule within both bounds after its first run is not run again. A Swift rule over a
-// bound is measured again on a second filler the engine's Swift scanner bug cannot touch (`plain`, below); a rule
+// bound is measured again on a second filler the engine's Swift scanner bug cannot touch (`plain`, in filler.mjs); a rule
 // within bounds there is cleared only if it names no modifier or attribute (BARE_HIT, MODIFIER_WORD). The script names
 // every rule over a bound, every rule not cleared, and every rule the engine failed on, and exits 1 if there is any.
 //
@@ -31,6 +31,7 @@ import { tmpdir } from 'node:os';
 import { basename, dirname, extname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse as parseYaml } from 'yaml';
+import { FILLER, fill } from './filler.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const RULES = join(ROOT, 'rules');
@@ -40,7 +41,8 @@ const GROWTH_MAX = 2;
 const WEIGHT_MAX = 5;
 const ATTEMPTS = 3;
 /**
- * The two files' names, without the extension. Each is 12 characters or more on purpose: the pinned engine's Swift
+ * The two files' names, without the extension. With it, each path the engine is handed (`unit-090kb.swift`, run in the
+ * files' own directory) is 12 characters or more on purpose: the pinned engine's Swift
  * scanner (opengrep/semgrep-swift lib/scanner.c) allocates its state with `calloc(0, ...)`, and on the engine's musl
  * build a target path of 11 characters or fewer frees its C string into the slot the scanner then reads, so a
  * modified class parses in quadratic time (`large.swift` at 900 KB: 57 s, against 2.2 s under a longer name), and
@@ -58,7 +60,7 @@ const LARGE_NAME = 'unit-900kb';
  * slow rule: `--time` reports a rule's matching inside `parse_time` (a quadratic scratch rule: 900 KB run 83.6 s,
  * parse 77.9 s, match 0), so `parse_time` is not used. What the bug needs is a class with a modifier or attribute
  * (`final class`, `public class`, `@objc class`); a plain `class` is never slowed. So a Swift rule over a bound on
- * the filler below is measured again on LANGS['.swift'].plain, a filler of plain classes with no modifier at all,
+ * the first filler is measured again on LANGS['.swift'].plain (scripts/filler.mjs), a filler of plain classes with no modifier at all,
  * against a bare rule on that filler. Those figures can show only what that filler exercises:
  * - over on the plain filler: the rule is over (it is slow on plain declarations);
  * - within bounds there, and the rule's file names no modifier or attribute outside a `pattern-not` (MODIFIER_WORD, ATTRIBUTE): the
@@ -88,30 +90,8 @@ const NOT_POSITIVE = /^(?:pattern-not.*|pattern-sanitizers|metavariable-regex|me
 /** One engine run on the two files; far above any rule worth keeping, so a runaway rule fails instead of hanging. */
 const SCAN_CAP_MS = 15 * 60 * 1000;
 
-const JAVA = { language: 'java', bare: 'C0', unit: 'class C%N { private int a; private int b; void m() { int x = 1; } }\n' };
-const KOTLIN = { language: 'kotlin', bare: 'C0', unit: 'class C%N { private val a: Int = 1; private val b: Int = 2; fun m() { val x = 1 } }\n' };
-const TYPESCRIPT = { language: 'typescript', bare: 'C0', unit: 'class C%N { a: number = 1; b: number = 2; m(p: number) { const x = p + 1; return x; } }\n' };
-/** Filler per fixture extension: dense in classes, fields, functions and returns, naming nothing a rule looks for. */
-const LANGS = {
-  '.java': JAVA,
-  '.kt': KOTLIN,
-  '.php': { language: 'php', bare: 'f0', unit: 'function f%N($a, $b) { $x = $a + $b; return $x * 2; }\n', head: '<?php\n' },
-  '.rb': { language: 'ruby', bare: 'C0', unit: 'class C%N\n  def m(a, b)\n    x = a + b\n    x * 2\n  end\nend\n' },
-  '.py': { language: 'python', bare: 'C0', unit: 'class C%N:\n    a = 1\n    b = 2\n\n    def m(self, p):\n        x = p + 1\n        return x\n\n\n' },
-  '.js': { language: 'javascript', bare: 'C0', unit: 'class C%N { constructor() { this.a = 1; this.b = 2; } m(p) { const x = p + 1; return x; } }\n' },
-  '.ts': TYPESCRIPT,
-  '.tsx': TYPESCRIPT,
-  '.go': { language: 'go', bare: 'C0', unit: 'type C%N struct {\n\ta int\n\tb int\n}\n\nfunc (c C%N) M(p int) int {\n\tx := p + 1\n\treturn x\n}\n\n', head: 'package demo\n\n' },
-  '.cs': { language: 'csharp', bare: 'C0', unit: 'public class C%N { private int a = 1; private int b = 2; public int M(int p) { var x = p + 1; return x * 2; } }\n' },
-  '.swift': {
-    language: 'swift',
-    bare: 'C0',
-    unit: 'final class C%N { private let a = 1; private let b = 2; func m() -> Int { let x = a + b; return x * 2 } }\n',
-    // the second filler for a rule over a bound: no modifier anywhere, so the engine's Swift scanner bug cannot slow it
-    plain: 'class C%N { let a = 1; let b = 2; func m() -> Int { let x = a + b; return x * 2 } }\n',
-  },
-  '.rs': { language: 'rust', bare: 'f0', unit: 'fn f%N(a: i64, b: i64) -> i64 { let x = a + b; x * 2 }\n' },
-};
+/** Filler per fixture extension (scripts/filler.mjs); Swift's carries a second, `plain` filler (see BARE_HIT). */
+const LANGS = FILLER;
 
 function args() {
   const a = process.argv.slice(2);
@@ -138,7 +118,12 @@ function enginePath() {
   }
 }
 
-/** Each rule file with its first positive fixture in a language above: `<stem>.yml` and `<stem>.test*.<ext>`. */
+/**
+ * Each rule file with its positive fixture in a language above: `<stem>.yml` and `<stem>.test.<ext>`, or the
+ * first `<stem>.test.<variant>.<ext>` when there is no plain one. The plain fixture is the case the bounds are
+ * for; a variant such as `*.test.calls.*` holds every source call of the rule at once, many at module level,
+ * and would time that instead (#13034).
+ */
 function rulesWithFixtures(dir) {
   const out = [];
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -149,23 +134,13 @@ function rulesWithFixtures(dir) {
     }
     if (!entry.name.endsWith('.yml')) continue;
     const stem = entry.name.slice(0, -4);
-    const fixture = readdirSync(dir)
+    const positives = readdirSync(dir)
       .filter((f) => f.startsWith(`${stem}.test`) && !f.includes('.neg.') && extname(f) in LANGS)
-      .sort()[0];
+      .sort();
+    const fixture = positives.find((f) => f === `${stem}.test${extname(f)}`) ?? positives[0];
     if (fixture) out.push({ rule: p, fixture: join(dir, fixture) });
   }
   return out.sort((x, y) => x.rule.localeCompare(y.rule));
-}
-
-function fill(head, unit, kb) {
-  const parts = [head.endsWith('\n') || head === '' ? head : `${head}\n`];
-  let n = parts[0].length;
-  for (let i = 0; n < kb * 1000; i++) {
-    const s = unit.replaceAll('%N', String(i));
-    parts.push(s);
-    n += s.length;
-  }
-  return parts.join('');
 }
 
 /** Runs the engine once; `times` maps each target's file name to its run time, or `error` says why there are none. */

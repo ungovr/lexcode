@@ -145,11 +145,7 @@ entries:
     source: https://cocoapods.org/pods/TwilioConversationsClient
 
   # Bundled cryptography
-  - match: "cryptoswift"
-    enables: [ships_encryption]
-    says: "Cryptography in Swift. SHA, MD5, CRC, PBKDF, Poly1305, HMAC, CMAC, HKDF, Scrypt, ChaCha20, Rabbit, Blowfish, AES, RSA."
-    source: https://cocoapods.org/pods/CryptoSwift
-  - match: "sodium"
-    enables: [ships_encryption]
-    says: "Swift-Sodium provides a safe and easy to use interface to perform common cryptographic operations on Apple platforms."
-    source: https://cocoapods.org/pods/Sodium
+  # No entry. The CryptoSwift and Sodium pods mix hashing, MACs and signing with their ciphers (CryptoSwift's own
+  # description: "SHA, MD5, CRC, PBKDF, Poly1305, HMAC, CMAC, HKDF, Scrypt, ChaCha20, Rabbit, Blowfish, AES, RSA"),
+  # and an app can link one only for a hash or a MAC, which holds no cipher it uses.
+  # rules/ships_encryption/swift-library-encryption.yml reads their cipher calls in use instead (#13318).

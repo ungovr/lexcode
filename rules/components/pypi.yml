@@ -601,10 +601,6 @@ entries:
     enables: [ships_encryption]
     says: "Pure-Python RSA implementation"
     source: https://pypi.org/project/rsa/
-  - match: "ecdsa"
-    enables: [ships_encryption]
-    says: "ECDSA cryptographic signature library (pure python)"
-    source: https://pypi.org/project/ecdsa/
   - match: "libnacl"
     enables: [ships_encryption]
     says: "Python bindings for libsodium based on ctypes"

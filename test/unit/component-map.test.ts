@@ -124,6 +124,13 @@ describe('component map', () => {
     );
   });
 
+  it('golang.org/x/crypto enables nothing: Go links only the subpackages an app imports (#13318)', () => {
+    // An app that imports only x/crypto/bcrypt holds no cipher, so the module in go.mod is not evidence;
+    // go-xcrypto-encryption reads the cipher subpackages in the code instead.
+    const matches = load('go.yml').entries.map((e) => String(e.match).toLowerCase());
+    expect(matches.filter((m) => m === 'golang.org/x/crypto' || m.startsWith('golang.org/x/crypto/'))).toEqual([]);
+  });
+
   it('catches a bad entry (self-check of the checker)', () => {
     const bad = {
       ecosystem: 'npm',

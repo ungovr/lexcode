@@ -8,9 +8,9 @@
 # end-to-end messaging sessions (the Signal protocol, Olm and Megolm).
 #
 # Not read: signatures (ed25519-dalek, ring::signature, RSA signing, a JWS from jsonwebtoken),
-# MACs, hashes and random numbers, which encrypt nothing; password hashing (bcrypt, argon2), which
-# rs-password-hashing reads as a signal; the openssl crate's ciphers, which call the system's OpenSSL
-# and rs-openssl-encryption reads as a signal; and TLS, which rs-bundled-tls reads.
+# MACs, hashes, random numbers and password hashing and key derivation (bcrypt, argon2, pbkdf2), which
+# keep nothing confidential (#13318); the openssl crate's ciphers, which rs-openssl-encryption reads;
+# and TLS, which rs-bundled-tls reads.
 #
 # The engine does not resolve an item imported through a path inside a `use` group
 # (`use ring::{aead::{UnboundKey, ..}, rand}`), the form ring's and josekit's own examples use, so
