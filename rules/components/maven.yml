@@ -161,27 +161,14 @@ entries:
     source: https://central.sonatype.com/artifact/com.docusign/docusign-esign-java
 
   # Bundled cryptography
-  - match: "org.bouncycastle:bcprov-jdk18on"
-    enables: [ships_encryption]
-    says: "The Bouncy Castle Crypto package is a Java implementation of cryptographic algorithms."
-    source: https://central.sonatype.com/artifact/org.bouncycastle/bcprov-jdk18on
-  - match: "org.bouncycastle:bcprov-jdk15on"
-    enables: [ships_encryption]
-    says: "The Bouncy Castle Crypto package is a Java implementation of cryptographic algorithms."
-    source: https://central.sonatype.com/artifact/org.bouncycastle/bcprov-jdk15on
-  - match: "org.bouncycastle:bcprov-jdk15to18"
-    enables: [ships_encryption]
-    says: "The Bouncy Castle Crypto package is a Java implementation of cryptographic algorithms."
-    source: https://central.sonatype.com/artifact/org.bouncycastle/bcprov-jdk15to18
+  # Only an artifact whose own description says its purpose is encryption is listed (#13318, #13336). A
+  # general cryptography library that mixes hashing, MACs or signing with its ciphers has no entry, as
+  # golang.org/x/crypto has none in go.yml: an app can link one only for a hash, a MAC or a signature,
+  # which holds no cipher it uses. So Bouncy Castle's bcprov artifacts and Tink (tink, tink-android)
+  # are not listed, and rules/ships_encryption/java-library-encryption.yml and
+  # kt-library-encryption.yml read their cipher and key-agreement calls in use instead (a JCA cipher
+  # through a Bouncy Castle provider object is the platform rules').
   - match: "org.jasypt:jasypt"
     enables: [ships_encryption]
     says: "Java library which enables encryption in java apps with minimum effort."
     source: https://central.sonatype.com/artifact/org.jasypt/jasypt
-  - match: "com.google.crypto.tink:tink"
-    enables: [ships_encryption]
-    says: "Tink is a small cryptographic library that provides a safe, simple, agile and fast way to accomplish some common cryptographic tasks."
-    source: https://central.sonatype.com/artifact/com.google.crypto.tink/tink
-  - match: "com.google.crypto.tink:tink-android"
-    enables: [ships_encryption]
-    says: "Tink is a small cryptographic library that provides a safe, simple, agile and fast way to accomplish some common cryptographic tasks."
-    source: https://central.sonatype.com/artifact/com.google.crypto.tink/tink-android

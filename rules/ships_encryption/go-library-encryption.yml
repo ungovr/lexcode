@@ -1,0 +1,121 @@
+rules:
+  - id: lexcode.crypto.go-library-encryption
+    languages: [go]
+    severity: INFO
+    message: Encrypts data or agrees keys with a cryptography library the product bundles (ProtonMail's OpenPGP, Tink or CIRCL), which is shipping encryption (ships_encryption).
+    # The component map has no entry for these modules: each mixes signing, MACs or hashing with its
+    # ciphers, and Go links only the packages a program imports, so an app that imports only a
+    # signature package holds no cipher. This rule reads the encrypting and key-agreement packages in
+    # use instead, each under its own import, as go-xcrypto-encryption does for golang.org/x/crypto.
+    # Their signing, MAC and hashing packages are not read.
+    pattern-either:
+      # ProtonMail's OpenPGP (github.com/ProtonMail/go-crypto, version 1 and 2 APIs)
+      - patterns:
+          - pattern-either:
+              - pattern: openpgp.Encrypt(...)
+              - pattern: openpgp.EncryptText(...)
+              - pattern: openpgp.EncryptSplit(...)
+              - pattern: openpgp.EncryptTextSplit(...)
+              - pattern: openpgp.SymmetricallyEncrypt(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import "github.com/ProtonMail/go-crypto/openpgp"
+                  ...
+              - pattern-inside: |
+                  import "github.com/ProtonMail/go-crypto/openpgp/v2"
+                  ...
+      # Tink (github.com/google/tink/go and its successor github.com/tink-crypto/tink-go/v2): the
+      # AEAD, deterministic AEAD, hybrid and streaming AEAD primitives, not MAC or signature
+      - patterns:
+          - pattern: aead.New(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import "github.com/google/tink/go/aead"
+                  ...
+              - pattern-inside: |
+                  import "github.com/tink-crypto/tink-go/v2/aead"
+                  ...
+      - patterns:
+          - pattern: daead.New(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import "github.com/google/tink/go/daead"
+                  ...
+              - pattern-inside: |
+                  import "github.com/tink-crypto/tink-go/v2/daead"
+                  ...
+      - patterns:
+          - pattern-either:
+              - pattern: hybrid.NewHybridEncrypt(...)
+              - pattern: hybrid.NewHybridDecrypt(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import "github.com/google/tink/go/hybrid"
+                  ...
+              - pattern-inside: |
+                  import "github.com/tink-crypto/tink-go/v2/hybrid"
+                  ...
+      - patterns:
+          - pattern: streamingaead.New(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import "github.com/google/tink/go/streamingaead"
+                  ...
+              - pattern-inside: |
+                  import "github.com/tink-crypto/tink-go/v2/streamingaead"
+                  ...
+      # CIRCL (github.com/cloudflare/circl): X25519 and X448 key agreement, HPKE, and a KEM's
+      # encapsulation (not its signature schemes)
+      - patterns:
+          - pattern: x25519.Shared(...)
+          - pattern-inside: |
+              import "github.com/cloudflare/circl/dh/x25519"
+              ...
+      - patterns:
+          - pattern: x448.Shared(...)
+          - pattern-inside: |
+              import "github.com/cloudflare/circl/dh/x448"
+              ...
+      - patterns:
+          - pattern-either:
+              - pattern: $S.NewSender(...)
+              - pattern: $S.NewReceiver(...)
+          - pattern-inside: |
+              import "github.com/cloudflare/circl/hpke"
+              ...
+      - patterns:
+          - pattern-either:
+              - pattern: $S.Encapsulate(...)
+              - pattern: $S.EncapsulateDeterministically(...)
+              - pattern: $PK.EncapsulateTo(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import "github.com/cloudflare/circl/kem/schemes"
+                  ...
+              - pattern-inside: |
+                  import "github.com/cloudflare/circl/kem/kyber/kyber512"
+                  ...
+              - pattern-inside: |
+                  import "github.com/cloudflare/circl/kem/kyber/kyber768"
+                  ...
+              - pattern-inside: |
+                  import "github.com/cloudflare/circl/kem/kyber/kyber1024"
+                  ...
+              - pattern-inside: |
+                  import "github.com/cloudflare/circl/kem/mlkem/mlkem512"
+                  ...
+              - pattern-inside: |
+                  import "github.com/cloudflare/circl/kem/mlkem/mlkem768"
+                  ...
+              - pattern-inside: |
+                  import "github.com/cloudflare/circl/kem/mlkem/mlkem1024"
+                  ...
+              - pattern-inside: |
+                  import "github.com/cloudflare/circl/kem/xwing"
+                  ...
+    metadata:
+      activity: ships_encryption
+      mentioned: performs
+      definition: https://lexlint.io/glossary#ships-encryption
+      provenance: ungovr-original
+      license: MIT

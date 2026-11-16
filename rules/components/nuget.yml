@@ -34,3 +34,11 @@ entries:
     enables: [automated_outreach]
     says: "Twilio provides a HTTP-based API for sending and receiving phone calls and text messages."
     source: https://www.nuget.org/packages/Twilio
+
+  # Bundled cryptography
+  # No entry. Only a package whose own description says its purpose is encryption would be listed
+  # (#13318, #13336). A general cryptography library that mixes hashing, MACs or signing with its
+  # ciphers (BouncyCastle.Cryptography, NSec.Cryptography, for two) has no entry, as golang.org/x/crypto
+  # has none in go.yml: an app can link one only for a hash or a signature, which holds no cipher it
+  # uses. rules/ships_encryption/cs-library-encryption.yml and cs-platform-encryption.yml read the cipher
+  # and key-agreement calls in use instead.

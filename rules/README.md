@@ -1236,11 +1236,9 @@ could not match to one locked version); recorded without a version`. A
 
 Known Cargo gaps: a crate spelled with a hyphen in one place and an underscore
 in another (`serde_json`, `serde-json`) is looked up by the spelling the manifest
-uses, in the lock and in the component map. A package whose own description says
-it hashes, signs or authenticates, and not that it encrypts, is not mapped to
-`ships_encryption`: the `sha2`, `hmac`, `argon2` and `bcrypt` crates, the signing
-crates and the Swift package `jwt-kit`, none of which keeps data confidential.
-Key-agreement crates (`x25519-dalek`, `p256`) are not mapped either, a known gap
+uses, in the lock and in the component map. Which cryptography crates and Swift
+packages are mapped follows the rule for every map, under "Shipping encryption".
+Key-agreement crates (`x25519-dalek`, `p256`) are not mapped, a known gap
 since key agreement counts (#13318): `rs-library-encryption` reads
 `x25519-dalek`'s key agreement in the code, and `p256`'s ECDH is not read.
 
@@ -1430,12 +1428,8 @@ Any other exemption must be argued and ruled before it is added.
   bundles BoringSSL, rustls with ring, RustCrypto ciphers, age, libsodium
   bindings). A CryptoKit-shaped call in a file that also imports swift-crypto's
   `Crypto` is read by `swift-library-encryption` only. A general cryptography
-  library that also hashes, MACs or signs (swift-crypto, CryptoSwift,
-  swift-sodium, orion, sodiumoxide) has no component-map entry, as
-  `golang.org/x/crypto` has none: a product can link one only for an HMAC or a
-  signature, so only its cipher and key-agreement calls count. The Swift,
-  CocoaPods and Cargo maps list a library whose purpose is encryption (the
-  RustCrypto ciphers, age). HTTPS through
+  library that also hashes, MACs or signs has no component-map entry (see
+  "Shipping encryption"). HTTPS through
   `URLSession`, `native-tls` or the `openssl` crate's TLS is not read, and
   neither are hashing, a MAC, password hashing, key derivation and signing (see
   "Shipping encryption"). In Rust, password hashing is evidence of
@@ -1642,11 +1636,27 @@ what the code does, not whose library does it. So the rules read:
   crate's from the system's OpenSSL or a vendored copy
   (`rs-openssl-encryption`).
 - The same through a bundled library (the `*-library-encryption` rules, the
-  framework, attribute and storage rules), and a cryptography library that
-  encrypts or agrees keys in the dependency tree (the component map).
-  `golang.org/x/crypto` has no map entry: Go links only the subpackages a
+  framework, attribute and storage rules), and a cryptography library whose
+  purpose is encryption in the dependency tree (the component map).
+- In every component map, a library is listed only when its own description
+  says its purpose is encryption: the RustCrypto ciphers, age, MinIO's sio,
+  Jasypt, aes-js, @noble/ciphers, @stablelib/chacha20poly1305, pyaes. A
+  general cryptography library that also hashes, MACs or signs has no entry,
+  because an app can link one only for a hash or a signature, which holds no
+  cipher it uses. Its cipher and key-agreement calls are read in the code
+  instead: libsodium, TweetNaCl, crypto-js, crypto-es, node-forge, OpenPGP.js,
+  kbpgp, SJCL, @noble/curves, elliptic and eccrypto by
+  `js-library-encryption`; cryptography, PyCryptodome, PyNaCl, libnacl, Tink,
+  rsa and PGPy by `py-library-encryption`; Bouncy Castle and Tink by `java-` and
+  `kt-library-encryption`; phpseclib by `php-library-encryption`; ProtonMail's
+  OpenPGP, Tink and CIRCL by `go-library-encryption`; swift-crypto,
+  CryptoSwift and swift-sodium by `swift-library-encryption`; orion,
+  sodiumoxide, ring and aws-lc-rs by `rs-library-encryption`. Go's own
+  `golang.org/x/crypto` is the first case: Go links only the subpackages a
   program imports, so `go-xcrypto-encryption` reads the cipher subpackages in
-  use, and an app that imports only `x/crypto/bcrypt` holds no cipher.
+  use, and an app that imports only `x/crypto/bcrypt` holds no cipher. A
+  library's key-pair generation is not read either, since the key may only
+  sign (#13318, #13336).
 - Never: hashing, a MAC, password hashing and key derivation (bcrypt, Argon2,
   scrypt, PBKDF2), signing (JWT, ECDSA, RSA signatures), random bytes, or HTTPS
   through the platform's stock client.

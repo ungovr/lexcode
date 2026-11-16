@@ -40,12 +40,20 @@ rules:
       - pattern: javax.crypto.Cipher.getInstance($A, "BC")
       - pattern: javax.crypto.Cipher.getInstance($A, BouncyCastleProvider.PROVIDER_NAME)
       - pattern: javax.crypto.Cipher.getInstance($A, org.bouncycastle.jce.provider.BouncyCastleProvider.PROVIDER_NAME)
-      # Google Tink
+      # Google Tink: registering or getting an encrypting primitive (current Tink passes a
+      # configuration first), not a MAC or a signature
       - pattern: AeadConfig.register()
+      - pattern: DeterministicAeadConfig.register()
+      - pattern: HybridConfig.register()
+      - pattern: StreamingAeadConfig.register()
       - pattern: $K.getPrimitive(Aead.class)
       - pattern: $K.getPrimitive(HybridEncrypt.class)
       - pattern: $K.getPrimitive(StreamingAead.class)
       - pattern: $K.getPrimitive(DeterministicAead.class)
+      - pattern: $K.getPrimitive($C, Aead.class)
+      - pattern: $K.getPrimitive($C, HybridEncrypt.class)
+      - pattern: $K.getPrimitive($C, StreamingAead.class)
+      - pattern: $K.getPrimitive($C, DeterministicAead.class)
       # libsodium bindings: Lazysodium (distinctive method names), libsodium-jni and Kalium
       - pattern: $S.cryptoSecretBoxEasy(...)
       - pattern: $S.cryptoBoxEasy(...)

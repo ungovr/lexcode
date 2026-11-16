@@ -234,24 +234,15 @@ entries:
   # Bundled cryptography
   # golang.org/x/crypto has no entry: Go links only the subpackages a program imports, and an app that
   # imports only x/crypto/bcrypt holds no cipher. rules/ships_encryption/go-xcrypto-encryption.yml reads
-  # the cipher subpackages in use instead (#13318).
-  - match: "github.com/ProtonMail/go-crypto"
-    enables: [ships_encryption]
-    says: "Fork of go/x/crypto, providing an up-to-date OpenPGP implementation"
-    source: https://pkg.go.dev/github.com/ProtonMail/go-crypto
-  - match: "github.com/google/tink/go"
-    enables: [ships_encryption]
-    says: "Tink is a multi-language, cross-platform, open source library that provides cryptographic APIs that are secure, easy to use correctly, and hard(er) to misuse."
-    source: https://pkg.go.dev/github.com/google/tink/go
-    # Description of the GitHub mirror or repository, quoted as published there.
+  # the cipher subpackages in use instead (#13318). The same holds for the other general cryptography
+  # modules that mix signing, MACs or hashing with their ciphers (#13336): github.com/ProtonMail/go-crypto,
+  # github.com/google/tink/go and github.com/cloudflare/circl are not listed, and
+  # rules/ships_encryption/go-library-encryption.yml reads their encrypting and key-agreement packages
+  # in use. Only a module whose own description says its purpose is encryption is listed.
   - match: "filippo.io/age"
     enables: [ships_encryption]
     says: "A simple, modern and secure encryption tool (and Go library) with small explicit keys, no config options, and UNIX-style composability."
     source: https://pkg.go.dev/filippo.io/age
-  - match: "github.com/cloudflare/circl"
-    enables: [ships_encryption]
-    says: "CIRCL: Cloudflare Interoperable Reusable Cryptographic Library"
-    source: https://pkg.go.dev/github.com/cloudflare/circl
   - match: "github.com/minio/sio"
     enables: [ships_encryption]
     says: "Go implementation of the Data At Rest Encryption (DARE) format."

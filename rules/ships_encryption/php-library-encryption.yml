@@ -143,6 +143,32 @@ rules:
           - metavariable-regex:
               metavariable: $C
               regex: ^(?:AES|Rijndael|ChaCha20|Salsa20|Twofish|Blowfish|TripleDES|DES|RC2|RC4|SSH2|SFTP|SCP)$
+      # phpseclib version 3: its key agreement, and RSA set to encrypt (its signing padding is not read)
+      - patterns:
+          - pattern-either:
+              - pattern: \phpseclib3\Crypt\DH::computeSecret(...)
+              - patterns:
+                  - pattern: DH::computeSecret(...)
+                  - pattern-inside: |
+                      use phpseclib3\Crypt\DH;
+                      ...
+                  - pattern-not-inside: |
+                      use phpseclib3\Crypt\DH as $AL;
+                      ...
+      - patterns:
+          - pattern-either:
+              - pattern: $K->withPadding(\phpseclib3\Crypt\RSA::ENCRYPTION_OAEP)
+              - pattern: $K->withPadding(\phpseclib3\Crypt\RSA::ENCRYPTION_PKCS1)
+              - patterns:
+                  - pattern-either:
+                      - pattern: $K->withPadding(RSA::ENCRYPTION_OAEP)
+                      - pattern: $K->withPadding(RSA::ENCRYPTION_PKCS1)
+                  - pattern-inside: |
+                      use phpseclib3\Crypt\RSA;
+                      ...
+                  - pattern-not-inside: |
+                      use phpseclib3\Crypt\RSA as $AL;
+                      ...
       # A JWE (an encrypted token) with web-token's builder
       - pattern: new \Jose\Component\Encryption\JWEBuilder(...)
       - patterns:

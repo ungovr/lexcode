@@ -24,7 +24,8 @@ entries:
     source: https://packagist.org/packages/symfony/mailer
 
   # Bundled cryptography
-  - match: "phpseclib/phpseclib"
-    enables: [ships_encryption]
-    says: "PHP Secure Communications Library - Pure-PHP implementations of RSA, AES, SSH2, SFTP, X.509 etc."
-    source: https://packagist.org/packages/phpseclib/phpseclib
+  # No entry. Only a package whose own description says its purpose is encryption would be listed
+  # (#13318, #13336). phpseclib/phpseclib mixes RSA signing and X.509 with its ciphers and SSH stack, and
+  # an app can install it only to verify a signature, which holds no cipher it uses, as golang.org/x/crypto
+  # has no entry in go.yml. rules/ships_encryption/php-library-encryption.yml reads its ciphers, key
+  # agreement, RSA encryption and SSH connections in use instead.
