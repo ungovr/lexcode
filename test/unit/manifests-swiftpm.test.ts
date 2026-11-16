@@ -288,6 +288,58 @@ describe('readSwiftPm', () => {
     expect(r.deps).toEqual([]);
     expect(r.notices).toEqual(['Package.swift: did not parse (unbalanced parentheses at line 4); skipped']);
   });
+
+  it('a package URL that is not a string literal is not a row, and a notice names it (final review minor 2)', () => {
+    const text = manifest(
+      ['.package(url: base, from: "1.0.0")', '.package(url: root + "/b/B", from: "1.0.0")', '.package(url: "https://github.com/a/A" /* pinned */, exact: "1.0.0")'],
+      [],
+    );
+    const r = readSwiftPm(tree({ 'Package.swift': text }), ['Package.swift']);
+    expect(r.deps).toEqual([{ ecosystem: 'swift', name: 'github.com/a/A', version: '1.0.0', manifest: `Package.swift:${lineOf(text, 'a/A')}` }]);
+    expect(r.notices).toEqual([
+      `Package.swift:${lineOf(text, 'url: base')}: a package URL that is not a string literal is not read`,
+      `Package.swift:${lineOf(text, 'url: root')}: a package URL that is not a string literal is not read`,
+    ]);
+  });
+
+  it('nested .package( calls cost time in proportion to the file (final review I-3)', () => {
+    // Each call once rescanned the rest of the file for its closing parenthesis and again for its arguments:
+    // 20,000 nested calls took 9.4 s, and 50,000 took 47.9 s.
+    const root = tree({ 'Package.swift': `${'.package('.repeat(20000)}${')'.repeat(20000)}\n` });
+    const t0 = Date.now();
+    const r = readSwiftPm(root, ['Package.swift']);
+    expect(Date.now() - t0).toBeLessThan(2000);
+    expect(r.deps).toEqual([]);
+    expect(r.notices).toEqual([]);
+  });
+
+  it('many packages and product references cost time in proportion to the file', () => {
+    // Finding each argument's string, and each package's references, once searched every string and every
+    // reference: 20,000 packages each named by a product took 6.2 s.
+    const n = 20000;
+    const deps = Array.from({ length: n }, (_, i) => `.package(url: "https://github.com/o${i}/r${i}.git", from: "1.0.0")`);
+    const products = Array.from({ length: n }, (_, i) => `.product(name: "R${i}", package: "r${i}")`).join(', ');
+    const text = manifest(deps, [`.target(name: "App", dependencies: [${products}])`, '.testTarget(name: "AppTests", dependencies: [.product(name: "R0", package: "r0")])']);
+    const root = tree({ 'Package.swift': text });
+    const t0 = Date.now();
+    const r = readSwiftPm(root, ['Package.swift']);
+    expect(Date.now() - t0).toBeLessThan(2000);
+    expect(r.deps).toHaveLength(n);
+    expect(r.devSkipped).toBe(0);
+  });
+
+  it('a product inside an outer test target is a test reference even after a nested call closes', () => {
+    const text = manifest(
+      ['.package(url: "https://github.com/a/A", from: "1.0.0")', '.package(url: "https://github.com/b/B", from: "1.0.0")'],
+      [
+        '.testTarget(name: "T", dependencies: [.testTarget(name: "Inner"), .product(name: "A", package: "A")], resources: [.process(x(y))])',
+        '.target(name: "App", dependencies: [.product(name: "B", package: "B")])',
+      ],
+    );
+    const r = readSwiftPm(tree({ 'Package.swift': text }), ['Package.swift']);
+    expect(r.deps.map((d) => d.name)).toEqual(['github.com/b/B']);
+    expect(r.devSkipped).toBe(1);
+  });
 });
 
 // ---- Xcode projects (Review Focus 3) ---------------------------------------------------------

@@ -1208,8 +1208,9 @@ A `Package.swift` holds each `.package(url: ...)` call as a row, at the line of
 `.package(path: ...)` call is a local package, neither a row nor counted, and a
 `.package(id: "scope.name", ...)` registry call is a row named `scope/name`. A
 `Package@swift-5.9.swift` is an alternate of the same file and is not read, and
-a URL built by string interpolation is not a row: the scan gives a notice with
-its line. In an Xcode project, `project.pbxproj` holds each
+a URL built by string interpolation, or not written as a string literal (a
+variable or a concatenation), is not a row: the scan gives a notice with its
+line. In an Xcode project, `project.pbxproj` holds each
 `XCRemoteSwiftPackageReference` as a row, at the line of its `repositoryURL`; an
 `XCLocalSwiftPackageReference` is ignored. The file is an OpenStep property list,
 which lexcode reads itself (nesting past 256 levels is a notice, not a crash); a
