@@ -6,21 +6,30 @@ rules:
     # The app encrypting its own payloads with the platform's API keeps them confidential, as a bundled
     # library would. Configuring the key ring (AddDataProtection) is the framework protecting its own
     # cookies and antiforgery tokens, and cookie or bearer authentication setup (AddCookie,
-    # AddIdentityCookies, AddBearerToken) is access control; neither is read. A protector whose purpose
-    # is a string that names a token, a cookie, a session, a password, a one-time code or another
-    # sign-in secret protects access-control data, which the export rules count as authentication, so
-    # it is not read either; a purpose held in a variable is read. The provider and protector are
+    # AddIdentityCookies, AddBearerToken) is access control; neither is read.
+    # Protecting access-control data is authentication under the export rules (15 C.F.R. 772.1), so a
+    # protector is not read when any string argument (the purpose, a sub-purpose, or the standalone
+    # provider's application name) holds an access-control word as a whole word: a PascalCase word
+    # (Token, Cookie, Session, Auth, Authentication, Authorization, Antiforgery, Csrf, Xsrf, Otp, Totp,
+    # Mfa, TwoFactor, Password, Passwd, Passcode, Passphrase, Pin, Login, Logon, SignIn, Remember,
+    # RememberMe, Bearer, ApiKey, Secret, Nonce, Recovery, Reset, Credential, Confirm, Confirmation,
+    # Verification, Ticket, Jwt, each with an optional plural s), its lowercase or snake_case twin
+    # after a non-letter, or an upper-case acronym (OTP, TOTP, MFA, 2FA, PIN, CSRF, XSRF, JWT, API_KEY).
+    # A word must end where the next lower-case letter would continue it, so MyShop.Authors,
+    # MyShop.Footprint, MyShop.Presets and MyShop.Spin are ordinary data. A PascalCase word counts
+    # inside a compound too (EmailConfirmation, TwoFactorTokens), so MyShop.TherapySessions is read as
+    # session data and not read: the purpose cannot say which, and a session word is the usual sign of
+    # one. A purpose held in a variable is read whatever it protects. The provider and protector are
     # injected, so they are read by their declared type; the standalone provider by its fully
     # qualified name.
-    pattern-either:
-      - patterns:
-          - pattern-either:
-              - pattern: (Microsoft.AspNetCore.DataProtection.IDataProtectionProvider $P).CreateProtector($S, ...)
-              - pattern: (Microsoft.AspNetCore.DataProtection.IDataProtector $P).CreateProtector($S, ...)
-          - metavariable-regex:
-              metavariable: $S
-              regex: (?s)^(?!\$?@?"[^"]*?(?i:token|cookie|session|auth|antiforgery|csrf|xsrf|otp|two.?factor|2fa|mfa|password|passcode|pin\b|login|signin|sign.in|remember|bearer|api.?key|secret|nonce|recovery|reset)).*
-      - pattern: Microsoft.AspNetCore.DataProtection.DataProtectionProvider.Create(...)
+    patterns:
+      - pattern-either:
+          - pattern: (Microsoft.AspNetCore.DataProtection.IDataProtectionProvider $P).CreateProtector($...ARGS)
+          - pattern: (Microsoft.AspNetCore.DataProtection.IDataProtector $P).CreateProtector($...ARGS)
+          - pattern: Microsoft.AspNetCore.DataProtection.DataProtectionProvider.Create($...ARGS)
+      - metavariable-regex:
+          metavariable: $...ARGS
+          regex: '(?s)^(?!.*"[^"]*(?:(?:Token|Cookie|Session|Auth|Authentication|Authorization|Antiforgery|Csrf|Xsrf|Otp|Totp|Mfa|TwoFactor|Password|Passwd|Passcode|Passphrase|Pin|Login|Logon|SignIn|Remember|RememberMe|Bearer|ApiKey|APIKey|Secret|Nonce|Recovery|Reset|Credential|Confirm|Confirmation|Verification|Ticket|Jwt)s?(?![a-z])|(?<![A-Za-z])(?:token|cookie|session|auth|authentication|authorization|antiforgery|csrf|xsrf|otp|totp|mfa|two_?factor|2fa|password|passwd|passcode|passphrase|pin|login|logon|sign_?in|remember(?:_?me)?|bearer|api_?key|secret|nonce|recovery|reset|credential|confirm|confirmation|verification|ticket|jwt)s?(?![a-z])|(?<![A-Za-z])(?:OTP|TOTP|MFA|2FA|PIN|CSRF|XSRF|JWT|API_?KEY)S?(?![A-Za-z]))).*'
     metadata:
       activity: ships_encryption
       mentioned: performs
