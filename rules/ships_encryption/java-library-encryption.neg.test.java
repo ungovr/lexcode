@@ -43,6 +43,9 @@ import org.bouncycastle.crypto.digests.SHA256Digest;
 import org.bouncycastle.crypto.signers.Ed25519Signer;
 import org.bouncycastle.openssl.PEMParser;
 import org.bouncycastle.cert.X509CertificateHolder;
+import org.pgpainless.PGPainless;
+import org.pgpainless.encryption_signing.ProducerOptions;
+import org.pgpainless.encryption_signing.SigningOptions;
 
 public class PlatformCrypto {
   private final KeysetHandle keyset;
@@ -179,5 +182,10 @@ public class PlatformCrypto {
 
   public Object projectBox(byte[] publicKey, byte[] privateKey) {
     return new Box(publicKey, privateKey);
+  }
+
+  // PGPainless used only to sign: its sign-or-encrypt entry point with signing options alone.
+  public Object pgpSignOnly(java.io.OutputStream out, SigningOptions signing) throws Exception {
+    return PGPainless.encryptAndOrSign().onOutputStream(out).withOptions(ProducerOptions.sign(signing));
   }
 }

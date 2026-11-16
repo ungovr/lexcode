@@ -148,7 +148,20 @@ rules:
                   ...
       - pattern: AwsCrypto.builder()
       - pattern: AwsCrypto.standard()
-      - pattern: PGPainless.encryptAndOrSign()
+      # PGPainless: its producer options that encrypt (encryptAndOrSign() alone may only sign)
+      - patterns:
+          - pattern-either:
+              - pattern: ProducerOptions.encrypt(...)
+              - pattern: ProducerOptions.signAndEncrypt(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import org.pgpainless.encryption_signing.ProducerOptions;
+                  ...
+              - pattern-inside: |
+                  import org.pgpainless.encryption_signing.*;
+                  ...
+      - pattern: org.pgpainless.encryption_signing.ProducerOptions.encrypt(...)
+      - pattern: org.pgpainless.encryption_signing.ProducerOptions.signAndEncrypt(...)
     metadata:
       activity: ships_encryption
       mentioned: performs

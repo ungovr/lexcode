@@ -37,6 +37,8 @@ import org.jasypt.util.text.AES256TextEncryptor;
 import org.libsodium.jni.crypto.SecretBox;
 import org.matrix.olm.OlmAccount;
 import org.pgpainless.PGPainless;
+import org.pgpainless.encryption_signing.EncryptionOptions;
+import org.pgpainless.encryption_signing.ProducerOptions;
 import org.springframework.security.crypto.encrypt.AesBytesEncryptor;
 import org.springframework.security.crypto.encrypt.Encryptors;
 import org.springframework.security.crypto.encrypt.TextEncryptor;
@@ -160,8 +162,8 @@ public class Vault {
     return AwsCrypto.builder().build();
   }
 
-  public Object pgpainless() {
-    return PGPainless.encryptAndOrSign();
+  public Object pgpainless(java.io.OutputStream out, EncryptionOptions encryption) throws Exception {
+    return PGPainless.encryptAndOrSign().onOutputStream(out).withOptions(ProducerOptions.encrypt(encryption));
   }
 
   public Cipher providerByName() throws Exception {
