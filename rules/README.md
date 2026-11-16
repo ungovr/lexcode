@@ -637,8 +637,12 @@ The definitions the rules follow, one line each:
 
 - A cipher or a key agreement is `ships_encryption` whether it runs through the
   platform's own crypto (a javax.crypto `Cipher` or `KeyAgreement`) or a bundled
-  library; a cipher built through the Bouncy Castle provider is counted once, by
-  the library rule. Password hashing is not (see "Shipping encryption" below).
+  library, and each call is counted by one rule. A `Cipher.getInstance` whose
+  provider is Bouncy Castle by name (`"BC"` or `BouncyCastleProvider.PROVIDER_NAME`,
+  with `Cipher` imported or fully qualified) is the library rule's; every other
+  one, a Bouncy Castle provider passed as an object (`new BouncyCastleProvider()`,
+  `Security.getProvider("BC")`) included, is the platform rule's. Password
+  hashing is not `ships_encryption` (see "Shipping encryption" below).
 - Signing a PDF with a key is a signal.
 - An Android app is `ships_mobile_app` evidence only; it says nothing else.
 - Publishing to GitHub Packages is not `distributes_software_product`.

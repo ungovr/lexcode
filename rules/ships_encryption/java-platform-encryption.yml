@@ -4,12 +4,15 @@ rules:
     severity: INFO
     message: Encrypts data or agrees keys with the JDK's own cryptography (a javax.crypto Cipher or KeyAgreement), which is shipping encryption (ships_encryption).
     # A cipher or a key agreement keeps data confidential whoever wrote the code that runs it, so the
-    # JDK's own provider counts as a bundled library does. A cipher built through the Bouncy Castle
-    # provider (`Cipher.getInstance(t, "BC")`) is java-library-encryption's and is not read here, so
-    # the two rules never count one call twice. Hashing (MessageDigest), a MAC (Mac), password
-    # hashing and key derivation (SecretKeyFactory, Spring's password encoders), signing
-    # (Signature), random bytes (SecureRandom) and HTTPS through a stock client are not read. Cipher
-    # and KeyAgreement are names an app could give its own class, so each call needs its import.
+    # JDK's own provider counts as a bundled library does. A cipher whose provider is Bouncy Castle
+    # by name ("BC" or BouncyCastleProvider.PROVIDER_NAME, imported or fully qualified) is
+    # java-library-encryption's and is not read here, so the two rules never count one call twice.
+    # A Bouncy Castle provider passed as an object (`new BouncyCastleProvider()`,
+    # `Security.getProvider("BC")`) or in a variable is read here: the call cannot tell it from the
+    # JDK's. Hashing (MessageDigest), a MAC (Mac), password hashing and key derivation
+    # (SecretKeyFactory, Spring's password encoders), signing (Signature), random bytes
+    # (SecureRandom) and HTTPS through a stock client are not read. Cipher and KeyAgreement are names
+    # an app could give its own class, so a short-name call needs its import.
     patterns:
       - pattern-either:
           - patterns:
@@ -34,7 +37,10 @@ rules:
           - pattern: javax.crypto.KeyAgreement.getInstance(...)
       - pattern-not: Cipher.getInstance($A, "BC")
       - pattern-not: Cipher.getInstance($A, BouncyCastleProvider.PROVIDER_NAME)
+      - pattern-not: Cipher.getInstance($A, org.bouncycastle.jce.provider.BouncyCastleProvider.PROVIDER_NAME)
       - pattern-not: javax.crypto.Cipher.getInstance($A, "BC")
+      - pattern-not: javax.crypto.Cipher.getInstance($A, BouncyCastleProvider.PROVIDER_NAME)
+      - pattern-not: javax.crypto.Cipher.getInstance($A, org.bouncycastle.jce.provider.BouncyCastleProvider.PROVIDER_NAME)
     metadata:
       activity: ships_encryption
       mentioned: performs

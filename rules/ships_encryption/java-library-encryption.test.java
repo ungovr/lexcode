@@ -1,4 +1,4 @@
-// lexcode-expect: 29
+// lexcode-expect: 30
 // Encryption and key agreement through libraries the product bundles: Bouncy Castle (block and
 // stream ciphers, key agreement, OpenPGP, CMS), Google Tink, libsodium bindings, Jasypt and
 // Spring Security Crypto, Nimbus JOSE JWE and JJWT encryption, the Signal protocol, Olm,
@@ -170,5 +170,9 @@ public class Vault {
 
   public Cipher providerByConstant() throws Exception {
     return Cipher.getInstance("ChaCha20-Poly1305", BouncyCastleProvider.PROVIDER_NAME);
+  }
+
+  public Cipher providerByQualifiedConstant() throws Exception {
+    return Cipher.getInstance("AES/GCM/NoPadding", org.bouncycastle.jce.provider.BouncyCastleProvider.PROVIDER_NAME);
   }
 }

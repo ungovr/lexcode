@@ -3,9 +3,10 @@ rules:
     languages: [kotlin]
     severity: INFO
     message: Encrypts data or agrees keys with a cryptography library the product bundles (Bouncy Castle, Tink or libsodium), which is shipping encryption (ships_encryption).
-    # A cipher built through the Bouncy Castle provider is read here; one through the platform's own
-    # provider is kt-platform-encryption's, so no call is counted twice. Hashing, MACs, signing and
-    # key derivation in these libraries are not read.
+    # A JCA cipher whose provider is Bouncy Castle by name ("BC" or BouncyCastleProvider.PROVIDER_NAME,
+    # imported or fully qualified) is read here; every other Cipher.getInstance, a Bouncy Castle
+    # provider object included, is kt-platform-encryption's, so no call is counted twice. Hashing, MACs,
+    # signing and key derivation in these libraries are not read.
     pattern-either:
       # Bouncy Castle lightweight API, OpenPGP and CMS
       - pattern: GCMBlockCipher(...)
@@ -20,11 +21,15 @@ rules:
       - pattern: ECDHBasicAgreement()
       - pattern: PGPEncryptedDataGenerator(...)
       - pattern: CMSEnvelopedDataGenerator()
-      # A JCA cipher built through the Bouncy Castle provider
+      # A JCA cipher built through the Bouncy Castle provider named by its name ("BC" or the
+      # PROVIDER_NAME constant), imported or fully qualified. A provider object
+      # (`new BouncyCastleProvider()`, `Security.getProvider("BC")`) or a variable is not told apart
+      # from the platform's provider, so that call is the platform rule's.
       - patterns:
           - pattern-either:
               - pattern: Cipher.getInstance($A, "BC")
               - pattern: Cipher.getInstance($A, BouncyCastleProvider.PROVIDER_NAME)
+              - pattern: Cipher.getInstance($A, org.bouncycastle.jce.provider.BouncyCastleProvider.PROVIDER_NAME)
           - pattern-either:
               - pattern-inside: |
                   import javax.crypto.Cipher
@@ -32,6 +37,9 @@ rules:
               - pattern-inside: |
                   import javax.crypto.*
                   ...
+      - pattern: javax.crypto.Cipher.getInstance($A, "BC")
+      - pattern: javax.crypto.Cipher.getInstance($A, BouncyCastleProvider.PROVIDER_NAME)
+      - pattern: javax.crypto.Cipher.getInstance($A, org.bouncycastle.jce.provider.BouncyCastleProvider.PROVIDER_NAME)
       # Google Tink
       - pattern: AeadConfig.register()
       - patterns:
