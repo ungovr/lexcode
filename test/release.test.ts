@@ -196,6 +196,61 @@ describe('release: the rule set is complete and well formed', () => {
     ).toEqual([]);
   });
 
+  // Swift (v1.5, Decision 16). Only a rule whose languages include swift counts:
+  // the Apple configuration rules (ios-, xcode- and entitlements- rules over
+  // Info.plist, project.pbxproj and .entitlements, read as xml or generic text)
+  // are additional evidence, not Swift. No exemption was ruled.
+  it('every evidence-class id has a Swift rule', () => {
+    expect(evidenceIdsWithoutRule((r) => r.languages.includes('swift'))).toEqual([]);
+  });
+
+  // Rust (v1.5, Decision 16). The one Rust exemption is
+  // distributes_software_product, whose package evidence lives in Cargo.toml
+  // (`[package]` metadata, `publish`, a release packaging section) as Java's
+  // lives in its build files: it may be met by a cargo- rule instead of a Rust
+  // source rule (rs-self-updater meets it from Rust as well). No other
+  // exemption was ruled.
+  it('every evidence-class id has a Rust rule', () => {
+    const cargoRule = (r: RuleMeta): boolean => /^cargo-/.test(basename(r.file));
+    expect(
+      evidenceIdsWithoutRule(
+        (r) => r.languages.includes('rust') || (r.activity === 'distributes_software_product' && cargoRule(r)),
+      ),
+    ).toEqual([]);
+  });
+
+  // Every whole-file Swift `import` or Rust `use` guard opens with one line-anchored, BOM-tolerant shape
+  // (CONTRIBUTING.md, Swift and Rust pattern notes; v1.5 Task 8a, #13303): an import named only in a comment, or
+  // on the first line of a file saved with a byte-order mark, then guards nothing it should not, or everything it
+  // should. What follows the keyword (the module or crate, and an item a `use` must name) is the rule's own.
+  it('every Swift import guard and Rust use guard opens with the one canonical shape', () => {
+    const opening = {
+      swift: String.raw`(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?`,
+      rust: String.raw`(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+`,
+    };
+    const offShape = (file: string, rx: string): boolean => {
+      const lang = file.startsWith('swift-') ? 'swift' : file.startsWith('rs-') ? 'rust' : undefined;
+      if (lang === undefined || !rx.includes('\\A(?=') || !(lang === 'swift' ? /\bimport\b/ : /\buse\b/).test(rx)) return false;
+      return !rx.startsWith(opening[lang]) || !rx.endsWith(').*');
+    };
+    // A deliberately off-shape copy of each is refused: no BOM, no line anchor, a lazy tail.
+    expect(offShape('swift-x.yml', String.raw`(?ms)\A(?=.*^[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?Firebase\b).*`)).toBe(true);
+    expect(offShape('rs-x.yml', String.raw`(?s)\A(?=.*use\s+rig\b).*`)).toBe(true);
+    expect(offShape('rs-x.yml', `${opening.rust}rig\\b).*?`)).toBe(true);
+    expect(offShape('swift-x.yml', `${opening.swift}Firebase\\b).*`)).toBe(false);
+    expect(offShape('rs-x.yml', `${opening.rust}ring::[^;]*\\bLessSafeKey\\b).*`)).toBe(false);
+    const bad: string[] = [];
+    const walk = (dir: string): void => {
+      for (const e of readdirSync(dir)) {
+        const p = join(dir, e);
+        if (statSync(p).isDirectory()) walk(p);
+        else if (e.endsWith('.yml')) for (const rx of patternRegexes(parse(readFileSync(p, 'utf8')))) if (offShape(e, rx)) bad.push(`${e}: ${rx}`);
+      }
+    };
+    walk(rulesDir);
+    expect(bad).toEqual([]);
+  });
+
   // The engine's `paths` excludes are unanchored globs, so `**/samples/**`
   // also drops a JVM package path (com/google/samples/apps/..., org/springframework/
   // samples/petclinic, every com/example package). A Java or Kotlin source rule

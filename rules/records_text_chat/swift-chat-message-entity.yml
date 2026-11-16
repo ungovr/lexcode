@@ -1,0 +1,76 @@
+rules:
+  - id: lexcode.chat.swift-chat-message-entity
+    languages: [swift]
+    severity: INFO
+    message: Maps chat messages or conversation turns to a stored model or a table, which is keeping a text chat (records_text_chat).
+    # As in the Kotlin, Java, C# and PHP entity rules: the type is named for a chat message
+    # (ChatMessage, ConversationTurn, ChatTranscript, ChatLogRecord) and is mapped to a store. The
+    # stores are SwiftData (`@Model`), Core Data (an NSManagedObject subclass), Fluent (a Model, and a
+    # migration that creates a chat-message table), Realm (an Object subclass) and GRDB (a
+    # PersistableRecord). Each store type is written module-qualified only (Decision 8): none comes
+    # through UIKit or SwiftUI, and `Model` and `Object` are names an app could define, so a file
+    # without the store's import does not match. Fluent re-exports FluentKit, so both are read. A
+    # contact message, a ticket, a chat room, a bare Transcript (a caption or academic transcript), a
+    # bare Message (an inbox message between people) and a struct with no store hold no chat text a
+    # store keeps, and do not match. On Opengrep 1.33.1 `class $K: X { ... }` matches X only as the
+    # FIRST type in the inheritance list (and also matches a struct), so a protocol is written at each
+    # position it is usually found: up to third for Fluent's Model (after Content, Codable), fourth
+    # for GRDB's records (after Codable, FetchableRecord, Identifiable). A superclass is always first.
+    # Core Data entities that Xcode generates from a `.xcdatamodeld` have no class in the source and
+    # are a known gap.
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: |
+                  @SwiftData.Model
+                  class $K { ... }
+              - pattern: |
+                  class $K: CoreData.NSManagedObject { ... }
+              - pattern: |
+                  class $K: Fluent.Model { ... }
+              - pattern: |
+                  class $K: $P1, Fluent.Model { ... }
+              - pattern: |
+                  class $K: $P1, $P2, Fluent.Model { ... }
+              - pattern: |
+                  class $K: FluentKit.Model { ... }
+              - pattern: |
+                  class $K: $P1, FluentKit.Model { ... }
+              - pattern: |
+                  class $K: $P1, $P2, FluentKit.Model { ... }
+              - pattern: |
+                  class $K: GRDB.PersistableRecord { ... }
+              - pattern: |
+                  class $K: $P1, GRDB.PersistableRecord { ... }
+              - pattern: |
+                  class $K: $P1, $P2, GRDB.PersistableRecord { ... }
+              - pattern: |
+                  class $K: $P1, $P2, $P3, GRDB.PersistableRecord { ... }
+              - pattern: |
+                  class $K: GRDB.MutablePersistableRecord { ... }
+              - pattern: |
+                  class $K: $P1, GRDB.MutablePersistableRecord { ... }
+              - pattern: |
+                  class $K: $P1, $P2, GRDB.MutablePersistableRecord { ... }
+              - pattern: |
+                  class $K: $P1, $P2, $P3, GRDB.MutablePersistableRecord { ... }
+              - pattern: |
+                  class $K: GRDB.Record { ... }
+              - pattern: |
+                  class $K: RealmSwift.Object { ... }
+          - focus-metavariable: $K
+          - metavariable-regex:
+              metavariable: $K
+              regex: ^\w*(Chat(Message|Msg|Turn|Entry|History|Log|Transcript)|Conversation(Message|Turn|Entry|Transcript))s?(Entity|Table|Document|Row|Record|Model|Object|MO|Item)?$
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?(?:Fluent|FluentKit)\b).*'
+          - pattern: $DB.schema($NAME)
+          - metavariable-regex:
+              metavariable: $NAME
+              regex: '(?i)^"\w*(chat_?(message|msg|turn|entr|histor|log|transcript)|conversation_?(message|turn|entr|transcript))\w*"$'
+    metadata:
+      activity: records_text_chat
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-text-chat
+      provenance: ungovr-original
+      license: MIT

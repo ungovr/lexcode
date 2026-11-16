@@ -1,0 +1,15 @@
+# lexcode-expect: 0
+# Listing keys left empty, as a project template writes them, list nothing on crates.io: an app's
+# crate, not one put on a registry.
+[package]
+name = "orders-worker"
+version = "0.1.0"
+edition = "2021"
+description = "Queue worker for order intake"
+license = "MIT"
+keywords = []
+categories = [
+]
+
+[dependencies]
+tokio = "1"

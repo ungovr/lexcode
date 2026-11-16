@@ -1,0 +1,30 @@
+# A WebRTC call's media written to a file with webrtc-rs's media writers: the Ogg (Opus audio),
+# H.264 and IVF writers take the RTP packets read from a remote track and save them, which is the
+# crate's own "save to disk" recording. The readers (`OggReader`, `H264Reader`, `IVFReader`) play a
+# file into a call and are left out, and so is forwarding a track's packets to other peers, which only
+# carries the call. Written by crate path, resolved through a plain or single-level grouped `use` and
+# `use webrtc as <alias>`; for a nested group (`use webrtc::media::io::{ogg_writer::OggWriter, ..}`)
+# the short form counts in a file whose `use` names webrtc.
+rules:
+  - id: lexcode.calls.rs-webrtc-track-recorder
+    languages: [rust]
+    severity: INFO
+    message: Writes a WebRTC call's media to a file with webrtc-rs's Ogg, H.264 or IVF writer, which is recording a call (records_calls).
+    pattern-either:
+      - pattern: webrtc::media::io::ogg_writer::OggWriter::new(...)
+      - pattern: webrtc::media::io::ogg_writer::OggWriter::create(...)
+      - pattern: webrtc::media::io::h264_writer::H264Writer::new(...)
+      - pattern: webrtc::media::io::ivf_writer::IVFWriter::new(...)
+      - patterns:
+          - pattern-either:
+              - pattern: OggWriter::new(...)
+              - pattern: OggWriter::create(...)
+              - pattern: H264Writer::new(...)
+              - pattern: IVFWriter::new(...)
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+webrtc\b).*'
+    metadata:
+      activity: records_calls
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-calls
+      provenance: ungovr-original
+      license: MIT

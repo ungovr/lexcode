@@ -1,0 +1,48 @@
+rules:
+  - id: lexcode.tracking.swift-attribution-sdk
+    languages: [swift]
+    severity: INFO
+    message: Sends installs, events or a user id to a mobile attribution or advertising-measurement service that follows the device with its own id (AppsFlyer, Adjust or Meta app events), which is tracking devices (tracks_devices).
+    # One of four Swift analytics rules split by vendor family (#13199); see
+    # swift-analytics-google.yml for why. Shapes (Decision 8, Amendment 2):
+    # - Meta's AppEvents carries no vendor name, so it is module-qualified only (the Objective-C
+    #   kit FBSDKCoreKit, or the Swift FacebookCore wrapper that re-exports it). Its method names
+    #   are spelled out, not a metavariable with a name check, which kept the prefilter small.
+    # - AppsFlyerLib and Adjust carry the vendor's own name, so they also match with no import.
+    # - A chained call matches its head inside the call it receives, because the engine does not
+    #   resolve a module-qualified head under `try` or `await`.
+    pattern-either:
+      # AppsFlyer.
+      - patterns:
+          - pattern: AppsFlyerLib.shared()
+          - pattern-either:
+              - pattern-inside: $X.start(...)
+              - pattern-inside: $X.logEvent(...)
+              - pattern-inside: $X.customerUserID = $V
+      # Adjust.
+      - pattern: Adjust.appDidLaunch(...)
+      - pattern: Adjust.initSdk(...)
+      - pattern: Adjust.trackEvent(...)
+      # Meta app events.
+      - pattern: FBSDKCoreKit.AppEvents.shared.logEvent(...)
+      - pattern: FBSDKCoreKit.AppEvents.shared.activateApp(...)
+      - pattern: FBSDKCoreKit.AppEvents.shared.logPurchase(...)
+      - pattern: FBSDKCoreKit.AppEvents.shared.setUserID(...)
+      - pattern: FacebookCore.AppEvents.shared.logEvent(...)
+      - pattern: FacebookCore.AppEvents.shared.activateApp(...)
+      - pattern: FacebookCore.AppEvents.shared.logPurchase(...)
+      - pattern: FacebookCore.AppEvents.shared.setUserID(...)
+      - pattern: FBSDKCoreKit.AppEvents.logEvent(...)
+      - pattern: FBSDKCoreKit.AppEvents.activateApp(...)
+      - pattern: FBSDKCoreKit.AppEvents.logPurchase(...)
+      - pattern: FBSDKCoreKit.AppEvents.setUserID(...)
+      - pattern: FacebookCore.AppEvents.logEvent(...)
+      - pattern: FacebookCore.AppEvents.activateApp(...)
+      - pattern: FacebookCore.AppEvents.logPurchase(...)
+      - pattern: FacebookCore.AppEvents.setUserID(...)
+    metadata:
+      activity: tracks_devices
+      mentioned: performs
+      definition: https://lexlint.io/activities/tracks-devices
+      provenance: ungovr-original
+      license: MIT

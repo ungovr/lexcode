@@ -1,0 +1,37 @@
+rules:
+  - id: lexcode.identity.ios-plist-identity-request
+    languages: [xml]
+    severity: INFO
+    message: Declares $K in an Apple app's Info.plist, the prompt text the system shows before the app requests data from an identity document in the person's Wallet (Verify with Wallet), which may be relying on a digital identity (relies_on_digital_identity).
+    # Apple's PassKit identity request fails unless the app gives one message (NSIdentityUsageDescription)
+    # or several by use case (NSIdentityUsageDescriptionDictionary); neither key is used for anything
+    # else. Face ID (it confirms the phone's owner, not an identity document) and NFC tag reading are left
+    # out. No xcode-infoplist copy: Xcode documents no INFOPLIST_KEY_ build setting for either key, and
+    # the dictionary form cannot be a build setting at all.
+    patterns:
+      - pattern: <key>$K</key>
+      - metavariable-regex:
+          metavariable: $K
+          regex: ^NSIdentityUsageDescription(Dictionary)?$
+    paths:
+      # Xcode's older templates name the file <Target>-Info.plist.
+      include:
+        - "Info.plist"
+        - "*-Info.plist"
+        - "ios-plist-identity-request.*"
+      exclude:
+        - "**/example/**"
+        - "**/examples/**"
+        - "**/sample/**"
+        - "**/samples/**"
+        - "**/demo/**"
+        - "**/demos/**"
+        - "**/Tests/**"
+        - "**/UITests/**"
+    metadata:
+      activity: relies_on_digital_identity
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/glossary#relies-on-a-digital-identity
+      provenance: ungovr-original
+      license: MIT

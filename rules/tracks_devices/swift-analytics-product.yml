@@ -1,0 +1,99 @@
+rules:
+  - id: lexcode.tracking.swift-analytics-product
+    languages: [swift]
+    severity: INFO
+    message: Sends events or a user id to a third-party product-analytics service that follows the device with its own id (Mixpanel, Amplitude, Segment, TelemetryDeck or PostHog), which is tracking devices (tracks_devices).
+    # One of four Swift analytics rules split by vendor family (#13199); see
+    # swift-analytics-google.yml for why. Shapes (Decision 8, Amendment 2):
+    # - Segment's Analytics and TelemetryClient's TelemetryManager carry no vendor name, so they
+    #   are module-qualified only.
+    # - A short name that carries the vendor's own name (Mixpanel, Amplitude, TelemetryDeck,
+    #   PostHogSDK) also matches with no import, for a file reached through an `@_exported
+    #   import` elsewhere or a bridging header.
+    # - A chained call matches its head inside the call it receives, because the engine does not
+    #   resolve a module-qualified head under `try` or `await`.
+    # - Clearing the user id (nil or "") is the opposite of following the device, and is left out.
+    pattern-either:
+      # Mixpanel: the client started, and its tracking calls.
+      - pattern: Mixpanel.Mixpanel.initialize(...)
+      - pattern: Mixpanel.initialize(...)
+      # The shared instance's calls, where the file has no `import Mixpanel` (the next branch
+      # reads those files, and both would report the same call).
+      - patterns:
+          - pattern: Mixpanel.mainInstance()
+          - pattern-either:
+              - pattern-inside: $X.track(...)
+              - pattern-inside: $X.identify(...)
+          - pattern-not-inside: |
+              import Mixpanel
+              ...
+      - patterns:
+          - pattern-either:
+              - pattern: '$C.track(event: $E, ...)'
+              - pattern: '$C.identify(distinctId: $D, ...)'
+          - pattern-not: '$C.identify(distinctId: "", ...)'
+          - pattern-inside: |
+              import Mixpanel
+              ...
+      # Amplitude: the Swift SDK's client, and the earlier iOS SDK's shared instance.
+      - pattern: AmplitudeSwift.Amplitude(...)
+      - pattern: 'Amplitude(configuration: $C)'
+      - patterns:
+          - pattern: Amplitude.instance()
+          - pattern-either:
+              - pattern-inside: $X.initializeApiKey(...)
+              - pattern-inside: $X.logEvent(...)
+              - pattern-inside: $X.setUserId(...)
+          - pattern-not-inside: $X.setUserId(nil)
+          - pattern-not-inside: $X.setUserId("")
+      - patterns:
+          - pattern-either:
+              - pattern: '$C.track(eventType: $E, ...)'
+              - pattern: '$C.track(event: $E, ...)'
+              - pattern: '$C.setUserId(userId: $U)'
+          - pattern-not: '$C.setUserId(userId: nil)'
+          - pattern-not: '$C.setUserId(userId: "")'
+          - pattern-inside: |
+              import AmplitudeSwift
+              ...
+      # Segment: Analytics-Swift's client and the earlier analytics-ios setup, both in module
+      # Segment.
+      - pattern: Segment.Analytics(...)
+      - pattern: Segment.Analytics.setup(...)
+      - patterns:
+          - pattern: Segment.Analytics.shared()
+          - pattern-either:
+              - pattern-inside: $X.track(...)
+              - pattern-inside: $X.identify(...)
+              - pattern-inside: $X.screen(...)
+      - patterns:
+          - pattern-either:
+              - pattern: '$C.track(name: $N, ...)'
+              - pattern: '$C.identify(userId: $U, ...)'
+              - pattern: '$C.screen(title: $T, ...)'
+          - pattern-not: '$C.identify(userId: "", ...)'
+          - pattern-inside: |
+              import Segment
+              ...
+      # TelemetryDeck, and its earlier TelemetryClient package.
+      - pattern: TelemetryDeck.TelemetryDeck.initialize(...)
+      - pattern: TelemetryDeck.TelemetryDeck.signal(...)
+      - pattern: TelemetryDeck.initialize(...)
+      - pattern: TelemetryDeck.signal(...)
+      - pattern: TelemetryClient.TelemetryManager.initialize(...)
+      - pattern: TelemetryClient.TelemetryManager.send(...)
+      # PostHog.
+      - pattern: PostHog.PostHogSDK.shared.setup(...)
+      - pattern: PostHog.PostHogSDK.shared.capture(...)
+      - pattern: PostHog.PostHogSDK.shared.identify(...)
+      - pattern: PostHog.PostHogSDK.shared.screen(...)
+      - pattern: PostHogSDK.shared.setup(...)
+      - pattern: PostHogSDK.shared.capture(...)
+      - pattern: PostHogSDK.shared.identify(...)
+      - pattern: PostHogSDK.shared.screen(...)
+    metadata:
+      activity: tracks_devices
+      mentioned: performs
+      definition: https://lexlint.io/activities/tracks-devices
+      provenance: ungovr-original
+      license: MIT

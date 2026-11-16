@@ -1,0 +1,25 @@
+# A digital signature applied to a PDF with a key: the pdf_signing crate's signing call, or a PDF
+# signature dictionary written by hand with lopdf (a SubFilter of adbe.pkcs7.detached, adbe.pkcs7.sha1,
+# adbe.x509.rsa_sha1 or ETSI.CAdES.detached set as a dictionary entry). A key's signature on a PDF may
+# be the app's own seal rather than a person signing, so a match is a question, as in the other
+# languages. Reading or checking the signatures a PDF already holds signs nothing and is not read.
+#
+# The dictionary check reads the source text, so it finds an entry inside lopdf's `dictionary!` macro,
+# whose body the engine does not parse.
+rules:
+  - id: lexcode.esign.rs-pdf-signing
+    languages: [rust]
+    severity: INFO
+    message: Applies a digital signature to a PDF with a key (the pdf_signing crate, or a signature dictionary written with lopdf), which may be collecting electronic signatures and is worth a look (collects_e_signatures).
+    pattern-either:
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+pdf_signing\b).*'
+          - pattern: $D.sign_document(...)
+      - pattern-regex: 'b?"SubFilter"\s*(?:=>|,)\s*(?:[\w:]+\(\s*)?b?"(?:adbe\.pkcs7\.(?:detached|sha1)|adbe\.x509\.rsa_sha1|ETSI\.CAdES\.detached)"'
+    metadata:
+      activity: collects_e_signatures
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/glossary#collects-electronic-signatures
+      provenance: ungovr-original
+      license: MIT

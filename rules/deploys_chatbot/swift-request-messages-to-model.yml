@@ -1,0 +1,76 @@
+rules:
+  - id: lexcode.chatbot.swift-request-messages-to-model
+    languages: [swift]
+    severity: INFO
+    message: Passes the conversation a client sent in a request to a language model, which is deploying a chatbot (deploys_chatbot).
+    # The bar is the other languages' rules: a messages or history LIST from the request reaches the
+    # model call. A single typed message inside a fixed prompt is a one-shot tool and does not match.
+    # The request body is decoded in a Vapor handler (`req.content.decode(T.self)`) or a Hummingbird
+    # one (`request.decode(as: T.self, context:)`). The model call is MacPaw's OpenAI (`chats`,
+    # `chatsStream` with a ChatQuery) or SwiftOpenAI (`startChat`, `startStreamedChat` with
+    # ChatCompletionParameters), each under its own import guard. The argument is a property read off
+    # the decoded body named for a conversation (messages, history, conversation, chatHistory), or
+    # the decoded value itself when it is decoded as an array of a message type. Not a taint rule, so
+    # a value passed through a helper first is not followed.
+    # On Opengrep 1.33.1 a metavariable-regex inside a nested branch does not see a metavariable that
+    # only the outer scope binds ($T here), so the decoded-array check sits beside the scope in its
+    # own top-level branch.
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  let $P = try $REQ.content.decode($T.self)
+                  ...
+              - pattern-inside: |
+                  let $P = try await $REQ.decode(as: $T.self, context: $CTX)
+                  ...
+          - pattern-either:
+              - patterns:
+                  - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?OpenAI\b).*'
+                  - pattern-either:
+                      - pattern: '$C.chats(query: ChatQuery(messages: <... $P.$A ...>, ...))'
+                      - pattern: '$C.chats(query: .init(messages: <... $P.$A ...>, ...))'
+                      - pattern: '$C.chatsStream(query: ChatQuery(messages: <... $P.$A ...>, ...))'
+                      - pattern: '$C.chatsStream(query: .init(messages: <... $P.$A ...>, ...))'
+              - patterns:
+                  - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?SwiftOpenAI\b).*'
+                  - pattern-either:
+                      - pattern: '$C.startChat(parameters: ChatCompletionParameters(messages: <... $P.$A ...>, ...))'
+                      - pattern: '$C.startChat(parameters: .init(messages: <... $P.$A ...>, ...))'
+                      - pattern: '$C.startStreamedChat(parameters: ChatCompletionParameters(messages: <... $P.$A ...>, ...))'
+                      - pattern: '$C.startStreamedChat(parameters: .init(messages: <... $P.$A ...>, ...))'
+          - metavariable-regex:
+              metavariable: $A
+              regex: ^(messages|history|conversation|chatHistory|chatMessages|turns)$
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  let $P = try $REQ.content.decode($T.self)
+                  ...
+              - pattern-inside: |
+                  let $P = try await $REQ.decode(as: $T.self, context: $CTX)
+                  ...
+          - metavariable-regex:
+              metavariable: $T
+              regex: '^\[.*(Message|Turn)\w*\]$'
+          - pattern-either:
+              - patterns:
+                  - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?OpenAI\b).*'
+                  - pattern-either:
+                      - pattern: '$C.chats(query: ChatQuery(messages: $P, ...))'
+                      - pattern: '$C.chats(query: .init(messages: $P, ...))'
+                      - pattern: '$C.chatsStream(query: ChatQuery(messages: $P, ...))'
+                      - pattern: '$C.chatsStream(query: .init(messages: $P, ...))'
+              - patterns:
+                  - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?SwiftOpenAI\b).*'
+                  - pattern-either:
+                      - pattern: '$C.startChat(parameters: ChatCompletionParameters(messages: $P, ...))'
+                      - pattern: '$C.startChat(parameters: .init(messages: $P, ...))'
+                      - pattern: '$C.startStreamedChat(parameters: ChatCompletionParameters(messages: $P, ...))'
+                      - pattern: '$C.startStreamedChat(parameters: .init(messages: $P, ...))'
+    metadata:
+      activity: deploys_chatbot
+      mentioned: performs
+      definition: https://lexlint.io/activities/deploys-chatbot
+      provenance: ungovr-original
+      license: MIT

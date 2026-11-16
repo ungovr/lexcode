@@ -1,0 +1,29 @@
+rules:
+  - id: lexcode.biometric.swift-face-matching-apis
+    languages: [swift]
+    severity: INFO
+    message: Matches or enrolls faces through a face-matching service (Amazon Rekognition face comparison, search or indexing through the AWS SDK for Swift, or an Azure AI Face, Face++ or VoiceIt matching endpoint named in a string), which is recognizing people from face geometry or a voiceprint (processes_biometrics).
+    # The engine has no typed metavariable for Swift, so the Rekognition client's calls are matched by
+    # their names in a file that imports AWSRekognition (an app's own compareFaces in a file without
+    # it is not matched). DetectFaces and DetectLabels find a face and name no one, and are left out,
+    # as are the detection endpoints.
+    pattern-either:
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?AWSRekognition\b).*'
+          - pattern-either:
+              - pattern: $C.compareFaces(...)
+              - pattern: $C.indexFaces(...)
+              - pattern: $C.searchFaces(...)
+              - pattern: $C.searchFacesByImage(...)
+              - pattern: $C.searchUsers(...)
+              - pattern: $C.searchUsersByImage(...)
+              - pattern: $C.associateFaces(...)
+              - pattern: $C.startFaceSearch(...)
+      - pattern-regex: |-
+          "[^"\n]*(/face/v1\.\d+(-preview(\.\d+)?)?/(identify|verify|findsimilars|facelists|largefacelists|persongroups|largepersongroups|dynamicpersongroups)\b|\bfaceplusplus\.com/facepp/v3/(compare|search|faceset)|\bapi\.voiceit\.io/(enrollments|verification|identification)/)
+    metadata:
+      activity: processes_biometrics
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-biometrics
+      provenance: ungovr-original
+      license: MIT

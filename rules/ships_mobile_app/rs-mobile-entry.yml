@@ -1,0 +1,45 @@
+rules:
+  - id: lexcode.mobile.rs-mobile-entry
+    languages: [rust]
+    severity: INFO
+    message: Declares the entry point of a native Rust phone app (android-activity's android_main, Bevy's mobile main, ndk-glue's main, cargo-mobile2's Android bindings or a Dioxus mobile launch), which is shipping a mobile app (ships_mobile_app).
+    # Each of these exists only to start an app inside an Android activity or an iOS app: a desktop
+    # build never calls them. uniffi is left out: its bindings are a library that another app (often
+    # not a phone app) builds in, and the app itself is not in the Rust code.
+    pattern-either:
+      # android-activity's entry point, which Slint, egui, winit and the NDK samples all write the
+      # same way: a function named android_main that receives the AndroidApp. The type is matched on
+      # its last segment, since winit and Slint re-export it under their own paths; a function of that
+      # name that takes anything else (a build helper) is not matched.
+      - patterns:
+          - pattern: 'fn android_main($APP: $T) { ... }'
+          - metavariable-regex:
+              metavariable: $T
+              regex: ^(?:.*::)?AndroidApp$
+      # Bevy's mobile main, which generates the Android and iOS entry functions, and ndk-glue's main
+      # (the entry point before android-activity), usually behind cfg_attr. The engine matches
+      # `#[bevy_main] fn ..` but not the path form `#[bevy::bevy_main]`, nor ndk-glue's attribute
+      # inside a cfg_attr with a metavariable condition (probed), so both are read as text, at the
+      # start of a line, which keeps comments and strings out.
+      - pattern-regex: '(?m)^[ \t]*#\[[ \t]*(?:bevy::)?bevy_main[ \t]*\]'
+      - pattern-regex: '(?m)^[ \t]*#\[[ \t]*(?:cfg_attr[ \t]*\([^\n]*?,[ \t]*)?ndk_glue::main\b'
+      # cargo-mobile2 (tao and wry): the JNI bindings that start the app inside its Android
+      # activity. The engine matches a macro call by its path; macros are not resolved through `use`.
+      - pattern: tao::android_binding!(...)
+      - pattern: wry::android_binding!(...)
+      # Dioxus launched as a mobile app. Its prelude is a glob import, which the engine does not
+      # resolve, so the launch builder's short form is matched in a file with a `use dioxus` line.
+      - pattern: dioxus::LaunchBuilder::mobile()
+      - pattern: dioxus::mobile::launch(...)
+      - pattern: dioxus::mobile::launch_cfg(...)
+      - pattern: dioxus_mobile::launch(...)
+      - pattern: dioxus_mobile::launch_cfg(...)
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+dioxus\b).*'
+          - pattern: LaunchBuilder::mobile()
+    metadata:
+      activity: ships_mobile_app
+      mentioned: performs
+      definition: https://lexlint.io/activities/ships-mobile-app
+      provenance: ungovr-original
+      license: MIT

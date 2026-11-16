@@ -1,0 +1,32 @@
+rules:
+  - id: lexcode.train.rs-finetune-job
+    languages: [rust]
+    severity: INFO
+    message: Starts a hosted fine-tuning or training job (OpenAI through async-openai or openai-api-rs, Amazon SageMaker or Amazon Bedrock) that adapts a model to the caller's data, which is training models (trains_models).
+    # The call that starts a job is matched. Uploading a training file, listing or reading jobs, and
+    # calling a hosted model are not. The SDK clients are typed values the engine cannot follow (Rust
+    # has no typed metavariables), and async-openai's documented imports are nested `use` groups it
+    # does not resolve, so each method is matched on any receiver in a file with a `use` line naming
+    # that SDK's crate, one branch per SDK. `aws_sdk_bedrock\b` does not admit aws_sdk_bedrockruntime,
+    # the inference client.
+    pattern-either:
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+async_openai\b).*'
+          - pattern: $C.fine_tuning().create(...)
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+openai_api_rs\b).*'
+          - pattern: $C.create_fine_tuning_job(...)
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+aws_sdk_sagemaker\b).*'
+          - pattern-either:
+              - pattern: $C.create_training_job()
+              - pattern: $C.create_hyper_parameter_tuning_job()
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+aws_sdk_bedrock\b).*'
+          - pattern: $C.create_model_customization_job()
+    metadata:
+      activity: trains_models
+      mentioned: performs
+      definition: https://lexlint.io/activities/trains-models
+      provenance: ungovr-original
+      license: MIT

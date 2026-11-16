@@ -1,0 +1,56 @@
+rules:
+  - id: lexcode.outreach.swift-send-in-background-job
+    languages: [swift]
+    severity: INFO
+    message: Sends a message from a queued background job, where the code does not show whether a person asked for it, which may be sending automated outreach (automated_outreach).
+    # Signal strength, as in the other languages' background-job rules: the mail a person asked for (a
+    # welcome message, a receipt) is often sent from a queued job too. The loop and timer shapes are
+    # the evidence rules; this one is the worth-a-look row for a Vapor Queues job (AsyncJob, Job, as
+    # a struct or a class, first or second in the inheritance list. Module-qualified only, so an app's own protocol of that name does not match).
+    # The send set is the one in swift-send-in-loop and swift-send-in-scheduled-job; the three rules
+    # change together, and its metavariable names must not reuse the scope's ($K, $P1).
+    patterns:
+      - pattern-either:
+          - pattern-inside: |
+              struct $K: Queues.AsyncJob { ... }
+          - pattern-inside: |
+              struct $K: $P1, Queues.AsyncJob { ... }
+          - pattern-inside: |
+              struct $K: Queues.Job { ... }
+          - pattern-inside: |
+              struct $K: $P1, Queues.Job { ... }
+          - pattern-inside: |
+              class $K: Queues.AsyncJob { ... }
+          - pattern-inside: |
+              class $K: $P1, Queues.AsyncJob { ... }
+          - pattern-inside: |
+              class $K: Queues.Job { ... }
+          - pattern-inside: |
+              class $K: $P1, Queues.Job { ... }
+      - pattern-either:
+          - patterns:
+              - pattern-either:
+                  - pattern: $X.$N(...)
+                  - pattern: $N(...)
+              - metavariable-regex:
+                  metavariable: $N
+                  regex: ^(?!\w*(Local|Background|LiveActivity|VoIP|FileProvider|Complication|PushToTalk)(Push|Notification|Reminder)s?$)send\w*(Email|Mail|Sms|SMS|TextMessage|Push|PushNotification|Notification|Reminder|Digest|Newsletter|(Email|Sms|SMS|Push)Alert|DM|Dm|DirectMessage)s?$
+          - patterns:
+              - pattern: $M.send(...)
+              - metavariable-regex:
+                  metavariable: $M
+                  regex: '(?i)^([\w.]*\.)?\w*(mail|smtp|sendgrid|mailgun|postmark)\w*(\(\))?(\.client)?$'
+          - pattern: $A.apns.send(...)
+          - pattern: 'AWSSNS.PublishInput(..., phoneNumber: $P, ...)'
+          - patterns:
+              - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?(?:DiscordBM|DiscordHTTP)\b).*'
+              - pattern: $DMC.createDm(...)
+      # Literal anchor inside the match: it lets the engine skip files with no send call.
+      - pattern-regex: '(\bsend\w*\s*\(|\.send\s*\(|phoneNumber\s*:|\.createDm\s*\()'
+    metadata:
+      activity: automated_outreach
+      mentioned: performs
+      definition: https://lexlint.io/activities/automated-outreach
+      provenance: ungovr-original
+      license: MIT
+      strength: signal

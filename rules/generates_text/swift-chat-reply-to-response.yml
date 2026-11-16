@@ -1,0 +1,335 @@
+rules:
+  - id: lexcode.text.swift-chat-reply-to-response
+    languages: [swift]
+    severity: INFO
+    message: Shows text written by a chat or language model on screen, or sends it back in an HTTP response or a socket, which is generating text with AI that reaches users (generates_text).
+    # Sources: MacPaw OpenAI (chats, completions, responses), SwiftOpenAI (startChat, responseCreate),
+    # Apple Foundation Models (LanguageModelSession respond and streamResponse) and Amazon Bedrock Converse.
+    # Sinks: a screen (SwiftUI `Text`, a UIKit or AppKit text property, a view-model property whose
+    # name says it holds output), and a Vapor or Hummingbird response or socket, or an AWS Lambda API Gateway
+    # response.
+    # Swift shapes (Opengrep 1.33.1, probed for #13199): the engine does not carry taint through an
+    # optional binding (`guard let x = ...`, `if let x = ...`), so a name bound from a model call, or from a
+    # value that holds one, is a source of its own; a `for try await` loop variable, a `switch` or `if case`
+    # `.success(let x)` binding and the first parameter of a vendor's completion closure are carried. An
+    # `if let x = try ...` condition does not parse at all and is a known gap. A local `var` declared in the
+    # same function is not a screen, so a state-name sink skips it.
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+          - patterns:
+              - pattern-either:
+                  - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?OpenAI\b).*'
+                  - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?SwiftOpenAI\b).*'
+                  - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?AWSBedrockRuntime\b).*'
+              - pattern-either: &calls_vendors
+                  - pattern: '$C.chats(query: $Q)'
+                  - pattern: '$C.chatsStream(query: $Q)'
+                  - pattern: '$C.completions(query: $Q)'
+                  - pattern: '$C.completionsStream(query: $Q)'
+                  - pattern: '$C.responses.createResponse(query: $Q)'
+                  - pattern: '$C.responses.createResponseStreaming(query: $Q)'
+                  - pattern: '$S.startChat(parameters: $P)'
+                  - pattern: '$S.startStreamedChat(parameters: $P)'
+                  - pattern: '$S.responseCreate($P)'
+                  - pattern: '$S.responseCreateStream($P)'
+                  - pattern: '$C.converse(input: $I)'
+                  - pattern: '$C.converseStream(input: $I)'
+          - patterns:
+              - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?FoundationModels\b).*'
+              - pattern-either: &calls_foundationmodels
+                  - pattern: '$S.respond(...)'
+                  - pattern: '$S.streamResponse(...)'
+      - pattern-either:
+          - patterns:
+              - pattern-either:
+                  - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?OpenAI\b).*'
+                  - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?SwiftOpenAI\b).*'
+                  - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?AWSBedrockRuntime\b).*'
+              - pattern-either:
+                  - pattern: |
+                      $C.chats(query: $Q) { $R in
+                        ...
+                      }
+                  - pattern: |
+                      $C.chats(query: $Q) { [weak self] $R in
+                        ...
+                      }
+                  - pattern: |
+                      $C.completions(query: $Q) { $R in
+                        ...
+                      }
+                  - pattern: |
+                      $C.completions(query: $Q) { [weak self] $R in
+                        ...
+                      }
+                  - pattern: |
+                      $C.responses.createResponse(query: $Q) { $R in
+                        ...
+                      }
+                  - pattern: |
+                      $C.responses.createResponse(query: $Q) { [weak self] $R in
+                        ...
+                      }
+                  - pattern: |
+                      $C.chatsStream(query: $Q) { $R in
+                        ...
+                      } completion: { $E in
+                        ...
+                      }
+                  - pattern: |
+                      $C.chatsStream(query: $Q) { [weak self] $R in
+                        ...
+                      } completion: { $E in
+                        ...
+                      }
+                  - pattern: |
+                      $C.completionsStream(query: $Q) { $R in
+                        ...
+                      } completion: { $E in
+                        ...
+                      }
+                  - pattern: |
+                      $C.completionsStream(query: $Q) { [weak self] $R in
+                        ...
+                      } completion: { $E in
+                        ...
+                      }
+                  - pattern: |
+                      $C.responses.createResponseStreaming(query: $Q) { $R in
+                        ...
+                      } completion: { $E in
+                        ...
+                      }
+                  - pattern: |
+                      $C.responses.createResponseStreaming(query: $Q) { [weak self] $R in
+                        ...
+                      } completion: { $E in
+                        ...
+                      }
+              - focus-metavariable: $R
+      - pattern-either:
+          - patterns:
+              - pattern-either:
+                  - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?OpenAI\b).*'
+                  - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?SwiftOpenAI\b).*'
+                  - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?AWSBedrockRuntime\b).*'
+              - patterns:
+                  - pattern-either:
+                      - pattern-inside: |
+                          guard let $X = $E0 else { ... }
+                          ...
+                      - pattern-inside: |
+                          guard let $X = $E0, ... else { ... }
+                          ...
+                  - metavariable-pattern:
+                      metavariable: $E0
+                      pattern-either: *calls_vendors
+                  - pattern: $X
+          - patterns:
+              - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?FoundationModels\b).*'
+              - patterns:
+                  - pattern-either:
+                      - pattern-inside: |
+                          guard let $X = $E0 else { ... }
+                          ...
+                      - pattern-inside: |
+                          guard let $X = $E0, ... else { ... }
+                          ...
+                  - metavariable-pattern:
+                      metavariable: $E0
+                      pattern-either: *calls_foundationmodels
+                  - pattern: $X
+      - pattern-either:
+          - patterns:
+              - pattern-either:
+                  - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?OpenAI\b).*'
+                  - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?SwiftOpenAI\b).*'
+                  - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?AWSBedrockRuntime\b).*'
+              - patterns:
+                  - pattern-either:
+                      - pattern-inside: |
+                          let $V = $E0
+                          ...
+                      - pattern-inside: |
+                          var $V = $E0
+                          ...
+                  - metavariable-pattern:
+                      metavariable: $E0
+                      pattern-either: *calls_vendors
+                  - pattern-either:
+                      - pattern-inside: |
+                          guard let $X = $E1 else { ... }
+                          ...
+                      - pattern-inside: |
+                          guard let $X = $E1, ... else { ... }
+                          ...
+                      - pattern-inside: |
+                          if let $X = $E1 {
+                            ...
+                          }
+                      - pattern-inside: |
+                          if let $X = $E1, ... {
+                            ...
+                          }
+                  - metavariable-pattern:
+                      metavariable: $E1
+                      pattern: $V
+                  - pattern: $X
+          - patterns:
+              - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?FoundationModels\b).*'
+              - patterns:
+                  - pattern-either:
+                      - pattern-inside: |
+                          let $V = $E0
+                          ...
+                      - pattern-inside: |
+                          var $V = $E0
+                          ...
+                  - metavariable-pattern:
+                      metavariable: $E0
+                      pattern-either: *calls_foundationmodels
+                  - pattern-either:
+                      - pattern-inside: |
+                          guard let $X = $E1 else { ... }
+                          ...
+                      - pattern-inside: |
+                          guard let $X = $E1, ... else { ... }
+                          ...
+                      - pattern-inside: |
+                          if let $X = $E1 {
+                            ...
+                          }
+                      - pattern-inside: |
+                          if let $X = $E1, ... {
+                            ...
+                          }
+                  - metavariable-pattern:
+                      metavariable: $E1
+                      pattern: $V
+                  - pattern: $X
+    pattern-propagators:
+      - patterns:
+          - pattern-inside: |
+              for try await $X in $S {
+                ...
+              }
+          - pattern: $X
+        from: $S
+        to: $X
+      - patterns:
+          - pattern-inside: |
+              for await $X in $S {
+                ...
+              }
+          - pattern: $X
+        from: $S
+        to: $X
+      - patterns:
+          - pattern-inside: |
+              switch $S {
+              case .success(let $X):
+                ...
+              }
+          - pattern: $X
+        from: $S
+        to: $X
+      - patterns:
+          - pattern-inside: |
+              if case .success(let $X) = $S {
+                ...
+              }
+          - pattern: $X
+        from: $S
+        to: $X
+      - patterns:
+          - pattern-inside: |
+              guard case .success(let $X) = $S else { ... }
+              ...
+          - pattern: $X
+        from: $S
+        to: $X
+    pattern-sinks:
+      - patterns:
+          - patterns:
+              - pattern-either:
+                  - pattern: $S = $X
+                  - pattern: $S += $X
+                  - pattern: $S.append($X)
+                  - pattern: '$S.append(contentsOf: $X)'
+              - metavariable-regex:
+                  metavariable: $S
+                  regex: (?i)^(self[?!]?\.)?_?\w*(state|message|reply|response|answer|result|output|text|summary|story|caption|content|completion|suggestion|draft|translation|messages|replies|responses|answers|results|outputs|suggestions|transcript)\w*$
+          - pattern-not-inside: let $S = $E
+          - pattern-not-inside: |
+              func $F(...) {
+                ...
+                var $S = $E
+                ...
+              }
+          - pattern-not-inside: |
+              func $F(...) {
+                ...
+                var $S: $U = $E
+                ...
+              }
+          - focus-metavariable: $X
+      - pattern: $V.text = $X
+      - pattern: $V.attributedText = $X
+      - pattern: $V.stringValue = $X
+      - pattern: Text($X)
+      - pattern: 'Text(verbatim: $X)'
+      - pattern: '$W.loadHTMLString($X, baseURL: $B)'
+      - patterns:
+          - pattern-either:
+              - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?Vapor\b).*'
+              - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?Hummingbird\b).*'
+          - pattern-either:
+              - patterns:
+                  - pattern-either:
+                      - pattern: |
+                          $APP.$M(...) { $REQ in
+                            ...
+                            return $X
+                          }
+                      - pattern: |
+                          $APP.$M(...) { $REQ, $CTX in
+                            ...
+                            return $X
+                          }
+                  - metavariable-regex:
+                      metavariable: $M
+                      regex: ^(get|post|put|patch|delete|on)$
+              - pattern: |
+                  func $F(..., $REQ: Request, ...) -> $T {
+                    ...
+                    return $X
+                  }
+              - pattern: |
+                  func $F(..., $REQ: HBRequest, ...) -> $T {
+                    ...
+                    return $X
+                  }
+          - focus-metavariable: $X
+      - patterns:
+          - pattern-either:
+              - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?Vapor\b).*'
+              - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?Hummingbird\b).*'
+          - pattern-either:
+              - pattern: 'Response(..., body: $X, ...)'
+              - pattern: 'HBResponse(..., body: $X, ...)'
+              - pattern: $REQ.eventLoop.makeSucceededFuture($X)
+      - patterns:
+          - pattern-either:
+              - pattern: $WS.send($X, ...)
+          - metavariable-regex:
+              metavariable: $WS
+              regex: (?i)^(self[?!]?\.)?_?\w*(ws|websocket|socket)$
+      - pattern: 'APIGatewayV2Response(..., body: $X, ...)'
+      - pattern: 'APIGatewayResponse(..., body: $X, ...)'
+    metadata:
+      activity: generates_text
+      mentioned: performs
+      definition: https://lexlint.io/activities/generates-text
+      provenance: ungovr-original
+      license: MIT

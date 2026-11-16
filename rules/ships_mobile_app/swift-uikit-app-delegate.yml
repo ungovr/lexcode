@@ -1,0 +1,117 @@
+rules:
+  - id: lexcode.mobile.swift-uikit-app-delegate
+    languages: [swift]
+    severity: INFO
+    message: Declares the application delegate of a UIKit app (a class conforming to UIApplicationDelegate, a SwiftUI app's UIApplicationDelegateAdaptor, or a UIApplicationMain start) in code that says nothing of Apple TV or Vision Pro, the object an iPhone or iPad app (or the same iPad app on a Mac) starts from, which is shipping a mobile app (ships_mobile_app).
+    # ships_mobile_app is a phone or tablet app (controller ruling, fix round 1). UIApplicationDelegate is
+    # UIKit's, which iOS, iPadOS, Mac Catalyst (the iPad app run on a Mac, kept), tvOS and visionOS share.
+    # The Swift source of a delegate does not name its platform, so a tvOS or visionOS app is left out
+    # by what the code does say:
+    # - a delegate inside an `#if os(tvOS)`, `os(visionOS)`, `os(xrOS)` or `os(watchOS)` block (or
+    #   `#elseif`) whose condition is that platform alone;
+    # - a file that imports a tvOS-only framework (TVUIKit, TVServices, TVMLKit) or visionOS's
+    #   CompositorServices, opens an ImmersiveSpace or a volumetric window (visionOS scenes), or marks
+    #   code `@available(iOS, unavailable)`. Such a file still counts when it also names `os(iOS)` or
+    #   another `os(...)` platform condition: a file that branches on platform is shared by several,
+    #   and the phone one is the usual reason to share it;
+    # - a file under a directory named for tvOS or visionOS (Xcode's `<App> tvOS` target folder).
+    # A tvOS-only or visionOS-only app whose delegate file shows none of these is still matched (a
+    # recorded gap). A macOS-only app (NSApplicationDelegate, NSApplicationDelegateAdaptor) and a watchOS
+    # app (WKApplicationDelegate, WKApplicationDelegateAdaptor) are not matched at all. A SwiftUI app
+    # with no UIKit delegate says nothing in its Swift source about which platform it is built for;
+    # lexcode.mobile.xcode-ios-application finds it from the project file. UIApplication.shared is not
+    # matched: a library, an SDK or a framework target inside the app calls it too.
+    patterns:
+      - pattern-either:
+          - patterns:
+              - pattern-either:
+                  # The conformance, written module-qualified: the engine resolves `import UIKit`, and
+                  # an app's own protocol of that name in a file without the import is not UIKit's. A
+                  # conformance list cannot hold `...` in a Swift pattern, so the protocol's place in it
+                  # is spelled out, first to third (probed: the one-item form also matches an extension,
+                  # and a list matches with further items after the protocol). A protocol that refines
+                  # UIApplicationDelegate is not matched (probed).
+                  - pattern: |
+                      class $C: UIKit.UIApplicationDelegate { ... }
+                  - pattern: |
+                      class $C: $A, UIKit.UIApplicationDelegate { ... }
+                  - pattern: |
+                      class $C: $A, $B, UIKit.UIApplicationDelegate { ... }
+                  # A SwiftUI app's delegate file often imports only SwiftUI, which brings UIKit on iOS
+                  # and which the engine does not follow, so the short form counts there. UIKit's types
+                  # only compile under SwiftUI on a UIKit platform.
+                  - patterns:
+                      - pattern-either:
+                          - pattern: |
+                              class $C: UIApplicationDelegate { ... }
+                          - pattern: |
+                              class $C: $A, UIApplicationDelegate { ... }
+                          - pattern: |
+                              class $C: $A, $B, UIApplicationDelegate { ... }
+                      - pattern-inside: |
+                          import SwiftUI
+                          ...
+              # A test double of the delegate (MockAppDelegate, AppDelegateStub) is not the app's own.
+              - metavariable-regex:
+                  metavariable: $C
+                  regex: '^(?!(?:Mock|Fake|Stub|Dummy|Spy|Test)[A-Z_])(?!\w*(?:Mock|Fake|Stub|Dummy|Spy)$)'
+              # A library's base class for apps to subclass is not an app (probed: `pattern-not` with
+              # the modifier matches only the `open` declaration).
+              - pattern-not: |
+                  open class $C: $A, UIKit.UIApplicationDelegate { ... }
+              - pattern-not: |
+                  open class $C: $A, $B, UIKit.UIApplicationDelegate { ... }
+          # A SwiftUI app installing a UIKit delegate: the property wrapper exists on iOS, tvOS and
+          # visionOS only (macOS has NSApplicationDelegateAdaptor). Probed: the call pattern matches
+          # the attribute with and without its argument.
+          - pattern: SwiftUI.UIApplicationDelegateAdaptor(...)
+          # A main.swift that starts UIKit by hand. Probed: the pattern also matches the older
+          # `@UIApplicationMain` attribute on a delegate class.
+          - pattern: UIKit.UIApplicationMain(...)
+      # A delegate inside a block compiled only for tvOS, visionOS or watchOS. The block runs from the
+      # directive to the next `#else`, `#elseif` or `#endif` at its own depth (nested `#if` blocks are
+      # stepped over by recursion), so the match inside it is covered and dropped. A condition that
+      # names another platform as well (`os(tvOS) || os(iOS)`) is not this block.
+      - pattern-not-regex: '(?m)^[ \t]*#(?:if|elseif)[ \t]+os\((?:tvOS|visionOS|xrOS|watchOS)\)[ \t]*(?://[^\n]*)?$(?s:(?:(?!#(?:if|else|elseif|endif)\b).|(?<nest>#if\b(?:(?!#(?:if|endif)\b).|(?&nest))*+#endif\b))*+)'
+      # The file's own word on its platform. Each cue is one greedy whole-file literal (a lost cue in a
+      # file over about 1 MB leaves the match in, never drops one).
+      - pattern-either:
+          - patterns:
+              - pattern-regex: '(?s)\A.*'
+              - pattern-not-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?TVUIKit\b).*'
+              - pattern-not-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?TVServices\b).*'
+              - pattern-not-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?TVMLKit\b).*'
+              - pattern-not-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?CompositorServices\b).*'
+              - pattern-not-regex: '(?s)\A(?=.*ImmersiveSpace\b).*'
+              - pattern-not-regex: '(?s)\A(?=.*\.volumetric\b).*'
+              - pattern-not-regex: '(?s)\A(?=.*@available\(\s*iOS\s*,\s*unavailable\b).*'
+          # A file that branches on platform is shared by several.
+          - pattern-regex: '(?s)\A(?=.*os\((?:iOS|tvOS|visionOS|xrOS)\)).*'
+    paths:
+      exclude:
+        # An SDK's example or demo app is not the product the repository ships.
+        - "**/example/**"
+        - "**/examples/**"
+        - "**/Example/**"
+        - "**/Examples/**"
+        - "**/sample/**"
+        - "**/samples/**"
+        - "**/demo/**"
+        - "**/demos/**"
+        # Xcode names a second platform's target folder `<App> tvOS` or `<App>-visionOS`. The fixture
+        # runner reads only the files beside this rule, so no fixture can sit under these paths; the
+        # exclusion was checked with the engine on `MyApp tvOS/AppDelegate.swift` (0 matches, 1 without
+        # the exclude).
+        - "*tvOS"
+        - "*TVOS"
+        - "*tvos"
+        - "*visionOS"
+        - "*VisionOS"
+        - "*visionos"
+        - "*xrOS"
+    metadata:
+      activity: ships_mobile_app
+      mentioned: performs
+      definition: https://lexlint.io/activities/ships-mobile-app
+      provenance: ungovr-original
+      license: MIT

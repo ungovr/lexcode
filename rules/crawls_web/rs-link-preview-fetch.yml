@@ -1,0 +1,50 @@
+# The fetch half of a link preview: a server that downloads the page of a link someone posted, to
+# read its title, description and image, is fetching a page from a site it does not operate by
+# automated means, which is the lint definition with no condition of scale (controller ruling,
+# 11-15). Apps often fetch in one function and read the page's Open Graph tags in another (a
+# federated link aggregator does), and taint does not cross a call, so this rule reads the file:
+# a GET of an address held in a value (reqwest's, ureq's, surf's, isahc's or attohttpc's `get`, or
+# `.get(..)` closed by `.send()` or `.call()`), in a file that reads preview metadata, named by a
+# `use webpage` or `use opengraph` line or by a scraper `Selector::parse` of an `og:` or
+# `twitter:` title, description or image tag on a code line (not a comment). A string literal is
+# a fixed address (a documented API, the app's own server), and an address built with `format!`,
+# inline or in an earlier `let` in the same block, is built on a base the app holds (its own media server),
+# so neither is a posted link. The address is a value, so no host is read; the finding is evidence.
+rules:
+  - id: lexcode.crawl.rs-link-preview-fetch
+    languages: [rust]
+    severity: INFO
+    message: Downloads the page of a link it was given to build a preview (its title, description and image), which is fetching pages from sites the operator does not run (crawls_web).
+    patterns:
+      - pattern-either:
+          - pattern-regex: (?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+webpage\b).*
+          - pattern-regex: (?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+opengraph\b).*
+          - pattern-regex: (?ms)\A(?=.*^(?![ \t]*[/*])[^\n]*\bSelector::parse\(\s*(?:r#*)?"[^\n]*(?:og|twitter):(?:title|description|image)).*
+      - pattern-either:
+          - pattern: reqwest::get($URL)
+          - pattern: reqwest::blocking::get($URL)
+          - pattern: ureq::get($URL)
+          - pattern: surf::get($URL)
+          - pattern: isahc::get($URL)
+          - pattern: isahc::get_async($URL)
+          - pattern: attohttpc::get($URL)
+          - patterns:
+              - pattern: $C.get($URL)
+              - pattern-either:
+                  - pattern-inside: $X.send()
+                  - pattern-inside: $X.call()
+      # Not a literal (plain or raw), not built inline with `format!`.
+      - metavariable-regex:
+          metavariable: $URL
+          regex: (?s)^(?!&?(?:format!|b?(?:r#*)?")).*$
+      # Not an address built with `format!` in a `let` before the request.
+      - pattern-not-inside: |
+          let $V = format!(...);
+          ...
+          <... $C2.get(&$V) ...>;
+    metadata:
+      activity: crawls_web
+      mentioned: performs
+      definition: https://lexlint.io/activities/crawls-web
+      provenance: ungovr-original
+      license: MIT

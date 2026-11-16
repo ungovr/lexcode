@@ -1,0 +1,91 @@
+# A form the app only saves is not a chat, so the store is named for a chat, as in the Java, PHP and
+# C# rules: an SQL insert into a table named for chat messages, conversation turns or a chat
+# transcript (sqlx's query functions and macros, or a tokio-postgres or deadpool client's execute), a Diesel
+# insert into such a table, a SeaORM active model of such an entity inserted, or an app's own
+# function named for saving a chat. A bare `messages` or `turns` table (or `chat_`, `conversation_`,
+# `llm_`, `ai_` or `assistant_` ones) counts when the insert writes a `role` column beside the text,
+# which is a conversation's turns. A contact, feedback or ticket table, an email or ticket message
+# with its own role column (`email_messages`, `tickets.messages`), a bare transcript (a caption,
+# video or meeting transcript, as the Java and Kotlin rules say), a chat ROOM or channel that holds
+# no text, and a private-message table (a user-to-user inbox, which the social rules read) do not
+# match.
+#
+# A query string held in a constant, or built with `format!`, is not read (a macro body is
+# invisible to the engine, rules/README.md). Diesel's `table!` schema is a macro too: the mapping is
+# read by rs-chat-message-entity from the struct's attribute instead.
+rules:
+  - id: lexcode.chat.rs-chat-messages-persisted
+    languages: [rust]
+    severity: INFO
+    message: Writes the text of a chat to a chat message, conversation or transcript table, which is keeping a text chat (records_text_chat).
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: sqlx::query($SQL)
+              - pattern: sqlx::query!($SQL, ...)
+              - pattern: sqlx::query_as($SQL)
+              - pattern: sqlx::query_as!($T, $SQL, ...)
+              - pattern: sqlx::query_scalar($SQL)
+              - pattern: sqlx::query_scalar!($SQL, ...)
+              - pattern: sqlx::query_unchecked!($SQL, ...)
+              - pattern: $DB.execute($SQL, ...)
+          - metavariable-regex:
+              metavariable: $SQL
+              regex: '(?is)^r?#*"\s*insert\s+into\s+["`]?(\w+["`]?\.["`]?)?(\w+_)?(chat_?(messages?|msgs?|history|logs?|turns?|entries|transcripts?)|conversation_?(messages?|turns?|entries|transcripts?)|dialog(ue)?_?(messages?|turns?))["`]?\s*\('
+      - patterns:
+          - pattern-either:
+              - pattern: sqlx::query($SQL)
+              - pattern: sqlx::query!($SQL, ...)
+              - pattern: sqlx::query_as($SQL)
+              - pattern: sqlx::query_as!($T, $SQL, ...)
+              - pattern: sqlx::query_scalar($SQL)
+              - pattern: sqlx::query_scalar!($SQL, ...)
+              - pattern: sqlx::query_unchecked!($SQL, ...)
+              - pattern: $DB.execute($SQL, ...)
+          # A bare messages or turns table (or one named for a chat, conversation, LLM or assistant)
+          # whose insert names a role column: user and assistant turns. Any other prefix or a schema
+          # (`email_messages`, `tickets.messages`) is another kind of message with its own roles.
+          - metavariable-regex:
+              metavariable: $SQL
+              regex: '(?is)^r?#*"\s*insert\s+into\s+["`]?((chat|conversation|llm|ai|assistant)_)?(messages|turns)["`]?\s*\([^)]*\brole\b'
+      - patterns:
+          - pattern-either:
+              - pattern: diesel::insert_into($TABLE)
+              - pattern: diesel::dsl::insert_into($TABLE)
+          - metavariable-regex:
+              metavariable: $TABLE
+              regex: '^(\w+::)*(\w+_)?(chat_?(messages?|msgs?|history|logs?|turns?|entries|transcripts?)|conversation_?(messages?|turns?|entries|transcripts?)|dialog(ue)?_?(messages?|turns?))(::table)?$'
+      - patterns:
+          - pattern: $AM.insert($CONN)
+          - metavariable-regex:
+              metavariable: $AM
+              regex: '(?s)^(\w+::)*(\w+_)?(chat_?(message|msg|turn|entry|transcript)|conversation_?(message|turn|entry|transcript))::ActiveModel\s*\{'
+      - patterns:
+          - patterns:
+              - pattern-inside: |
+                  let $V = $X;
+                  ...
+              - metavariable-regex:
+                  metavariable: $X
+                  regex: '(?s)^(\w+::)*(\w+_)?(chat_?(message|msg|turn|entry|transcript)|conversation_?(message|turn|entry|transcript))::ActiveModel\s*\{'
+          - pattern: $V.insert($CONN)
+      - patterns:
+          - pattern-either:
+              - pattern: $E::insert(...)
+              - pattern: $E::insert_many(...)
+          - metavariable-regex:
+              metavariable: $E
+              regex: '^(\w+::)*(\w+_)?(chat_?(message|msg|turn|entry|transcript)|conversation_?(message|turn|entry|transcript))::Entity$'
+      - patterns:
+          - pattern-either:
+              - pattern: $F(...)
+              - pattern: $O.$F(...)
+          - metavariable-regex:
+              metavariable: $F
+              regex: ^(save|store|persist|insert|append|log|record)_(chat|chats|conversation|conversations|transcript|transcripts|chat_message|chat_messages|chat_history|conversation_turn|conversation_turns)$
+    metadata:
+      activity: records_text_chat
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-text-chat
+      provenance: ungovr-original
+      license: MIT

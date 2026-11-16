@@ -34,9 +34,9 @@ To scan code you do not trust (a stranger's clone, a pull request, an unpacked
 archive), run lexcode from outside it, with a copy you chose:
 `cd ~ && npx @ungovr/lexcode@1 scan /path/to/repo`. npm honors a project's
 `.npmrc` `registry=` line and a local `@ungovr/lexcode` dependency, so
-`npx @ungovr/lexcode` run inside
-an untrusted repository may run something other than this package. lexcode
-itself never runs a program from the scanned directory (see Privacy).
+`npx @ungovr/lexcode` run inside an untrusted repository may run something
+other than this package. lexcode itself never runs a program from the scanned
+directory (see Privacy).
 
 ## What it reads
 
@@ -44,48 +44,59 @@ Files tracked by git or trackable by it, honoring `.gitignore`. Outside a git
 work tree lexcode walks the directory instead, and then also leaves out
 virtual environments (`.venv`, `venv` and `env` where a `pyvenv.cfg` says they
 are one), `site-packages`, `__pycache__`, `.tox`, `.nox`, `.mypy_cache`,
-`.pytest_cache`, `.next`, `.nuxt`, `.svelte-kit`, `target`, `.gradle`, `Pods`,
-`.terraform` and .NET build output (`obj` where it holds a
-`project.assets.json`, `bin` where it holds a `Debug` or `Release`
-directory), and applies the simple patterns of the root `.gitignore`: a
-name, `dir/`, a glob such as `*.ext`, and a leading `/`. Negations (`!pattern`)
-are not supported, and neither is a `.gitignore` below the root; the scan says
-so in a notice. Never
-`node_modules`, `vendor`, `dist`, `build` or `.git`, never a legacy NuGet
-restore folder (a `packages` directory whose subdirectories hold a `.nupkg`;
-a `packages/` of your own code is read), never minified or bundled
-files (including any named `*.min.js`, `*.bundle.js`, `vendor.*.js` or
-`*.vendor.js`), never C# the compiler generated (`*.g.cs` and `*.g.i.cs`;
-a `*.Designer.cs` is read), never a file with a line over 100,000 characters
-(generated code, counted in a notice), never symbolic links, never files over
-5 MB, never a file you cannot open for reading (counted in a notice), and never
-directories named `test`, `tests`, `__tests__`, `spec`, `fixtures`, `testdata`,
-`androidTest`, `testFixtures` or `integrationTest`, or the Kotlin Multiplatform
-test source sets `commonTest`, `jvmTest`, `androidUnitTest`,
-`androidInstrumentedTest`, `iosTest`, `jsTest` or `nativeTest`, or .NET test
-projects (a directory whose name ends in `.Tests`, `.Test`, `.UnitTests`,
-`.IntegrationTests`, `.FunctionalTests`, `.AcceptanceTests` or `.Specs`, so
-`src/MyApp.Tests`), in any case (so Symfony's `Tests` and Magento's `Test`
-too), unless you pass `--include-tests`.
-`app.scope` in `lexlint.yml` narrows the read, as the lint reads it.
+`.pytest_cache`, `.next`, `.nuxt`, `.svelte-kit`, `target`, `.gradle`,
+`.terraform`, `.build`, `DerivedData` and .NET build output (`obj` where it
+holds a `project.assets.json`, `bin` where it holds a `Debug` or `Release`
+directory), and applies the simple patterns of the root `.gitignore`: a name,
+`dir/`, a glob such as `*.ext`, and a leading `/`. Negations (`!pattern`) are
+not supported, and neither is a `.gitignore` below the root; the scan says so
+in a notice. Never `node_modules`, `vendor`, `dist`, `build`, `.git`, `Pods`
+or `Carthage`, never a legacy NuGet restore folder (a `packages` directory
+whose subdirectories hold a `.nupkg`; a `packages/` of your own code is read),
+never minified or bundled files (including any named `*.min.js`,
+`*.bundle.js`, `vendor.*.js` or `*.vendor.js`), never C# the compiler
+generated (`*.g.cs` and `*.g.i.cs`; a `*.Designer.cs` is read), never
+generated Swift (`*.generated.swift`, `*+Generated.swift`, `*.pb.swift`,
+`*.grpc.swift`, and anything under a directory named `GeneratedSources`,
+where swift-openapi-generator writes its output; the name is case-sensitive),
+never a file with a line over 100,000 characters (generated code, counted in
+a notice), never symbolic links, never files over 5 MB, never a file you
+cannot open for reading (counted in a notice), and never directories named
+`test`, `tests`, `__tests__`, `spec`, `fixtures`, `testdata`, `benches`,
+`androidTest`, `testFixtures` or `integrationTest`, or
+the Kotlin Multiplatform test source sets `commonTest`, `jvmTest`,
+`androidUnitTest`, `androidInstrumentedTest`, `iosTest`, `jsTest` or
+`nativeTest`, or .NET test projects (a directory whose name ends in `.Tests`,
+`.Test`, `.UnitTests`, `.IntegrationTests`, `.FunctionalTests`,
+`.AcceptanceTests` or `.Specs`, so `src/MyApp.Tests`), in any case (so
+Symfony's `Tests` and Magento's `Test` too), or Xcode test targets (a
+directory whose name ends in `Tests` with a capital T, so `WikipediaTests`,
+`WikipediaUITests`, `UITests`, `APITests` and `iOSTests` but not `Contests`;
+this one is case-sensitive), unless you pass `--include-tests`. `app.scope` in
+`lexlint.yml` narrows the read, as the lint reads it.
 
 Languages: TypeScript, JavaScript (with JSX and TSX), Python, Go, Ruby
 (`.rb`, `.rake`, `.ru` and `.gemspec` files, and a `Rakefile`, `Fastfile`,
 `Appfile` or `Capfile`), Java (`.java`), Kotlin (`.kt`, `.kts`), PHP (`.php`,
 `.phtml`, and `.inc`, `.module`, `.theme` and `.install` files that open with
-`<?php`) and C# (`.cs`; `.csx` and `.cake` scripts are not read), plus the
-`<script>` blocks of Vue, Svelte, HTML, Jinja, ERB (`.erb`, so `.html.erb`),
-JSP (`.jsp`, `.jspf`, `.tag`), PHP (`.php`, `.phtml`), Blade (`.blade.php`),
-Twig (`.twig`, so `.html.twig`) and Razor (`.cshtml`, `.razor`) files. In an
-ERB, JSP, Twig or Razor view only the `<script>` blocks are read, as
+`<?php`), C# (`.cs`; `.csx` and `.cake` scripts are not read), Swift
+(`.swift`) and Rust (`.rs`), plus the `<script>` blocks of Vue, Svelte, HTML,
+Jinja, ERB (`.erb`, so `.html.erb`), JSP (`.jsp`, `.jspf`, `.tag`), PHP
+(`.php`, `.phtml`), Blade (`.blade.php`), Twig (`.twig`, so `.html.twig`),
+Tera (`.tera`, so `.html.tera`) and Razor (`.cshtml`, `.razor`) files. In an
+ERB, JSP, Twig, Tera or Razor view only the `<script>` blocks are read, as
 JavaScript; the Ruby, Java, C# or template code inside the tags is not (the
 tags are blanked, so line numbers hold), except that a Razor file's `@code`
 and `@functions` blocks are also read as C#. A PHP, Blade or `.phtml` view is
 PHP source, so the whole file is also scanned as PHP, and its `<script>`
-blocks are read as JavaScript as well. Code in any other language (Swift, F#,
-Visual Basic, Rust and the like) is not read, and the scan names each such
-language with its file count in a notice, so a missing activity there reads as
-"not checked", never as "not there".
+blocks are read as JavaScript as well. In a Rust file, code inside a
+`#[cfg(test)]` module is left out unless you pass `--include-tests`. For
+Apple apps lexcode also reads, as text, the files that declare what an app may
+do: `Info.plist` (and Xcode's `<Target>-Info.plist`), `PrivacyInfo.xcprivacy`,
+`*.entitlements` and `project.pbxproj`; a binary plist is not read. Code in
+any other language (Objective-C, F#, Visual Basic and the like) is not read,
+and the scan names each such language with its file count in a notice, so a
+missing activity there reads as "not checked", never as "not there".
 Manifests: npm
 (`package.json` with `package-lock.json`, `pnpm-lock.yaml` or `yarn.lock`),
 PyPI (`pyproject.toml`, `requirements*.txt`, `uv.lock`, `poetry.lock`), Go
@@ -93,12 +104,17 @@ PyPI (`pyproject.toml`, `requirements*.txt`, `uv.lock`, `poetry.lock`), Go
 `gems.locked`, and `*.gemspec`), Maven (`pom.xml`, and Gradle's `build.gradle`
 and `build.gradle.kts` with their version catalogs, `gradle/*.versions.toml`,
 and the constants and `findLibrary` lookups in `buildSrc` and `build-logic`),
-Composer (`composer.json`, with the `composer.lock` beside it) and NuGet
+Composer (`composer.json`, with the `composer.lock` beside it), NuGet
 (`*.csproj`, `*.fsproj`, `*.vbproj`, `Directory.Build.props`,
 `Directory.Build.targets`, `Directory.Packages.props` and `packages.config`,
-with the `packages.lock.json` beside a project).
-How Ruby, gems, Java, Kotlin, Maven, Gradle, PHP, Composer, C#, Razor and
-NuGet are read, in detail, is in [rules/README.md](rules/README.md).
+with the `packages.lock.json` beside a project), Cargo (`Cargo.toml`, with
+the `Cargo.lock` beside it or above it), Swift packages (`Package.swift` and
+the Swift packages of an Xcode project's `project.pbxproj`, with
+`Package.resolved`) and CocoaPods (`Podfile` and `Podfile.lock`). Carthage's
+`Cartfile.resolved` is not read; the scan counts its entries in a notice.
+How Ruby, gems, Java, Kotlin, Maven, Gradle, PHP, Composer, C#, Razor, NuGet,
+Swift, Rust, Cargo, Swift packages, CocoaPods and the Apple configuration
+files are read, in detail, is in [rules/README.md](rules/README.md).
 
 ## What it writes
 

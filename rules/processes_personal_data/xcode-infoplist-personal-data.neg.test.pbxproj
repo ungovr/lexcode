@@ -1,0 +1,30 @@
+// !$*UTF8*$!
+// lexcode-expect: 0
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin XCBuildConfiguration section */
+		4887343E2CDCA2DD00B400A3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Transit/Location-Info.plist";
+				/* The camera and the photo library: a photo is not, by the key alone, information about a person. */
+				INFOPLIST_KEY_NSCameraUsageDescription = "Scan a ticket.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Choose a picture for your card.";
+				/* An empty description declares nothing the app would show. */
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "";
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.transit;
+				SDKROOT = iphoneos;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+	};
+	rootObject = 4887340F2CDCA2DB00B400A3 /* Project object */;
+}

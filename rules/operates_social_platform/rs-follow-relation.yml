@@ -1,0 +1,66 @@
+# The follower and followed regular expressions repeat between the two field patterns, and the
+# follow table names repeat between the SQL arm and the Diesel arms. Edit every copy together, or
+# an arm drifts from the others. Each field pattern carries its field names itself, so the engine
+# drops other fields before the two are joined (#13009). A struct match is the struct's name, one
+# per struct. A table, struct or form for following a community, a topic or a thread is a notice
+# subscription, not a link between accounts, so the names below are an account's or none.
+rules:
+  - id: lexcode.social.rs-follow-relation
+    languages: [rust]
+    severity: INFO
+    message: Defines a follow or friendship relation between user accounts (a struct holding a follower and the account it follows, an account's followers and following, a follow or friendship struct, or an insert into a follow or friendship table), which is how people connect on a social platform (operates_social_platform).
+    # Constant propagation is off so that a const statement is matched once, where it is written,
+    # and not again at each call that passes it.
+    options:
+      constant_propagation: false
+    pattern-either:
+      # A struct holding a follower and the account it follows, or an account's followers and
+      # following.
+      - patterns:
+          - patterns:
+              - pattern: |
+                  struct $S { ..., $F: $T, ... }
+              - metavariable-regex:
+                  metavariable: $F
+                  regex: '^(followed|followee|followees|following|followings)(_(user|users|account|accounts|member|members|profile|profiles|person|persons))?(_ids?)?$'
+          - patterns:
+              - pattern: |
+                  struct $S { ..., $G: $T2, ... }
+              - metavariable-regex:
+                  metavariable: $G
+                  regex: '^followers?(_(user|account|member|profile|person))?(_ids?)?$'
+          - focus-metavariable: $S
+      # A struct that is the follow or the friendship itself, or its Diesel form.
+      - patterns:
+          - pattern: |
+              struct $S { ... }
+          - metavariable-regex:
+              metavariable: $S
+              regex: '^(New)?(User|Person|Account|Member|Profile)?(Follow|Follower|Followership|Friendship|FriendRequest|FriendConnection|Friend)(\w*Form|Row|Record|Model|Entity)?$'
+          - focus-metavariable: $S
+      # SQL text, wherever the string sits: an insert into an account follow or friendship table
+      # that names a follow or friend column.
+      - patterns:
+          - pattern: '"$SQL"'
+          - metavariable-regex:
+              metavariable: $SQL
+              regex: '(?is)^.*?\binsert\s+into\s+[`"]?(\w+\.)?(user_|person_|account_|member_|profile_)?(follows?|followers?|followings?|followships?|friendships?|friends?|friend_requests?)[`"]?\s*\((?:[^()]*?[\s,`"])?\w*(follow(er|ing|ed|ee)|friend)\w*[`"]?\s*[,)]'
+      # Diesel: an insert into an account follow or friendship table, by the crate path (which
+      # also reads a flat grouped use and an alias of the crate) or, in a file that uses Diesel,
+      # by the bare name a nested use group brings.
+      - patterns:
+          - pattern-either:
+              - pattern: diesel::insert_into($TBL)
+              - patterns:
+                  - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+diesel\b).*'
+                  - pattern: insert_into($TBL)
+          - metavariable-regex:
+              metavariable: $TBL
+              regex: '^(\w+::)*(user_|person_|account_|member_|profile_)?(follows?|followers?|followings?|followships?|friendships?|friends?|friend_requests?)::table$'
+    metadata:
+      activity: operates_social_platform
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/operates-social-platform
+      provenance: ungovr-original
+      license: MIT

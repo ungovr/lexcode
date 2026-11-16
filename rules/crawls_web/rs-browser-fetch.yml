@@ -1,0 +1,51 @@
+# A page opened in an automated browser (headless_chrome, chromiumoxide, fantoccini, thirtyfour)
+# is a page fetched by automated means. The tab, page and client objects come from factory calls
+# (`browser.new_tab()`, `Browser::launch(..)`, `ClientBuilder::native().connect(..)`) whose type the
+# engine does not infer, so each crate's navigation is read by its method name, in a file that names
+# that crate on a `use` line or in a path on a code line (`headless_chrome::Browser::default()`);
+# a comment that names the crate does not count. One branch per crate,
+# so one crate's import never admits another's call, and an app's own router or document model with
+# a `goto` or `new_page` in a file without the crate is not a browser. Connecting to a WebDriver
+# server is not opening a page. The address is the host (`host_metavar`): one held in a variable
+# makes the finding a signal. Loopback hosts, `about:`, `file:`, `data:` and `blob:` addresses, a
+# path relative to the app, and an address built on a value named for the app's own URL
+# (`app_url`) are the app's own pages (rendering its own HTML to PDF, checking its dev server).
+rules:
+  - id: lexcode.crawl.rs-browser-fetch
+    languages: [rust]
+    severity: INFO
+    message: Opens a web page from a site the operator may not run in an automated browser (headless_chrome, chromiumoxide, fantoccini, thirtyfour), which is crawling the web (crawls_web).
+    patterns:
+      - pattern-either:
+          - patterns:
+              - pattern-either:
+                  - pattern-regex: (?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+headless_chrome\b).*
+                  - pattern-regex: (?ms)\A(?=.*^(?![ \t]*[/*])[^\n]*\bheadless_chrome::).*
+              - pattern: $T.navigate_to($URL)
+          - patterns:
+              - pattern-either:
+                  - pattern-regex: (?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+chromiumoxide\b).*
+                  - pattern-regex: (?ms)\A(?=.*^(?![ \t]*[/*])[^\n]*\bchromiumoxide::).*
+              - pattern-either:
+                  - pattern: $B.new_page($URL)
+                  - pattern: $P.goto($URL)
+          - patterns:
+              - pattern-either:
+                  - pattern-regex: (?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+fantoccini\b).*
+                  - pattern-regex: (?ms)\A(?=.*^(?![ \t]*[/*])[^\n]*\bfantoccini::).*
+              - pattern: $C.goto($URL)
+          - patterns:
+              - pattern-either:
+                  - pattern-regex: (?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+thirtyfour\b).*
+                  - pattern-regex: (?ms)\A(?=.*^(?![ \t]*[/*])[^\n]*\bthirtyfour::).*
+              - pattern: $D.goto($URL)
+      - metavariable-regex:
+          metavariable: $URL
+          regex: (?s)^(?!&?(?:format!\(\s*)?(?:r#*)?"(https?://(localhost|127\.|0\.0\.0\.0|\[::1\])|(about|file|data|blob):|/(?!/)))(?!&?(self\.)?_?(?i:app_?url)\b)(?!&?format!\(\s*"\{(self\.)?_?(?i:app_?url)\b)(?!&?format!\(\s*"\{\}[^"]*"\s*,\s*&?(self\.)?_?(?i:app_?url)\b).*$
+    metadata:
+      activity: crawls_web
+      mentioned: performs
+      definition: https://lexlint.io/activities/crawls-web
+      provenance: ungovr-original
+      license: MIT
+      host_metavar: $URL

@@ -1,9 +1,9 @@
 // Filler code per fixture extension, shared by scripts/rule-cost.mjs, which times each rule on it,
 // and test/unit/taint-sinks.test.ts, which counts each taint rule's sinks in it. Each unit is dense
 // in classes, fields, functions and returns and names nothing a rule looks for. Every unit returns
-// a local variable (PHP's and C#'s return an expression of one), so a sink written as every return
-// in the file matches each unit (#13034); the Java, Kotlin and Ruby units held no return before, and
-// the script could not see that cost in those languages.
+// a local variable (PHP's, C#'s and Swift's return an expression of one, and Rust's as its tail
+// expression), so a sink written as every return in the file matches each unit (#13034); the Java,
+// Kotlin and Ruby units held no return before, and the script could not see that cost in those languages.
 
 const JAVA = { language: 'java', bare: 'C0', unit: 'class C%N { private int a; private int b; int m() { int x = 1; return x; } }\n' };
 const KOTLIN = { language: 'kotlin', bare: 'C0', unit: 'class C%N { private val a: Int = 1; private val b: Int = 2; fun m(): Int { val x = 1; return x } }\n' };
@@ -20,6 +20,15 @@ export const FILLER = {
   '.tsx': TYPESCRIPT,
   '.go': { language: 'go', bare: 'C0', unit: 'type C%N struct {\n\ta int\n\tb int\n}\n\nfunc (c C%N) M(p int) int {\n\tx := p + 1\n\treturn x\n}\n\n', head: 'package demo\n\n' },
   '.cs': { language: 'csharp', bare: 'C0', unit: 'public class C%N { private int a = 1; private int b = 2; public int M(int p) { var x = p + 1; return x * 2; } }\n' },
+  '.swift': {
+    language: 'swift',
+    bare: 'C0',
+    unit: 'final class C%N { private let a = 1; private let b = 2; func m() -> Int { let x = a + b; return x * 2 } }\n',
+    // rule-cost.mjs's second filler for a Swift rule over a bound: no modifier anywhere, so the engine's Swift
+    // scanner bug cannot slow it (rule-cost.mjs, BARE_HIT)
+    plain: 'class C%N { let a = 1; let b = 2; func m() -> Int { let x = a + b; return x * 2 } }\n',
+  },
+  '.rs': { language: 'rust', bare: 'f0', unit: 'fn f%N(a: i64, b: i64) -> i64 { let x = a + b; x * 2 }\n' },
 };
 
 /** `head`, then units numbered from 0 until the text reaches `kb` thousand characters. */

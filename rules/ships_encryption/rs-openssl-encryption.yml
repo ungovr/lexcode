@@ -1,0 +1,42 @@
+# Encryption through the openssl crate: its symmetric ciphers (symm's encrypt, decrypt, the AEAD forms,
+# Crypter and CipherCtx), public-key encryption (Encrypter and Decrypter, and an Rsa key's
+# public_encrypt and private_decrypt), envelopes (Seal and Open) and key agreement (Deriver).
+#
+# The crate is a binding to OpenSSL, which on most systems is the operating system's own library
+# (`features = ["vendored"]` compiles a copy in, and no code rule can tell the two apart). Either way
+# a cipher, public-key encryption or a key agreement keeps data confidential whoever wrote the code
+# that runs it, so the system's OpenSSL counts as a bundled crate does (#13318), as Ruby's
+# OpenSSL::Cipher (rb-platform-encryption) and PHP's openssl_encrypt (php-platform-encryption) do.
+# Hashing, signing (openssl::sign), a MAC and random bytes are not read. Neither is the crate's TLS
+# (SslConnector, SslAcceptor) or native-tls, which hand HTTPS to the system's stack, the stock client
+# of a Rust app; rustls, compiled into the app, is read by rs-bundled-tls.
+rules:
+  - id: lexcode.crypto.rs-openssl-encryption
+    languages: [rust]
+    severity: INFO
+    message: Encrypts data or agrees keys through the openssl crate, a binding to OpenSSL (the system's or a vendored copy), which is shipping encryption (ships_encryption).
+    pattern-either:
+      - pattern: openssl::symm::encrypt(...)
+      - pattern: openssl::symm::decrypt(...)
+      - pattern: openssl::symm::encrypt_aead(...)
+      - pattern: openssl::symm::decrypt_aead(...)
+      - pattern: openssl::symm::Crypter::new(...)
+      - pattern: openssl::cipher_ctx::CipherCtx::new()
+      - pattern: openssl::encrypt::Encrypter::new(...)
+      - pattern: openssl::encrypt::Decrypter::new(...)
+      - pattern: openssl::envelope::Seal::new(...)
+      - pattern: openssl::envelope::Open::new(...)
+      - pattern: openssl::derive::Deriver::new(...)
+      # An Rsa key's own methods, read in a file with a `use openssl` line, so an app's own method of
+      # the same name elsewhere is not read.
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+openssl\b).*'
+          - pattern-either:
+              - pattern: $R.public_encrypt(...)
+              - pattern: $R.private_decrypt(...)
+    metadata:
+      activity: ships_encryption
+      mentioned: performs
+      definition: https://lexlint.io/glossary#ships-encryption
+      provenance: ungovr-original
+      license: MIT

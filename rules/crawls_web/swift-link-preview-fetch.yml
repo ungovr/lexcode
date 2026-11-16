@@ -1,0 +1,31 @@
+rules:
+  - id: lexcode.crawl.swift-link-preview-fetch
+    languages: [swift]
+    severity: INFO
+    message: Fetches the page behind a link with LinkPresentation's LPMetadataProvider to build a preview (its title, icon and image), which downloads a page from a site the operator may not run (crawls_web).
+    # A link preview is a fetch of another site's page by the app, with no person opening it: the
+    # lint definition ("fetches pages or files from sites you do not operate, by any automated
+    # means") has no scale condition, so it is evidence (controller ruling, as for Rust's
+    # rs-link-preview-fetch). The address is a variable by nature (the link a person posted or
+    # shared), so the rule carries no host check. An address written as a literal is not matched:
+    # with no host check the rule cannot tell the app's own fixed link from a fixed card for an
+    # outside site, so both are left out (a trade beyond the ruling, which named only loopback and
+    # files). A loopback host or a file is not matched either. Building `LPLinkMetadata` by hand (a share sheet's `UIActivityItemSource`) fetches
+    # nothing and is not matched.
+    #
+    # LinkPresentation comes only with its own import, and the provider is an untyped receiver, so
+    # the file's `import LinkPresentation` stands in for the type (amendment 2). Both the callback
+    # form and the `try await` form of `startFetchingMetadata(for:)` are read.
+    patterns:
+      - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?LinkPresentation\b).*'
+      - pattern: '$P.startFetchingMetadata(for: $URL, ...)'
+      # Not a literal address, a loopback host, or a file.
+      - metavariable-regex:
+          metavariable: $URL
+          regex: '(?s)^(?!\s*(?:UR[LI]\(string:\s*)?#*")(?!.*(?:"https?://(?:localhost|127\.|0\.0\.0\.0|\[::1\])|fileURLWithPath|file:)).*$'
+    metadata:
+      activity: crawls_web
+      mentioned: performs
+      definition: https://lexlint.io/activities/crawls-web
+      provenance: ungovr-original
+      license: MIT

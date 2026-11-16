@@ -6,7 +6,8 @@ import { textHasLongLine } from './longlines.js';
 // Opengrep has no Vue or Svelte parser (design section 6.10), so a JS or TS
 // rule never reads those files, nor the scripts inside an HTML or Jinja page,
 // an ERB view (`.erb`, whose ERB tags are blanked first), a JSP, a PHP view
-// (`.php`, `.phtml`), a Blade view (`.blade.php`), a Twig template (`.twig`) or a Razor view or component
+// (`.php`, `.phtml`), a Blade view (`.blade.php`), a Twig template (`.twig`), a Tera template (`.tera`, `.html.tera`;
+// Tera's tags are Twig's, so it gets Twig's blanking) or a Razor view or component
 // (`.cshtml`, `.razor`; the C# of their `@code` blocks is copied too, see `razorCSharp`).
 // lexcode copies each qualifying <script> body into a temporary file in which
 // every other character is a space (line breaks kept), so a finding's line
@@ -21,6 +22,9 @@ const BLADE_SUFFIX = '.blade.php';
 // Razor views and components: their script blocks are read as JavaScript, and their `@code` and `@functions`
 // blocks as C# through a `.lexcode.cs` copy (the engine reads only `.cs` as C#).
 const RAZOR_EXTENSIONS = new Set(['.cshtml', '.razor']);
+// Templates whose tags are Twig's (`{{ }}`, `{% %}`, `{# #}`, with `-` whitespace control): Twig itself and Rust's Tera.
+// A `.html.tera` file's extension is `.tera`.
+const TWIG_EXTENSIONS = new Set(['.twig', '.tera']);
 const EXTRACT_EXTENSIONS = new Set([
   '.vue',
   '.svelte',
@@ -33,7 +37,7 @@ const EXTRACT_EXTENSIONS = new Set([
   '.erb',
   ...JSP_EXTENSIONS,
   ...PHP_VIEW_EXTENSIONS,
-  '.twig',
+  ...TWIG_EXTENSIONS,
   ...RAZOR_EXTENSIONS,
 ]);
 
@@ -606,7 +610,7 @@ function twigTagEnd(text: string, from: number, closer: string): number {
  * with spaces to its length, and `{% ... %}` and `{# ... #}` become spaces, the `-` and `~` whitespace-control
  * forms included. Line breaks stay. A comment ends at the first `#}`; an output or statement tag ends at its
  * closer past quoted strings and nested brackets (`twigTagEnd`). Anything that never ends is blanked to the end
- * of the body. It is applied to `.twig` files only: Jinja files keep their tags.
+ * of the body. It is applied to `.twig` and `.tera` files only: Jinja files keep their tags.
  */
 export function blankTwigTags(body: string): string {
   const opener = /\{[{%#]/g;
@@ -1250,7 +1254,7 @@ export function extractScripts(root: string, files: string[], tmpDir: string): E
         jsp: JSP_EXTENSIONS.has(ext),
         php: !blade && PHP_VIEW_EXTENSIONS.has(ext),
         blade,
-        twig: ext === '.twig',
+        twig: TWIG_EXTENSIONS.has(ext),
         razor,
       };
       const found = qualifyingScripts(text, opts);

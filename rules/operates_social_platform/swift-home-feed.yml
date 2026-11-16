@@ -1,0 +1,64 @@
+# The followed-accounts and author expressions repeat across the arms, and in the Kotlin, Java and C#
+# rules of the same name. Edit the copies together, or an arm drifts from the others.
+rules:
+  - id: lexcode.social.swift-home-feed
+    languages: [swift]
+    severity: INFO
+    message: Selects posts written by the accounts a user follows or befriends (a Fluent filter, a collection filter or SQL text keyed on followed or friend accounts), which builds a feed of other users' posts for a social platform (operates_social_platform).
+    # As in the Kotlin, Java, C# and PHP home-feed rules. The followed accounts are a value named for
+    # them (`followingIDs`, `friends`); the post side is an author, poster, creator, owner or user key.
+    # A follow-up list is not followed accounts (`follow_ups` is left out of the SQL arm too), and a
+    # filter on followed topics keys on a post's topic, not its author, so neither is read. Known
+    # gaps: Firestore's `whereField("authorId", in: followingIDs)` and a Core Data
+    # `NSPredicate(format: "author IN %@", following)` are not read.
+    pattern-either:
+      # Fluent: `Post.query(on: db).filter(\.$author.$id ~~ followingIDs)`, also inside `try await`
+      # (probed). `~~` is Fluent's "value in list".
+      - patterns:
+          # Whole-file anchors (CONTRIBUTING.md, Cost): a file without one of these words is not parsed.
+          # Without them every Swift file is parsed, and penny-bot's generated API client (190 KB) took
+          # about 80 s to parse in a worker at --jobs 16 (measured).
+          - pattern-regex: '(?s)\A(?=.*~~).*'
+          - pattern-either:
+              - pattern-inside: |
+                  import Fluent
+                  ...
+              - pattern-inside: |
+                  import FluentKit
+                  ...
+          - pattern: $Q.filter($KP ~~ $FOL)
+          - metavariable-regex:
+              metavariable: $KP
+              regex: '^\\\w*\.\$(author|poster|creator|owner|user)(\.\$id)?$'
+          - metavariable-regex:
+              metavariable: $FOL
+              regex: '(?i)^[\w.]*(following|followed|followees?|friends|friendIds)\w*(\(.*\))?$'
+      # A collection filter: `followingIDs.contains($0.authorID)`, `friends.contains(post.author.id)`.
+      - patterns:
+          - pattern-regex: '(?s)\A(?=.*\.contains\(\s*[\w$.]*\.(?:author|poster|creator|owner|user)).*'
+          - pattern-either:
+              - patterns:
+                  - pattern: $FOL.contains($P.$A)
+                  - metavariable-regex:
+                      metavariable: $A
+                      regex: '^(author|poster|creator|owner|user)(Id|ID)?$'
+              - patterns:
+                  - pattern: $FOL.contains($P.$A.$I)
+                  - metavariable-regex:
+                      metavariable: $A
+                      regex: '^(author|poster|creator|owner|user)$'
+                  - metavariable-regex:
+                      metavariable: $I
+                      regex: '^(id|ID)$'
+          - metavariable-regex:
+              metavariable: $FOL
+              regex: '(?i)^[\w.]*(following|followed|followees?|friends|friendIds)\w*(\(.*\))?$'
+      # SQL text (SQLKit `raw`, GRDB, SQLite): posts whose author is in a follows or friends subquery.
+      - pattern-regex: '(?is)\b(author|user|owner|creator|poster)_?id\s+in\s*\([^"]{0,300}\b(follow(?!_?ups?(\b|_))|friend)'
+    metadata:
+      activity: operates_social_platform
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/operates-social-platform
+      provenance: ungovr-original
+      license: MIT

@@ -1,0 +1,151 @@
+ecosystem: cocoapods
+entries:
+
+  # A pod is matched by its name as Podfile.lock writes it, case-insensitively; a subspec keeps its path
+  # (Firebase/Analytics). Each says is the pod's `summary` from its newest podspec in CocoaPods' Specs
+  # repository, or the podspec's `description` where the summary only repeats the pod's name. Each Firebase
+  # product is its own pod and gets its own entry, never a prefix. A Firebase umbrella subspec has no summary
+  # of its own: Firebase/Core and Firebase/Analytics bring the FirebaseAnalytics pod, Firebase/Auth brings
+  # FirebaseAuth and Firebase/Crashlytics brings FirebaseCrashlytics, so each quotes the pod it brings.
+  # Left out: FirebaseMessaging and FirebasePerformance (the summary names the product only), Branch (its
+  # summary is about links), TwilioVoice, TwilioVideo and TwilioVerify (no activity in the summary),
+  # PersonaInquirySDK2 and HCaptcha. A vendor's SDK is read as performing what that vendor's service does, as
+  # the other maps read one (Sentry, PostHog, Adjust).
+
+  # Analytics, attribution and advertising SDKs
+  - match: "firebaseanalytics"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Firebase Analytics is a free, out-of-the-box analytics solution that inspires actionable insights based on app usage and user engagement."
+    source: https://cocoapods.org/pods/FirebaseAnalytics
+  - match: "firebase/analytics"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Firebase Analytics is a free, out-of-the-box analytics solution that inspires actionable insights based on app usage and user engagement."
+    source: https://cocoapods.org/pods/FirebaseAnalytics
+  - match: "firebase/core"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Firebase Analytics is a free, out-of-the-box analytics solution that inspires actionable insights based on app usage and user engagement."
+    source: https://cocoapods.org/pods/FirebaseAnalytics
+  - match: "googleanalytics"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Google Analytics - measure your app performance"
+    source: https://cocoapods.org/pods/GoogleAnalytics
+  - match: "mixpanel"
+    enables: [tracks_devices, processes_personal_data]
+    says: "iPhone tracking library for Mixpanel Analytics"
+    source: https://cocoapods.org/pods/Mixpanel
+  - match: "mixpanel-swift"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Mixpanel tracking library for iOS (Swift)"
+    source: https://cocoapods.org/pods/Mixpanel-swift
+  - match: "amplitude"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Amplitude iOS/tvOS/macOS SDK."
+    source: https://cocoapods.org/pods/Amplitude
+  - match: "amplitudeswift"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Amplitude Analytics SDK"
+    source: https://cocoapods.org/pods/AmplitudeSwift
+  - match: "amplitude-ios"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Amplitude mobile analytics iOS SDK."
+    source: https://cocoapods.org/pods/Amplitude-iOS
+  - match: "analytics"
+    enables: [tracks_devices, processes_personal_data]
+    says: "The hassle-free way to add analytics to your iOS app."
+    source: https://cocoapods.org/pods/Analytics
+  - match: "posthog"
+    enables: [tracks_devices, processes_personal_data]
+    says: "The hassle-free way to add posthog to your iOS app."
+    source: https://cocoapods.org/pods/PostHog
+  - match: "appsflyerframework"
+    enables: [tracks_devices, processes_personal_data]
+    says: "AppsFlyer native track allows you to find what attracts new users to your app, measure all your app marketing activities on one dashboard, and add new traffic sources in minutes, all without having to update SDK."
+    source: https://cocoapods.org/pods/AppsFlyerFramework
+  - match: "adjust"
+    enables: [tracks_devices, processes_personal_data]
+    says: "This is the iOS SDK of Adjust. You can read more about it at https://adjust.com."
+    source: https://cocoapods.org/pods/Adjust
+  - match: "fbsdkcorekit"
+    enables: [tracks_devices, processes_personal_data]
+    says: "The Facebook SDK for iOS CoreKit framework provides: * App Events (for App Analytics) * Graph API Access and Error Recovery * Working with Access Tokens and User Profiles"
+    source: https://cocoapods.org/pods/FBSDKCoreKit
+  - match: "google-mobile-ads-sdk"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Monetize your mobile applications with Google ads"
+    source: https://cocoapods.org/pods/Google-Mobile-Ads-SDK
+
+  # Crash and error reporting SDKs
+  - match: "firebasecrashlytics"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Best and lightest-weight crash reporting for mobile, desktop and tvOS."
+    source: https://cocoapods.org/pods/FirebaseCrashlytics
+  - match: "firebase/crashlytics"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Best and lightest-weight crash reporting for mobile, desktop and tvOS."
+    source: https://cocoapods.org/pods/FirebaseCrashlytics
+  - match: "sentry"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Sentry client for cocoa"
+    source: https://cocoapods.org/pods/Sentry
+
+  # Authentication and user management
+  - match: "firebaseauth"
+    enables: [processes_personal_data]
+    says: "Firebase Authentication allows you to manage your own account system without any backend code. It supports email and password accounts, as well as several 3rd party authentication mechanisms."
+    source: https://cocoapods.org/pods/FirebaseAuth
+  - match: "firebase/auth"
+    enables: [processes_personal_data]
+    says: "Firebase Authentication allows you to manage your own account system without any backend code. It supports email and password accounts, as well as several 3rd party authentication mechanisms."
+    source: https://cocoapods.org/pods/FirebaseAuth
+
+  # Model SDKs
+  - match: "firebaseai"
+    enables: [generates_content]
+    says: "Build AI-powered apps and features with the Gemini API using the Firebase AI SDK."
+    source: https://cocoapods.org/pods/FirebaseAI
+  - match: "firebasevertexai"
+    enables: [generates_content]
+    says: "Build AI-powered apps and features with the Gemini API using the Vertex AI in Firebase SDK."
+    source: https://cocoapods.org/pods/FirebaseVertexAI
+  - match: "openai"
+    enables: [generates_content]
+    says: "A library that makes it easy to use OpenAI"
+    source: https://cocoapods.org/pods/OpenAI
+
+  # Feed readers
+  - match: "feedkit"
+    enables: [aggregates_content]
+    says: "An RSS, Atom and JSON Feed parser written in Swift"
+    source: https://cocoapods.org/pods/FeedKit
+
+  # Push and messaging senders
+  - match: "onesignal"
+    enables: [automated_outreach]
+    says: "OneSignal push notification library for mobile apps."
+    source: https://cocoapods.org/pods/OneSignal
+  - match: "onesignalxcframework"
+    enables: [automated_outreach]
+    says: "OneSignal push notification library for mobile apps."
+    source: https://cocoapods.org/pods/OneSignalXCFramework
+
+  # Identity verification
+  - match: "onfido"
+    enables: [relies_on_digital_identity]
+    says: "A Swift client for the Onfido API and a collection of UI elements to capture photos of documents."
+    source: https://cocoapods.org/pods/Onfido
+  - match: "stripeidentity"
+    enables: [relies_on_digital_identity]
+    says: "Securely capture ID documents and selfies on iOS for use with Stripe's Identity API to confirm the identity of global users."
+    source: https://cocoapods.org/pods/StripeIdentity
+
+  # Chat SDKs
+  - match: "twilioconversationsclient"
+    enables: [records_text_chat]
+    says: "The Twilio Conversations Client allows you to embed conversations into your iOS apps."
+    source: https://cocoapods.org/pods/TwilioConversationsClient
+
+  # Bundled cryptography
+  # No entry. The CryptoSwift and Sodium pods mix hashing, MACs and signing with their ciphers (CryptoSwift's own
+  # description: "SHA, MD5, CRC, PBKDF, Poly1305, HMAC, CMAC, HKDF, Scrypt, ChaCha20, Rabbit, Blowfish, AES, RSA"),
+  # and an app can link one only for a hash or a MAC, which holds no cipher it uses.
+  # rules/ships_encryption/swift-library-encryption.yml reads their cipher calls in use instead (#13318).

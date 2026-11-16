@@ -1,0 +1,367 @@
+rules:
+  - id: lexcode.text.rs-chat-reply-to-response
+    languages: [rust]
+    severity: INFO
+    message: Sends text written by a chat or completion model back in an HTTP response, a socket or an app window, which is generating text with AI that reaches users (generates_text).
+    mode: taint
+    # A library item is written by its full crate path: the engine resolves a file's use lines
+    # (one level of grouping, `use <crate> as <alias>`, and a glob such as
+    # `use loco_rs::prelude::*`), so the pattern also matches the short form, and never an app's
+    # own item of the same short name in a file without that use. The engine does not resolve an
+    # item imported through a path inside a group (`use axum::{response::Html, Json}`), the way
+    # these crates' own documentation imports, so such an item is also read in its short form, but
+    # only in a file whose use lines import that name from that crate.
+    # A client's methods are matched through the chain from the client (`$C.chat().create(...)`),
+    # since the engine does not know a Rust receiver's type. The method names (`chat().create`,
+    # `generate_image`, `generate_content`) are names apps give their own types too, so each source
+    # counts only in a file whose use lines name its crate; a client held in application state and
+    # called in a file that imports nothing of the crate is missed. A name that apps use even more
+    # (`prompt`, `generate`, `sample`, `images().create`) is a source only on a value labelled by
+    # the library's own constructor.
+    # A call inside a macro body (`format!`, `json!`, `select!`) is invisible to the engine, so
+    # `Json(json!({ "reply": reply }))` is not followed.
+    # Candle, Burn and tch are not sources here: they are tensor libraries, and their sampling and
+    # forward calls serve any model, a speech recognizer's decoder or a classifier included, so a
+    # call does not say that text is being written. mistral.rs, which serves Candle models as chat,
+    # image and speech models, is read instead.
+    pattern-sources:
+      # async-openai: chat completions, legacy completions and the Responses API, each plain,
+      # streamed, or with the caller's own types (byot).
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+async_openai\b).*'
+          - pattern-either:
+              - pattern: $C.chat().create(...)
+              - pattern: $C.chat().create_stream(...)
+              - pattern: $C.chat().create_byot(...)
+              - pattern: $C.chat().create_stream_byot(...)
+              - pattern: $C.completions().create(...)
+              - pattern: $C.completions().create_stream(...)
+              - pattern: $C.responses().create(...)
+              - pattern: $C.responses().create_stream(...)
+      # rig: an agent built from a provider client (`client.agent(model)...build()`) and then
+      # prompted or chatted, and a completion model's request sent. `prompt` and `chat` are names
+      # apps use too, so only a call on the labelled agent is a source. An agent held in
+      # application state and prompted in another function is missed.
+      - label: RIG_AGENT
+        patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+(?:rig|rig_core)\b).*'
+          - pattern: $C.agent(...)
+      - requires: RIG_AGENT
+        patterns:
+          - pattern-either:
+              - pattern: $A.prompt(...)
+              - pattern: $A.chat(...)
+              - pattern: $A.stream_prompt(...)
+              - pattern: $A.stream_chat(...)
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+(?:rig|rig_core)\b).*'
+          - pattern: $M.completion_request(...)
+      # ollama-rs: a chat request, and a generation request. `generate` is a name apps use too,
+      # so only a call sent with ollama-rs's GenerationRequest is a source; the request itself
+      # carries the label OLLAMA_REQUEST, which no sink accepts, so echoing it generates nothing.
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+ollama_rs\b).*'
+          - pattern-either:
+              - pattern: $O.send_chat_messages(...)
+              - pattern: $O.send_chat_messages_stream(...)
+              - pattern: $O.send_chat_messages_with_history(...)
+              - pattern: $O.send_chat_messages_with_history_stream(...)
+      - label: OLLAMA_REQUEST
+        pattern-either:
+          - pattern: ollama_rs::generation::completion::request::GenerationRequest::new(...)
+          - pattern: ollama_rs::generation::completion::GenerationRequest::new(...)
+          - patterns:
+              - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+ollama_rs\b[^;]*\bGenerationRequest\b).*'
+              - pattern: GenerationRequest::new(...)
+      - requires: OLLAMA_REQUEST
+        patterns:
+          - pattern-either:
+              - pattern: $O.generate(...)
+              - pattern: $O.generate_stream(...)
+      # genai: one client over many providers' chat models.
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+genai\b).*'
+          - pattern-either:
+              - pattern: $G.exec_chat(...)
+              - pattern: $G.exec_chat_stream(...)
+      # mistral.rs: a local text model (it runs on Candle).
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+mistralrs\b).*'
+          - pattern-either:
+              - pattern: $M.send_chat_request(...)
+              - pattern: $M.stream_chat_request(...)
+      # llama.cpp: the llama_cpp crate's completion session, and llama-cpp-2's sampler, whose
+      # sampled tokens the app turns into text (`token_to_str`, `token_to_piece`). The sampler
+      # carries the label LLAMA_SAMPLER, set by its own constructor; `sample` is a name apps use.
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+llama_cpp\b).*'
+          - pattern-either:
+              - pattern: $S.start_completing_with(...)
+              - pattern: $S.start_completing()
+      - label: LLAMA_SAMPLER
+        pattern-either:
+          - pattern: llama_cpp_2::sampling::LlamaSampler::$K(...)
+          - patterns:
+              - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+llama_cpp_2\b[^;]*\bLlamaSampler\b).*'
+              - pattern: LlamaSampler::$K(...)
+      - requires: LLAMA_SAMPLER
+        pattern: $SAMPLER.sample(...)
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+llama_cpp_2\b).*'
+          - pattern: $CTX.sample_token_greedy(...)
+      # AWS Bedrock Runtime: the Converse API, which answers in text, and InvokeModel with a text
+      # model's id as a literal (a model id held in a constant is missed).
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+aws_sdk_bedrockruntime\b).*'
+          - pattern-either:
+              - pattern: $C.converse()
+              - pattern: $C.converse_stream()
+      # InvokeModel with a text model's id.
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+aws_sdk_bedrockruntime\b).*'
+          - pattern: $B.model_id($ID)
+          - metavariable-pattern:
+              metavariable: $B
+              pattern: $C.invoke_model()
+          - metavariable-regex:
+              metavariable: $ID
+              regex: '(?i)^"[^"]*(claude|llama|titan-text|nova-(lite|micro|pro|premier)|mistral|command|jamba|deepseek|qwen)[^"]*"$'
+      # The same, streamed.
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+aws_sdk_bedrockruntime\b).*'
+          - pattern: $B.model_id($ID)
+          - metavariable-pattern:
+              metavariable: $B
+              pattern: $C.invoke_model_with_response_stream()
+          - metavariable-regex:
+              metavariable: $ID
+              regex: '(?i)^"[^"]*(claude|llama|titan-text|nova-(lite|micro|pro|premier)|mistral|command|jamba|deepseek|qwen)[^"]*"$'
+      # A chat model called over HTTP (reqwest's post or get): OpenAI's chat, completions and
+      # Responses endpoints, Anthropic's Messages API, and Mistral's, Groq's and DeepSeek's chat
+      # endpoints. The call is the source, not the address, so no use check is needed.
+      - patterns:
+          - pattern-either:
+              - pattern: $HTTP.post($URL)
+              - pattern: $HTTP.get($URL)
+          - metavariable-regex:
+              metavariable: $URL
+              regex: '^&?(?:format!\(\s*)?"https://(?:api\.openai\.com/v1/(?:chat/completions|completions|responses)|api\.anthropic\.com/v1/messages|api\.mistral\.ai/v1/chat/completions|api\.groq\.com/openai/v1/chat/completions|api\.deepseek\.com/(?:v1/)?chat/completions)[?"]'
+      # A stream from one of the calls above, read with `while let`: the engine does not carry
+      # taint from a `while let` scrutinee into the names it binds (it does for `if let`), so
+      # those names are a source of their own inside the loop, in a file whose use lines name one
+      # of the crates. The use check sits outside a nested block: beside the pattern-inside terms
+      # at one level it removed every match.
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+(?:async_openai|rig|rig_core|ollama_rs|genai|mistralrs|aws_sdk_bedrockruntime|llama_cpp)\b).*'
+          - patterns:
+              - pattern-inside: |
+                  let $STREAM = $OPEN;
+                  ...
+              - metavariable-pattern:
+                  metavariable: $OPEN
+                  pattern-either:
+                    - pattern: $C.chat().create_stream(...)
+                    - pattern: $C.chat().create_stream_byot(...)
+                    - pattern: $C.completions().create_stream(...)
+                    - pattern: $C.responses().create_stream(...)
+                    - pattern: $A.stream_prompt(...)
+                    - pattern: $A.stream_chat(...)
+                    - pattern: $O.send_chat_messages_stream(...)
+                    - pattern: $O.send_chat_messages_with_history_stream(...)
+                    - pattern: $O.generate_stream(...)
+                    - pattern: $G.exec_chat_stream(...)
+                    - pattern: $M.stream_chat_request(...)
+                    - pattern: $C.converse_stream()
+                    - pattern: $S.start_completing_with(...)
+              - pattern-either:
+                  - pattern-inside: |
+                      while let Some($ITEM) = <... $STREAM ...> { ... }
+                  - pattern-inside: |
+                      while let Some(Ok($ITEM)) = <... $STREAM ...> { ... }
+                  - pattern-inside: |
+                      while let Ok(Some($ITEM)) = <... $STREAM ...> { ... }
+              - pattern: $ITEM
+    pattern-propagators:
+      # Output gathered into a string, a buffer or a list is sent on with it.
+      - pattern: $S.push_str($X)
+        from: $X
+        to: $S
+        by-side-effect: true
+      - pattern: $S.push($X)
+        from: $X
+        to: $S
+        by-side-effect: true
+      - pattern: $S.extend($X)
+        from: $X
+        to: $S
+        by-side-effect: true
+      - pattern: $S.extend_from_slice($X)
+        from: $X
+        to: $S
+        by-side-effect: true
+    pattern-sinks:
+      # The five rs- generation rules (text, images, audio, video, content) share this sink set
+      # word for word; a change goes into all five.
+      # axum: the Json and Html responses, a body, a server-sent event, a WebSocket message, a
+      # response, and any value turned into a response (`IntoResponse`, axum's and Poem's trait).
+      - pattern: axum::Json(...)
+      - pattern: axum::response::Json(...)
+      - pattern: axum::response::Html(...)
+      - pattern: axum::body::Body::from(...)
+      - pattern: axum::response::sse::Event::default().data(...)
+      - pattern: axum::response::sse::Event::default().json_data(...)
+      - pattern: axum::response::sse::Sse::new(...)
+      - pattern: axum::extract::ws::Message::Text(...)
+      - pattern: axum::extract::ws::Message::Binary(...)
+      - pattern: axum::response::Response::new(...)
+      - pattern: axum::http::Response::new(...)
+      - patterns:
+          - pattern: $X.into_response()
+          - focus-metavariable: $X
+      # actix-web: the Json responder, and a response builder's body, JSON or stream. The builder
+      # is read from its constructor, so reqwest's `.body(...)` on an outgoing request is not a
+      # response.
+      - pattern: actix_web::web::Json(...)
+      - patterns:
+          - pattern-either:
+              - pattern: $B.body($X)
+              - pattern: $B.json($X)
+              - pattern: $B.streaming($X)
+          - metavariable-pattern:
+              metavariable: $B
+              pattern-either:
+                - pattern: actix_web::HttpResponse::$S()
+                - pattern: actix_web::HttpResponse::build(...)
+                - pattern: actix_web::HttpResponseBuilder::new(...)
+          - focus-metavariable: $X
+      # The http crate's response builder, as hyper, axum and Poem re-export it, and http's and
+      # hyper's own response and body types.
+      - patterns:
+          - pattern: $B.body($X)
+          - metavariable-pattern:
+              metavariable: $B
+              pattern-either:
+                - pattern: http::Response::builder()
+                - pattern: hyper::Response::builder()
+                - pattern: axum::response::Response::builder()
+                - pattern: axum::http::Response::builder()
+                - pattern: poem::Response::builder()
+          - focus-metavariable: $X
+      - pattern: http::Response::new(...)
+      - pattern: hyper::Response::new(...)
+      - pattern: hyper::Body::from(...)
+      - pattern: http_body_util::Full::new(...)
+      # Rocket: the Json responder, the raw content responders and an event stream's event.
+      - pattern: rocket::serde::json::Json(...)
+      - pattern: rocket::response::content::RawHtml(...)
+      - pattern: rocket::response::content::RawText(...)
+      - pattern: rocket::response::content::RawJson(...)
+      - pattern: rocket::response::stream::Event::data(...)
+      - pattern: rocket::response::stream::Event::json(...)
+      # warp: a JSON or HTML reply, a server-sent event and a WebSocket message.
+      - pattern: warp::reply::json(...)
+      - pattern: warp::reply::html(...)
+      - pattern: warp::sse::Event::default().data(...)
+      - pattern: warp::ws::Message::text(...)
+      - pattern: warp::ws::Message::binary(...)
+      # Poem and poem-openapi: the response payloads and a server-sent event.
+      - pattern: poem::web::Json(...)
+      - pattern: poem::web::Html(...)
+      - pattern: poem::web::sse::Event::message(...)
+      - pattern: poem_openapi::payload::Json(...)
+      - pattern: poem_openapi::payload::PlainText(...)
+      - pattern: poem_openapi::payload::Html(...)
+      - pattern: poem_openapi::payload::Binary(...)
+      # Loco: a controller's format helpers, through the controller module or Loco's prelude.
+      - pattern: loco_rs::controller::format::json(...)
+      - pattern: loco_rs::controller::format::text(...)
+      - pattern: loco_rs::controller::format::html(...)
+      - pattern: loco_rs::prelude::format::json(...)
+      - pattern: loco_rs::prelude::format::text(...)
+      - pattern: loco_rs::prelude::format::html(...)
+      # A WebSocket message through tungstenite, on its own or through tokio-tungstenite.
+      - pattern: tungstenite::Message::Text(...)
+      - pattern: tungstenite::Message::Binary(...)
+      - pattern: tokio_tungstenite::tungstenite::Message::Text(...)
+      - pattern: tokio_tungstenite::tungstenite::Message::Binary(...)
+      # The same response types in their short form, for a file that imports them through a path
+      # inside a use group. Each name counts only where a use statement of its own crates names it,
+      # so an app's own `Message` or reqwest's `Body` in a file that imports other things from axum
+      # is not a response.
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+(?:axum|rocket|poem|poem_openapi)\b[^;]*\bJson\b).*'
+          - pattern: Json(...)
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+(?:axum|poem|poem_openapi)\b[^;]*\bHtml\b).*'
+          - pattern: Html(...)
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+poem_openapi\b[^;]*\bPlainText\b).*'
+          - pattern: PlainText(...)
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+poem_openapi\b[^;]*\bBinary\b).*'
+          - pattern: Binary(...)
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+rocket\b[^;]*\bRawHtml\b).*'
+          - pattern: RawHtml(...)
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+rocket\b[^;]*\bRawText\b).*'
+          - pattern: RawText(...)
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+rocket\b[^;]*\bRawJson\b).*'
+          - pattern: RawJson(...)
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+(?:axum|rocket|poem)\b[^;]*\bEvent\b).*'
+          - pattern-either:
+              - pattern: Event::default().data(...)
+              - pattern: Event::default().json_data(...)
+              - pattern: Event::data(...)
+              - pattern: Event::json(...)
+              - pattern: Event::message(...)
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+axum\b[^;]*\bSse\b).*'
+          - pattern: Sse::new(...)
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+(?:axum|hyper|poem)\b[^;]*\bBody\b).*'
+          - pattern: Body::from(...)
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+(?:axum|tungstenite|tokio_tungstenite)\b[^;]*\bMessage\b).*'
+          - pattern-either:
+              - pattern: Message::Text(...)
+              - pattern: Message::Binary(...)
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+(?:axum|hyper|http|poem)\b[^;]*\bResponse\b).*'
+          - pattern: Response::new(...)
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+(?:axum|hyper|http|poem)\b[^;]*\bResponse\b).*'
+          - pattern: $B.body($X)
+          - metavariable-pattern:
+              metavariable: $B
+              pattern: Response::builder()
+          - focus-metavariable: $X
+      # Tauri: a command's value is handed to the app's own window, and an event's payload goes
+      # to the front end listening for it (Tauri's Emitter; socketioxide's emit reaches a
+      # connected client the same way). `emit` is a name event buses and compilers use too, so it
+      # counts only in a file whose use lines name tauri or socketioxide.
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  #[tauri::command]
+                  fn $CMD(...) -> $R { ... }
+              - pattern-inside: |
+                  #[tauri::command]
+                  async fn $CMD(...) -> $R { ... }
+          - pattern: Ok($X)
+          - focus-metavariable: $X
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+(?:tauri|socketioxide)\b).*'
+          - pattern-either:
+              - pattern: $W.emit($EVENT, $X)
+              - pattern: $W.emit_all($EVENT, $X)
+              - pattern: $W.emit_to($TARGET, $EVENT, $X)
+          - focus-metavariable: $X
+    metadata:
+      activity: generates_text
+      mentioned: performs
+      definition: https://lexlint.io/activities/generates-text
+      provenance: ungovr-original
+      license: MIT

@@ -1,0 +1,28 @@
+rules:
+  - id: lexcode.chatbot.swift-conversation-service
+    languages: [swift]
+    severity: INFO
+    message: Sends what a person typed to a hosted dialogue service (Amazon Lex, Dialogflow), which answers in natural language, which is deploying a chatbot (deploys_chatbot).
+    # The AWS SDK for Swift's Lex runtime: the request types are written module-qualified only
+    # (Decision 8; RecognizeTextInput is a name an app could define), and a `.init(...)` request is
+    # read through the call under the AWSLexRuntimeV2 import. Lex V1 (AWSLexRuntimeService) keeps
+    # PostTextInput and PostContentInput. Dialogflow has no Swift SDK, so its REST detectIntent
+    # address, which takes a session and the person's text, is read as a string; an admin address
+    # (intents, entity types) has no `:detectIntent` and does not match.
+    pattern-either:
+      - pattern: AWSLexRuntimeV2.RecognizeTextInput(...)
+      - pattern: AWSLexRuntimeV2.RecognizeUtteranceInput(...)
+      - pattern: AWSLexRuntimeService.PostTextInput(...)
+      - pattern: AWSLexRuntimeService.PostContentInput(...)
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?AWSLexRuntimeV2\b).*'
+          - pattern-either:
+              - pattern: '$C.recognizeText(input: .init(...))'
+              - pattern: '$C.recognizeUtterance(input: .init(...))'
+      - pattern-regex: 'dialogflow\.googleapis\.com/[^"\n]*:detectIntent'
+    metadata:
+      activity: deploys_chatbot
+      mentioned: performs
+      definition: https://lexlint.io/activities/deploys-chatbot
+      provenance: ungovr-original
+      license: MIT

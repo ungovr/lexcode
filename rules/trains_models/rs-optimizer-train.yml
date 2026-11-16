@@ -1,0 +1,68 @@
+rules:
+  - id: lexcode.train.rs-optimizer-train
+    languages: [rust]
+    severity: INFO
+    message: Builds an optimizer or runs a training step in a Rust deep-learning library (tch, Candle or Burn), which updates a model's weights from data, so it is training models (trains_models).
+    # An optimizer exists only to update weights, and a backward pass only to compute the gradients
+    # it applies, so either is the training. Loading trained weights and running a forward pass is
+    # inference and is not matched. Each library item is written by its crate path, which the engine
+    # resolves through a plain, flat grouped or aliased `use`, so the app's own AdamW or
+    # LearnerBuilder is not read as the library's. A path inside a nested `use` group
+    # (`use burn::{optim::AdamConfig, ...}`, the form Burn's own examples use) is not resolved, so
+    # each crate's short forms and its step methods are matched in a file with a `use` line naming
+    # the crate, one branch per crate.
+    pattern-either:
+      # tch: an optimizer config built on a VarStore. A config written as a struct literal
+      # (`nn::Sgd { momentum: 0.9, ..Default::default() }.build(..)`) cannot be a pattern; its
+      # training loop's step is matched below.
+      - pattern: tch::nn::Adam::default().build(...)
+      - pattern: tch::nn::AdamW::default().build(...)
+      - pattern: tch::nn::Sgd::default().build(...)
+      - pattern: tch::nn::RmsProp::default().build(...)
+      - pattern: tch::nn::adam(...).build(...)
+      - pattern: tch::nn::adamw(...).build(...)
+      - pattern: tch::nn::sgd(...).build(...)
+      - pattern: tch::nn::rms_prop(...).build(...)
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+tch\b).*'
+          - pattern-either:
+              - pattern: $OPT.backward_step(...)
+              - pattern: $LOSS.backward()
+      # Candle (candle-nn's optimizers; candle-core's backward pass).
+      - pattern: candle_nn::AdamW::new(...)
+      - pattern: candle_nn::AdamW::new_lr(...)
+      - pattern: candle_nn::SGD::new(...)
+      - pattern: candle_nn::optim::AdamW::new(...)
+      - pattern: candle_nn::optim::AdamW::new_lr(...)
+      - pattern: candle_nn::optim::SGD::new(...)
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+candle(?:_core|_nn)?\b).*'
+          - pattern-either:
+              - pattern: $OPT.backward_step(...)
+              - pattern: $LOSS.backward()
+      # Burn: an optimizer config, the Learner that runs the epochs, and the gradients a custom
+      # loop hands the optimizer.
+      - pattern: burn::optim::AdamConfig::new()
+      - pattern: burn::optim::AdamWConfig::new()
+      - pattern: burn::optim::SgdConfig::new()
+      - pattern: burn::optim::RmsPropConfig::new()
+      - pattern: burn::optim::AdaGradConfig::new()
+      - pattern: burn::train::LearnerBuilder::new(...)
+      - pattern: burn::optim::GradientsParams::from_grads(...)
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+burn\b).*'
+          - pattern-either:
+              - pattern: AdamConfig::new()
+              - pattern: AdamWConfig::new()
+              - pattern: SgdConfig::new()
+              - pattern: RmsPropConfig::new()
+              - pattern: AdaGradConfig::new()
+              - pattern: LearnerBuilder::new(...)
+              - pattern: GradientsParams::from_grads(...)
+              - pattern: $LOSS.backward()
+    metadata:
+      activity: trains_models
+      mentioned: performs
+      definition: https://lexlint.io/activities/trains-models
+      provenance: ungovr-original
+      license: MIT
