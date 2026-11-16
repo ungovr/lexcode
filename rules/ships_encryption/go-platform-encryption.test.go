@@ -1,4 +1,4 @@
-// lexcode-expect: 15
+// lexcode-expect: 20
 package vault
 
 import (
@@ -6,6 +6,8 @@ import (
 	"crypto/cipher"
 	"crypto/des"
 	"crypto/ecdh"
+	"crypto/mlkem"
+	"crypto/rc4"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
@@ -78,4 +80,32 @@ func Agree(peer []byte) ([]byte, error) {
 
 func AgreeP256() (*ecdh.PrivateKey, error) {
 	return ecdh.P256().GenerateKey(rand.Reader) // 15
+}
+
+// RC4, a stream cipher of its own.
+func Stream(key, msg []byte) error {
+	c, err := rc4.NewCipher(key) // 16
+	if err != nil {
+		return err
+	}
+	c.XORKeyStream(msg, msg)
+	return nil
+}
+
+// ML-KEM key encapsulation.
+func Encapsulate(peer []byte) ([]byte, []byte, error) {
+	ek, err := mlkem.NewEncapsulationKey768(peer) // 17
+	if err != nil {
+		return nil, nil, err
+	}
+	shared, ct := ek.Encapsulate() // 18
+	return shared, ct, nil
+}
+
+func Decapsulate(ct []byte) ([]byte, error) {
+	dk, err := mlkem.GenerateKey1024() // 19
+	if err != nil {
+		return nil, err
+	}
+	return dk.Decapsulate(ct) // 20
 }

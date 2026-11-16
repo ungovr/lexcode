@@ -21,3 +21,16 @@ func (s Session) ECDH(peer []byte) []byte { return peer }
 func Greet(s Session, h handshake.Peer) []byte {
 	return s.ECDH(h.Bytes())
 }
+
+// The app's own Encapsulate and Decapsulate (a message envelope), in a file that does not import
+// crypto/mlkem.
+type Envelope struct{}
+
+func (e Envelope) Encapsulate() ([]byte, []byte) { return nil, nil }
+
+func (e Envelope) Decapsulate(b []byte) []byte { return b }
+
+func Wrap(e Envelope) []byte {
+	a, _ := e.Encapsulate()
+	return e.Decapsulate(a)
+}

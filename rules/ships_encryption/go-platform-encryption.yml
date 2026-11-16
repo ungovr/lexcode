@@ -2,7 +2,7 @@ rules:
   - id: lexcode.crypto.go-platform-encryption
     languages: [go]
     severity: INFO
-    message: Encrypts data or agrees keys with Go's standard library (a block cipher in a crypto/cipher mode, RSA encryption or crypto/ecdh), which is shipping encryption (ships_encryption).
+    message: Encrypts data or agrees keys with Go's standard library (a block cipher in a crypto/cipher mode, RC4, RSA encryption, crypto/ecdh or ML-KEM), which is shipping encryption (ships_encryption).
     # A cipher, RSA encryption or a key agreement keeps data confidential whoever wrote the code that
     # runs it, so the standard library counts as a bundled library does. A crypto/cipher mode is read
     # only in a file that also imports a block cipher (crypto/aes or crypto/des), so a mode wrapped
@@ -53,6 +53,25 @@ rules:
               - pattern: $K.ECDH($P)
           - pattern-inside: |
               import "crypto/ecdh"
+              ...
+      - patterns:
+          - pattern: rc4.NewCipher(...)
+          - pattern-inside: |
+              import "crypto/rc4"
+              ...
+      # ML-KEM (Go 1.24): a post-quantum key encapsulation, which agrees a shared key
+      - patterns:
+          - pattern-either:
+              - pattern: mlkem.GenerateKey768()
+              - pattern: mlkem.GenerateKey1024()
+              - pattern: mlkem.NewEncapsulationKey768(...)
+              - pattern: mlkem.NewEncapsulationKey1024(...)
+              - pattern: mlkem.NewDecapsulationKey768(...)
+              - pattern: mlkem.NewDecapsulationKey1024(...)
+              - pattern: $K.Encapsulate()
+              - pattern: $K.Decapsulate($C)
+          - pattern-inside: |
+              import "crypto/mlkem"
               ...
     metadata:
       activity: ships_encryption

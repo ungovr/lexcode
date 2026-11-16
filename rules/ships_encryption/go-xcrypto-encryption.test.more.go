@@ -1,4 +1,4 @@
-// lexcode-expect: 11
+// lexcode-expect: 13
 package transfer
 
 import (
@@ -11,6 +11,7 @@ import (
 	"golang.org/x/crypto/nacl/box"
 	"golang.org/x/crypto/openpgp"
 	"golang.org/x/crypto/salsa20"
+	"golang.org/x/crypto/salsa20/salsa"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/twofish"
 	"golang.org/x/crypto/xts"
@@ -72,4 +73,12 @@ func Serve(conn net.Conn, cfg *ssh.ServerConfig) error {
 func Over(conn net.Conn, addr string, cfg *ssh.ClientConfig) error {
 	_, _, _, err := ssh.NewClientConn(conn, addr, cfg) // 11
 	return err
+}
+
+func Core(key *[32]byte, counter *[16]byte, msg []byte) {
+	salsa.XORKeyStream(msg, msg, counter, key) // 12
+}
+
+func Salted(key, salt []byte) {
+	_, _ = blowfish.NewSaltedCipher(key, salt) // 13
 }

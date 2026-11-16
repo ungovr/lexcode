@@ -52,6 +52,16 @@ rules:
               import "golang.org/x/crypto/salsa20"
               ...
       - patterns:
+          - pattern: salsa.XORKeyStream(...)
+          - pattern-inside: |
+              import "golang.org/x/crypto/salsa20/salsa"
+              ...
+      - patterns:
+          - pattern: blowfish.NewSaltedCipher(...)
+          - pattern-inside: |
+              import "golang.org/x/crypto/blowfish"
+              ...
+      - patterns:
           - pattern: xts.NewCipher(...)
           - pattern-inside: |
               import "golang.org/x/crypto/xts"
