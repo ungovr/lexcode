@@ -92,3 +92,10 @@ class Vault {
   }
 }
 export const v = new Vault().encrypt('a');
+
+// A held object that did not come from crypto.subtle, and the app's own createCipher on its own
+// cipher namespace and on a plain object.
+const vault = new Vault();
+export const w = vault.encrypt('b');
+const tools = { cipher: { createCipher: (name: string) => name }, createCipher: (name: string) => name };
+export const t = [tools.cipher.createCipher('rot13')];

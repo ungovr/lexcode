@@ -1,4 +1,4 @@
-// lexcode-expect: 22
+// lexcode-expect: 30
 import crypto from 'node:crypto';
 import * as nodeCrypto from 'crypto';
 import { createCipheriv, createDecipheriv, publicEncrypt, privateDecrypt, createECDH, diffieHellman } from 'crypto';
@@ -116,4 +116,41 @@ export function sealSplit(text: string, key: Buffer, iv: Buffer) {
   return crypto
     .createCipheriv('aes-256-gcm', key, iv) // 22
     .update(text);
+}
+
+// The deprecated password-keyed cipher, on the module and by its imported name.
+export function legacySeal(text: string, password: string) {
+  return crypto.createCipher('aes-256-cbc', password).update(text); // 23
+}
+
+export function legacyOpen(body: Buffer, password: string) {
+  return nodeCrypto.createDecipher('aes-256-cbc', password).update(body); // 24
+}
+
+// Destructured from the crypto object rather than from require.
+export function sealDestructured(text: string, key: Buffer, iv: Buffer) {
+  const { createCipheriv } = crypto;
+  return createCipheriv('aes-256-gcm', key, iv).update(text); // 25
+}
+
+// A subtle held from window.crypto.subtle, under its own name and another.
+export async function heldFromWindow(data: ArrayBuffer, key: CryptoKey, iv: Uint8Array) {
+  const subtle = window.crypto.subtle;
+  return subtle.encrypt({ name: 'AES-GCM', iv }, key, data); // 26
+}
+
+export async function heldUnderAnotherName(data: ArrayBuffer, key: CryptoKey, iv: Uint8Array) {
+  const webCrypto = window.crypto.subtle;
+  const sealed = await webCrypto.encrypt({ name: 'AES-GCM', iv }, key, data); // 27
+  return webCrypto.decrypt({ name: 'AES-GCM', iv }, key, sealed); // 28
+}
+
+const sc = globalThis.crypto.subtle;
+export async function heldAtModuleLevel(key: CryptoKey, wrappingKey: CryptoKey) {
+  return sc.wrapKey('raw', key, wrappingKey, 'AES-KW'); // 29
+}
+
+export async function heldAgreement(privateKey: CryptoKey, peer: CryptoKey) {
+  const s = crypto.subtle;
+  return s.deriveBits({ name: 'X25519', public: peer }, privateKey, 256); // 30
 }
