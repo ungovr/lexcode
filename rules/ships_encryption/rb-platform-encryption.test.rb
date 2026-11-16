@@ -1,4 +1,4 @@
-# lexcode-expect: 15
+# lexcode-expect: 20
 # Ruby's own OpenSSL bindings used to keep data confidential: a cipher by name and by class, RSA
 # encryption and decryption, and an ECDH key agreement, with and without parentheses, over several
 # lines, and through a safe navigation operator.
@@ -67,5 +67,27 @@ class FieldCipher
 
   def wrapped_key(pem)
     OpenSSL::PKey::RSA.new(pem).public_encrypt("data key") # 15
+  end
+
+  # The OpenSSL 3 key methods, on a key the scope loaded or generated.
+  def pkey_encrypt(pem, data)
+    key = OpenSSL::PKey.read(pem)
+    sealed = key.encrypt(data, "rsa_padding_mode" => "oaep") # 16
+    key.decrypt sealed # 17
+  end
+
+  def pkey_derive(peer)
+    mine = OpenSSL::PKey.generate_key("X25519")
+    mine&.derive(peer) # 18
+  end
+
+  def pkey_chain(pem, data)
+    OpenSSL::PKey.read(pem).encrypt(data) # 19
+  end
+
+  def pkey_class(peer)
+    ec = OpenSSL::PKey::EC.generate("prime256v1")
+    ec
+      .derive(peer) # 20
   end
 end

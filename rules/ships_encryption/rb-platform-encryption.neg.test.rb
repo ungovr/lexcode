@@ -36,6 +36,17 @@ class Integrity
     key.verify("SHA256", signature, data)
   end
 
+  # An OpenSSL 3 key used only to sign, and other objects' encrypt, decrypt and derive in a file that
+  # names OpenSSL: the key methods are read only on a key from OpenSSL::PKey.
+  def sign_with_pkey(pem, data)
+    key = OpenSSL::PKey.read(pem)
+    key.sign("SHA256", data)
+  end
+
+  def others(vault, keygen, salt)
+    [vault.encrypt("x"), vault.decrypt("y"), keygen.derive(salt)]
+  end
+
   def issue(user)
     JWT.encode({ sub: user.id }, Rails.application.secret_key_base, "HS256")
   end

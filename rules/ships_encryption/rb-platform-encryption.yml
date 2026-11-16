@@ -2,16 +2,19 @@ rules:
   - id: lexcode.crypto.rb-platform-encryption
     languages: [ruby]
     severity: INFO
-    message: Encrypts data or agrees keys with Ruby's own OpenSSL bindings (an OpenSSL::Cipher, RSA encryption or a Diffie-Hellman key agreement), which is shipping encryption (ships_encryption).
-    # A cipher, RSA encryption or a key agreement keeps data confidential whoever wrote the code that
-    # runs it, so the standard library's OpenSSL counts as a bundled gem does. A named cipher class is
-    # one of OpenSSL::Cipher's own (AES, AES128, AES192, AES256, BF, CAST5, DES, IDEA, RC2, RC4, RC5),
-    # so OpenSSL::Cipher::CipherError is not read. public_encrypt, private_decrypt and dh_compute_key
-    # are read on any receiver in a file that names OpenSSL, since an app's own object may answer to
-    # those names. Hashing (Digest, OpenSSL::Digest), a MAC (OpenSSL::HMAC), password hashing and key
-    # derivation (BCrypt, OpenSSL::KDF, OpenSSL::PKCS5), signing (a key's sign, JWT,
-    # MessageVerifier), random bytes (SecureRandom) and HTTPS through Net::HTTP or an SSLContext are
-    # not read.
+    message: Encrypts data or agrees keys with Ruby's own OpenSSL bindings (an OpenSSL::Cipher, public-key encryption or a key agreement), which is shipping encryption (ships_encryption).
+    # A cipher, public-key encryption or a key agreement keeps data confidential whoever wrote the code
+    # that runs it, so the standard library's OpenSSL counts as a bundled gem does. A named cipher
+    # class is one of OpenSSL::Cipher's own (AES, AES128, AES192, AES256, BF, CAST5, DES, IDEA, RC2,
+    # RC4, RC5), so OpenSSL::Cipher::CipherError is not read. public_encrypt, private_decrypt and
+    # dh_compute_key are read on any receiver in a file that names OpenSSL, since an app's own object
+    # may answer to those names; the whole-file regex is a selector there, not only a pre-filter.
+    # The OpenSSL 3 key methods (encrypt and decrypt with data, and derive with a peer key) have names
+    # many objects answer to, so they are read only on a key the same scope built or loaded through
+    # OpenSSL::PKey, or called on that call directly. Hashing (Digest, OpenSSL::Digest), a MAC
+    # (OpenSSL::HMAC), password hashing and key derivation (BCrypt, OpenSSL::KDF, OpenSSL::PKCS5),
+    # signing (a key's sign, JWT, MessageVerifier), random bytes (SecureRandom) and HTTPS through
+    # Net::HTTP or an SSLContext are not read.
     pattern-either:
       - pattern: OpenSSL::Cipher.new(...)
       - pattern: ::OpenSSL::Cipher.new(...)
@@ -29,6 +32,29 @@ rules:
               - pattern: $K.public_encrypt(...)
               - pattern: $K.private_decrypt(...)
               - pattern: $K.dh_compute_key(...)
+      # The OpenSSL 3 PKey methods, on a key from OpenSSL::PKey
+      - patterns:
+          - pattern-either:
+              - pattern: $K.encrypt($D, ...)
+              - pattern: $K.decrypt($D, ...)
+              - pattern: $K.derive($P)
+          - pattern-either:
+              - pattern-inside: |
+                  $K = OpenSSL::PKey.$M(...)
+                  ...
+              - pattern-inside: |
+                  $K = OpenSSL::PKey::$T.$M(...)
+                  ...
+              - pattern-inside: |
+                  $K = ::OpenSSL::PKey.$M(...)
+                  ...
+              - pattern-inside: |
+                  $K = ::OpenSSL::PKey::$T.$M(...)
+                  ...
+      - pattern: OpenSSL::PKey.$M(...).encrypt($D, ...)
+      - pattern: OpenSSL::PKey.$M(...).derive($P)
+      - pattern: OpenSSL::PKey::$T.$M(...).encrypt($D, ...)
+      - pattern: OpenSSL::PKey::$T.$M(...).derive($P)
     metadata:
       activity: ships_encryption
       mentioned: performs
