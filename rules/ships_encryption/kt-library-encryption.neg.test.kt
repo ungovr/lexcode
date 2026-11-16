@@ -1,13 +1,12 @@
 // lexcode-expect: 0
-// Cryptography that is the platform's own, and cryptography-library code that is not encrypting
-// or agreeing keys. The platform's cryptography APIs are not evidence: javax.crypto's Cipher
-// (plain, and through the JDK's own provider), KeyAgreement and the PBKDF2 SecretKeyFactory,
-// the Android Keystore's own AES key, the digests, HMACs, signatures and stock TLS beside them.
-// Library code that does something else is excluded too: Bouncy Castle digests, signers and
-// certificate parsing, and Tink's MAC and signature primitives. Last, project classes that share
-// a library's names, with no import of the library: a Box and a SecretBox (libsodium-jni and
-// Kalium). Tink is used by its full name, so the file has no Tink primitive import to switch the
-// getPrimitive calls on.
+// Cryptography that is not encrypting or agreeing keys, from the platform and from libraries: the
+// PBKDF2 SecretKeyFactory, the Android Keystore's own AES key (generated, not used), the digests,
+// HMACs, signatures and stock TLS of the JDK, Bouncy Castle digests, signers and certificate
+// parsing, and Tink's MAC and signature primitives. (A javax.crypto Cipher or KeyAgreement through
+// the JDK's own provider is shipping encryption too; kt-platform-encryption reads it.) Last,
+// project classes that share a library's names, with no import of the library: a Box and a
+// SecretBox (libsodium-jni and Kalium). Tink is used by its full name, so the file has no Tink
+// primitive import to switch the getPrimitive calls on.
 package demo.crypto
 
 import android.security.keystore.KeyGenParameterSpec
@@ -21,8 +20,6 @@ import java.security.KeyStore
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.security.Signature
-import javax.crypto.Cipher
-import javax.crypto.KeyAgreement
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.SecretKeyFactory
@@ -36,14 +33,6 @@ import org.bouncycastle.crypto.signers.Ed25519Signer
 import org.bouncycastle.openssl.PEMParser
 
 class PlatformCrypto(private val keyset: KeysetHandle) {
-  fun platformCipher(key: SecretKey, plain: ByteArray): ByteArray {
-    val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-    cipher.init(Cipher.ENCRYPT_MODE, key)
-    return cipher.doFinal(plain)
-  }
-
-  fun platformCipherFromTheJdkProvider(): Cipher = Cipher.getInstance("AES/CBC/PKCS5Padding", "SunJCE")
-
   fun keystoreKey(): SecretKey {
     val generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore")
     generator.init(
@@ -52,13 +41,6 @@ class PlatformCrypto(private val keyset: KeysetHandle) {
             .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
             .build())
     return generator.generateKey()
-  }
-
-  fun platformAgreement(mine: java.security.PrivateKey, theirs: java.security.PublicKey): ByteArray {
-    val agreement = KeyAgreement.getInstance("ECDH")
-    agreement.init(mine)
-    agreement.doPhase(theirs, true)
-    return agreement.generateSecret()
   }
 
   fun platformPbkdf2(password: CharArray, salt: ByteArray): ByteArray {

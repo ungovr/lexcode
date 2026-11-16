@@ -8,6 +8,9 @@
 // by its full name, so the file has no io.jsonwebtoken import to switch encryptWith on.
 package demo.crypto
 
+import org.pgpainless.PGPainless
+import org.pgpainless.encryption_signing.ProducerOptions
+import org.pgpainless.encryption_signing.SigningOptions
 import com.nimbusds.jose.JWSAlgorithm
 import com.nimbusds.jose.JWSHeader
 import com.nimbusds.jose.JWSObject
@@ -76,4 +79,8 @@ class FrameworkCrypto {
   fun projectSpring(password: String, salt: String): Any = Encryptors.text(password, salt)
 
   fun projectSpringBytes(password: String, salt: String): Any = AesBytesEncryptor(password, salt)
+
+  // PGPainless used only to sign: its sign-or-encrypt entry point with signing options alone.
+  fun pgpSignOnly(out: java.io.OutputStream, signing: SigningOptions): Any =
+      PGPainless.encryptAndOrSign().onOutputStream(out).withOptions(ProducerOptions.sign(signing))
 }

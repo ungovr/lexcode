@@ -7,7 +7,7 @@ namespace MyShop.Security;
 // Injected through a primary-constructor parameter
 public class TokenProtector(IDataProtectionProvider provider)
 {
-    private readonly IDataProtector _protector = provider.CreateProtector("MyShop.Tokens.v1"); // 1
+    private readonly IDataProtector _protector = provider.CreateProtector("MyShop.Addresses.v1"); // 1
 
     public string Protect(string value) => _protector.Protect(value);
 

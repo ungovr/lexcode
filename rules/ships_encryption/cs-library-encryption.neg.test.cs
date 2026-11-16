@@ -9,24 +9,14 @@ using Org.BouncyCastle.Crypto.Digests;
 
 namespace MyShop.Services;
 
-// The platform's own cryptography and TLS (System.Security.Cryptography's ChaCha20Poly1305 shares its
-// short name with Bouncy Castle's), a JWS (signed, not encrypted), a signature and a hash from a bundled
-// library, and the app's own classes named like library ones.
+// The platform's hashing, key derivation and TLS, a JWS (signed, not encrypted), a signature and a hash
+// from a bundled library, and the app's own classes named like library ones. (.NET's own ciphers are
+// shipping encryption too; cs-platform-encryption reads them, and cs-library-encryption.test.platform.cs
+// pins that this rule leaves .NET's ChaCha20Poly1305 to it.)
 public class TokenService(HttpClient http)
 {
     public async Task<string> RunAsync(byte[] key, byte[] data, string payload)
     {
-        using var aes = Aes.Create();
-        aes.Key = key;
-        var encrypted = aes.EncryptCbc(data, aes.IV);
-
-        using var gcm = new AesGcm(key, 16);
-        using var chacha = new ChaCha20Poly1305(key);
-        ChaCha20Poly1305 chachaToo = new(key);
-        using var ecdh = ECDiffieHellman.Create();
-        using var rsa = RSA.Create();
-        var wrapped = rsa.Encrypt(key, RSAEncryptionPadding.OaepSHA256);
-        var stored = ProtectedData.Protect(data, null, DataProtectionScope.CurrentUser);
         var digest = SHA256.HashData(data);
         using var kdf = new Rfc2898DeriveBytes("password", 16, 600_000, HashAlgorithmName.SHA256);
 

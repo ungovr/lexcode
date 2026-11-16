@@ -3,8 +3,10 @@ rules:
     languages: [java]
     severity: INFO
     message: Encrypts data or agrees keys with a cryptography library the product bundles (Bouncy Castle, Tink, libsodium, Jasypt, Spring Security Crypto, JOSE encryption, the Signal protocol or the AWS Encryption SDK), which is shipping encryption (ships_encryption).
-    # The platform's own cryptography (javax.crypto Cipher and KeyAgreement, SecretKeyFactory,
-    # MessageDigest, Mac, TLS) is not evidence; a cipher built through a bundled provider is.
+    # A JCA cipher whose provider is Bouncy Castle by name ("BC" or BouncyCastleProvider.PROVIDER_NAME,
+    # imported or fully qualified) is read here; every other Cipher.getInstance, a Bouncy Castle
+    # provider object included, is java-platform-encryption's, so no call is counted twice. Hashing, MACs,
+    # signing and key derivation in these libraries are not read.
     pattern-either:
       # Bouncy Castle lightweight API, OpenPGP and CMS
       - pattern: new GCMBlockCipher(...)
@@ -19,11 +21,15 @@ rules:
       - pattern: new ECDHBasicAgreement()
       - pattern: new PGPEncryptedDataGenerator(...)
       - pattern: new CMSEnvelopedDataGenerator()
-      # A JCA cipher built through the Bouncy Castle provider
+      # A JCA cipher built through the Bouncy Castle provider named by its name ("BC" or the
+      # PROVIDER_NAME constant), imported or fully qualified. A provider object
+      # (`new BouncyCastleProvider()`, `Security.getProvider("BC")`) or a variable is not told apart
+      # from the platform's provider, so that call is the platform rule's.
       - patterns:
           - pattern-either:
               - pattern: Cipher.getInstance($A, "BC")
               - pattern: Cipher.getInstance($A, BouncyCastleProvider.PROVIDER_NAME)
+              - pattern: Cipher.getInstance($A, org.bouncycastle.jce.provider.BouncyCastleProvider.PROVIDER_NAME)
           - pattern-either:
               - pattern-inside: |
                   import javax.crypto.Cipher;
@@ -31,6 +37,9 @@ rules:
               - pattern-inside: |
                   import javax.crypto.*;
                   ...
+      - pattern: javax.crypto.Cipher.getInstance($A, "BC")
+      - pattern: javax.crypto.Cipher.getInstance($A, BouncyCastleProvider.PROVIDER_NAME)
+      - pattern: javax.crypto.Cipher.getInstance($A, org.bouncycastle.jce.provider.BouncyCastleProvider.PROVIDER_NAME)
       # Google Tink
       - pattern: AeadConfig.register()
       - pattern: $K.getPrimitive(Aead.class)
@@ -139,7 +148,20 @@ rules:
                   ...
       - pattern: AwsCrypto.builder()
       - pattern: AwsCrypto.standard()
-      - pattern: PGPainless.encryptAndOrSign()
+      # PGPainless: its producer options that encrypt (encryptAndOrSign() alone may only sign)
+      - patterns:
+          - pattern-either:
+              - pattern: ProducerOptions.encrypt(...)
+              - pattern: ProducerOptions.signAndEncrypt(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import org.pgpainless.encryption_signing.ProducerOptions;
+                  ...
+              - pattern-inside: |
+                  import org.pgpainless.encryption_signing.*;
+                  ...
+      - pattern: org.pgpainless.encryption_signing.ProducerOptions.encrypt(...)
+      - pattern: org.pgpainless.encryption_signing.ProducerOptions.signAndEncrypt(...)
     metadata:
       activity: ships_encryption
       mentioned: performs

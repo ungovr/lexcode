@@ -20,6 +20,7 @@ import org.jasypt.util.text.AES256TextEncryptor
 import org.matrix.olm.OlmAccount
 import org.matrix.rustcomponents.sdk.crypto.OlmMachine
 import org.pgpainless.PGPainless
+import org.pgpainless.encryption_signing.*
 import org.springframework.security.crypto.encrypt.AesBytesEncryptor
 import org.springframework.security.crypto.encrypt.Encryptors
 import org.springframework.security.crypto.encrypt.TextEncryptor
@@ -65,5 +66,6 @@ class Frameworks {
 
   fun awsEncryptionSdk(): Any = AwsCrypto.builder().build()
 
-  fun pgpainless(): Any = PGPainless.encryptAndOrSign()
+  fun pgpainless(out: java.io.OutputStream, encryption: EncryptionOptions, signing: SigningOptions): Any =
+      PGPainless.encryptAndOrSign().onOutputStream(out).withOptions(ProducerOptions.signAndEncrypt(encryption, signing))
 }

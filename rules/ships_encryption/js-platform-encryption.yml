@@ -1,0 +1,120 @@
+rules:
+  - id: lexcode.crypto.js-platform-encryption
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Encrypts data or agrees keys with the platform's own cryptography (Node's crypto module or Web Crypto), which is shipping encryption (ships_encryption).
+    # A cipher, RSA encryption or a key agreement keeps data confidential whoever wrote the code that
+    # runs it, so the platform's API counts as a bundled library does. Hashing (createHash), a MAC
+    # (createHmac), password hashing and key derivation (scrypt, pbkdf2, a Web Crypto deriveKey with
+    # PBKDF2 or HKDF), signing (createSign, sign, subtle.sign), random bytes and HTTPS through the
+    # platform's client are not read. privateEncrypt and publicDecrypt are RSA signing primitives
+    # and are not read either. A method is read on any receiver, since the names are the crypto
+    # module's own; the deprecated createCipher and createDecipher are read on any receiver but
+    # node-forge's `forge.cipher`, which js-library-encryption reads. A bare call needs its name
+    # destructured or imported from `crypto` or `node:crypto` (or destructured from a `crypto`
+    # object) in the same file. Web Crypto is read on `<x>.subtle`, on a variable named subtle, and
+    # on a variable of any name set from `<x>.subtle` earlier in the same scope; a subtle handed in
+    # as a parameter or set in another file under another name is missed.
+    pattern-either:
+      # Node's crypto module, called on the module object (or crypto.webcrypto, or a require)
+      - pattern: $C.createCipheriv(...)
+      - pattern: $C.createDecipheriv(...)
+      - pattern: $C.publicEncrypt(...)
+      - pattern: $C.privateDecrypt(...)
+      - pattern: $C.createECDH(...)
+      - pattern: $C.diffieHellman(...)
+      - pattern: $C.createDiffieHellman(...)
+      - pattern: $C.createDiffieHellmanGroup(...)
+      - pattern: $C.getDiffieHellman(...)
+      # The deprecated password-keyed ciphers, on any receiver but node-forge's cipher namespace
+      - patterns:
+          - pattern-either:
+              - pattern: $C.createCipher(...)
+              - pattern: $C.createDecipher(...)
+          - pattern-not: $X.cipher.createCipher(...)
+          - pattern-not: $X.cipher.createDecipher(...)
+      # The same functions under the name they are imported by
+      - patterns:
+          - pattern: $F(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import { $F } from 'crypto';
+                  ...
+              - pattern-inside: |
+                  import { $F } from 'node:crypto';
+                  ...
+              - pattern-inside: |
+                  const { $F } = require('crypto');
+                  ...
+              - pattern-inside: |
+                  const { $F } = require('node:crypto');
+                  ...
+              - pattern-inside: |
+                  const { $F } = crypto;
+                  ...
+          - metavariable-regex:
+              metavariable: $F
+              regex: ^(?:createCipheriv|createDecipheriv|createCipher|createDecipher|publicEncrypt|privateDecrypt|createECDH|diffieHellman|createDiffieHellman|createDiffieHellmanGroup|getDiffieHellman)$
+      - patterns:
+          - pattern: $A(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import { $F as $A } from 'crypto';
+                  ...
+              - pattern-inside: |
+                  import { $F as $A } from 'node:crypto';
+                  ...
+          - metavariable-regex:
+              metavariable: $F
+              regex: ^(?:createCipheriv|createDecipheriv|createCipher|createDecipher|publicEncrypt|privateDecrypt|createECDH|diffieHellman|createDiffieHellman|createDiffieHellmanGroup|getDiffieHellman)$
+      # Web Crypto: encryption and key wrapping, on crypto.subtle from any global or a held subtle
+      - pattern: $S.subtle.encrypt(...)
+      - pattern: $S.subtle.decrypt(...)
+      - pattern: $S.subtle.wrapKey(...)
+      - pattern: $S.subtle.unwrapKey(...)
+      - pattern: subtle.encrypt(...)
+      - pattern: subtle.decrypt(...)
+      - pattern: subtle.wrapKey(...)
+      - pattern: subtle.unwrapKey(...)
+      # A subtle held under another name, set from `<x>.subtle` earlier in the scope
+      - patterns:
+          - pattern-either:
+              - pattern: $H.encrypt(...)
+              - pattern: $H.decrypt(...)
+              - pattern: $H.wrapKey(...)
+              - pattern: $H.unwrapKey(...)
+          - pattern-either:
+              - pattern-inside: |
+                  const $H = $W.subtle;
+                  ...
+              - pattern-inside: |
+                  let $H = $W.subtle;
+                  ...
+      # Web Crypto key agreement: deriveKey or deriveBits with an ECDH, X25519 or X448 algorithm
+      # (with PBKDF2 or HKDF it derives a key from a password or a secret and is not read)
+      - patterns:
+          - pattern-either:
+              - pattern: '$S.subtle.deriveKey({..., name: $N, ...}, ...)'
+              - pattern: '$S.subtle.deriveBits({..., name: $N, ...}, ...)'
+              - pattern: 'subtle.deriveKey({..., name: $N, ...}, ...)'
+              - pattern: 'subtle.deriveBits({..., name: $N, ...}, ...)'
+              - patterns:
+                  - pattern-either:
+                      - pattern: '$H.deriveKey({..., name: $N, ...}, ...)'
+                      - pattern: '$H.deriveBits({..., name: $N, ...}, ...)'
+                  - pattern-either:
+                      - pattern-inside: |
+                          const $H = $W.subtle;
+                          ...
+                      - pattern-inside: |
+                          let $H = $W.subtle;
+                          ...
+          - metavariable-regex:
+              metavariable: $N
+              regex: (?i)^["'`](?:ECDH|X25519|X448)["'`]$
+    metadata:
+      activity: ships_encryption
+      mentioned: performs
+      definition: https://lexlint.io/glossary#ships-encryption
+      provenance: ungovr-original
+      license: MIT
