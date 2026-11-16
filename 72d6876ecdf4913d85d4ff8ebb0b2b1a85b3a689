@@ -1,0 +1,140 @@
+{
+  "sha": "72d6876ecdf4913d85d4ff8ebb0b2b1a85b3a689",
+  "reviewed_sha": "1c2df06c6aac40c5de0355816b45bdee48476fbe",
+  "carried_commits": [
+    {
+      "sha": "72d6876ecdf4913d85d4ff8ebb0b2b1a85b3a689",
+      "subject": "Review fixes: the removed libraries' decryption, defaults and siblings are read (#13336)"
+    }
+  ],
+  "carried_paths": [
+    "rules/README.md",
+    "rules/ships_encryption/go-library-encryption.test.kem.go",
+    "rules/ships_encryption/go-library-encryption.yml",
+    "rules/ships_encryption/java-library-encryption.test.bclight.java",
+    "rules/ships_encryption/java-library-encryption.yml",
+    "rules/ships_encryption/js-library-encryption.test.decrypt.js",
+    "rules/ships_encryption/js-library-encryption.test.forge.js",
+    "rules/ships_encryption/js-library-encryption.test.js",
+    "rules/ships_encryption/js-library-encryption.test.mixed.js",
+    "rules/ships_encryption/js-library-encryption.yml",
+    "rules/ships_encryption/kt-library-encryption.test.bclight.kt",
+    "rules/ships_encryption/kt-library-encryption.yml",
+    "rules/ships_encryption/php-library-encryption.test.phpseclib-fq.php",
+    "rules/ships_encryption/php-library-encryption.test.phpseclib-rsa.php",
+    "rules/ships_encryption/php-library-encryption.test.phpseclib.php",
+    "rules/ships_encryption/php-library-encryption.yml",
+    "rules/ships_encryption/py-library-encryption.test.decrypt.py",
+    "rules/ships_encryption/py-library-encryption.test.pgpy.py",
+    "rules/ships_encryption/py-library-encryption.yml"
+  ],
+  "branch": "work/13336-mixed-crypto-maps",
+  "issue": 13336,
+  "timestamp": "2026-11-16T23:19:55.857819+00:00",
+  "codex_version": null,
+  "model": "claude-sonnet-5-5",
+  "review_class": "fallback",
+  "reviewer_model": "claude-sonnet-5-5",
+  "author_model": "claude-opus-5-5",
+  "author_models": null,
+  "reviewer_model_why": null,
+  "reviewer_model_source": "subagent transcript agent-a7df22438b16af401",
+  "degraded": {
+    "issue": 9923,
+    "reason": "codex could not run: Your workspace is out of credits. Ask your workspace owner to refill in order to continue.",
+    "declared_at": "2026-11-16T19:05:36.641901+00:00",
+    "expires_at": "2026-11-17T22:45:57.386498+00:00",
+    "cause": "outage",
+    "evidence_marker": "Your workspace is out of credits. Ask your workspace owner to refill in order to continue."
+  },
+  "chosen": null,
+  "independence": null,
+  "in_session": null,
+  "author": "claude",
+  "reviewer": "claude",
+  "report_path": "/home/ungovr/.claude/reviews/13336-1c2df06.json",
+  "base": "b8bffc3b2b1f19baed8a3fe2ef8e5565c5c32671",
+  "base_sha": "b8bffc3b2b1f19baed8a3fe2ef8e5565c5c32671",
+  "command_runs": 1,
+  "inspection_commands": 1,
+  "findings": [
+    {
+      "priority": "P2",
+      "title": "JS rules read no decrypt-only usage of the mixed libraries the map entries used to flag",
+      "file": "rules/ships_encryption/js-library-encryption.yml",
+      "line_start": 14,
+      "line_end": 71,
+      "body": "I ran a file containing `CryptoJS.AES.decrypt(...)`, `nacl.secretbox.open(...)`, `nacl.box.open(...)`, `sodium.crypto_secretbox_open_easy(...)`, `sodium.crypto_aead_xchacha20poly1305_ietf_decrypt(...)` and `openpgp.decrypt(...)`. It produced 0 matches. Before this branch, the `crypto-js`, `tweetnacl`, `libsodium-wrappers` and `openpgp` map entries flagged any app that depended on them.\nThis is inconsistent with the rest of the codebase. The same rule reads `forge.cipher.createDecipher` (line 42), and `js-platform-encryption` reads `createDecipheriv`, `privateDecrypt` and `subtle.decrypt`. The sibling Swift and Rust rules from #13318 read the open and decrypt side (`Crypto.AES.GCM.open`, `OpeningKey::new`, `decrypt_padded_mut`). The README sentence \"Its cipher and key-agreement calls are read in the code instead\" is also not met for a decrypt call.\nGo has the same gap: `openpgp.ReadMessage(...)` was not matched.",
+      "id": 1,
+      "disposition": "fixed",
+      "rationale": "js-library-encryption now reads the open and decrypt side of every library it reads: libsodium's open_easy, box_seal_open, the three AEAD decrypts and secretstream init_pull; TweetNaCl box.open and secretbox.open; crypto-js and crypto-es decrypt; OpenPGP.js decrypt; SJCL decrypt; eccrypto decrypt; @noble/ciphers decrypt. Pinned by js-library-encryption.test.decrypt.js (14). Go's ProtonMail ReadMessage stays unread on purpose and the rule says why: it also reads a message that is only signed, to verify it, which is the false reading this branch removes (go-xcrypto-encryption makes the same call for x/crypto's OpenPGP)."
+    },
+    {
+      "priority": "P2",
+      "title": "Python rule reads no decrypt-only or Diffie-Hellman usage of cryptography, rsa, PGPy or libnacl",
+      "file": "rules/ships_encryption/py-library-encryption.yml",
+      "line_start": 11,
+      "line_end": 102,
+      "body": "I ran a file containing `priv.decrypt(ct, padding.OAEP(...))`, `rsa.decrypt(ct, priv)`, a PGPy `key.decrypt(msg)`, `libnacl.crypto_box_open(...)`, and a `cryptography` `dh` key's `priv.exchange(peer)`. It produced 0 matches.\nThe rule reads `rsa.encrypt` but not `rsa.decrypt`, reads `$K.encrypt(...)` under a PGPy import but not decrypt, and reads `exchange` only for `ec.ECDH()`, x25519 and x448. Only Tink's `HybridDecrypt` is read on the decrypt side. The `cryptography`, `rsa`, `libnacl` and `pgpy` map entries are gone, so code of this shape now has no evidence at all.",
+      "id": 2,
+      "disposition": "fixed",
+      "rationale": "py-library-encryption now reads cryptography's RSA decrypt with OAEP or PKCS1v15, a finite-field dh key's exchange under a dh import, python-rsa decrypt, PGPy decrypt under its import, and libnacl's box, secretbox, sealed-box and AEAD opens. Pinned by py-library-encryption.test.decrypt.py (7) and a PGPy decrypt in test.pgpy.py (3)."
+    },
+    {
+      "priority": "P2",
+      "title": "node-forge RSA encryption is read only when the scheme is a string literal, so the documented default call is missed",
+      "file": "rules/ships_encryption/js-library-encryption.yml",
+      "line_start": 43,
+      "line_end": 46,
+      "body": "In node-forge, `publicKey.encrypt(bytes)` defaults to `RSAES-PKCS1-V1_5`. My probe file had four calls:\n- `publicKey.encrypt(bytes)` did not match.\n- `publicKey.encrypt(bytes, scheme)` with a variable scheme did not match.\n- `forge.pki.encryptRsaPrivateKey(...)` did not match.\n- `publicKey.encrypt(bytes, 'RSAES-PKCS1-V1_5')` matched; it was the only match.\nThis branch also removed the `forge.rsa.generateKeyPair` and `forge.pki.rsa.generateKeyPair` patterns and the `node-forge` map entry. An app that generates a key pair and calls `publicKey.encrypt(bytes)` now yields nothing.",
+      "id": 3,
+      "disposition": "fixed",
+      "rationale": "Any .encrypt or .decrypt call in a file that imports node-forge (ES import, namespace import or require) is now read, which covers publicKey.encrypt(bytes) with the default RSAES-PKCS1-V1_5 and a scheme held in a variable; forge.pki.rsa.decrypt and the literal-scheme decrypts were added too. Pinned by js-library-encryption.test.forge.js (4). encryptRsaPrivateKey is left unread: it protects a private key with a password, which is access control under the activity's definition."
+    },
+    {
+      "priority": "P2",
+      "title": "phpseclib RSA encryption is read only in one narrow spelling, with no alias branch",
+      "file": "rules/ships_encryption/php-library-encryption.yml",
+      "line_start": 146,
+      "line_end": 171,
+      "body": "The new branches match only `->withPadding(RSA::ENCRYPTION_OAEP)` or `ENCRYPTION_PKCS1` passed alone, and `DH::computeSecret` under a non-aliased `use`. Probes with 0 matches:\n- `PublicKeyLoader::load($pem)->encrypt($m)` with no `withPadding`. As I recall phpseclib 3, its default is `ENCRYPTION_OAEP`.\n- `RSA::createKey()->getPublicKey()->encrypt($m)`.\n- `->withPadding(RSA::ENCRYPTION_OAEP | RSA::SIGNATURE_PSS)`, which combines two padding flags.\n- `use phpseclib3\\Crypt\\RSA as Rsa;` followed by `Rsa::ENCRYPTION_OAEP`, and `use phpseclib3\\Crypt\\DH as KeyAgreement;` followed by `KeyAgreement::computeSecret(...)`.\n- v2 `new \\phpseclib\\Crypt\\RSA(); ...->encrypt(...)`.\nThe file's header says each class is read three ways (qualified, short name, alias). These two branches have no alias-positive branch, unlike every other branch in the file. The `composer.yml` comment says the rule reads \"RSA encryption ... in use\", but it covers only a small slice of how RSA encryption is written. The `phpseclib/phpseclib` map entry that caught all of it is removed.",
+      "id": 4,
+      "disposition": "fixed",
+      "rationale": "phpseclib RSA: a key's encrypt or decrypt in a file that imports phpseclib3 or phpseclib RSA or PublicKeyLoader (aliased or not), on a fully qualified loader or RSA call (metavariable-pattern on the receiver), and on a variable holding new \\phpseclib\\Crypt\\RSA() or a qualified loader; withPadding now reads ENCRYPTION_OAEP or ENCRYPTION_PKCS1 anywhere in its argument, so combined flags and aliases match. DH::computeSecret gained an alias branch. The engine treats -> and :: alike in patterns, so the receiver must hold $ or ( and Laravel's Crypt::encrypt in the existing negative fixture stays unmatched. Pinned by test.phpseclib-rsa.php (4) and test.phpseclib-fq.php (3)."
+    },
+    {
+      "priority": "P3",
+      "title": "CIRCL KEM encapsulation misses `kem/hybrid` and the FrodoKEM packages",
+      "file": "rules/ships_encryption/go-library-encryption.yml",
+      "line_start": 86,
+      "line_end": 116,
+      "body": "The import allowlist covers `kem/schemes`, kyber, mlkem and xwing. In my probe, `hybrid.Kyber768X25519().Encapsulate(pk)` and `frodo640shake.Scheme().Encapsulate(pk)` produced 0 matches. The hybrid X25519+Kyber scheme is the commonly used one, and the `github.com/cloudflare/circl` map entry is gone.",
+      "id": 5,
+      "disposition": "fixed",
+      "rationale": "go-library-encryption's KEM branch now admits github.com/cloudflare/circl/kem/hybrid and kem/frodo/frodo640shake, and reads Decapsulate and DecapsulateTo as well. Pinned by go-library-encryption.test.kem.go (3)."
+    },
+    {
+      "priority": "P3",
+      "title": "Bouncy Castle lightweight RSA-OAEP and stream engines are unread in Java and Kotlin",
+      "file": "rules/ships_encryption/java-library-encryption.yml",
+      "line_start": 11,
+      "line_end": 23,
+      "body": "A Java probe with `new OAEPEncoding(new RSAEngine())`, `StreamCipher c = new ChaCha7539Engine(); c.processBytes(...)` and a bare `new CBCBlockCipher(new AESEngine())` produced 0 matches. `cs-library-encryption.yml` reads `OaepEncoding` for the same library, so the languages disagree. The `bcprov-jdk18on`, `bcprov-jdk15on` and `bcprov-jdk15to18` map entries were removed. `kt-library-encryption.yml` has the same list.",
+      "id": 6,
+      "disposition": "fixed",
+      "rationale": "java- and kt-library-encryption now read Bouncy Castle's OAEPEncoding, the ChaCha7539, ChaCha, Salsa20 and XSalsa20 engines, and CBC, SIC (CTR) and CFB block modes, constructor and newInstance. PKCS1Encoding and a bare RSAEngine or AESEngine are left out because Bouncy Castle's signers and MACs are built from them. Pinned by java- and kt-library-encryption.test.bclight (5 each)."
+    },
+    {
+      "priority": "P3",
+      "title": "README validation rows still cite the removed map entries as enabling evidence",
+      "file": "rules/README.md",
+      "line_start": 126,
+      "line_end": 126,
+      "body": "The Sakai row (line 126) cites `pkg:maven/org.bouncycastle/bcprov-jdk18on@1.85` under \"enables 2\". The Moodle row (line 235) cites `pkg:composer/phpseclib/phpseclib` under \"enables 1\". Neither component enables `ships_encryption` any more.\nThe table's convention is to append \"Since then ...\" when a later change shifts a row, as the Nop.Commerce and Sakai rows already do. These two rows have no such note.",
+      "id": 7,
+      "disposition": "fixed",
+      "rationale": "The Sakai and Moodle validation rows in rules/README.md each carry a 'Since then' note that the bcprov artifacts and phpseclib enable nothing in the component map (#13336), following the table's convention."
+    }
+  ],
+  "status": "pass"
+}
