@@ -1380,7 +1380,8 @@ Known gaps in the configuration rules:
 - The rules also read the `Info.plist`, `PrivacyInfo.xcprivacy` and
   `*.entitlements` files inside a `*.framework` or `*.xcframework` bundle
   checked into the tree, so a vendored SDK's own privacy manifest or usage
-  strings can match as the app's. Only `Pods/` and `Carthage/` are skipped.
+  strings can match as the app's. Of the Apple dependency folders, only `Pods/`
+  and `Carthage/` are skipped.
 
 ### The Swift and Rust gates
 
@@ -1421,8 +1422,9 @@ Any other exemption must be argued and ruled before it is added.
   library that also hashes, MACs or signs (swift-crypto, CryptoSwift,
   swift-sodium, orion, sodiumoxide) has no component-map entry, as
   `golang.org/x/crypto` has none: a product can link one only for an HMAC or a
-  signature, so only its cipher and key-agreement calls count. The maps list a
-  library whose purpose is encryption (the RustCrypto ciphers, age). HTTPS through
+  signature, so only its cipher and key-agreement calls count. The Swift,
+  CocoaPods and Cargo maps list a library whose purpose is encryption (the
+  RustCrypto ciphers, age). HTTPS through
   `URLSession`, `native-tls` or the `openssl` crate's TLS is not read, and
   neither are hashing, a MAC, password hashing, key derivation and signing (see
   "Shipping encryption"). In Rust, password hashing is evidence of
