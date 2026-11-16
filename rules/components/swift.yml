@@ -125,17 +125,8 @@ entries:
     source: https://github.com/twilio/conversations-ios
 
   # Bundled cryptography
-  # Only a cryptographic library is listed. A library that signs or hashes does not encrypt, so a JWT library
-  # (vapor/jwt-kit: "JSON Web Token signing and verification") is left out.
-  - match: "github.com/apple/swift-crypto"
-    enables: [ships_encryption]
-    says: "Swift Crypto is an open-source implementation of a substantial portion of the API of Apple CryptoKit suitable for use on Linux and ARM64 Windows platforms."
-    source: https://github.com/apple/swift-crypto
-  - match: "github.com/krzyzanowskim/cryptoswift"
-    enables: [ships_encryption]
-    says: "CryptoSwift is a growing collection of standard and secure cryptographic algorithms implemented in Swift"
-    source: https://github.com/krzyzanowskim/CryptoSwift
-  - match: "github.com/jedisct1/swift-sodium"
-    enables: [ships_encryption]
-    says: "Swift-Sodium provides a safe and easy to use interface to perform common cryptographic operations on Apple platforms (macOS, iOS, tvOS, watchOS) and Linux."
-    source: https://github.com/jedisct1/swift-sodium
+  # No entry. A library that only signs or hashes does not encrypt, so a JWT library (vapor/jwt-kit: "JSON Web
+  # Token signing and verification") is left out. github.com/apple/swift-crypto, CryptoSwift and swift-sodium
+  # have no entry either: each mixes hashing, MACs and signing with its ciphers, and a product can link one only
+  # for an HMAC or a signature, which holds no cipher it uses. rules/ships_encryption/swift-library-encryption.yml
+  # and swift-platform-encryption.yml read the seal, open and key-agreement calls in use instead (#13318).

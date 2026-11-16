@@ -1185,7 +1185,7 @@ three ecosystems, and each names a dependency its own way:
 | Ecosystem | A dependency is named by | Package URL | Evidence rule id | Component map |
 |---|---|---|---|---|
 | `cargo` | the crate name | `pkg:cargo/<name>@<version>` | `lexcode.manifest.cargo` | `components/cargo.yml` |
-| `swift` | the repository, `host/owner/repo` | `pkg:swift/github.com/apple/swift-crypto@<version>` | `lexcode.manifest.swift` | `components/swift.yml` |
+| `swift` | the repository, `host/owner/repo` | `pkg:swift/github.com/alamofire/alamofire@<version>` | `lexcode.manifest.swift` | `components/swift.yml` |
 | `cocoapods` | the pod, as `Podfile.lock` writes it | `pkg:cocoapods/Firebase@10.29.0#Analytics` | `lexcode.manifest.cocoapods` | `components/cocoapods.yml` |
 
 A Swift package's name is its URL without the scheme, any `user@`, the `.git`
@@ -1417,7 +1417,12 @@ Any other exemption must be argued and ruled before it is added.
   crate (`rs-openssl-encryption`) or a bundled library (swift-crypto, which
   bundles BoringSSL, rustls with ring, RustCrypto ciphers, age, libsodium
   bindings). A CryptoKit-shaped call in a file that also imports swift-crypto's
-  `Crypto` is read by `swift-library-encryption` only. HTTPS through
+  `Crypto` is read by `swift-library-encryption` only. A general cryptography
+  library that also hashes, MACs or signs (swift-crypto, CryptoSwift,
+  swift-sodium, orion, sodiumoxide) has no component-map entry, as
+  `golang.org/x/crypto` has none: a product can link one only for an HMAC or a
+  signature, so only its cipher and key-agreement calls count. The maps list a
+  library whose purpose is encryption (the RustCrypto ciphers, age). HTTPS through
   `URLSession`, `native-tls` or the `openssl` crate's TLS is not read, and
   neither are hashing, a MAC, password hashing, key derivation and signing (see
   "Shipping encryption"). In Rust, password hashing is evidence of
@@ -1516,7 +1521,10 @@ The engine sets most of these limits, and the rules' comments point here.
 - **Identity, signatures and encryption.** No Swift rule reads a selfie with an
   ID document, a verifiable credential or a PDF signature, and identity vendors
   beyond the six SDKs the rules name reach only the URL rule. No Swift rule
-  reads a bundled TLS stack, and a CryptoKit or CommonCrypto cipher cannot show
+  or map entry reads a bundled TLS stack (swift-nio-ssl, which vendors
+  BoringSSL and comes in through AsyncHTTPClient or Vapor), so a server whose
+  only encryption is that TLS is missed, as a Rust app whose rustls is chosen
+  only by a Cargo feature is. A CryptoKit or CommonCrypto cipher cannot show
   what it encrypts, so one that holds only a sign-in token still counts and is
   for a person to confirm.
 - **Data and tracking.** No rule reads a Vapor server's client address or a
