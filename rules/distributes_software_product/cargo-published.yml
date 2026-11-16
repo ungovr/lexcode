@@ -12,11 +12,12 @@ rules:
     # `publish.workspace = true`) or under a licence or licence file naming a proprietary,
     # unlicensed or commercial grant. The listing keys and the switches are looked for only in the
     # package's own table (the lookaheads walk line by line and stop at the next table header); the
-    # docs.rs table anywhere after it. `\r?$` reads a manifest saved with Windows line endings.
+    # docs.rs table anywhere after it. An empty listing key (`keywords = []`, on one line or several)
+    # lists nothing and does not count. `\r?$` reads a manifest saved with Windows line endings.
     #
     # Known gaps: keys written as dotted keys outside the table (`package.keywords = ..`), and a
     # `publish.workspace = true` whose workspace turns publishing on.
-    pattern-regex: '(?m)^[ \t]*\[package\][ \t]*(?:#[^\n]*)?\r?$(?=(?:\n(?![ \t]*\[)[^\n]*)*?\n[ \t]*(?:(?:keywords|categories)(?:\.workspace)?[ \t]*=|publish[ \t]*=[ \t]*(?:true\b|\[[^\]]*crates-io))|[\s\S]*?\n[ \t]*\[package\.metadata\.docs\.rs\][ \t]*(?:#[^\n]*)?\r?$)(?!(?:\n(?![ \t]*\[)[^\n]*)*?\n[ \t]*publish(?:[ \t]*=[ \t]*(?:false\b|\[(?![^\]]*crates-io)|\{[^}\n]*\bworkspace\b)|\.workspace\b))(?!(?:\n(?![ \t]*\[)[^\n]*)*?\n[ \t]*license(?:-file)?[ \t]*=[ \t]*["''][^"''\n]*(?i:proprietary|unlicensed|commercial|all rights reserved))'
+    pattern-regex: '(?m)^[ \t]*\[package\][ \t]*(?:#[^\n]*)?\r?$(?=(?:\n(?![ \t]*\[)[^\n]*)*?\n[ \t]*(?:(?:keywords|categories)(?:\.workspace[ \t]*=|[ \t]*=(?![ \t]*\[\s*\]))|publish[ \t]*=[ \t]*(?:true\b|\[[^\]]*crates-io))|[\s\S]*?\n[ \t]*\[package\.metadata\.docs\.rs\][ \t]*(?:#[^\n]*)?\r?$)(?!(?:\n(?![ \t]*\[)[^\n]*)*?\n[ \t]*publish(?:[ \t]*=[ \t]*(?:false\b|\[(?![^\]]*crates-io)|\{[^}\n]*\bworkspace\b)|\.workspace\b))(?!(?:\n(?![ \t]*\[)[^\n]*)*?\n[ \t]*license(?:-file)?[ \t]*=[ \t]*["''][^"''\n]*(?i:proprietary|unlicensed|commercial|all rights reserved))'
     paths:
       include:
         - "Cargo.toml"
