@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Checks scripts/rule-cost.mjs against the engine: `node scripts/rule-cost-check.mjs [<rule-cost script>]`.
 //
-// Release-time only, beside rule-cost.mjs (it runs the real engine for about four minutes). It copies the script
+// Release-time only, beside rule-cost.mjs (it runs the real engine for about two minutes). It copies the script
 // into a scratch tree whose rules/ holds five Swift rules, runs it there, and fails unless:
 //   - swift-quadratic-check, a rule that is itself quadratic on any class (each class whose number ends in 00
 //     searches the rest of the file for a name that is never there), is named OVER;

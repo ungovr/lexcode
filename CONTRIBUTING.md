@@ -196,6 +196,10 @@ The eight Swift taint rules for the `generates_*` activities share their
 sources, propagators and sinks, and `scripts/gen-swift-generation-rules.py`
 writes them: change those blocks there and run
 `python3 scripts/gen-swift-generation-rules.py`, never one rule file by hand.
+The five Rust ones (`rs-chat-`, `rs-image-`, `rs-speech-` and
+`rs-video-reply-to-response`, and `rs-genai-to-response`) share their sink set
+word for word with no generator: they are kept by hand, so a change to one
+rule's sinks is made in all five in the same commit.
 
 ### Cost
 

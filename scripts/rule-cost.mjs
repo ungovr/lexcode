@@ -41,7 +41,8 @@ const GROWTH_MAX = 2;
 const WEIGHT_MAX = 5;
 const ATTEMPTS = 3;
 /**
- * The two files' names, without the extension. Each is 12 characters or more on purpose: the pinned engine's Swift
+ * The two files' names, without the extension. With it, each path the engine is handed (`unit-090kb.swift`, run in the
+ * files' own directory) is 12 characters or more on purpose: the pinned engine's Swift
  * scanner (opengrep/semgrep-swift lib/scanner.c) allocates its state with `calloc(0, ...)`, and on the engine's musl
  * build a target path of 11 characters or fewer frees its C string into the slot the scanner then reads, so a
  * modified class parses in quadratic time (`large.swift` at 900 KB: 57 s, against 2.2 s under a longer name), and

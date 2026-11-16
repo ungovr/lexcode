@@ -1345,6 +1345,10 @@ Known gaps in the configuration rules:
   single-target watchOS, tvOS or visionOS app among them, and a project with a
   Mac app and a separate iOS-only framework target matches. A last `SDKROOT` setting
   more than about 1 MB from the end of the file loses the match with no notice.
+- The rules also read the `Info.plist`, `PrivacyInfo.xcprivacy` and
+  `*.entitlements` files inside a `*.framework` or `*.xcframework` bundle
+  checked into the tree, so a vendored SDK's own privacy manifest or usage
+  strings can match as the app's. Only `Pods/` and `Carthage/` are skipped.
 
 ### The Swift and Rust gates
 
