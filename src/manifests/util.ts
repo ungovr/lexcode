@@ -232,10 +232,22 @@ export function* rubyLines(text: string, joined: RegExp): Generator<{ code: stri
     let code = stripRubyComment(raw).trim();
     if (code === '') continue;
     if (joined.test(code)) {
-      while (/[,\\]$/.test(code) && i + 1 < lines.length) {
+      // The pieces are joined once at the end, and only the last piece is tested and trimmed: re-testing and
+      // rebuilding the whole joined text per line took 26.7 s on 100,000 lines (final review minor 1). A blank
+      // piece adds nothing and trims the end of the piece before it, as trimming the joined text did.
+      const parts = [code];
+      while (/[,\\]$/.test(parts[parts.length - 1] as string) && i + 1 < lines.length) {
         i++;
-        code = `${code.replace(/\\$/, '')} ${stripRubyComment(lines[i] as string).trim()}`.trim();
+        const next = stripRubyComment(lines[i] as string).trim();
+        const k = parts.length - 1;
+        const prev = (parts[k] as string).replace(/\\$/, '');
+        if (next === '') parts[k] = prev.trimEnd();
+        else {
+          parts[k] = prev;
+          parts.push(next);
+        }
       }
+      code = parts.join(' ').trim();
     }
     const hd = /<<[~-]?(["']?)([A-Za-z_]\w*)\1/.exec(code);
     if (hd) heredoc = hd[2];
