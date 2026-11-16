@@ -2,7 +2,12 @@ rules:
   - id: lexcode.crypto.go-xcrypto-encryption
     languages: [go]
     severity: INFO
-    message: Encrypts data or agrees keys with golang.org/x/crypto (NaCl boxes, ChaCha20-Poly1305 or Curve25519), which is shipping encryption (ships_encryption).
+    message: Encrypts data or agrees keys with golang.org/x/crypto (NaCl boxes, ChaCha20-Poly1305, Curve25519, another cipher, OpenPGP or its SSH stack), which is shipping encryption (ships_encryption).
+    # Go links only the subpackages a program imports, so the module in go.mod says nothing by itself:
+    # an app that imports only x/crypto/bcrypt holds no cipher. This rule reads the cipher subpackages
+    # in use, and the component map has no entry for golang.org/x/crypto. The subpackages that hash,
+    # derive keys, authenticate or sign (bcrypt, argon2, scrypt, pbkdf2, hkdf, sha3, blake2b,
+    # ed25519, nacl/auth, nacl/sign) are not read.
     pattern-either:
       - patterns:
           - pattern-either:
@@ -15,6 +20,9 @@ rules:
           - pattern-either:
               - pattern: box.Seal(...)
               - pattern: box.SealAnonymous(...)
+              - pattern: box.Open(...)
+              - pattern: box.OpenAnonymous(...)
+              - pattern: box.Precompute(...)
               - pattern: box.GenerateKey(...)
           - pattern-inside: |
               import "golang.org/x/crypto/nacl/box"
@@ -32,6 +40,70 @@ rules:
               - pattern: curve25519.ScalarMult(...)
           - pattern-inside: |
               import "golang.org/x/crypto/curve25519"
+              ...
+      - patterns:
+          - pattern: chacha20.NewUnauthenticatedCipher(...)
+          - pattern-inside: |
+              import "golang.org/x/crypto/chacha20"
+              ...
+      - patterns:
+          - pattern: salsa20.XORKeyStream(...)
+          - pattern-inside: |
+              import "golang.org/x/crypto/salsa20"
+              ...
+      - patterns:
+          - pattern: salsa.XORKeyStream(...)
+          - pattern-inside: |
+              import "golang.org/x/crypto/salsa20/salsa"
+              ...
+      - patterns:
+          - pattern: blowfish.NewSaltedCipher(...)
+          - pattern-inside: |
+              import "golang.org/x/crypto/blowfish"
+              ...
+      - patterns:
+          - pattern: xts.NewCipher(...)
+          - pattern-inside: |
+              import "golang.org/x/crypto/xts"
+              ...
+      # The block ciphers of x/crypto (Blowfish, Twofish, CAST5, TEA, XTEA), each under its own import
+      - patterns:
+          - pattern: $P.NewCipher(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import "golang.org/x/crypto/blowfish"
+                  ...
+              - pattern-inside: |
+                  import "golang.org/x/crypto/twofish"
+                  ...
+              - pattern-inside: |
+                  import "golang.org/x/crypto/cast5"
+                  ...
+              - pattern-inside: |
+                  import "golang.org/x/crypto/tea"
+                  ...
+              - pattern-inside: |
+                  import "golang.org/x/crypto/xtea"
+                  ...
+          - metavariable-regex:
+              metavariable: $P
+              regex: ^(?:blowfish|twofish|cast5|tea|xtea)$
+      # OpenPGP (the frozen x/crypto/openpgp) encryption
+      - patterns:
+          - pattern-either:
+              - pattern: openpgp.Encrypt(...)
+              - pattern: openpgp.SymmetricallyEncrypt(...)
+          - pattern-inside: |
+              import "golang.org/x/crypto/openpgp"
+              ...
+      # Its SSH stack: a client or server connection, which the app's binary carries
+      - patterns:
+          - pattern-either:
+              - pattern: ssh.Dial(...)
+              - pattern: ssh.NewClientConn(...)
+              - pattern: ssh.NewServerConn(...)
+          - pattern-inside: |
+              import "golang.org/x/crypto/ssh"
               ...
     metadata:
       activity: ships_encryption

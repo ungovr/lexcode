@@ -1,4 +1,4 @@
-// lexcode-expect: 16
+// lexcode-expect: 17
 // Encryption and key agreement through libraries the product bundles: Bouncy Castle (block and
 // stream ciphers, key agreement, OpenPGP, CMS), Google Tink, libsodium bindings, and a JCA
 // cipher built through the Bouncy Castle provider.
@@ -71,4 +71,7 @@ class Vault {
   fun providerByName(): Cipher = Cipher.getInstance("AES/GCM/NoPadding", "BC")
 
   fun providerByConstant(): Cipher = Cipher.getInstance("ChaCha20-Poly1305", BouncyCastleProvider.PROVIDER_NAME)
+
+  fun providerByQualifiedConstant(): Cipher =
+      Cipher.getInstance("AES/GCM/NoPadding", org.bouncycastle.jce.provider.BouncyCastleProvider.PROVIDER_NAME)
 }

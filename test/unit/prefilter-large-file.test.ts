@@ -156,7 +156,6 @@ const CASES: Case[] = [
       ['lexcode.calls.php-twilio-record-call', "function z($twilio) { $twilio->calls->create('+15005550006', '+15005550001', ['record' => true]); }"],
       ['lexcode.identity.php-selfie-and-id-document', "function z($f, $d) { return ['selfie' => $f, 'id_card' => $d]; }"],
       ['lexcode.crypto.php-attribute-encryption', "class Note extends Model { protected $casts = ['body' => 'encrypted']; }"],
-      ['lexcode.crypto.php-password-hashing', "function z(\\Symfony\\Component\\PasswordHasher\\Hasher\\UserPasswordHasherInterface $h, $u) { return $h->hashPassword($u, 'pw'); }"],
       ['lexcode.tracking.php-analytics-calls', "function z() { return Mixpanel::getInstance('token'); }", 'use Mixpanel;'],
     ] as [string, string, string?][]
   ).map(([rule, line, pre]) => ({

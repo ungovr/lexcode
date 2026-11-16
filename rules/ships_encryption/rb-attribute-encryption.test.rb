@@ -1,6 +1,8 @@
-# lexcode-expect: 7
-# Models that encrypt columns with the application's own cryptography: Rails
-# 7 Active Record Encryption, Lockbox and attr_encrypted.
+# lexcode-expect: 11
+# Models that encrypt ordinary data with the application's own cryptography:
+# Rails 7 Active Record Encryption, Lockbox and attr_encrypted, with names that
+# only look like access-control words (shipping, footprint, zip_code), a
+# parenthesized list, and a list that mixes a sign-in secret with ordinary data.
 
 # Rails 7 Active Record Encryption.
 class Patient < ApplicationRecord
@@ -17,7 +19,7 @@ end
 
 # attr_encrypted.
 class Credential < ApplicationRecord
-  attr_encrypted :api_secret, key: ENV.fetch("ATTR_ENCRYPTED_KEY")
+  attr_encrypted :bank_account_number, key: ENV.fetch("ATTR_ENCRYPTED_KEY")
 end
 
 # The same macro inside a nested class.
@@ -26,4 +28,13 @@ module Billing
     self.table_name = "cards"
     encrypts :number
   end
+end
+
+# Ordinary data whose names hold a short access-control word inside another word,
+# a parenthesized list, and a mixed list (the phone number is ordinary data).
+class Shipment < ApplicationRecord
+  encrypts :shipping_address, :zip_code
+  encrypts(:carbon_footprint)
+  encrypts :otp_secret, :phone_number
+  encrypts :session_notes
 end
