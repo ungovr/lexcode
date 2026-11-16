@@ -21,9 +21,12 @@ rules:
       - pattern: $K.encrypt($M, padding.OAEP(...))
       - pattern: $K.encrypt($M, cryptography.hazmat.primitives.asymmetric.padding.OAEP(...))
       - pattern: $K.encrypt($M, padding.PKCS1v15())
+      - pattern: $K.decrypt($M, padding.OAEP(...))
+      - pattern: $K.decrypt($M, cryptography.hazmat.primitives.asymmetric.padding.OAEP(...))
+      - pattern: $K.decrypt($M, padding.PKCS1v15())
       - pattern: $K.exchange(ec.ECDH(), ...)
       - pattern: $K.exchange(cryptography.hazmat.primitives.asymmetric.ec.ECDH(), ...)
-      # An X25519 or X448 key's exchange, in a file that imports one
+      # An X25519, X448 or finite-field Diffie-Hellman key's exchange, in a file that imports one
       - patterns:
           - pattern: $K.exchange(...)
           - pattern-either:
@@ -34,10 +37,16 @@ rules:
                   from cryptography.hazmat.primitives.asymmetric import x448
                   ...
               - pattern-inside: |
+                  from cryptography.hazmat.primitives.asymmetric import dh
+                  ...
+              - pattern-inside: |
                   from cryptography.hazmat.primitives.asymmetric.x25519 import $X
                   ...
               - pattern-inside: |
                   from cryptography.hazmat.primitives.asymmetric.x448 import $X
+                  ...
+              - pattern-inside: |
+                  from cryptography.hazmat.primitives.asymmetric.dh import $X
                   ...
       # PyCryptodome and PyCryptodomex: its ciphers, RSA-OAEP and PKCS#1 v1.5 encryption, DH and HPKE
       - pattern: AES.new(...)
@@ -72,12 +81,18 @@ rules:
       - pattern: libnacl.secret.SecretBox(...)
       - pattern: libnacl.sealed.SealedBox(...)
       - pattern: libnacl.crypto_box(...)
+      - pattern: libnacl.crypto_box_open(...)
       - pattern: libnacl.crypto_box_beforenm(...)
       - pattern: libnacl.crypto_box_seal(...)
+      - pattern: libnacl.crypto_box_seal_open(...)
       - pattern: libnacl.crypto_secretbox(...)
+      - pattern: libnacl.crypto_secretbox_open(...)
       - pattern: libnacl.crypto_aead_xchacha20poly1305_ietf_encrypt(...)
+      - pattern: libnacl.crypto_aead_xchacha20poly1305_ietf_decrypt(...)
       - pattern: libnacl.crypto_aead_chacha20poly1305_ietf_encrypt(...)
+      - pattern: libnacl.crypto_aead_chacha20poly1305_ietf_decrypt(...)
       - pattern: libnacl.crypto_aead_aes256gcm_encrypt(...)
+      - pattern: libnacl.crypto_aead_aes256gcm_decrypt(...)
       # Tink: registering or getting an encrypting primitive (not a MAC or a signature)
       - pattern: tink.aead.register()
       - pattern: tink.daead.register()
@@ -88,11 +103,15 @@ rules:
       - pattern: $H.primitive(tink.hybrid.HybridEncrypt)
       - pattern: $H.primitive(tink.hybrid.HybridDecrypt)
       - pattern: $H.primitive(tink.streaming_aead.StreamingAead)
-      # rsa (python-rsa): encryption, not its signatures
+      # rsa (python-rsa): encryption and decryption, not its signatures
       - pattern: rsa.encrypt(...)
-      # PGPy: an encrypt call in a file that imports it (its signing and key protection are not read)
+      - pattern: rsa.decrypt(...)
+      # PGPy: an encrypt or decrypt call in a file that imports it (its signing and key protection
+      # are not read)
       - patterns:
-          - pattern: $K.encrypt(...)
+          - pattern-either:
+              - pattern: $K.encrypt(...)
+              - pattern: $K.decrypt(...)
           - pattern-either:
               - pattern-inside: |
                   import pgpy

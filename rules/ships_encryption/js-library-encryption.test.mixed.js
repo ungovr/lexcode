@@ -1,4 +1,4 @@
-// lexcode-expect: 13
+// lexcode-expect: 15
 // The libraries that mix hashing, MACs or signing with their ciphers have no component-map entry;
 // these are their cipher and key-agreement calls, which this rule reads instead (#13336).
 import sodium from 'libsodium-wrappers';

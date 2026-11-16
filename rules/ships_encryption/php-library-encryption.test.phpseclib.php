@@ -1,5 +1,5 @@
 <?php
-// lexcode-expect: 4
+// lexcode-expect: 6
 // phpseclib version 3's key agreement and RSA set to encrypt (#13336).
 
 namespace App\Crypto;

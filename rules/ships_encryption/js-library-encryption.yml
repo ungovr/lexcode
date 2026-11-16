@@ -6,47 +6,78 @@ rules:
     # The component map has no entry for a library that mixes hashing, MACs or signing with its ciphers
     # (libsodium, TweetNaCl, crypto-js, crypto-es, node-forge, OpenPGP.js, kbpgp, SJCL, @noble/curves,
     # elliptic, eccrypto): an app can link one only for a hash or a signature. This rule reads their
-    # cipher and key-agreement calls instead. A generated key pair, a hash, a MAC or a signature is
-    # not read.
+    # cipher and key-agreement calls instead, encrypting and decrypting alike. A generated key pair, a
+    # hash, a MAC or a signature is not read.
     pattern-either:
       # libsodium (libsodium-wrappers and the raw build): secret-key and public-key boxes, AEADs,
       # secret streams and key exchange
       - pattern: $S.crypto_secretbox_easy(...)
+      - pattern: $S.crypto_secretbox_open_easy(...)
       - pattern: $S.crypto_box_easy(...)
+      - pattern: $S.crypto_box_open_easy(...)
       - pattern: $S.crypto_box_seal(...)
+      - pattern: $S.crypto_box_seal_open(...)
       - pattern: $S.crypto_box_beforenm(...)
       - pattern: $S.crypto_aead_xchacha20poly1305_ietf_encrypt(...)
+      - pattern: $S.crypto_aead_xchacha20poly1305_ietf_decrypt(...)
       - pattern: $S.crypto_aead_chacha20poly1305_ietf_encrypt(...)
+      - pattern: $S.crypto_aead_chacha20poly1305_ietf_decrypt(...)
       - pattern: $S.crypto_aead_aes256gcm_encrypt(...)
+      - pattern: $S.crypto_aead_aes256gcm_decrypt(...)
       - pattern: $S.crypto_secretstream_xchacha20poly1305_init_push(...)
+      - pattern: $S.crypto_secretstream_xchacha20poly1305_init_pull(...)
       - pattern: $S.crypto_kx_client_session_keys(...)
       - pattern: $S.crypto_kx_server_session_keys(...)
       - pattern: $S.crypto_scalarmult(...)
       # TweetNaCl
       - pattern: nacl.box(...)
+      - pattern: nacl.box.open(...)
       - pattern: nacl.secretbox(...)
+      - pattern: nacl.secretbox.open(...)
       - pattern: nacl.box.before(...)
       - pattern: nacl.scalarMult(...)
-      # crypto-js and crypto-es: a cipher's encrypt (their hashers and HMACs are not read)
+      # crypto-js and crypto-es: a cipher's encrypt or decrypt (their hashers and HMACs are not read)
       - patterns:
           - pattern-either:
               - pattern: CryptoJS.$ALG.encrypt(...)
+              - pattern: CryptoJS.$ALG.decrypt(...)
               - pattern: CryptoES.$ALG.encrypt(...)
+              - pattern: CryptoES.$ALG.decrypt(...)
           - metavariable-regex:
               metavariable: $ALG
               regex: ^(AES|DES|TripleDES|Rabbit|RabbitLegacy|RC4|RC4Drop|Blowfish)$
       - pattern: AES.encrypt(...)
-      # node-forge: its ciphers, RSA encryption and PKCS#7 enveloped data (not its key generation,
-      # digests or signatures)
+      - pattern: AES.decrypt(...)
+      # node-forge: its ciphers, RSA encryption (a key's encrypt or decrypt in a file that imports
+      # it, since the scheme defaults to RSAES-PKCS1-V1_5) and PKCS#7 enveloped data (not its key
+      # generation, digests or signatures)
       - pattern: forge.cipher.createCipher(...)
       - pattern: forge.cipher.createDecipher(...)
       - pattern: $K.encrypt($M, 'RSA-OAEP', ...)
       - pattern: $K.encrypt($M, 'RSAES-PKCS1-V1_5', ...)
+      - pattern: $K.decrypt($M, 'RSA-OAEP', ...)
+      - pattern: $K.decrypt($M, 'RSAES-PKCS1-V1_5', ...)
       - pattern: forge.pki.rsa.encrypt(...)
+      - pattern: forge.pki.rsa.decrypt(...)
       - pattern: forge.pkcs7.createEnvelopedData()
-      # OpenPGP.js and kbpgp: encryption, not a key alone or a signature (a kbpgp box encrypts only
-      # when it names a recipient)
+      - patterns:
+          - pattern-either:
+              - pattern: $K.encrypt(...)
+              - pattern: $K.decrypt(...)
+          - pattern-either:
+              - pattern-inside: |
+                  import $F from 'node-forge';
+                  ...
+              - pattern-inside: |
+                  import * as $F from 'node-forge';
+                  ...
+              - pattern-inside: |
+                  const $F = require('node-forge');
+                  ...
+      # OpenPGP.js and kbpgp: encryption and decryption, not a key alone or a signature (a kbpgp
+      # box encrypts only when it names a recipient)
       - pattern: openpgp.encrypt(...)
+      - pattern: openpgp.decrypt(...)
       - pattern: 'kbpgp.box({..., encrypt_for: $R, ...}, ...)'
       # JOSE encryption (a JWE, not a JWS)
       - pattern: new $J.EncryptJWT(...)
@@ -55,11 +86,15 @@ rules:
       - pattern: new $J.CompactEncrypt(...)
       # SJCL
       - pattern: sjcl.encrypt(...)
+      - pattern: sjcl.decrypt(...)
       - pattern: new sjcl.cipher.aes(...)
       # @noble/ciphers
       - pattern: xchacha20poly1305(...).encrypt(...)
+      - pattern: xchacha20poly1305(...).decrypt(...)
       - pattern: chacha20poly1305(...).encrypt(...)
+      - pattern: chacha20poly1305(...).decrypt(...)
       - pattern: gcm(...).encrypt(...)
+      - pattern: gcm(...).decrypt(...)
       # Elliptic-curve key agreement and encryption: @noble/curves, elliptic and eccrypto
       - patterns:
           - pattern: $C.getSharedSecret(...)
@@ -68,6 +103,7 @@ rules:
               regex: ^(x25519|x448|secp256k1|p256|p384|p521)$
       - pattern: $K.derive($P.getPublic(...))
       - pattern: eccrypto.encrypt(...)
+      - pattern: eccrypto.decrypt(...)
       - pattern: eccrypto.derive(...)
     metadata:
       activity: ships_encryption

@@ -9,7 +9,8 @@ rules:
     # use instead, each under its own import, as go-xcrypto-encryption does for golang.org/x/crypto.
     # Their signing, MAC and hashing packages are not read.
     pattern-either:
-      # ProtonMail's OpenPGP (github.com/ProtonMail/go-crypto, version 1 and 2 APIs)
+      # ProtonMail's OpenPGP (github.com/ProtonMail/go-crypto, version 1 and 2 APIs). ReadMessage is
+      # not read: it also reads a message that is only signed, to verify it, as in x/crypto's OpenPGP.
       - patterns:
           - pattern-either:
               - pattern: openpgp.Encrypt(...)
@@ -88,9 +89,17 @@ rules:
               - pattern: $S.Encapsulate(...)
               - pattern: $S.EncapsulateDeterministically(...)
               - pattern: $PK.EncapsulateTo(...)
+              - pattern: $S.Decapsulate(...)
+              - pattern: $SK.DecapsulateTo(...)
           - pattern-either:
               - pattern-inside: |
                   import "github.com/cloudflare/circl/kem/schemes"
+                  ...
+              - pattern-inside: |
+                  import "github.com/cloudflare/circl/kem/hybrid"
+                  ...
+              - pattern-inside: |
+                  import "github.com/cloudflare/circl/kem/frodo/frodo640shake"
                   ...
               - pattern-inside: |
                   import "github.com/cloudflare/circl/kem/kyber/kyber512"
