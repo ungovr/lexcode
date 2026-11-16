@@ -3,10 +3,10 @@ rules:
     languages: [swift]
     severity: INFO
     message: Encrypts data or agrees keys with a cryptography library the product bundles (swift-crypto, CryptoSwift, libsodium, the Signal protocol, ObjectivePGP, JOSESwift encryption or OpenSSL), which is shipping encryption (ships_encryption).
-    # The platform's own cryptography (CryptoKit, CommonCrypto's CCCrypt, the Security framework's
-    # SecKey encryption, the system's TLS through URLSession) is not evidence, as javax.crypto and
-    # System.Security.Cryptography are not. swift-crypto (module `Crypto`) is a package in the
-    # dependency tree, as golang.org/x/crypto is for Go: on Linux it bundles BoringSSL. Its API
+    # The platform's own ciphers and key agreement (CryptoKit, CommonCrypto's CCCrypt, the Security
+    # framework's SecKey encryption) are swift-platform-encryption's, and the system's TLS through
+    # URLSession is read by neither rule; this rule reads a library the app bundles. swift-crypto
+    # (module `Crypto`) is a package in the dependency tree: on Linux it bundles BoringSSL. Its API
     # mirrors CryptoKit's, so each call is written qualified by `Crypto` and the engine resolves it
     # only under `import Crypto` (also inside `#if canImport(CryptoKit) ... #else import Crypto`),
     # never under `import CryptoKit` alone. HMAC, digests and signatures are not encryption and are

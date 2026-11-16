@@ -1,0 +1,56 @@
+rules:
+  - id: lexcode.crypto.swift-platform-encryption
+    languages: [swift]
+    severity: INFO
+    message: Encrypts data or agrees keys with Apple's own cryptography (a CryptoKit cipher, key wrap, HPKE or key agreement, CommonCrypto's CCCrypt, or the Security framework's SecKey encryption or key exchange), which is shipping encryption (ships_encryption).
+    # A cipher, public-key encryption or a key agreement keeps data confidential whoever wrote the code
+    # that runs it, so the platform's frameworks count as a bundled library does (#13318). CryptoKit's
+    # calls are written qualified by `CryptoKit`, which the engine resolves only in a file that imports
+    # CryptoKit, so an app's own `AES` or `ChaChaPoly` type is not read. A file that also imports
+    # swift-crypto's `Crypto` (`#if canImport(CryptoKit) import CryptoKit #else import Crypto`) is
+    # swift-library-encryption's, so each call is read by one rule only. CommonCrypto's and the
+    # Security framework's C functions carry their framework's prefix and are read anywhere.
+    # Hashing (SHA256, Insecure, CC_SHA256), a MAC (HMAC, CCHmac), key derivation (HKDF,
+    # CCKeyDerivationPBKDF), signing (a Signing key's signature, SecKeyCreateSignature), random bytes
+    # (SecRandomCopyBytes), a key generated and never used to encrypt (SymmetricKey), the Keychain,
+    # file protection and HTTPS through URLSession are not read. A call cannot show what it encrypts,
+    # so a cipher that holds only a sign-in token stays evidence for a person to confirm, as the other
+    # languages' platform rules do.
+    pattern-either:
+      # CryptoKit: AEAD seal and open, key wrapping, HPKE and key agreement
+      - patterns:
+          - pattern-either:
+              - pattern: CryptoKit.AES.GCM.seal(...)
+              - pattern: CryptoKit.AES.GCM.open(...)
+              - pattern: CryptoKit.ChaChaPoly.seal(...)
+              - pattern: CryptoKit.ChaChaPoly.open(...)
+              - pattern: CryptoKit.AES.KeyWrap.wrap(...)
+              - pattern: CryptoKit.AES.KeyWrap.unwrap(...)
+              - pattern: CryptoKit.HPKE.Sender(...)
+              - pattern: CryptoKit.HPKE.Recipient(...)
+              - pattern: CryptoKit.P256.KeyAgreement.PrivateKey(...)
+              - pattern: CryptoKit.P384.KeyAgreement.PrivateKey(...)
+              - pattern: CryptoKit.P521.KeyAgreement.PrivateKey(...)
+              - pattern: CryptoKit.Curve25519.KeyAgreement.PrivateKey(...)
+              - pattern: CryptoKit.SecureEnclave.P256.KeyAgreement.PrivateKey(...)
+              # The agreement itself, on a key of any type, in a file that imports CryptoKit
+              - patterns:
+                  - pattern: '$K.sharedSecretFromKeyAgreement(with: $P)'
+                  - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?CryptoKit\b).*'
+          - pattern-not-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?Crypto\b).*'
+      # CommonCrypto's symmetric ciphers
+      - pattern: CCCrypt(...)
+      - pattern: CCCryptorCreate(...)
+      - pattern: CCCryptorCreateWithMode(...)
+      # The Security framework: public-key encryption and key exchange
+      - pattern: SecKeyCreateEncryptedData(...)
+      - pattern: SecKeyCreateDecryptedData(...)
+      - pattern: SecKeyEncrypt(...)
+      - pattern: SecKeyDecrypt(...)
+      - pattern: SecKeyCopyKeyExchangeResult(...)
+    metadata:
+      activity: ships_encryption
+      mentioned: performs
+      definition: https://lexlint.io/glossary#ships-encryption
+      provenance: ungovr-original
+      license: MIT

@@ -1228,8 +1228,10 @@ in another (`serde_json`, `serde-json`) is looked up by the spelling the manifes
 uses, in the lock and in the component map. A package whose own description says
 it hashes, signs or authenticates, and not that it encrypts, is not mapped to
 `ships_encryption`: the `sha2`, `hmac`, `argon2` and `bcrypt` crates, the signing
-and key-agreement crates, and the Swift package `jwt-kit`. The code rules read
-their calls instead.
+crates and the Swift package `jwt-kit`, none of which keeps data confidential.
+Key-agreement crates (`x25519-dalek`, `p256`) are not mapped either, a known gap
+since key agreement counts (#13318): `rs-library-encryption` reads
+`x25519-dalek`'s key agreement in the code, and `p256`'s ECDH is not read.
 
 ### Swift packages
 
@@ -1408,15 +1410,18 @@ Any other exemption must be argued and ruled before it is added.
   response, a view, a stored property, a returned value). A function that
   returns a model's result with no sink in view is a signal. Rust has no
   result-returned signals.
-- Apple's own cryptography (CryptoKit, CommonCrypto, the Security framework) and
-  the platform's OpenSSL (TLS through the Rust `openssl` and `native-tls` crates)
-  are left to the platform. A bundled library that encrypts is `ships_encryption`
-  evidence (swift-crypto, which bundles BoringSSL, rustls with ring, RustCrypto
-  ciphers, age, libsodium bindings). A cipher called through the `openssl` crate,
-  and password hashing (bcrypt, argon2, scrypt, Vapor's Bcrypt), are signals for
-  `ships_encryption`. In Rust the same hashing is evidence of
-  `processes_personal_data`, since a password is personal data. A hash or a MAC
-  is not encryption.
+- A cipher or a key agreement is `ships_encryption` evidence whether it runs
+  through Apple's own cryptography (CryptoKit, CommonCrypto's `CCCrypt`, the
+  Security framework's SecKey encryption and key exchange:
+  `swift-platform-encryption`), the system's OpenSSL through the Rust `openssl`
+  crate (`rs-openssl-encryption`) or a bundled library (swift-crypto, which
+  bundles BoringSSL, rustls with ring, RustCrypto ciphers, age, libsodium
+  bindings). A CryptoKit-shaped call in a file that also imports swift-crypto's
+  `Crypto` is read by `swift-library-encryption` only. HTTPS through
+  `URLSession`, `native-tls` or the `openssl` crate's TLS is not read, and
+  neither are hashing, a MAC, password hashing, key derivation and signing (see
+  "Shipping encryption"). In Rust, password hashing is evidence of
+  `processes_personal_data` instead, since a password is personal data.
 - A Swift package product, `.library(...)` in `Package.swift`, is a signal for
   `distributes_software_product`: no manifest field separates a published
   library from a local one. A crate is evidence when its `[package]` table lists
@@ -1510,9 +1515,10 @@ The engine sets most of these limits, and the rules' comments point here.
   about 1,800 appends in one function the engine drops the history rule's match.
 - **Identity, signatures and encryption.** No Swift rule reads a selfie with an
   ID document, a verifiable credential or a PDF signature, and identity vendors
-  beyond the six SDKs the rules name reach only the URL rule. End-to-end
-  encryption built on CryptoKit alone is unread, as the JDK's is, and no rule
-  reads a bundled TLS stack.
+  beyond the six SDKs the rules name reach only the URL rule. No Swift rule
+  reads a bundled TLS stack, and a CryptoKit or CommonCrypto cipher cannot show
+  what it encrypts, so one that holds only a sign-in token still counts and is
+  for a person to confirm.
 - **Data and tracking.** No rule reads a Vapor server's client address or a
   device fingerprint, and an install ID the app mints for itself (a random UUID
   kept in its own store and sent with every request) is not read, so
@@ -1607,9 +1613,13 @@ what the code does, not whose library does it. So the rules read:
   `KeyAgreement` (`java-` and `kt-platform-encryption`), .NET's
   `System.Security.Cryptography` (`cs-platform-encryption`) and Data
   Protection (`cs-data-protection`), Ruby's `OpenSSL::Cipher` and RSA
-  (`rb-platform-encryption`), and PHP's openssl and sodium extensions
-  (`php-platform-encryption`). Python's standard library has no cipher, so
-  Python has no platform rule.
+  (`rb-platform-encryption`), PHP's openssl and sodium extensions
+  (`php-platform-encryption`), and Apple's CryptoKit, CommonCrypto and
+  Security framework (`swift-platform-encryption`). Python's standard library
+  has no cipher, so Python has no platform rule, and neither has Rust; a Rust
+  app's ciphers come from crates (`rs-library-encryption`), and the `openssl`
+  crate's from the system's OpenSSL or a vendored copy
+  (`rs-openssl-encryption`).
 - The same through a bundled library (the `*-library-encryption` rules, the
   framework, attribute and storage rules), and a cryptography library that
   encrypts or agrees keys in the dependency tree (the component map).

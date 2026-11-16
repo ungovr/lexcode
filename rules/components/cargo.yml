@@ -115,9 +115,10 @@ entries:
 
   # Bundled cryptography
   # Only a crate whose own description says it encrypts, or that it is a cryptographic library, is listed.
-  # Hashing, MACs, password hashing, signatures and key exchange sign or hash; they do not encrypt, so argon2,
-  # bcrypt, scrypt, pbkdf2, hmac, sha1, sha2, md5, blake3, ed25519-dalek, x25519-dalek and p256 are left out
-  # (password hashing is a code-level signal, rs-password-hashing). rsa is left out because its description
+  # Hashing, MACs, password hashing and signatures keep nothing confidential (#13318), so argon2, bcrypt,
+  # scrypt, pbkdf2, hmac, sha1, sha2, md5, blake3 and ed25519-dalek are left out. The key-agreement crates
+  # x25519-dalek and p256 are not listed yet (a known gap in rules/README.md); rs-library-encryption reads
+  # x25519-dalek's key agreement in the code. rsa is left out because its description
   # ("Pure Rust RSA implementation") does not say it encrypts, and ring because its description is "An experiment.".
   - match: "aes"
     enables: [ships_encryption]
