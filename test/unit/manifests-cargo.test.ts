@@ -368,4 +368,42 @@ describe('readCargo', () => {
     expect(r?.notices[0]).toMatch(/^Cargo\.lock: did not parse \(invalid TOML( at [^)]*)?\); versions from it are unavailable$/);
     expect(r?.notices.slice(1)).toEqual([UNRESOLVED(1)]);
   });
+  it('a dotted key as long as a lookup goes is still found at its own line', () => {
+    // The longest path the reader looks up is [target, <cfg>, dependencies, <crate>]; written as one dotted key at
+    // the top level, every segment of it is recorded.
+    // The first key records the shorter paths, so the second is found only by its own full path.
+    const manifest = ['# app', "target.'cfg(unix)'.dependencies.serde = \"1\"", "target.'cfg(unix)'.dependencies.libc = \"0.2\"", '', '[package]', 'name = "app"', ''].join('\n');
+    const r = readCargo(tree({ 'Cargo.toml': manifest }), ['Cargo.toml']);
+    expect(r.deps).toEqual([
+      { ecosystem: 'cargo', name: 'serde', manifest: 'Cargo.toml:2' },
+      { ecosystem: 'cargo', name: 'libc', manifest: 'Cargo.toml:3' },
+    ]);
+  });
+
+  it('a long dotted key costs time in proportion to its length (final review I-2)', () => {
+    // Each key line once recorded every prefix of its path, so a 5,000-segment key built 5,000 paths of up to
+    // 5,000 segments; at 70,000 segments the heap ran out. Only paths a lookup can ask for are recorded now.
+    const deep = Array(5000).fill('a').join('.');
+    const keys = Array.from({ length: 20 }, (_, i) => `${deep}.b${i} = 1`);
+    const manifest = ['[package]', 'name = "app"', '', '[dependencies]', ...keys, 'serde = "1"', ''].join('\n');
+    const t0 = Date.now();
+    const r = readCargo(tree({ 'Cargo.toml': manifest }), ['Cargo.toml']);
+    expect(Date.now() - t0).toBeLessThan(1000);
+    expect(r.deps).toContainEqual({ ecosystem: 'cargo', name: 'serde', manifest: `Cargo.toml:${lineOf(manifest, 'serde =')}` });
+  });
+
+  it('a line that opens with [ inside a multi-line array is not a table header (final review minor 8)', () => {
+    const manifest = ['[package]', 'name = "app"', '', '[dependencies]', 'x = [', '  ["serde"],', ']', 'serde = "1"', ''].join('\n');
+    const r = readCargo(tree({ 'Cargo.toml': manifest }), ['Cargo.toml']);
+    expect(r.deps).toEqual([{ ecosystem: 'cargo', name: 'serde', manifest: 'Cargo.toml:8' }]);
+  });
+
+  it('brackets in strings and comments inside a multi-line array do not end it early or keep it open', () => {
+    const manifest = ['[dependencies]', 'x = [ # a ] in a comment', '  "]]", \'\\\\\',', '  ["tokio"],', ']', 'serde = "1"', '[dependencies.tokio]', 'version = "1"', ''].join('\n');
+    const r = readCargo(tree({ 'Cargo.toml': manifest }), ['Cargo.toml']);
+    expect(r.deps).toEqual([
+      { ecosystem: 'cargo', name: 'serde', manifest: 'Cargo.toml:6' },
+      { ecosystem: 'cargo', name: 'tokio', manifest: 'Cargo.toml:7' },
+    ]);
+  });
 });

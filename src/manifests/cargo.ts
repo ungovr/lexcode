@@ -19,6 +19,9 @@ const DEV_TABLES = ['dev-dependencies', 'dev_dependencies', 'build-dependencies'
 
 // ---- where each key is written ---------------------------------------------------------------
 
+/** A bare key segment, matched where it stands (sticky), so a long dotted key is read in one pass. */
+const BARE_KEY = /[A-Za-z0-9_-]+/y;
+
 /**
  * Read a dotted TOML key (bare, "basic" or 'literal' segments) starting at `i`. Returns the segments
  * and the index just past the key, or undefined when no key starts there.
@@ -48,7 +51,8 @@ function keyPath(s: string, i: number): { segs: string[]; end: number } | undefi
       segs.push(s.slice(i + 1, close));
       i = close + 1;
     } else {
-      const m = /^[A-Za-z0-9_-]+/.exec(s.slice(i));
+      BARE_KEY.lastIndex = i;
+      const m = BARE_KEY.exec(s);
       if (!m) return undefined;
       segs.push(m[0]);
       i += m[0].length;
@@ -60,9 +64,36 @@ function keyPath(s: string, i: number): { segs: string[]; end: number } | undefi
 }
 
 /**
+ * The longest path `CargoLines.line` is asked for: `[target, <cfg>, dependencies, <crate>]`. A longer path is
+ * never looked up, so it is not recorded: recording every prefix of a 70,000-segment dotted key ran the heap
+ * out (final review I-2).
+ */
+const MAX_LOOKUP = 4;
+
+/**
+ * The net count of `[` and `{` over `]` and `}` in TOML text from `from`, outside strings and a comment: how
+ * far a line opens (or closes) a multi-line array.
+ */
+function bracketDepth(s: string, from: number): number {
+  let d = 0;
+  for (let i = from; i < s.length; i++) {
+    const c = s[i];
+    if (c === '#') break;
+    if (c === '"' || c === "'") {
+      let j = i + 1;
+      while (j < s.length && s[j] !== c) j += c === '"' && s[j] === '\\' ? 2 : 1;
+      i = j;
+    } else if (c === '[' || c === '{') d++;
+    else if (c === ']' || c === '}') d--;
+  }
+  return d;
+}
+
+/**
  * The line of every table header and every key in one Cargo.toml, by its full path, from one pass.
  * `[dependencies.tokio]` records `dependencies.tokio`; `serde.workspace = true` under `[dependencies]`
- * records `dependencies.serde` and `dependencies.serde.workspace`. The first line wins.
+ * records `dependencies.serde` and `dependencies.serde.workspace`. The first line wins. A path longer than
+ * MAX_LOOKUP is not recorded, and the lines inside a multi-line array are values, never headers or keys.
  */
 class CargoLines {
   private readonly at = new Map<string, number>();
@@ -70,11 +101,17 @@ class CargoLines {
   constructor(text: string) {
     let table: string[] = [];
     let inString: string | undefined;
+    /** How deep the multi-line array (or inline table) a key's value opened still is. */
+    let open = 0;
     const lines = text.split('\n');
     for (let n = 0; n < lines.length; n++) {
       const line = lines[n] as string;
       if (inString !== undefined) {
         if (line.includes(inString)) inString = undefined;
+        continue;
+      }
+      if (open > 0) {
+        open = Math.max(0, open + bracketDepth(line, 0));
         continue;
       }
       const header = /^\s*\[(\[?)/.exec(line);
@@ -87,15 +124,17 @@ class CargoLines {
       }
       const k = keyPath(line, 0);
       if (!k || line[k.end] !== '=') continue;
-      for (let i = 1; i <= k.segs.length; i++) this.record([...table, ...k.segs.slice(0, i)], n);
+      for (let i = 1; i <= k.segs.length && table.length + i <= MAX_LOOKUP; i++) this.record([...table, ...k.segs.slice(0, i)], n);
       const value = line.slice(k.end + 1).trimStart();
       for (const delim of ['"""', "'''"]) {
         if (value.startsWith(delim) && !value.slice(3).includes(delim)) inString = delim;
       }
+      if (inString === undefined) open = Math.max(0, bracketDepth(line, k.end + 1));
     }
   }
 
   private record(path: string[], line: number): void {
+    if (path.length > MAX_LOOKUP) return;
     const key = path.join('\0');
     if (!this.at.has(key)) this.at.set(key, line + 1);
   }
