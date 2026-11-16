@@ -305,25 +305,25 @@ describe('readSwiftPm', () => {
   it('nested .package( calls cost time in proportion to the file (final review I-3)', () => {
     // Each call once rescanned the rest of the file for its closing parenthesis and again for its arguments:
     // 20,000 nested calls took 9.4 s, and 50,000 took 47.9 s.
-    const root = tree({ 'Package.swift': `${'.package('.repeat(20000)}${')'.repeat(20000)}\n` });
+    const root = tree({ 'Package.swift': `${'.package('.repeat(50000)}${')'.repeat(50000)}\n` });
     const t0 = Date.now();
     const r = readSwiftPm(root, ['Package.swift']);
-    expect(Date.now() - t0).toBeLessThan(2000);
+    expect(Date.now() - t0).toBeLessThan(5000);
     expect(r.deps).toEqual([]);
     expect(r.notices).toEqual([]);
   });
 
   it('many packages and product references cost time in proportion to the file', () => {
     // Finding each argument's string, and each package's references, once searched every string and every
-    // reference: 20,000 packages each named by a product took 6.2 s.
-    const n = 20000;
+    // reference: 20,000 packages each named by a product took 6.2 s, and the time grows with the square.
+    const n = 40000;
     const deps = Array.from({ length: n }, (_, i) => `.package(url: "https://github.com/o${i}/r${i}.git", from: "1.0.0")`);
     const products = Array.from({ length: n }, (_, i) => `.product(name: "R${i}", package: "r${i}")`).join(', ');
     const text = manifest(deps, [`.target(name: "App", dependencies: [${products}])`, '.testTarget(name: "AppTests", dependencies: [.product(name: "R0", package: "r0")])']);
     const root = tree({ 'Package.swift': text });
     const t0 = Date.now();
     const r = readSwiftPm(root, ['Package.swift']);
-    expect(Date.now() - t0).toBeLessThan(2000);
+    expect(Date.now() - t0).toBeLessThan(5000);
     expect(r.deps).toHaveLength(n);
     expect(r.devSkipped).toBe(0);
   });

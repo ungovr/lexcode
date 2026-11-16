@@ -384,11 +384,11 @@ describe('readCargo', () => {
     // Each key line once recorded every prefix of its path, so a 5,000-segment key built 5,000 paths of up to
     // 5,000 segments; at 70,000 segments the heap ran out. Only paths a lookup can ask for are recorded now.
     const deep = Array(5000).fill('a').join('.');
-    const keys = Array.from({ length: 20 }, (_, i) => `${deep}.b${i} = 1`);
+    const keys = Array.from({ length: 60 }, (_, i) => `${deep}.b${i} = 1`);
     const manifest = ['[package]', 'name = "app"', '', '[dependencies]', ...keys, 'serde = "1"', ''].join('\n');
     const t0 = Date.now();
     const r = readCargo(tree({ 'Cargo.toml': manifest }), ['Cargo.toml']);
-    expect(Date.now() - t0).toBeLessThan(1000);
+    expect(Date.now() - t0).toBeLessThan(5000);
     expect(r.deps).toContainEqual({ ecosystem: 'cargo', name: 'serde', manifest: `Cargo.toml:${lineOf(manifest, 'serde =')}` });
   });
 

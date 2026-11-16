@@ -26,11 +26,11 @@ describe('rubyLines', () => {
 
   it('a long continuation costs time in proportion to its length (final review minor 1)', () => {
     // Each continuation line once rebuilt and re-tested the whole joined text: 100,000 lines took 26.7 s.
-    const text = `pod 'X',\n${'  :a => 1,\n'.repeat(50000)}  :b => 2\npod 'Y'\n`;
+    const text = `pod 'X',\n${'  :a => 1,\n'.repeat(100000)}  :b => 2\npod 'Y'\n`;
     const t0 = Date.now();
     const out = read(text);
-    expect(Date.now() - t0).toBeLessThan(2000);
-    expect(out.map((l) => l.line)).toEqual([1, 50003]);
+    expect(Date.now() - t0).toBeLessThan(5000);
+    expect(out.map((l) => l.line)).toEqual([1, 100003]);
     expect(out[0]?.code.endsWith(':a => 1, :b => 2')).toBe(true);
   });
 });
