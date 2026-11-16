@@ -312,13 +312,24 @@ AUDIO_LISTS = r"recordings|clips"
 
 
 def state_sink(names: str, lists: str) -> str:
+    """An assignment, `+=` or append to a property whose name says it holds output. The name check sits in a
+    nested block with the pattern-either that binds $S (CONTRIBUTING.md, Cost), so every other assignment in
+    the file is dropped before the local-`var` exclusions are paired with it: about a fifth of
+    swift-image-reply-to-response's time on rule-cost's plain 900 KB filler (two runs at high load, same
+    matches). A local-`var` exclusion written with no return type also covers a function that has one, so
+    there is no `-> $T` copy of either; each reply rule's `.neg.test.scope.swift` holds that shape, untyped
+    and typed, and matches once the exclusions are removed."""
     return f"""
       - patterns:
-          - pattern-either:
-              - pattern: $S = $X
-              - pattern: $S += $X
-              - pattern: $S.append($X)
-              - pattern: '$S.append(contentsOf: $X)'
+          - patterns:
+              - pattern-either:
+                  - pattern: $S = $X
+                  - pattern: $S += $X
+                  - pattern: $S.append($X)
+                  - pattern: '$S.append(contentsOf: $X)'
+              - metavariable-regex:
+                  metavariable: $S
+                  regex: (?i)^(self[?!]?\\.)?_?\\w*({names}|{lists})\\w*$
           - pattern-not-inside: let $S = $E
           - pattern-not-inside: |
               func $F(...) {{
@@ -327,26 +338,11 @@ def state_sink(names: str, lists: str) -> str:
                 ...
               }}
           - pattern-not-inside: |
-              func $F(...) -> $T {{
-                ...
-                var $S = $E
-                ...
-              }}
-          - pattern-not-inside: |
               func $F(...) {{
                 ...
                 var $S: $U = $E
                 ...
               }}
-          - pattern-not-inside: |
-              func $F(...) -> $T {{
-                ...
-                var $S: $U = $E
-                ...
-              }}
-          - metavariable-regex:
-              metavariable: $S
-              regex: (?i)^(self[?!]?\\.)?_?\\w*({names}|{lists})\\w*$
           - focus-metavariable: $X""".strip("\n")
 
 
