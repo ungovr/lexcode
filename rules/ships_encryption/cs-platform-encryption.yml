@@ -9,11 +9,13 @@ rules:
     # of the same short name. System.Security.Cryptography is not an SDK implicit using, so no short
     # form is needed. A symmetric algorithm comes from a static factory (`Aes.Create()`), whose return
     # type the engine does not follow, so its encryptor and one-shot calls are read by their names
-    # in a file that imports the namespace; a file that reaches it only through a `global using`
-    # elsewhere is missed. RSA encryption is read by its padding argument, which only encryption
-    # takes. Hashing (SHA256), a MAC (HMACSHA256), key derivation and password hashing
-    # (Rfc2898DeriveBytes, Identity's PasswordHasher), signing (SignData, ECDsa), random bytes and
-    # HTTPS through HttpClient are not read.
+    # where the namespace is in scope: imported exactly, aliased, or the algorithm built fully
+    # qualified earlier in the same scope. A file that reaches the namespace only through a
+    # `global using` elsewhere is missed. RSA encryption is read by its padding argument, which only
+    # encryption takes, and RSACryptoServiceProvider by its declared type. Hashing (SHA256), a MAC
+    # (HMACSHA256), key derivation and password hashing (Rfc2898DeriveBytes, Identity's
+    # PasswordHasher), signing (SignData, ECDsa), random bytes and HTTPS through HttpClient are not
+    # read.
     pattern-either:
       # The AEAD types, built with `new` (with or without an initializer) or a target-typed `new()`
       - pattern: 'new System.Security.Cryptography.AesGcm(...) { ... }'
@@ -33,14 +35,107 @@ rules:
               - pattern: $A.DecryptEcb(...)
               - pattern: $A.EncryptCfb(...)
               - pattern: $A.DecryptCfb(...)
-          - pattern-inside: |
-              using System.Security.Cryptography;
-              ...
+          # The algorithm's namespace is in scope: imported exactly (`using X;` alone also accepts a
+          # deeper namespace such as X.X509Certificates, so the name is checked), aliased, or the
+          # algorithm built fully qualified earlier in the scope
+          - pattern-either:
+              - patterns:
+                  - pattern-inside: |
+                      using $NS;
+                      ...
+                  - metavariable-regex:
+                      metavariable: $NS
+                      regex: ^System\.Security\.Cryptography$
+              - patterns:
+                  - pattern-inside: |
+                      using $AL = $NS;
+                      ...
+                  - metavariable-regex:
+                      metavariable: $NS
+                      regex: ^System\.Security\.Cryptography$
+              - pattern-inside: |
+                  $V = System.Security.Cryptography.Aes.Create(...);
+                  ...
+              - pattern-inside: |
+                  var $V = System.Security.Cryptography.Aes.Create(...);
+                  ...
+              - pattern-inside: |
+                  using var $V = System.Security.Cryptography.Aes.Create(...);
+                  ...
+              - pattern-inside: |
+                  $T $V = System.Security.Cryptography.Aes.Create(...);
+                  ...
+              - pattern-inside: |
+                  using (var $V = System.Security.Cryptography.Aes.Create(...)) { ... }
+              - pattern-inside: System.Security.Cryptography.Aes.Create(...).$M(...)
+              - pattern-inside: |
+                  $V = System.Security.Cryptography.TripleDES.Create(...);
+                  ...
+              - pattern-inside: |
+                  var $V = System.Security.Cryptography.TripleDES.Create(...);
+                  ...
+              - pattern-inside: |
+                  using var $V = System.Security.Cryptography.TripleDES.Create(...);
+                  ...
+              - pattern-inside: |
+                  $T $V = System.Security.Cryptography.TripleDES.Create(...);
+                  ...
+              - pattern-inside: |
+                  using (var $V = System.Security.Cryptography.TripleDES.Create(...)) { ... }
+              - pattern-inside: System.Security.Cryptography.TripleDES.Create(...).$M(...)
+              - pattern-inside: |
+                  $V = System.Security.Cryptography.DES.Create(...);
+                  ...
+              - pattern-inside: |
+                  var $V = System.Security.Cryptography.DES.Create(...);
+                  ...
+              - pattern-inside: |
+                  using var $V = System.Security.Cryptography.DES.Create(...);
+                  ...
+              - pattern-inside: |
+                  $T $V = System.Security.Cryptography.DES.Create(...);
+                  ...
+              - pattern-inside: |
+                  using (var $V = System.Security.Cryptography.DES.Create(...)) { ... }
+              - pattern-inside: System.Security.Cryptography.DES.Create(...).$M(...)
+              - pattern-inside: |
+                  $V = System.Security.Cryptography.RC2.Create(...);
+                  ...
+              - pattern-inside: |
+                  var $V = System.Security.Cryptography.RC2.Create(...);
+                  ...
+              - pattern-inside: |
+                  using var $V = System.Security.Cryptography.RC2.Create(...);
+                  ...
+              - pattern-inside: |
+                  $T $V = System.Security.Cryptography.RC2.Create(...);
+                  ...
+              - pattern-inside: |
+                  using (var $V = System.Security.Cryptography.RC2.Create(...)) { ... }
+              - pattern-inside: System.Security.Cryptography.RC2.Create(...).$M(...)
+              - pattern-inside: |
+                  $V = System.Security.Cryptography.Rijndael.Create(...);
+                  ...
+              - pattern-inside: |
+                  var $V = System.Security.Cryptography.Rijndael.Create(...);
+                  ...
+              - pattern-inside: |
+                  using var $V = System.Security.Cryptography.Rijndael.Create(...);
+                  ...
+              - pattern-inside: |
+                  $T $V = System.Security.Cryptography.Rijndael.Create(...);
+                  ...
+              - pattern-inside: |
+                  using (var $V = System.Security.Cryptography.Rijndael.Create(...)) { ... }
+              - pattern-inside: System.Security.Cryptography.Rijndael.Create(...).$M(...)
       # RSA encryption, read by its padding
       - pattern: $R.Encrypt($D, System.Security.Cryptography.RSAEncryptionPadding.$P)
       - pattern: $R.Decrypt($D, System.Security.Cryptography.RSAEncryptionPadding.$P)
       - pattern: $R.TryEncrypt($D, $O, System.Security.Cryptography.RSAEncryptionPadding.$P, ...)
       - pattern: $R.TryDecrypt($D, $O, System.Security.Cryptography.RSAEncryptionPadding.$P, ...)
+      # The legacy RSACryptoServiceProvider, whose Encrypt and Decrypt take a bool for OAEP
+      - pattern: (System.Security.Cryptography.RSACryptoServiceProvider $R).Encrypt(...)
+      - pattern: (System.Security.Cryptography.RSACryptoServiceProvider $R).Decrypt(...)
       # Key agreement
       - pattern: System.Security.Cryptography.ECDiffieHellman.Create(...)
       - pattern: 'new System.Security.Cryptography.ECDiffieHellmanCng(...) { ... }'

@@ -993,10 +993,16 @@ The engine sets most of these limits, and the rules' comments point here.
   `PackageLicenseExpression` or `PackageLicenseFile` for its license metadata
   only, or an app's own attribute named `Activity` with a `MainLauncher`
   property, matches.
-- Encryption: an `Aes` or `TripleDES` encryptor in a file that reaches
-  `System.Security.Cryptography` only through a `global using` elsewhere, and
-  RSA encryption whose padding is held in a variable, are missed; a Data
-  Protection purpose held in a variable is read whatever it protects.
+- Encryption: a symmetric algorithm's encryptor (`CreateEncryptor`,
+  `EncryptCbc` and the rest) is read where `System.Security.Cryptography`
+  itself is imported (a deeper namespace such as `X509Certificates` alone does
+  not count) or aliased, or where the algorithm was built fully qualified
+  earlier in the same scope. It is missed in a file that reaches the namespace
+  only through a `global using` elsewhere, and on an algorithm handed in from
+  another file with no import. RSA encryption whose padding is held in a
+  variable, and an `RSACryptoServiceProvider` held as a value from a factory or
+  a `var` set from a call, are missed. A Data Protection purpose held in a
+  variable is read whatever it protects.
 - Signals: the MVC sign-up arm needs a literal `return View(...)` or
   `=> View(...)`, and no rule reads an `@page` or `.cshtml` route, so a
   storefront of Razor components with no sign-up screen shows no
