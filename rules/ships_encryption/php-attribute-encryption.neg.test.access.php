@@ -32,6 +32,13 @@ class Integration extends Model
             'login_code' => 'encrypted',
             'session_payload' => AsEncryptedCollection::class,
             'mfa_backup_codes' => AsEncryptedCollection::of(BackupCode::class),
+            'legacy_pwd' => 'encrypted',
+            'reset_code' => 'encrypted',
+            'jwt_signing_key' => 'encrypted',
+            'invite_code' => 'encrypted',
+            'credentials' => 'encrypted:array',
+            'session_id' => 'encrypted',
+            'passwd' => 'encrypted',
         ];
     }
 }

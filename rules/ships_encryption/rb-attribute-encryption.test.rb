@@ -1,4 +1,4 @@
-# lexcode-expect: 10
+# lexcode-expect: 11
 # Models that encrypt ordinary data with the application's own cryptography:
 # Rails 7 Active Record Encryption, Lockbox and attr_encrypted, with names that
 # only look like access-control words (shipping, footprint, zip_code), a
@@ -36,4 +36,5 @@ class Shipment < ApplicationRecord
   encrypts :shipping_address, :zip_code
   encrypts(:carbon_footprint)
   encrypts :otp_secret, :phone_number
+  encrypts :session_notes
 end

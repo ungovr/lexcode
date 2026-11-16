@@ -1,5 +1,5 @@
 <?php
-// lexcode-expect: 8
+// lexcode-expect: 9
 // Eloquent models whose columns Laravel encrypts on save: the encrypted casts in a $casts
 // property and in a casts() method, and the encrypted collection and array-object cast classes,
 // imported, aliased and fully qualified. Every column holds ordinary data; shipping_address only
@@ -32,6 +32,7 @@ class Integration extends Model
             'enabled' => 'boolean',
             'addresses' => "encrypted:collection",
             'shipping_address' => 'encrypted',
+            'session_notes' => 'encrypted',
         ];
     }
 }

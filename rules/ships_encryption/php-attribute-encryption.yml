@@ -51,12 +51,15 @@ rules:
       # recovery code, API key or session data) is authentication under the export rules (15 C.F.R.
       # 772.1), not confidentiality, so a cast is not read when its column is named for one. The
       # name test is case-insensitive on the key: it contains two_factor, recovery_code,
-      # backup_code, password, passcode, token, secret, api_key, session or remember; or one of its
-      # underscore-separated words is otp, totp, mfa, 2fa, pin or nonce (so shipping_address is
-      # ordinary data); or it is code or login_code. The regex covers the key, the arrow and the
-      # value, so it removes the value's match. Laravel's cookie encryption (EncryptCookies) is the
-      # framework's access control and no rule reads it.
-      - pattern-not-regex: (?i)['"](?:\w*(?:two_?factor|recovery_codes?|backup_codes?|password|passcode|token|secret(?!ar)|api_?key|session|remember)\w*|(?:\w*_)?(?:otp|totp|mfa|2fa|pin|nonce)(?:_\w*)?|code|login_code)['"]\s*=>\s*(?:[^,\[\]()\n]|\([^()\n]*\))+
+      # backup_code, password, passwd, passcode, passphrase, token, secret, api_key, remember,
+      # credential(s), or a verification, invite, access, auth, reset, confirmation or activation
+      # code; or one of its underscore-separated words is otp, totp, mfa, 2fa, pin, nonce, pwd or
+      # jwt (so shipping_address is ordinary data); or it is session data (session or sessions,
+      # alone, after another word, or with an _id, _token, _data, _key, _payload, _cookie or _store
+      # suffix; session_notes is ordinary data); or it is code or login_code. The regex covers the
+      # key, the arrow and the value, so it removes the value's match. Laravel's cookie encryption
+      # (EncryptCookies) is the framework's access control and no rule reads it.
+      - pattern-not-regex: (?i)['"](?:\w*(?:two_?factor|recovery_?codes?|backup_?codes?|password|passwd|passcode|passphrase|token|secret(?!ar)|api_?key|remember|credentials?|(?:verification|invite|access|auth|reset|confirmation|activation)_?codes?)\w*|(?:\w*_)?(?:otp|totp|mfa|2fa|pin|nonce|pwd|jwt)(?:_\w*)?|(?:\w*_)?sessions?(?:_?(?:id|ids|token|tokens|data|key|keys|payload|cookie|cookies|store))?|code|login_code)['"]\s*=>\s*(?:[^,\[\]()\n]|\([^()\n]*\))+
     metadata:
       activity: ships_encryption
       mentioned: performs

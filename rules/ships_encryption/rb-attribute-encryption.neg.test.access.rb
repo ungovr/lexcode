@@ -19,4 +19,8 @@ class Integration < ApplicationRecord
   attr_encrypted :api_secret, key: ENV.fetch("ATTR_ENCRYPTED_KEY")
   attr_encrypted :access_token, key: ENV.fetch("ATTR_ENCRYPTED_KEY")
   encrypts :card_pin, :password_reset_nonce
+  encrypts :legacy_pwd, :reset_code, :jwt_signing_key
+  encrypts :invite_code, :user_credentials, :session_id, :passwd
+  encrypts :activation_code, :access_code, :verification_code, :confirmation_code
+  encrypts :user_session, :sessions
 end
