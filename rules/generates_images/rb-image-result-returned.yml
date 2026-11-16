@@ -1,3 +1,11 @@
+# The sink is not every return in the file: every return made the taint pass grow several times
+# faster than the file, 48 to 56 s on a 900 KB file where a scan gives one rule 30 s per file
+# (#13034). It is a return or a yield in a method whose body makes one of the calls below, or after
+# a statement that makes one in the same block (which reaches a method with a rescue or ensure
+# clause). Not followed: in a method with a rescue or ensure clause, a return after the block that
+# holds the call (the call in an if branch, the return after the if), and a result one method stores
+# at run time and another returns. The calls are the sources without their argument and name checks.
+# How the scope is written, and why, is in CONTRIBUTING.md, Cost.
 rules:
   - id: lexcode.image.rb-image-result-returned
     languages: [ruby]
@@ -24,17 +32,79 @@ rules:
         from: $S
         to: $X
     pattern-sinks:
-      - pattern: yield $X
+      - patterns:
+          - pattern: yield $X
+          - pattern-either:
+              - patterns:
+                  - pattern-inside: |
+                      def $SINKFN(...)
+                        $...SINKBODY
+                      end
+                  - metavariable-pattern:
+                      metavariable: $...SINKBODY
+                      pattern-either: &sinkcalls
+                        - pattern: $SINKC.images.$SINKM(...)
+                        - pattern: RubyLLM.paint(...)
+              - patterns:
+                  - pattern-inside: |
+                      def self.$SINKFN(...)
+                        $...SINKBODY
+                      end
+                  - metavariable-pattern:
+                      metavariable: $...SINKBODY
+                      pattern-either: *sinkcalls
+              - patterns:
+                  - pattern-either:
+                      - pattern-inside: |
+                          def $SINKFN(...)
+                            ...
+                          end
+                      - pattern-inside: |
+                          def self.$SINKFN(...)
+                            ...
+                          end
+                  - pattern-either:
+                      - pattern-inside: |
+                          <... $SINKC.images.$SINKM(...) ...>
+                          ...
+                      - pattern-inside: |
+                          <... RubyLLM.paint(...) ...>
+                          ...
       - patterns:
           - pattern-either:
-              - pattern-inside: |
-                  def $F(...)
-                    ...
-                  end
-              - pattern-inside: |
-                  def self.$F(...)
-                    ...
-                  end
+              - patterns:
+                  - pattern-inside: |
+                      def $SINKFN(...)
+                        $...SINKBODY
+                      end
+                  - metavariable-pattern:
+                      metavariable: $...SINKBODY
+                      pattern-either: *sinkcalls
+              - patterns:
+                  - pattern-inside: |
+                      def self.$SINKFN(...)
+                        $...SINKBODY
+                      end
+                  - metavariable-pattern:
+                      metavariable: $...SINKBODY
+                      pattern-either: *sinkcalls
+              - patterns:
+                  - pattern-either:
+                      - pattern-inside: |
+                          def $SINKFN(...)
+                            ...
+                          end
+                      - pattern-inside: |
+                          def self.$SINKFN(...)
+                            ...
+                          end
+                  - pattern-either:
+                      - pattern-inside: |
+                          <... $SINKC.images.$SINKM(...) ...>
+                          ...
+                      - pattern-inside: |
+                          <... RubyLLM.paint(...) ...>
+                          ...
           - pattern-either:
               - pattern: return $V
               - pattern: return $V.$M(...)

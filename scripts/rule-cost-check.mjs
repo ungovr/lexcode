@@ -56,6 +56,7 @@ try {
   mkdirSync(join(tree, 'scripts'));
   mkdirSync(join(tree, 'rules', 'check'), { recursive: true });
   copyFileSync(script, join(tree, 'scripts', 'rule-cost.mjs'));
+  copyFileSync(join(dirname(script), 'filler.mjs'), join(tree, 'scripts', 'filler.mjs')); // rule-cost.mjs imports its filler
   symlinkSync(join(ROOT, 'node_modules'), join(tree, 'node_modules'), 'dir'); // rule-cost.mjs reads rule files with yaml
   const rules = join(tree, 'rules', 'check');
   writeFileSync(join(rules, 'swift-quadratic-check.yml'), QUADRATIC);

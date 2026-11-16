@@ -27,7 +27,7 @@ import { toSarif } from '../record/sarif.js';
 import { loadRuleSet, writeMergedConfig } from '../rules/load.js';
 import { extractScripts } from '../scope/extract.js';
 import { listFiles } from '../scope/files.js';
-import { hasLongLine, MAX_LINE_CHARS } from '../scope/longlines.js';
+import { longLineFiles, MAX_LINE_CHARS } from '../scope/longlines.js';
 import { dropRustTestMatches } from '../scope/rust-tests.js';
 import { loadSidecar } from '../config/sidecar.js';
 import type { Dependency, EngineMatch, Evidence, EvidenceRecord, RuleSet, ScopeSpec, Sidecar } from '../types.js';
@@ -187,12 +187,23 @@ export async function scan(o: ScanOptions): Promise<EvidenceRecord> {
   try {
     const pairs = rs.rules.length > 0 ? extractScripts(root, files, join(tmp, 'scripts')) : [];
     let countedFiles = [...files, ...pairs.map((p) => p.tempPath)];
+    // Each file's size, taken once: the long-line check, the pre-filter reach notice, the engine's lane count and
+    // its deal all ask (#13251).
+    const pathOf = (f: string): string => (isAbsolute(f) ? f : join(root, ...f.split('/')));
+    const sizes = new Map<string, number>();
+    const bytesOf = (f: string): number => {
+      let n = sizes.get(f);
+      if (n === undefined) sizes.set(f, (n = fileBytes(pathOf(f))));
+      return n;
+    };
     // Only the rules with a file to read, and only the files they read, go to the engine (#12997).
     let plan = enginePlan(rs.rules, countedFiles);
     if (plan.targets.length > 0) {
       // A file with a line over 100,000 characters is generated code, and the engine can spend ten
-      // minutes on one such line: it is not handed over, and not counted as read.
-      const long = new Set(plan.targets.filter((f) => hasLongLine(isAbsolute(f) ? f : join(root, ...f.split('/')))));
+      // minutes on one such line: it is not handed over, and not counted as read. Extraction has judged its
+      // copies already, and wrote none that has such a line (#13251).
+      const judged = new Map(pairs.map((p) => [p.tempPath, p.longLine]));
+      const long = longLineFiles(plan.targets, { pathOf, bytesOf, judged });
       if (long.size > 0) {
         countedFiles = countedFiles.filter((f) => !long.has(f));
         plan = enginePlan(rs.rules, countedFiles);
@@ -212,13 +223,6 @@ export async function scan(o: ScanOptions): Promise<EvidenceRecord> {
       const configFile = join(tmp, 'rules.yml');
       const { targets } = plan;
       // A whole-file pre-filter can stop matching in a file over about 1 MB; the engine records nothing, so say so.
-      // Read once per file: the reach notice, the engine's lane count and its deal all ask.
-      const sizes = new Map<string, number>();
-      const bytesOf = (f: string): number => {
-        let n = sizes.get(f);
-        if (n === undefined) sizes.set(f, (n = fileBytes(isAbsolute(f) ? f : join(root, ...f.split('/')))));
-        return n;
-      };
       const reach = prefilterReachNotice(largePrefilteredFiles(plan.rules, targets, bytesOf));
       if (reach !== undefined) notices.push(reach);
       if (targets.length > 0) {
@@ -231,7 +235,7 @@ export async function scan(o: ScanOptions): Promise<EvidenceRecord> {
         // Rust's unit tests sit in #[cfg(test)] modules of the source file itself; they are tests, out of
         // scope unless the scan includes them. Filtered on the original paths the record will carry: an
         // extracted copy is never .rs, and each .rs file with a match is read once.
-        if (!o.includeTests) matches = dropRustTestMatches(matches, (f) => readText(isAbsolute(f) ? f : join(root, ...f.split('/'))));
+        if (!o.includeTests) matches = dropRustTestMatches(matches, (f) => readText(pathOf(f)));
       }
       if (!handle.pinned && engineVersion !== ENGINE_PIN.version) {
         notices.push(`the engine is ${engineVersion}, not the pinned ${ENGINE_PIN.version}; the rule fixtures were checked against the pinned version only`);
