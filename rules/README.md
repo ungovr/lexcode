@@ -10,7 +10,7 @@ UnGovr and MIT licensed. The recall table below is measured against the truth
 sets, per activity.
 
 <!-- recall:start -->
-Measured 2026-11-15 over the UnGovr monorepo, 11 pinned starter templates and 4 real apps,
+Measured 2026-11-16 over the UnGovr monorepo, 15 pinned starter templates and 6 real apps,
 against answer keys, each read by an agent that had not seen the rules.
 Found counts evidence of either kind for the activity or its family; signal
 only counts the misses where lexcode showed a worth-a-look row and nothing
@@ -18,25 +18,25 @@ stronger. Recall is printed, never gated.
 
 | Activity | Expected | Found | Signal only | Missed in |
 |---|---:|---:|---:|---|
-| `aggregates_content` | 3 | 1 | 1 | monorepo, nowinandroid |
-| `automated_outreach` | 5 | 5 | 0 |  |
-| `crawls_web` | 3 | 2 | 1 | moodle |
+| `aggregates_content` | 5 | 2 | 1 | monorepo, nowinandroid, penny-bot |
+| `automated_outreach` | 8 | 7 | 0 | zero-to-production |
+| `crawls_web` | 5 | 3 | 1 | penny-bot, moodle |
 | `deploys_chatbot` | 4 | 2 | 0 | canvas-android, nopcommerce |
-| `distributes_software_product` | 9 | 6 | 0 | nowinandroid, eshop, canvas-android |
+| `distributes_software_product` | 12 | 7 | 2 | nowinandroid, eshop, clean-architecture-swiftui, canvas-android, wikipedia-ios |
 | `generates_content` | 6 | 4 | 0 | canvas-android, moodle |
 | `generates_images` | 1 | 0 | 0 | moodle |
 | `generates_text` | 5 | 3 | 0 | canvas-android, moodle |
-| `operates_social_platform` | 5 | 0 | 3 | symfony-demo, canvas-android, moodle, nopcommerce, sakai |
+| `operates_social_platform` | 8 | 0 | 6 | symfony-demo, realworld-axum-sqlx, canvas-android, lemmy, moodle, nopcommerce, sakai, wikipedia-ios |
 | `processes_biometrics` | 1 | 1 | 0 |  |
-| `processes_personal_data` | 16 | 16 | 0 |  |
+| `processes_personal_data` | 21 | 20 | 0 | penny-bot |
 | `processes_voice` | 4 | 3 | 1 | moodle |
 | `records_calls` | 3 | 1 | 0 | monorepo, sakai |
-| `records_text_chat` | 4 | 2 | 0 | eshop, moodle |
-| `ships_consumer_interface` | 15 | 0 | 6 | vercel-chatbot, nextjs-subscription-payments, obytes-expo, full-stack-fastapi, bullet-train, spring-petclinic, nowinandroid, symfony-demo, wave, eshop, clean-architecture, canvas-android, moodle, nopcommerce, sakai |
-| `ships_encryption` | 13 | 4 | 2 | vercel-chatbot, obytes-expo, full-stack-fastapi, bullet-train, symfony-demo, wave, eshop, clean-architecture, nopcommerce |
-| `ships_mobile_app` | 5 | 5 | 0 |  |
+| `records_text_chat` | 5 | 2 | 0 | eshop, penny-bot, moodle |
+| `ships_consumer_interface` | 19 | 0 | 9 | vercel-chatbot, nextjs-subscription-payments, obytes-expo, full-stack-fastapi, bullet-train, spring-petclinic, nowinandroid, symfony-demo, wave, eshop, clean-architecture, clean-architecture-swiftui, penny-bot, zero-to-production, canvas-android, moodle, nopcommerce, sakai, wikipedia-ios |
+| `ships_encryption` | 7 | 5 | 0 | penny-bot, zero-to-production |
+| `ships_mobile_app` | 7 | 7 | 0 |  |
 | `statutory_requests` | 1 | 0 | 1 | monorepo |
-| `tracks_devices` | 7 | 6 | 0 | sakai |
+| `tracks_devices` | 8 | 6 | 0 | sakai, wikipedia-ios |
 | `trains_models` | 1 | 0 | 0 | moodle |
 <!-- recall:end -->
 
@@ -431,6 +431,10 @@ The scan's notices, as printed: skipped 4 symbolic links, 155 C and C++ files an
 125 Objective-C files not read because lexcode has no rules for those languages
 (the reading names no row that rests on Objective-C alone), and the engine could
 not read 18 files.
+
+**Re-run for the 1.5.0 release, 2026-11-16.** The release build gives the same
+record, row for row, with the same notices and the same 0 FAIL. The scan took 15
+seconds and 0.43 GB at most, under a load average of about 24.
 <!-- wikipedia-ios:end -->
 
 <!-- lemmy:start -->
@@ -467,7 +471,7 @@ Recall is printed, never gated. Paths below are relative to the repository root.
 | `crawls_web` | include: the link-preview fetch (`crates/api/api_utils/src/request.rs:72`, `:90`, `:188`, `:498`), `crates/api/api_utils/Cargo.toml:82`, `crates/api/api_crud/src/post/create.rs:156`, `crates/apub/objects/src/objects/post.rs:326`, the nodeinfo poll (`crates/routes/src/utils/scheduled_tasks.rs:881` and `:920`), the bootstrap fetch (`crates/api/api_crud/src/user/create.rs:729`) and `Cargo.toml:180` | found, performs 2 and enables 1; `lexcode.crawl.rs-link-preview-fetch` at `crates/api/api_utils/src/request.rs:88` and `:576`; `pkg:cargo/webpage@2.1.0` at `crates/api/api_utils/Cargo.toml:82` | Found, on a line the reading cites (`Cargo.toml:82`, the `webpage` crate) and on the GET at `request.rs:88`, the start of the fetch the reading describes at `request.rs:88-96`. The reading calls this row a hard call. The nodeinfo poll and the bootstrap fetch lie in unread files (`scheduled_tasks.rs`, `user/create.rs`), so they were not seen |
 | `aggregates_content` | include: `crates/api/api_utils/src/request.rs:72`, `:247`, `:265`, `:477`, `crates/db_schema/src/source/post.rs:48`, `:50`, `:52`, `crates/api/api/src/post/get_link_metadata.rs:9`, `crates/routes/src/images/download.rs:59` and the migration `migrations/2026-03-03-211442-0000_move_config_pictrs_to_db/up.sql:9` | found, performs, 2 matches; `lexcode.aggregate.rs-link-preview` at `crates/api/api_utils/src/request.rs:269` and `:278` (`HTML::from_string(...)`) | Found, in a file the reading cites and in the function it cites, 4 lines below its `:265`: the parse of the fetched page for title, description and image. The stored embed fields, the thumbnail keeping and the metadata endpoint are not matched |
 | `automated_outreach` | include: `crates/email/src/send.rs:19`, `:32`, `:62`, `crates/email/Cargo.toml:33`, `crates/email/src/notifications.rs:38`, `crates/api/api_utils/src/notify.rs:118`, `:312`, `:361`, `crates/email/src/account.rs:16` and `:40`, `crates/email/src/admin.rs:7` and `:32`, `crates/utils/src/settings/structs.rs:22` | found, performs 2 and enables 1; `lexcode.outreach.rs-send-in-loop` at `crates/api/api_utils/src/notify.rs:118` and `:361`; `pkg:cargo/lettre@0.11.23` at `crates/email/Cargo.toml:33` | Found, on 3 lines the reading cites. The mail itself (`send.rs`, `notifications.rs`, `account.rs`, `admin.rs`) is not matched, and the reading marks the row as needing configuration |
-| `ships_encryption` | include: `Cargo.toml:189` (bcrypt), `crates/db_schema/src/impls/local_user.rs:41` and `:87`, the HS256 token (`crates/api/api_utils/Cargo.toml:84`, `crates/api/api_utils/src/claims.rs:53`), TOTP (`crates/api/api_utils/Cargo.toml:59`, `crates/api/api_utils/src/utils.rs:241`), the RSA key pairs (`crates/api/api_crud/src/user/create.rs:539`, `community/create.rs:103`, `crates/routes/src/utils/setup_local_site.rs:59`, `Cargo.toml:154`) and rustls with ring (`Cargo.toml:217`, `crates/diesel_utils/src/connection.rs:179`), 13 lines in all | found, performs, 2 matches; `lexcode.crypto.rs-bundled-tls` at `crates/api/api_utils/src/request.rs:42` (`rustls::crypto::ring::default_provider().install_default()`) and `crates/diesel_utils/src/connection.rs:181` (`ClientConfig::builder()`); 6 signals of `lexcode.crypto.rs-password-hashing` (the same bcrypt calls as `processes_personal_data`) | Found, on the rustls and ring part of the reading and 2 lines below its `connection.rs:179`; the bcrypt calls, among them the reading's `impls/local_user.rs:41` and `:87`, are signals only. The token signing (`claims.rs:53` was read) and the key pair at `community/create.rs:103` drew no match, and the TOTP code and 2 of the key pair lines lie in unread files (`utils.rs`, `user/create.rs`, `setup_local_site.rs`) |
+| `ships_encryption` | include: `Cargo.toml:189` (bcrypt), `crates/db_schema/src/impls/local_user.rs:41` and `:87`, the HS256 token (`crates/api/api_utils/Cargo.toml:84`, `crates/api/api_utils/src/claims.rs:53`), TOTP (`crates/api/api_utils/Cargo.toml:59`, `crates/api/api_utils/src/utils.rs:241`), the RSA key pairs (`crates/api/api_crud/src/user/create.rs:539`, `community/create.rs:103`, `crates/routes/src/utils/setup_local_site.rs:59`, `Cargo.toml:154`) and rustls with ring (`Cargo.toml:217`, `crates/diesel_utils/src/connection.rs:179`), 13 lines in all | found, performs, 2 matches; `lexcode.crypto.rs-bundled-tls` at `crates/api/api_utils/src/request.rs:42` (`rustls::crypto::ring::default_provider().install_default()`) and `crates/diesel_utils/src/connection.rs:181` (`ClientConfig::builder()`) | Found, on the rustls and ring part of the reading and 2 lines below its `connection.rs:179`. The bcrypt calls, among them the reading's `impls/local_user.rs:41` and `:87`, draw nothing here: password hashing keeps no data confidential, so lexcode does not read it as shipping encryption (it is evidence under `processes_personal_data`). The token signing (`claims.rs:53` was read) and the key pair at `community/create.rs:103` drew no match, and the TOTP code and 2 of the key pair lines lie in unread files (`utils.rs`, `user/create.rs`, `setup_local_site.rs`) |
 | `distributes_software_product` | include: `LICENSE:1`, `README.md:81`, `Cargo.toml:5`, `crates/server/Cargo.toml:2`, `crates/server/src/main.rs:8`, `docker/Dockerfile:46` and `:58`, `docker/docker-compose.yml:25` and `scripts/release.bash:1` | found, performs, 3 matches; `lexcode.distribute.cargo-published` at the `[package]` header, line 1, of `crates/db_views/notification_sql/Cargo.toml`, `crates/db_views/report_combined/Cargo.toml` and `crates/db_views/report_combined_sql/Cargo.toml`; 29 further signals of `lexcode.distribute.cargo-package` in other member crates | Found by a different route, on no line or file the reading cites. The 3 matches are member crates that set `publish = true`, which says a crate is made available to others; the reading rests the row on the server that people install and run themselves, and the binary, Dockerfile, compose file and release script are not matched. The root manifest the reading cites at `Cargo.toml:5` is not matched either |
 | `operates_social_platform` | include: the create handlers for posts, comments, communities and private messages (`crates/api/api_crud/src/post/create.rs:47`, `comment/create.rs:40`, `community/create.rs:50`, `private_message/create.rs:32`), `crates/api/api/src/post/like.rs:27`, `community/follow.rs:14`, the route table (`crates/api/routes/src/lib.rs:280` and `:309`), `crates/api/api_crud/src/user/create.rs:83` and `crates/db_schema/src/source/person.rs:36` | signal only, 4 matches; `lexcode.social.rs-follow-relation` at `crates/apub/activities/src/protocol/following/follow.rs:15` and `crates/db_schema/src/source/person.rs:159`, `lexcode.social.rs-post-model` at `crates/db_schema/src/source/post.rs:28`, `lexcode.social.rs-direct-message` at `crates/db_schema/src/source/private_message.rs:24` | Signal only, by design: the social rules are signal class. One match is in a file the reading cites (`person.rs`, well below its `:36` and `:52`); the others are the follow, post and private message data types. The handlers, the vote and follow actions and the route table are not matched |
 
@@ -511,10 +515,17 @@ files, so the evidence there is missing from the record. No row's verdict
 changes on that account, because each of those rows is found or signalled on
 other lines.
 
-**Vendored code.** Of the record's 70 rows (29 evidence rows and 41 signal rows), 0 lie under a `vendor`, `Pods` or `node_modules` directory, so no row rests on vendored code.
+**Vendored code.** Of the record's 64 rows (29 evidence rows and 35 signal rows), 0 lie under a `vendor`, `Pods` or `node_modules` directory, so no row rests on vendored code.
 
 The scan's notices, as printed: skipped 1 symbolic link, and the engine could not
 read 18 files.
+
+**Re-run for the 1.5.0 release, 2026-11-16.** The release build gives the same
+record and the same score, except that the 6 `rs-password-hashing` signals under
+`ships_encryption` are gone (the table above is updated): 1.5.0 reads password
+hashing as no part of shipping encryption. The notices and the 0 FAIL are
+unchanged. The scan took 12 seconds and 0.85 GB at most, under a load average of
+about 24.
 <!-- lemmy:end -->
 
 ## Ruby, ERB views and gems
