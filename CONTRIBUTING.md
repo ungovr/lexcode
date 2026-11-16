@@ -67,6 +67,10 @@ nothing adds to it on its own:
    session-replay SDK enables `tracks_devices` and `processes_personal_data`, a
    speech SDK `processes_voice`, a crawler library `crawls_web`. A UI kit, a
    date library or an HTTP client enables nothing, however often it appears.
+   A cryptography library enables `ships_encryption` only when its own
+   description says its purpose is encryption; a general one that also hashes
+   or signs gets a code rule instead (rules/README.md, "Shipping encryption").
+   `test/unit/component-map.test.ts` checks the description.
 3. `says` quotes the vendor's own description of the package, verbatim, and
    `source` is the https page that holds it (the registry page, or the
    package's README in its published tarball when the registry page says too

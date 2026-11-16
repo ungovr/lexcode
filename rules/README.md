@@ -123,7 +123,7 @@ printed, never gated.
 | `processes_voice` | include: `SakaiAudioRecorder.js:44`, `SakaiAccount.js:575`, `ProfileController.java:253`, `AudioUploadActionListener.java:53`, `assignment/tool/.../video-recorder.js:24` | found, performs, 1 match; `lexcode.voice.mediarecorder-microphone` at `SakaiAudioRecorder.js:46`; 4 signals `lexcode.voice.getusermedia-audio` (`SakaiAudioRecorder.js:39` and `:44`, `assignment/tool/.../video-recorder.js:24`, `library/.../sakai-recorder.js:113`) | Found, on the same code: the recorder component the reading lists first, with the assignment video recorder as a signal. The Java handlers that receive the clip (`ProfileController`, `AudioUploadActionListener`) are not matched |
 | `records_calls` | include: `MicrosoftCommonServiceImpl.java:2421`, `:2533`, `:2543`, `:2566`, `MeetingsController.java:778` (the reading calls it a close call) | missed (searched, not found) | Missed. Sakai reads Teams recordings through the Microsoft Graph client (`getOnlineMeetingRecordings`); the Java meeting-recording rule names LiveKit, Chime, Connect, Vonage, Zoom, notetaker bots and Daily, and Graph is not among them |
 | `crawls_web` | include: `BaseExternalCalendarSubscriptionService.java:816` and `:824`, `default.sakai.properties:2346`, `LinkMigrationHelperImpl.java:291`, `GetArchivesJob.java:80` (the reading calls it a close call) | found, enables, 1 match; `pkg:maven/com.microsoft.playwright/playwright@1.64.0` at `e2e-tests/pom.xml:43` | Found, on other evidence, not the reading's code: the dependency belongs to Sakai's browser-test module (`e2e-tests`) and carries no test scope, so it counts. The calendar fetch, the link follower and the archive job are not matched. Counted as found because it is an evidence row for the activity, though a person would not call it the right reason |
-| `ships_encryption` | include: `PasswordService.java:166` and `:174` (PBKDF2), `EncryptionUtilityServiceImpl.java:29` (Jasypt AES-256), `SimpleEncryption.java:45`, `MicrosoftConfigurationServiceImpl.java:48` | found, performs 1 and enables 2; `lexcode.crypto.java-library-encryption` at `kernel/kernel-impl/.../EncryptionUtilityServiceImpl.java:29` (`new AES256TextEncryptor()`), `pkg:maven/org.jasypt/jasypt@1.9.3` (`kernel/kernel-impl/pom.xml:311`) and `pkg:maven/org.bouncycastle/bcprov-jdk18on@1.85` (`:348`) | Found, on a line the reading cites. The other cited locations use the JDK's own crypto (PBKDF2, `Cipher` AES-CBC and AES-GCM), which the rules of that commit left to the platform, so they were not matched; the row was found through Jasypt. Since then `java-platform-encryption` reads a JDK `Cipher`, and PBKDF2 is password hashing, which no rule reads |
+| `ships_encryption` | include: `PasswordService.java:166` and `:174` (PBKDF2), `EncryptionUtilityServiceImpl.java:29` (Jasypt AES-256), `SimpleEncryption.java:45`, `MicrosoftConfigurationServiceImpl.java:48` | found, performs 1 and enables 2; `lexcode.crypto.java-library-encryption` at `kernel/kernel-impl/.../EncryptionUtilityServiceImpl.java:29` (`new AES256TextEncryptor()`), `pkg:maven/org.jasypt/jasypt@1.9.3` (`kernel/kernel-impl/pom.xml:311`) and `pkg:maven/org.bouncycastle/bcprov-jdk18on@1.85` (`:348`) | Found, on a line the reading cites. The other cited locations use the JDK's own crypto (PBKDF2, `Cipher` AES-CBC and AES-GCM), which the rules of that commit left to the platform, so they were not matched; the row was found through Jasypt. Since then `java-platform-encryption` reads a JDK `Cipher`, and PBKDF2 is password hashing, which no rule reads; and the Bouncy Castle `bcprov` artifacts enable nothing in the component map (#13336), so the row is found through Jasypt alone |
 | `distributes_software_product` | include: `README.md:28` and `:41`, `pack/pack-bin/pom.xml:12`, `docker/Dockerfile.source:19`, `pom.xml:24` | found, performs, 50 matches: `lexcode.distribute.maven-publish-plugin` at `master/pom.xml:163` (the Sonatype central-publishing plugin) and 49 `lexcode.distribute.package-json-publish-config` over `webcomponents/.../packages/*/package.json` | Found, on other code. The Maven publishing plugin is the reading's "API artifacts others embed"; the 49 package files are Sakai's `@sakai-ui` npm packages, each with a public `publishConfig`. The README, the binary pack and the Dockerfile are not matched |
 | `operates_social_platform` | include: `commons/README.md:3`, `commons/api/.../Post.java:38`, `ConversationsPost.java:40`, `MessageImpl.java:40`, `SocialNetworkingInfo.java:33` | signal only, 2 matches; `lexcode.social.java-post-model` at `commons/api/.../datamodel/Post.java:37` and `conversations/api/.../ConversationsPost.java:39` | Signal only, on two of the files the reading cites (the Commons wall post and the Conversations post). The forum message and the profile social links are not matched |
 
@@ -232,7 +232,7 @@ never gated. Paths below are under `public/` unless they start with
 | `records_calls` | include: `mod/bigbluebuttonbn/classes/meeting.php:392`, `:394`, `classes/instance.php:860`, `classes/local/proxy/recording_proxy.php:178` | found, performs, 1 match; `lexcode.calls.php-bigbluebutton-record` at `mod/bigbluebuttonbn/classes/meeting.php:392` | Found, on the line the reading cites first (`$data['record'] = ...`) |
 | `crawls_web` | include: `blocks/rss_client/classes/task/refreshfeeds.php:122` and `:132`, `blog/lib.php:148`, `calendar/lib.php:2468`, `repository/url/lib.php:153` and `:170`, `composer.json:87` | signal only, 1 match; `lexcode.crawl.php-html-of-fetched-page` at `repository/url/lib.php:172` | Signal only, on the URL repository, which the reading calls the weakest of its four. The RSS task loops over the feed records but fetches each in a method of its own (`fetch_feed()`, through `moodle_simplepie`), which the loop rule does not follow into. The blog sync fetches through `moodle_simplepie` too (`blog/lib.php:152`, `set_feed_url()` at `:165`). The calendar cron loops over subscriptions (`lib/classes/task/calendar_cron_task.php:59`) and fetches two calls down, with Moodle's own `curl` class (`$curl->get($url)` at `calendar/lib.php:2476`), which no rule names |
 | `aggregates_content` | include: `blocks/rss_client/block_rss_client.php:183` and `:193`, `blog/lib.php:148`, `blog/external_blog_edit.php:76` | found, enables 1; `pkg:composer/simplepie/simplepie@1.9.0` at `composer.json:87`; 10 signals `lexcode.aggregate.php-feed-read` (6 in Moodle's own RSS block and blog code, 4 in vendored SimplePie) | Found by dependency: the feed library behind the RSS block the reading cites. The feed-read signals sit in that block (`blocks/rss_client/classes/task/refreshfeeds.php:131`) and in `blog/lib.php:165` |
-| `ships_encryption` | include: `lib/classes/authentication/password.php:153`, `lib/classes/encryption.php:184`, `mnet/lib.php:219`, `lib/classes/oauth2/setup.php:51`, `composer.json:57`, `:42`, `:82`, `:101` | found, performs 1 and enables 1; `lexcode.crypto.php-library-encryption` at `lib/classes/oauth2/setup.php:101` (`\Defuse\Crypto\Key::createNewRandomKey()`); `pkg:composer/phpseclib/phpseclib` at `lib/lti1p3/composer.json:27` (vendored, no version) | Found, in a file the reading cites, on the key for stored OAuth secrets rather than the RSA key pair at `:51`. `ext-openssl` and `ext-sodium` (`composer.json:42`, `:57`) are platform names, which the Composer reader does not record, and the component map gives `firebase/php-jwt` and `league/oauth2-server` no activity |
+| `ships_encryption` | include: `lib/classes/authentication/password.php:153`, `lib/classes/encryption.php:184`, `mnet/lib.php:219`, `lib/classes/oauth2/setup.php:51`, `composer.json:57`, `:42`, `:82`, `:101` | found, performs 1 and enables 1; `lexcode.crypto.php-library-encryption` at `lib/classes/oauth2/setup.php:101` (`\Defuse\Crypto\Key::createNewRandomKey()`); `pkg:composer/phpseclib/phpseclib` at `lib/lti1p3/composer.json:27` (vendored, no version) | Found, in a file the reading cites, on the key for stored OAuth secrets rather than the RSA key pair at `:51`. `ext-openssl` and `ext-sodium` (`composer.json:42`, `:57`) are platform names, which the Composer reader does not record, and the component map gives `firebase/php-jwt` and `league/oauth2-server` no activity. Since then `phpseclib/phpseclib` enables nothing in the component map either (#13336); `php-library-encryption` reads its ciphers, key agreement, RSA encryption and SSH connections in the code |
 | `distributes_software_product` | include: `composer.json:2`, `:5`, `:7`, `README.md:29` | found, performs, 44 matches; `lexcode.distribute.composer-package` at `composer.json:5`, and 43 in vendored libraries (38 `composer-package`, 3 `composer-bin`, 2 `php-phar-build`) | Found, on a line the reading cites (the package type). 43 of the 44 matches are vendored |
 | `operates_social_platform` | include: `mod/forum/db/install.xml:74`, `blog/locallib.php:566`, `lib/db/install.xml:768`, `:784`, `:1149`, `:2845` | missed (nothing in the record) | Missed. The PHP social rules read an Eloquent or Doctrine post, follow or message model, or a feed query keyed on followed accounts; Moodle's forums, blogs, comments and contacts are XML schema and `$DB` calls |
 | `generates_content` | include: `ai/placement/editor/classes/placement.php:33`, `ai/placement/courseassist/classes/placement.php:32`, `ai/provider/openai/classes/abstract_processor.php:118` | missed (searched, not found) | Missed. Each provider builds a PSR-7 request and sends it with `\core\di::get(http_client::class)->send($request, ['base_uri' => $this->get_endpoint()])`, the endpoint read from settings; the vendor's address is only a settings form's default. No SDK class, facade or literal endpoint sits at the call for a rule to name |
@@ -1236,11 +1236,9 @@ could not match to one locked version); recorded without a version`. A
 
 Known Cargo gaps: a crate spelled with a hyphen in one place and an underscore
 in another (`serde_json`, `serde-json`) is looked up by the spelling the manifest
-uses, in the lock and in the component map. A package whose own description says
-it hashes, signs or authenticates, and not that it encrypts, is not mapped to
-`ships_encryption`: the `sha2`, `hmac`, `argon2` and `bcrypt` crates, the signing
-crates and the Swift package `jwt-kit`, none of which keeps data confidential.
-Key-agreement crates (`x25519-dalek`, `p256`) are not mapped either, a known gap
+uses, in the lock and in the component map. Which cryptography crates and Swift
+packages are mapped follows the rule for every map, under "Shipping encryption".
+Key-agreement crates (`x25519-dalek`, `p256`) are not mapped, a known gap
 since key agreement counts (#13318): `rs-library-encryption` reads
 `x25519-dalek`'s key agreement in the code, and `p256`'s ECDH is not read.
 
@@ -1430,12 +1428,8 @@ Any other exemption must be argued and ruled before it is added.
   bundles BoringSSL, rustls with ring, RustCrypto ciphers, age, libsodium
   bindings). A CryptoKit-shaped call in a file that also imports swift-crypto's
   `Crypto` is read by `swift-library-encryption` only. A general cryptography
-  library that also hashes, MACs or signs (swift-crypto, CryptoSwift,
-  swift-sodium, orion, sodiumoxide) has no component-map entry, as
-  `golang.org/x/crypto` has none: a product can link one only for an HMAC or a
-  signature, so only its cipher and key-agreement calls count. The Swift,
-  CocoaPods and Cargo maps list a library whose purpose is encryption (the
-  RustCrypto ciphers, age). HTTPS through
+  library that also hashes, MACs or signs has no component-map entry (see
+  "Shipping encryption"). HTTPS through
   `URLSession`, `native-tls` or the `openssl` crate's TLS is not read, and
   neither are hashing, a MAC, password hashing, key derivation and signing (see
   "Shipping encryption"). In Rust, password hashing is evidence of
@@ -1642,11 +1636,27 @@ what the code does, not whose library does it. So the rules read:
   crate's from the system's OpenSSL or a vendored copy
   (`rs-openssl-encryption`).
 - The same through a bundled library (the `*-library-encryption` rules, the
-  framework, attribute and storage rules), and a cryptography library that
-  encrypts or agrees keys in the dependency tree (the component map).
-  `golang.org/x/crypto` has no map entry: Go links only the subpackages a
+  framework, attribute and storage rules), and a cryptography library whose
+  purpose is encryption in the dependency tree (the component map).
+- In every component map, a library is listed only when its own description
+  says its purpose is encryption: the RustCrypto ciphers, age, MinIO's sio,
+  Jasypt, aes-js, @noble/ciphers, @stablelib/chacha20poly1305, pyaes. A
+  general cryptography library that also hashes, MACs or signs has no entry,
+  because an app can link one only for a hash or a signature, which holds no
+  cipher it uses. Its cipher and key-agreement calls, encrypting or
+  decrypting, are read in the code instead: libsodium, TweetNaCl, crypto-js, crypto-es, node-forge, OpenPGP.js,
+  kbpgp, SJCL, @noble/curves, elliptic and eccrypto by
+  `js-library-encryption`; cryptography, PyCryptodome, PyNaCl, libnacl, Tink,
+  rsa and PGPy by `py-library-encryption`; Bouncy Castle and Tink by `java-` and
+  `kt-library-encryption`; phpseclib by `php-library-encryption`; ProtonMail's
+  OpenPGP, Tink and CIRCL by `go-library-encryption`; swift-crypto,
+  CryptoSwift and swift-sodium by `swift-library-encryption`; orion,
+  sodiumoxide, ring and aws-lc-rs by `rs-library-encryption`. Go's own
+  `golang.org/x/crypto` is the first case: Go links only the subpackages a
   program imports, so `go-xcrypto-encryption` reads the cipher subpackages in
-  use, and an app that imports only `x/crypto/bcrypt` holds no cipher.
+  use, and an app that imports only `x/crypto/bcrypt` holds no cipher. A
+  library's key-pair generation is not read either, since the key may only
+  sign (#13318, #13336).
 - Never: hashing, a MAC, password hashing and key derivation (bcrypt, Argon2,
   scrypt, PBKDF2), signing (JWT, ECDSA, RSA signatures), random bytes, or HTTPS
   through the platform's stock client.

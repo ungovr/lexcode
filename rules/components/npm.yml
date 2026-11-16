@@ -1184,58 +1184,17 @@ entries:
     source: https://www.npmjs.com/package/@docuseal/api
 
   # Bundled cryptography
-  - match: "libsodium-wrappers"
-    enables: [ships_encryption]
-    says: "The Sodium cryptographic library compiled to pure JavaScript (wrappers)"
-    source: https://www.npmjs.com/package/libsodium-wrappers
-  - match: "libsodium-wrappers-sumo"
-    enables: [ships_encryption]
-    says: "The Sodium cryptographic library compiled to pure JavaScript (wrappers, sumo variant)"
-    source: https://www.npmjs.com/package/libsodium-wrappers-sumo
-  - match: "libsodium"
-    enables: [ships_encryption]
-    says: "The Sodium cryptographic library compiled to pure JavaScript (raw library, no wrappers)"
-    source: https://www.npmjs.com/package/libsodium
-  - match: "tweetnacl"
-    enables: [ships_encryption]
-    says: "Port of TweetNaCl cryptographic library to JavaScript"
-    source: https://www.npmjs.com/package/tweetnacl
-  - match: "crypto-js"
-    enables: [ships_encryption]
-    says: "JavaScript library of crypto standards."
-    source: https://www.npmjs.com/package/crypto-js
-  - match: "crypto-es"
-    enables: [ships_encryption]
-    says: "A cryptography algorithms library"
-    source: https://www.npmjs.com/package/crypto-es
-  - match: "node-forge"
-    enables: [ships_encryption]
-    says: "JavaScript implementations of network transports, cryptography, ciphers, PKI, message digests, and various utilities."
-    source: https://www.npmjs.com/package/node-forge
-  - match: "openpgp"
-    enables: [ships_encryption]
-    says: "OpenPGP.js is a Javascript implementation of the OpenPGP protocol. This is defined in RFC 4880."
-    source: https://www.npmjs.com/package/openpgp
+  # Only a package whose own description says its purpose is encryption is listed (#13318, #13336). A
+  # general cryptography library that mixes hashing, MACs or signing with its ciphers has no entry, as
+  # golang.org/x/crypto has none in go.yml: an app can link one only for a hash, a MAC or a signature,
+  # which holds no cipher it uses. So libsodium and its wrappers, tweetnacl, crypto-js, crypto-es,
+  # node-forge, openpgp, kbpgp, sjcl, @noble/curves, elliptic and eccrypto are not listed, and
+  # rules/ships_encryption/js-library-encryption.yml reads their cipher and key-agreement calls in use
+  # instead.
   - match: "@noble/ciphers"
     enables: [ships_encryption]
     says: "Audited & minimal JS implementation of Salsa20, ChaCha and AES"
     source: https://www.npmjs.com/package/@noble/ciphers
-  - match: "@noble/curves"
-    enables: [ships_encryption]
-    says: "Audited & minimal JS implementation of elliptic curve cryptography"
-    source: https://www.npmjs.com/package/@noble/curves
-  - match: "sjcl"
-    enables: [ships_encryption]
-    says: "Stanford Javascript Crypto Library"
-    source: https://www.npmjs.com/package/sjcl
-  - match: "elliptic"
-    enables: [ships_encryption]
-    says: "EC cryptography"
-    source: https://www.npmjs.com/package/elliptic
-  - match: "eccrypto"
-    enables: [ships_encryption]
-    says: "JavaScript Elliptic curve cryptography library"
-    source: https://www.npmjs.com/package/eccrypto
   - match: "aes-js"
     enables: [ships_encryption]
     says: "A pure JavaScript implementation of the AES block cipher and all common modes of operation."
@@ -1244,10 +1203,6 @@ entries:
     enables: [ships_encryption]
     says: "ChaCha20-Poly1305 AEAD (RFC 7539)"
     source: https://www.npmjs.com/package/@stablelib/chacha20poly1305
-  - match: "kbpgp"
-    enables: [ships_encryption]
-    says: "Keybase's PGP Implementation"
-    source: https://www.npmjs.com/package/kbpgp
 
   # Face and voice biometrics
   - match: "face-api.js"

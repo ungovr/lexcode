@@ -1,4 +1,4 @@
-// lexcode-expect: 10
+// lexcode-expect: 12
 import AES from "crypto-js/aes";
 import { xchacha20poly1305 } from '@noble/ciphers/chacha';
 import sodium from 'libsodium-wrappers';

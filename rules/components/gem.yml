@@ -218,3 +218,10 @@ entries:
     enables: [records_text_chat]
     says: "Ruby client for Stream Chat."
     source: https://rubygems.org/gems/stream-chat-ruby
+
+  # Bundled cryptography
+  # No entry. Only a gem whose own description says its purpose is encryption would be listed (#13318,
+  # #13336). A general cryptography library that mixes hashing, MACs or signing with its ciphers (rbnacl,
+  # for one) has no entry, as golang.org/x/crypto has none in go.yml: an app can link one only for a hash
+  # or a signature, which holds no cipher it uses. rules/ships_encryption/rb-library-encryption.yml and
+  # rb-platform-encryption.yml read the cipher and key-agreement calls in use instead.

@@ -17,6 +17,17 @@ rules:
       - pattern: PaddedBufferedBlockCipher(...)
       - pattern: BufferedBlockCipher(...)
       - pattern: ChaCha20Poly1305()
+      - pattern: CBCBlockCipher(...)
+      - pattern: CBCBlockCipher.newInstance(...)
+      - pattern: SICBlockCipher(...)
+      - pattern: SICBlockCipher.newInstance(...)
+      - pattern: CFBBlockCipher(...)
+      - pattern: CFBBlockCipher.newInstance(...)
+      - pattern: ChaCha7539Engine()
+      - pattern: ChaChaEngine(...)
+      - pattern: Salsa20Engine(...)
+      - pattern: XSalsa20Engine()
+      - pattern: OAEPEncoding(...)
       - pattern: X25519Agreement()
       - pattern: ECDHBasicAgreement()
       - pattern: PGPEncryptedDataGenerator(...)
@@ -40,8 +51,12 @@ rules:
       - pattern: javax.crypto.Cipher.getInstance($A, "BC")
       - pattern: javax.crypto.Cipher.getInstance($A, BouncyCastleProvider.PROVIDER_NAME)
       - pattern: javax.crypto.Cipher.getInstance($A, org.bouncycastle.jce.provider.BouncyCastleProvider.PROVIDER_NAME)
-      # Google Tink
+      # Google Tink: registering or getting an encrypting primitive (with or without a configuration
+      # first), not a MAC or a signature
       - pattern: AeadConfig.register()
+      - pattern: DeterministicAeadConfig.register()
+      - pattern: HybridConfig.register()
+      - pattern: StreamingAeadConfig.register()
       - patterns:
           - pattern: $K.getPrimitive(...)
           - pattern-regex: \b(?:Aead|HybridEncrypt|StreamingAead|DeterministicAead)::class\.java\b

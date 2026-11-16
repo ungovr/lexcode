@@ -58,6 +58,22 @@ interface Entry {
   source?: unknown;
 }
 
+/**
+ * A ships_encryption entry's own description must say it encrypts (a cipher, an AEAD or AES by name) and
+ * must not name hashing, signing, MACs, PKI or cryptography in general: those mark a general library,
+ * which an app can link only for a hash or a signature (#13318, #13336).
+ */
+function encryptionSaysProblems(file: string, e: Entry): string[] {
+  const says = String(e.says ?? '');
+  const ENCRYPTION = /encrypt|cipher|\bAEAD\b|\bAES\b/i;
+  const GENERAL =
+    /cryptograph|crypto standards|digest|hash|\bsign(?:s|ing|ature|atures)?\b|\bPKI\b|X\.509|\bRSA\b|\bH?MAC\b|elliptic|\bcurves?\b|CryptoKit/i;
+  if (!ENCRYPTION.test(says) || GENERAL.test(says)) {
+    return [`${file} ${String(e.match)}: ships_encryption on a description that does not say its purpose is encryption: "${says}"`];
+  }
+  return [];
+}
+
 function load(file: string): { ecosystem: unknown; entries: Entry[] } {
   const doc = parse(readFileSync(join(rulesDir, 'components', file), 'utf8')) as {
     ecosystem: unknown;
@@ -129,6 +145,36 @@ describe('component map', () => {
     // go-xcrypto-encryption reads the cipher subpackages in the code instead.
     const matches = load('go.yml').entries.map((e) => String(e.match).toLowerCase());
     expect(matches.filter((m) => m === 'golang.org/x/crypto' || m.startsWith('golang.org/x/crypto/'))).toEqual([]);
+  });
+
+  it('every ships_encryption entry is a library whose own description is encryption (#13318, #13336)', () => {
+    // A general cryptography library that also hashes, MACs or signs has no entry in any map: an app
+    // can link one only for a hash or a signature, and the code rules read its cipher calls instead.
+    const out: string[] = [];
+    for (const { file } of FILES) {
+      for (const e of load(file).entries ?? []) {
+        if (Array.isArray(e.enables) && e.enables.includes('ships_encryption')) out.push(...encryptionSaysProblems(file, e));
+      }
+    }
+    expect(out).toEqual([]);
+  });
+
+  it('catches a mixed cryptography library in a map (self-check of the checker)', () => {
+    const e = (match: string, says: string) => ({ match, enables: ['ships_encryption'], says, source: 'https://x.test' });
+    expect(encryptionSaysProblems('npm.yml', e('aes-js', 'A pure JavaScript implementation of the AES block cipher.'))).toEqual([]);
+    expect(encryptionSaysProblems('npm.yml', e('@noble/ciphers', 'Audited & minimal JS implementation of Salsa20, ChaCha and AES'))).toEqual([]);
+    for (const [match, says] of [
+      ['crypto-js', 'JavaScript library of crypto standards.'],
+      ['node-forge', 'JavaScript implementations of network transports, cryptography, ciphers, PKI, message digests, and various utilities.'],
+      ['cryptography', 'cryptography is a package which provides cryptographic recipes and primitives to Python developers.'],
+      ['rsa', 'Pure-Python RSA implementation'],
+      ['phpseclib/phpseclib', 'PHP Secure Communications Library - Pure-PHP implementations of RSA, AES, SSH2, SFTP, X.509 etc.'],
+      ['org.bouncycastle:bcprov-jdk18on', 'The Bouncy Castle Crypto package is a Java implementation of cryptographic algorithms.'],
+      ['openpgp', 'OpenPGP.js is a Javascript implementation of the OpenPGP protocol. This is defined in RFC 4880.'],
+      ['github.com/apple/swift-crypto', 'Open-source implementation of a substantial portion of the API of Apple CryptoKit suitable for use on Linux platforms.'],
+    ] as const) {
+      expect(encryptionSaysProblems('x.yml', e(match, says)), match).toHaveLength(1);
+    }
   });
 
   it('catches a bad entry (self-check of the checker)', () => {

@@ -143,6 +143,69 @@ rules:
           - metavariable-regex:
               metavariable: $C
               regex: ^(?:AES|Rijndael|ChaCha20|Salsa20|Twofish|Blowfish|TripleDES|DES|RC2|RC4|SSH2|SFTP|SCP)$
+      # phpseclib version 3: its key agreement, read three ways like the classes above
+      - patterns:
+          - pattern-either:
+              - pattern: \phpseclib3\Crypt\DH::computeSecret(...)
+              - patterns:
+                  - pattern: DH::computeSecret(...)
+                  - pattern-inside: |
+                      use phpseclib3\Crypt\DH;
+                      ...
+                  - pattern-not-inside: |
+                      use phpseclib3\Crypt\DH as $AL;
+                      ...
+              - patterns:
+                  - pattern: $AL::computeSecret(...)
+                  - pattern-inside: |
+                      use phpseclib3\Crypt\DH as $AL;
+                      ...
+      # phpseclib's RSA encryption (version 3 and version 2; its signing is not read). A key's
+      # encrypt or decrypt in a file that imports its RSA class or key loader (aliased or not, since
+      # version 3 encrypts with OAEP by default), the same on a fully qualified loader or RSA object,
+      # and a key set to an encrypting padding, alone or with other flags (the constant names are
+      # phpseclib's own)
+      - patterns:
+          - pattern-either:
+              - pattern: $K->encrypt(...)
+              - pattern: $K->decrypt(...)
+          # The engine's `$K->m(...)` also matches a static `C::m(...)`, another class's (Laravel's
+          # Crypt::encrypt); a key is a variable or a call's result, so $K must hold `$` or `(`
+          - metavariable-regex:
+              metavariable: $K
+              regex: ^[^$(]*[$(]
+          - pattern-either:
+              - pattern-inside: |
+                  use phpseclib3\Crypt\$R;
+                  ...
+              - pattern-inside: |
+                  use phpseclib\Crypt\$R;
+                  ...
+          - metavariable-regex:
+              metavariable: $R
+              regex: ^(?:RSA|PublicKeyLoader)$
+      - patterns:
+          - pattern-either:
+              - pattern: $K->encrypt(...)
+              - pattern: $K->decrypt(...)
+          - metavariable-pattern:
+              metavariable: $K
+              pattern-either:
+                - pattern: \phpseclib3\Crypt\PublicKeyLoader::load(...)
+                - pattern: \phpseclib3\Crypt\RSA::$F(...)
+      - patterns:
+          - pattern-either:
+              - pattern: $V->encrypt(...)
+              - pattern: $V->decrypt(...)
+          - pattern-either:
+              - pattern-inside: |
+                  $V = new \phpseclib\Crypt\RSA(...);
+                  ...
+              - pattern-inside: |
+                  $V = \phpseclib3\Crypt\PublicKeyLoader::load(...);
+                  ...
+      - pattern: $K->withPadding(<... $C::ENCRYPTION_OAEP ...>)
+      - pattern: $K->withPadding(<... $C::ENCRYPTION_PKCS1 ...>)
       # A JWE (an encrypted token) with web-token's builder
       - pattern: new \Jose\Component\Encryption\JWEBuilder(...)
       - patterns:

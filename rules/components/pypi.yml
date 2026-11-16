@@ -573,38 +573,13 @@ entries:
     source: https://pypi.org/project/docuseal/
 
   # Bundled cryptography
-  - match: "pynacl"
-    enables: [ships_encryption]
-    says: "Python binding to the Networking and Cryptography (NaCl) library"
-    source: https://pypi.org/project/pynacl/
-  - match: "cryptography"
-    enables: [ships_encryption]
-    says: "cryptography is a package which provides cryptographic recipes and primitives to Python developers."
-    source: https://pypi.org/project/cryptography/
-  - match: "pycryptodome"
-    enables: [ships_encryption]
-    says: "Cryptographic library for Python"
-    source: https://pypi.org/project/pycryptodome/
-  - match: "pycryptodomex"
-    enables: [ships_encryption]
-    says: "Cryptographic library for Python"
-    source: https://pypi.org/project/pycryptodomex/
-  - match: "pgpy"
-    enables: [ships_encryption]
-    says: "Pretty Good Privacy for Python"
-    source: https://pypi.org/project/pgpy/
-  - match: "tink"
-    enables: [ships_encryption]
-    says: "A multi-language, cross-platform library that provides cryptographic APIs that are secure, easy to use correctly, and hard(er) to misuse."
-    source: https://pypi.org/project/tink/
-  - match: "rsa"
-    enables: [ships_encryption]
-    says: "Pure-Python RSA implementation"
-    source: https://pypi.org/project/rsa/
-  - match: "libnacl"
-    enables: [ships_encryption]
-    says: "Python bindings for libsodium based on ctypes"
-    source: https://pypi.org/project/libnacl/
+  # Only a package whose own description says its purpose is encryption is listed (#13318, #13336). A
+  # general cryptography library that mixes hashing, MACs or signing with its ciphers has no entry, as
+  # golang.org/x/crypto has none in go.yml: an app can link one only for a hash, a MAC or a signature,
+  # which holds no cipher it uses. So cryptography, pycryptodome, pycryptodomex, pynacl, libnacl, tink,
+  # rsa ("Pure-Python RSA implementation") and pgpy are not listed, and
+  # rules/ships_encryption/py-library-encryption.yml reads their cipher and key-agreement calls in use
+  # instead.
   - match: "pyaes"
     enables: [ships_encryption]
     says: "Pure-Python Implementation of the AES block-cipher and common modes of operation"
