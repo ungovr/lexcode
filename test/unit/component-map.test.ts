@@ -51,6 +51,18 @@ function nameProblems(ecosystem: 'cargo' | 'swift' | 'cocoapods', entries: Entry
   return out;
 }
 
+/** A gem entry's `source` is `https://rubygems.org/gems/<match>`; gem names are compared without case. */
+function gemSourceProblems(entries: Entry[]): string[] {
+  const out: string[] = [];
+  entries.forEach((e, i) => {
+    const m = /^https:\/\/rubygems\.org\/gems\/([A-Za-z0-9_.-]+)$/.exec(String(e.source));
+    if (!m || (m[1] as string).toLowerCase() !== String(e.match).toLowerCase()) {
+      out.push(`entry ${i + 1} (${String(e.match)}): source is not https://rubygems.org/gems/${String(e.match)}`);
+    }
+  });
+  return out;
+}
+
 interface Entry {
   match?: unknown;
   enables?: unknown;
@@ -122,6 +134,17 @@ describe('component map', () => {
       expect(nameProblems(ecosystem, load(`${ecosystem}.yml`).entries)).toEqual([]);
     });
   }
+
+  it('gem.yml cites each gem by its own rubygems.org page (#12879)', () => {
+    expect(gemSourceProblems(load('gem.yml').entries)).toEqual([]);
+  });
+
+  it('catches a gem entry whose source is not its own rubygems.org page (self-check of the checker)', () => {
+    const e = (match: string, source: string) => ({ match, enables: ['crawls_web'], says: 'x', source });
+    expect(gemSourceProblems([e('mailchimpmarketing', 'https://rubygems.org/gems/MailchimpMarketing')])).toEqual([]);
+    expect(gemSourceProblems([e('lockbox', 'https://github.com/ankane/lockbox')])).toHaveLength(1);
+    expect(gemSourceProblems([e('lockbox', 'https://rubygems.org/gems/blind_index')])).toHaveLength(1);
+  });
 
   it('catches a badly named cargo, swift or cocoapods entry (self-check of the checker)', () => {
     const e = (match: string, source: string) => ({ match, enables: ['crawls_web'], says: 'x', source });
