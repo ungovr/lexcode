@@ -170,11 +170,12 @@ function literalText(text: string, source: boolean): string | null {
 /**
  * Where the first interpolation or template hole of a literal's text starts, or -1: JavaScript, Kotlin,
  * PHP and Groovy `${...}` and `$name`, Python, C# and PHP `{...}`, Ruby `#{...}`, `#@ivar` and `#$global`,
- * and Swift `\(...)`. Read as language-blind text: a hole marker past the host leaves the host as written
- * (a literal URL's path can hold a `$` or a `{`), and no host can hold one, so in the scheme or the host
- * part it always means the host is chosen at run time.
+ * and Swift `\(...)`, and a template output tag as a view's script copy holds it, blanked to `_` and spaces
+ * (`"{{ api }}/x"` is `"_        /x"`). Read as language-blind text: a hole marker past the host leaves the
+ * host as written (a literal URL's path can hold a `$` or a `{`), and no host can hold one, so in the scheme
+ * or the host part, or at the very start, it always means the host is chosen at run time.
  */
-const HOLE = /\$|#?\{|#@|\\\(/;
+const HOLE = /\$|#?\{|#@|\\\(|_ /;
 
 /**
  * Classify a metavariable's text. Not a literal: `{literal: false}`. A literal URL:
@@ -183,7 +184,8 @@ const HOLE = /\$|#?\{|#@|\\\(/;
  * A literal whose text holds a hole (an interpolation, on source text) names the host written before the
  * first hole: `"https://api.example.com/v1/#{id}"` is `api.example.com`. One whose scheme or host part
  * holds the hole (`"https://#{host}/x"`, `"#{base}/x"`, `` `${base}/x` ``) chooses its host at run time and
- * is code, as is an authority with white space in it: a template output tag blanked in a view copy
+ * is code, as is one that opens with a template output tag blanked in a view copy (`"_        /x"` for
+ * `"{{ api }}/x"`, the base URL chosen at run time) and an authority with white space in it
  * (`"https://_          /x"`). A relative path (`"/v1/#{id}"`) still names none.
  */
 export function urlLiteral(text: string, opts: UrlLiteralOptions = {}): UrlLiteral {
@@ -200,7 +202,9 @@ export function urlLiteral(text: string, opts: UrlLiteralOptions = {}): UrlLiter
   const inner = literalText(text, source);
   if (inner === null) return { literal: false };
   const s = inner.trim();
-  const hole = HOLE.exec(s)?.index ?? -1;
+  // Looked for before the trim: a blanked output tag at the end of the string is `_` and the spaces it ends with.
+  const at = HOLE.exec(inner)?.index ?? -1;
+  const hole = at === -1 ? -1 : at - (inner.length - inner.trimStart().length);
   const fixed = hole === -1 ? s : s.slice(0, hole);
   if (/^file:/i.test(fixed)) return { literal: true, host: LOCALHOST };
   const proto = /^[a-z][a-z0-9+.-]*:\/\/([^/?#]*)/i.exec(fixed) ?? /^\/\/([^/?#]*)/.exec(fixed);

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { hostOfLiteral, isOwnHost, urlLiteral } from '../../src/record/hosts.js';
+import { blankBladeTags, blankErbTags, blankJspTags, blankTwigTags } from '../../src/scope/extract.js';
+import { blankRazorTags } from '../../src/scope/razor.js';
 
 describe('hostOfLiteral', () => {
   it('reads the host of a quoted URL literal', () => {
@@ -272,6 +274,41 @@ describe('urlLiteral on source text: the literal scheme and host before the firs
     expect(urlLiteral('`https://api.example.com/v1/${id}`')).toEqual(code);
     expect(urlLiteral('$"https://api.example.com/v1"')).toEqual(code);
     expect(urlLiteral('"""https://api.example.com/v1/#{id}"')).toEqual(code); // Ruby, as the engine prints it
+  });
+});
+
+// In a view's script copy each template output tag is blanked to `_` and spaces (blankTwigTags, blankErbTags,
+// blankJspTags, blankBladeTags, blankRazorTags). One that stands for the whole base URL (`"{{ api }}/x"`) chooses
+// the host at run time: a hole, so the match stays a signal, never a relative path that drops silently (#12882).
+describe('a template output tag blanked in a view copy is a hole (#12882)', () => {
+  const host = (h: string) => ({ literal: true, host: h });
+  const code = { literal: false };
+  const views: [string, (s: string) => string, string, string][] = [
+    ['Jinja and Twig', blankTwigTags, '{{ api }}', '{{ id }}'],
+    ['Twig with a filter', blankTwigTags, '{{ config.api_base|e("js") }}', '{{ item.id }}'],
+    ['ERB', blankErbTags, '<%= api_base %>', '<%= id %>'],
+    ['JSP', blankJspTags, '${apiBase}', '${id}'],
+    ['Blade', blankBladeTags, '{{ $apiBase }}', '{{ $id }}'],
+    ['Razor', blankRazorTags, '@apiBase', '@Model.Id'],
+  ];
+  for (const [name, blankTags, base, id] of views) {
+    it(`${name}: a tag for the base URL is a hole; one past a written host keeps the host`, () => {
+      const read = (js: string) => {
+        const copy = blankTags(js);
+        const arg = /fetch\(([\s\S]*)\)/.exec(copy)?.[1] as string;
+        return [urlLiteral(arg, { source: true }), urlLiteral(arg)];
+      };
+      expect(read(`fetch("${base}/x")`)).toEqual([code, code]);
+      expect(read(`fetch("${base}")`)).toEqual([code, code]);
+      expect(read(`fetch('${base}?q=1')`)).toEqual([code, code]);
+      expect(read(`fetch("https://api.example.com/v1/${id}")`)).toEqual([host('api.example.com'), host('api.example.com')]);
+      expect(read(`fetch("/v1/items/${id}")`)).toEqual([{ literal: true, host: null }, { literal: true, host: null }]);
+    });
+  }
+
+  it('an underscore that is not followed by a space is text', () => {
+    expect(urlLiteral('"https://my_host.example.com/x"', { source: true })).toEqual(host('my_host.example.com'));
+    expect(urlLiteral('"_next/static/x.js"', { source: true })).toEqual({ literal: true, host: null });
   });
 });
 
