@@ -1615,7 +1615,9 @@ The engine sets most of these limits, and the rules' comments point here.
   made in the app's own function that a loop calls from another file, or that is
   written before its caller (`rs-send-in-called-function` joins a looping caller
   and a sender written after it in one file, among free functions or among the
-  methods of one `impl`), a request built in one
+  methods of one `impl`; whether a bare `loop` polls is read from the file's
+  text, so an event loop in a file that also holds a polling loop is read as
+  one), a request built in one
   statement and sent in the next (`let req = c.get(url); req.send()`), a handler
   that returns the model's output as its tail expression with no response
   wrapper, a model id or address held in a `const` declared after its use, and
