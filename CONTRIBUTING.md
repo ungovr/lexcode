@@ -581,7 +581,12 @@ Measured on Opengrep 1.33.1:
   matches `_chat.GetResponseAsync(...)` for a field `IChatClient _chat`, and not
   the same call on another type. Inside a `metavariable-pattern` a typed
   metavariable does not see the file's `using` lines, and a string comes back
-  without its quotes.
+  without its quotes. A typed metavariable whose type is itself a metavariable
+  (`($T $C).$M(...)`) binds the declared type where the engine knows one, and
+  the receiver's own text where it does not (a `var` set from a call), so
+  `metavariable-comparison: str($T) == str($C)` keeps only receivers of unknown
+  type (`cs-fetch-loop-over-urls`). It does not match a call on an inline
+  factory call (`factory.CreateClient().GetAsync(...)`).
 - `new T(...)` does not match `new T { ... }` or `new T(...) { ... }`, the usual
   shape of a .NET request or options object. Write `new T(...) { ... }`, which
   matches with and without an initializer (and `T $V = new(...) { ... };` for a

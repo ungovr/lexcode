@@ -1,4 +1,4 @@
-// lexcode-expect: 11
+// lexcode-expect: 12
 using System.Net;
 
 namespace Research.Harvest;
@@ -40,6 +40,14 @@ public class UrlListFetcher(IHttpClientFactory factory)
         foreach (var target in urls)
         {
             var legacy = WebRequest.Create(target);
+        }
+
+        // A client from the factory held in a local: the engine does not know its type, so the
+        // receiver is read by its name.
+        var client = factory.CreateClient("harvester");
+        foreach (var url in urls)
+        {
+            await client.GetStringAsync(url);
         }
     }
 }

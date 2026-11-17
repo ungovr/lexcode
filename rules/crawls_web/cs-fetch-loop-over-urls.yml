@@ -35,11 +35,21 @@ rules:
               - pattern-either:
                   - pattern: (System.Net.Http.HttpClient $C).$GET($URL, ...)
                   - pattern: (HttpClient $C).$GET($URL, ...)
+                  # A receiver named for a client counts only where the engine knows no type for it
+                  # (a local set from `CreateClient(...)`, a `var` set from a call): a typed
+                  # metavariable whose type is unknown binds the receiver's own text as its type, so
+                  # `str($T) == str($C)` holds there and fails for a field, parameter or property
+                  # declared with another type (a typed wrapper such as `ISecretsClient`, whose
+                  # GetStringAsync reads a secret by name). The factory call itself has no typed
+                  # form, so it is written out.
                   - patterns:
-                      - pattern: $C.$GET($URL, ...)
+                      - pattern: ($T $C).$GET($URL, ...)
                       - metavariable-regex:
                           metavariable: $C
                           regex: ^((this\.)?_?(?!(?i:\w*(cache|store|storage|redis|blob|queue|session|context|accessor|config|settings)))\w*([cC]lient|[hH]ttp\w*)|[\w.]+\.CreateClient\([^)]*\))$
+                      - metavariable-comparison:
+                          comparison: str($T) == str($C)
+                  - pattern: $F.CreateClient(...).$GET($URL, ...)
               - metavariable-regex:
                   metavariable: $GET
                   regex: ^Get(String|Stream|ByteArray)?Async$
