@@ -1614,8 +1614,10 @@ The engine sets most of these limits, and the rules' comments point here.
 - **Staff routes.** A route registered in a router built in another function
   and nested by name (`.nest("/admin", admin_routes())`), a route behind an
   authentication layer and a handler in a file under `admin/` are not read as
-  staff, and an inline staff-named `mod` is excluded by a text regex, so a brace
-  in a string inside it can end its range early.
+  staff. An inline staff-named `mod` is excluded by a text regex that steps over
+  strings, raw strings with up to two hashes, character literals and comments, so
+  a brace inside one does not end it, but a block comment nested in another or a
+  raw string with three hashes or more is read as code.
 - **Not read.** A serenity (Discord) or teloxide (Telegram) bot is not read as
   a chatbot, and no Rust rule reads Woodpecker CI (`.woodpecker.yml`), `tauri.conf.json`, `cargo-apk` metadata, a
   `publish.workspace = true` that the workspace turns on, a Dioxus `launch` with

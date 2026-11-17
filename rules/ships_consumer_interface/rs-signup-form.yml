@@ -25,10 +25,15 @@ rules:
           regex: '^(handle_|post_|submit_|process_)?(sign_?up|register|registration|create_account|new_account|subscribe|subscribe_to_newsletter|newsletter_(sign_?up|subscribe))(_(user|account|member|customer|form|post|submit|handler|page|action))?$'
       # A handler in an inline staff module is a staff screen; one in an admin/ file is not seen.
       # The engine does not match a Rust `mod` block as a pattern (probed), so the module is a
-      # text range: its header and its balanced braces (PCRE recursion). A brace inside a string
-      # in the module can end the range early.
+      # text range: its header and its balanced braces (PCRE recursion). Between the braces the
+      # regex steps over a raw string with up to two hashes (r"..", r#".."#, r##".."##, and the
+      # b and c forms), a string, a character literal ('}' and '\u{7d}'), a line comment and a
+      # block comment, so a brace inside one does not end the module; a lone ' is a lifetime.
+      # Each "r" and "/" is tried as a raw string or comment first, then read as any character.
+      # A block comment nested in another, or a raw string with three hashes or more, is read as
+      # code.
       - pattern-not-inside:
-          pattern-regex: '(?mi)^[ \t]*(?:pub(?:\([^)]*\))?\s+)?mod\s+\w*(?:admin|staff|internal|backoffice|manage)\w*\s*(\{(?:[^{}]++|(?1))*+\})'
+          pattern-regex: '(?mi)^[ \t]*(?:pub(?:\([^)]*\))?\s+)?mod\s+\w*(?:admin|staff|internal|backoffice|manage)\w*\s*(\{(?:[^{}"''/r]++|r(?:"[^"]*+"|#"(?:[^"]++|"(?!#))*+"#|##"(?:[^"]++|"(?!##))*+"##)|r|"(?:[^"\\]++|\\[\s\S])*+"|''(?:[^''\\\n]|\\(?:u\{[0-9a-f]{1,6}\}|[^\n]))''|''|//[^\n]*+|/\*(?:[^*]++|\*(?!/))*+\*/|/|(?1))*+\})'
       - focus-metavariable: $F
     metadata:
       activity: ships_consumer_interface
