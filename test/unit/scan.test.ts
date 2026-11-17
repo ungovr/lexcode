@@ -514,6 +514,21 @@ describe('what a scan could not read (#12745)', () => {
     },
   );
 
+  it('names the files the engine could not read in full, an extracted copy by its original (#13209)', async () => {
+    const root = tree({ 'src/a.py': 'x = 1\n', 'web/page.html': '<script>track();</script>\n' });
+    process.env.FAKE_OPENGREP_ERRORS = JSON.stringify([
+      { code: 3, level: 'warn', type: 'PartialParsing', path: 'scan-root/src/a.py', message: 'partial parse' },
+      { code: 3, level: 'warn', type: 'Timeout', rule_id: 'r', path: '/elsewhere/scripts/web/page.html.lexcode.js', message: 'timeout' },
+    ]);
+    try {
+      const rec = await scan({ root, rulesDirs: [], rs: stubRuleSet(), enginePath: STUB, includeTests: false, snippets: false });
+      const n = rec.notices.find((x) => x.startsWith('the engine could not read'));
+      expect(n).toMatch(/^the engine could not read 2 files in full; .* Not parsed in full: src\/a\.py\. A rule ran past the engine's 30-second limit on: web\/page\.html \(/);
+    } finally {
+      delete process.env.FAKE_OPENGREP_ERRORS;
+    }
+  });
+
   it('names each language it holds files in but has no rules for, with counts', async () => {
     const root = tree({
       'src/a.py': 'x = 1\n',

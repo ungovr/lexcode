@@ -30,7 +30,7 @@ import { listFiles } from '../scope/files.js';
 import { longLineFiles, MAX_LINE_CHARS } from '../scope/longlines.js';
 import { dropRustTestMatches } from '../scope/rust-tests.js';
 import { loadSidecar } from '../config/sidecar.js';
-import type { Dependency, EngineMatch, Evidence, EvidenceRecord, RuleSet, ScopeSpec, Sidecar } from '../types.js';
+import type { Dependency, EngineMatch, Evidence, EvidenceRecord, RuleSet, ScopeSpec, Sidecar, UnreadFile } from '../types.js';
 import { defaultIo, flag, parseFlags, str, strList, type Io } from './args.js';
 import { USAGE } from '../usage.js';
 import { fromCwd, insideRoot, writeOutput } from './fsutil.js';
@@ -216,6 +216,7 @@ export async function scan(o: ScanOptions): Promise<EvidenceRecord> {
 
     let matches: EngineMatch[] = [];
     let fileErrors = 0;
+    let unreadFiles: UnreadFile[] = [];
     let engineVersion: string = ENGINE_PIN.version;
     if (rs.rules.length > 0) {
       const handle = await ensureEngine({ enginePath: o.enginePath, download: true });
@@ -232,6 +233,7 @@ export async function scan(o: ScanOptions): Promise<EvidenceRecord> {
         fileErrors = ran.fileErrors;
         const back = pathMapper(pairs);
         matches = ran.matches.map((m) => ({ ...m, path: back(m.path) }));
+        unreadFiles = ran.unreadFiles.map((u) => ({ ...u, path: back(u.path) }));
         // Rust's unit tests sit in #[cfg(test)] modules of the source file itself; they are tests, out of
         // scope unless the scan includes them. Filtered on the original paths the record will carry: an
         // extracted copy is never .rs, and each .rs file with a match is read once.
@@ -254,6 +256,7 @@ export async function scan(o: ScanOptions): Promise<EvidenceRecord> {
       snippets: o.snippets,
       now: o.now ?? new Date(),
       fileErrors,
+      unreadFiles,
       notices,
     });
   } finally {

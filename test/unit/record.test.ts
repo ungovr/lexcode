@@ -12,7 +12,7 @@ import {
   unreadLanguages,
 } from '../../src/record/build.js';
 import { loadRuleSet } from '../../src/rules/load.js';
-import type { RuleMeta, Sidecar } from '../../src/types.js';
+import type { RuleMeta, Sidecar, UnreadFile } from '../../src/types.js';
 import { NOW, SCOPE, match, ruleSetWith } from '../helpers/record.js';
 import { expectNearLinear, measureScaling } from '../helpers/scaling.js';
 
@@ -294,11 +294,62 @@ describe('buildRecord', () => {
 
   it('notes files the engine could not read', () => {
     const r = buildRecord({ ...base, rs: ruleSetWith(), fileErrors: 3 });
-    expect(r.notices).toContain('the engine could not read 3 files; their evidence is missing from this record');
+    expect(r.notices).toContain('the engine could not read 3 files in full; evidence in them may be missing from this record');
     expect(buildRecord({ ...base, rs: ruleSetWith(), fileErrors: 1 }).notices).toContain(
-      'the engine could not read 1 file; its evidence is missing from this record',
+      'the engine could not read 1 file in full; evidence in it may be missing from this record',
     );
     expect(buildRecord({ ...base, rs: ruleSetWith() }).notices).toEqual([]);
+  });
+
+  // A reader cannot tell whether a key file is among the unread ones unless the record names them (#13209,
+  // #13303, #12745 item 4). A rule's time limit is wall-clock, so that count moves with load (#12882).
+  describe('names the files the engine could not read in full', () => {
+    const notice = (unreadFiles: UnreadFile[], fileErrors = unreadFiles.length) =>
+      buildRecord({ ...base, rs: ruleSetWith(), fileErrors, unreadFiles }).notices.filter((n) => n.startsWith('the engine'));
+
+    it('by reason, each file once, sorted, and the count is of files, not errors', () => {
+      expect(
+        notice(
+          [
+            { path: 'src/b.rb', reason: 'parse' },
+            { path: 'src/a.rb', reason: 'parse' },
+            { path: 'src/a.rb', reason: 'parse' },
+            { path: 'web/c.js', reason: 'timeout' },
+            { path: 'web/c.js', reason: 'timeout' },
+            { path: 'gen/d.js', reason: 'limit' },
+            { path: 'x/e.py', reason: 'other' },
+          ],
+          7,
+        ),
+      ).toEqual([
+        'the engine could not read 5 files in full; evidence in them may be missing from this record. ' +
+          'Not parsed in full: src/a.rb, src/b.rb. ' +
+          "A rule ran past the engine's 30-second limit on: web/c.js (the limit is wall-clock time, so this list can change with machine load between runs of the same code). " +
+          "Past the engine's size, memory or match limits: gen/d.js. " +
+          'Other engine errors: x/e.py.',
+      ]);
+    });
+
+    it('one file with two reasons is counted once and named under both', () => {
+      expect(notice([{ path: 'a.rb', reason: 'parse' }, { path: 'a.rb', reason: 'timeout' }])[0]).toMatch(
+        /^the engine could not read 1 file in full; evidence in it may be missing from this record\. Not parsed in full: a\.rb\. A rule ran past .* on: a\.rb \(/,
+      );
+    });
+
+    it('names the first 10 of a reason and counts the rest', () => {
+      const many = Array.from({ length: 13 }, (_, i) => ({ path: `f${String(i).padStart(2, '0')}.rb`, reason: 'parse' as const }));
+      expect(notice(many)[0]).toBe(
+        'the engine could not read 13 files in full; evidence in them may be missing from this record. ' +
+          'Not parsed in full: f00.rb, f01.rb, f02.rb, f03.rb, f04.rb, f05.rb, f06.rb, f07.rb, f08.rb, f09.rb and 3 more.',
+      );
+    });
+
+    it('counts an error the engine gave no path for, without naming it', () => {
+      expect(notice([{ path: 'a.rb', reason: 'parse' }], 2)[0]).toBe(
+        'the engine could not read 2 files in full; evidence in them may be missing from this record. Not parsed in full: a.rb. ' +
+          'The engine named no file for 1 more error.',
+      );
+    });
   });
 
   it('carries extra notices from the scan before its own', () => {

@@ -75,6 +75,12 @@ directory whose name ends in `Tests` with a capital T, so `WikipediaTests`,
 this one is case-sensitive), unless you pass `--include-tests`. `app.scope` in
 `lexlint.yml` narrows the read, as the lint reads it.
 
+A file the engine could not read in full is named in a notice, with the
+reason: it did not parse in full, a rule ran past the engine's 30-second
+limit on it, or it was past the engine's size, memory or match limits. The
+time limit is wall-clock time, so on a loaded machine two scans of the same
+code can name different files.
+
 Languages: TypeScript, JavaScript (with JSX and TSX), Python, Go, Ruby
 (`.rb`, `.rake`, `.ru` and `.gemspec` files, and a `Rakefile`, `Fastfile`,
 `Appfile` or `Capfile`), Java (`.java`), Kotlin (`.kt`, `.kts`), PHP (`.php`,

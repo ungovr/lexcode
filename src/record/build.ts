@@ -1,6 +1,6 @@
 import { posix } from 'node:path';
 import { classOf } from '../rules/load.js';
-import { ROOT_LINK } from '../engine/run.js';
+import { ENGINE_TIMEOUT_SECONDS, ROOT_LINK } from '../engine/run.js';
 import { COPIED_WHOLE_EXTENSIONS } from '../scope/extract.js';
 import type {
   ActivityRow,
@@ -15,6 +15,7 @@ import type {
   ScopeInfo,
   Sidecar,
   SignalRow,
+  UnreadFile,
 } from '../types.js';
 import { isOwnHost, urlLiteral } from './hosts.js';
 
@@ -30,7 +31,10 @@ export interface BuildInput {
   engineVersion: string;
   snippets: boolean;
   now: Date;
+  /** How many per-file errors the engine reported, with a path or without. */
   fileErrors: number;
+  /** One entry per per-file error that names its file, with the original's path for an extracted copy. */
+  unreadFiles?: UnreadFile[];
   /** Notices the scan collected before the record was built; they come first. */
   notices?: string[];
 }
@@ -396,6 +400,46 @@ export function prefilterReachNotice(large: { language: string; files: number }[
   );
 }
 
+/** How many files a notice names per reason before it counts the rest. */
+const UNREAD_NAMED = 10;
+
+/**
+ * The notice for the files the engine could not read in full, or undefined when there are none. It names them,
+ * up to UNREAD_NAMED per reason, so a reader can tell whether a key file is among them (#13209, #13303): each
+ * file once per reason, sorted. A file counts once however many errors it had; an error with no path counts as
+ * one more file. A rule's time limit is wall-clock time, so the timed-out files can differ between two runs of
+ * the same code on a loaded machine (#12882: 17 and 29 on one Canvas commit).
+ */
+export function unreadNotice(fileErrors: number, unreadFiles: UnreadFile[]): string | undefined {
+  const unnamed = Math.max(0, fileErrors - unreadFiles.length);
+  const files = new Set(unreadFiles.map((u) => u.path));
+  const n = files.size + unnamed;
+  if (n === 0) return undefined;
+  const parts = [
+    `the engine could not read ${n.toLocaleString('en-US')} ${plural(n, 'file', 'files')} in full; evidence in ${plural(n, 'it', 'them')} may be missing from this record`,
+  ];
+  const named = (reason: UnreadFile['reason']): string | undefined => {
+    const paths = [...new Set(unreadFiles.filter((u) => u.reason === reason).map((u) => u.path))].sort();
+    if (paths.length === 0) return undefined;
+    const shown = paths.slice(0, UNREAD_NAMED).join(', ');
+    return paths.length > UNREAD_NAMED ? `${shown} and ${(paths.length - UNREAD_NAMED).toLocaleString('en-US')} more` : shown;
+  };
+  const parse = named('parse');
+  if (parse !== undefined) parts.push(`Not parsed in full: ${parse}`);
+  const timeout = named('timeout');
+  if (timeout !== undefined) {
+    parts.push(
+      `A rule ran past the engine's ${ENGINE_TIMEOUT_SECONDS}-second limit on: ${timeout} (the limit is wall-clock time, so this list can change with machine load between runs of the same code)`,
+    );
+  }
+  const limit = named('limit');
+  if (limit !== undefined) parts.push(`Past the engine's size, memory or match limits: ${limit}`);
+  const other = named('other');
+  if (other !== undefined) parts.push(`Other engine errors: ${other}`);
+  if (unnamed > 0 && unreadFiles.length > 0) parts.push(`The engine named no file for ${unnamed.toLocaleString('en-US')} more ${plural(unnamed, 'error', 'errors')}`);
+  return parts.length === 1 ? parts[0] : `${parts.join('. ')}.`;
+}
+
 /** The per-activity counts, plus how many code rules (not map entries, not rules for json, yaml or xml settings files) had a file to read. */
 export class RulesRun extends Map<string, number> {
   codeRulesRan = 0;
@@ -588,13 +632,8 @@ export function buildRecord(i: BuildInput): EvidenceRecord {
         'If your source is in one of those languages, check that the include and exclude lists in .lexcode.yml and lexlint.yml have not left it out; otherwise read this result as "not checked", not as "clean".',
     );
   }
-  if (i.fileErrors > 0) {
-    notices.push(
-      i.fileErrors === 1
-        ? 'the engine could not read 1 file; its evidence is missing from this record'
-        : `the engine could not read ${i.fileErrors} files; their evidence is missing from this record`,
-    );
-  }
+  const unread = unreadNotice(i.fileErrors, i.unreadFiles ?? []);
+  if (unread !== undefined) notices.push(unread);
 
   return {
     schema: 'https://lexlint.io/lexcode/v1',

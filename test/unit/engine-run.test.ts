@@ -324,6 +324,31 @@ describe.skipIf(skipStub)('runEngine with the fake engine', () => {
     expect(metavarSource('a\r\nb', 1, { line: 1, col: 1 }, { line: 2, col: 2 })).toBe('a\r\nb');
   });
 
+  it('lists each per-file error that names its file, with why, in the paths it gave (#13209)', async () => {
+    setEnv(
+      'FAKE_OPENGREP_ERRORS',
+      JSON.stringify([
+        { code: 3, level: 'warn', type: 'PartialParsing', path: 'scan-root/a.py', message: 'partial parse' },
+        { code: 3, level: 'error', type: ['Syntax error', []], path: 'b.py', message: 'syntax error' },
+        { code: 3, level: 'warn', type: 'Timeout', rule_id: 'lexcode.x', path: 'scan-root/c.rb', message: 'timeout' },
+        { code: 3, level: 'warn', type: 'OutOfMemory', path: 'd.js', message: 'oom' },
+        { code: 3, level: 'warn', type: 'Too many matches', path: 'e.js', message: 'too many' },
+        { code: 2, level: 'error', type: 'Fatal error', path: 'f.go', message: 'boom' },
+        { code: 3, level: 'warn', type: 'Lexical error', message: 'no path' },
+      ]),
+    );
+    const r = await run({ engine: STUB, configFile: 'c.yml', targets: ['a.py'], root: dir });
+    expect(r.fileErrors).toBe(7);
+    expect(r.unreadFiles).toEqual([
+      { path: 'a.py', reason: 'parse' },
+      { path: 'b.py', reason: 'parse' },
+      { path: 'c.rb', reason: 'timeout' },
+      { path: 'd.js', reason: 'limit' },
+      { path: 'e.js', reason: 'limit' },
+      { path: 'f.go', reason: 'other' },
+    ]);
+  });
+
   it('counts per-file errors in fileErrors without throwing', async () => {
     setEnv('FAKE_OPENGREP_MODE', 'errors');
     const r = await run({ engine: STUB, configFile: 'c.yml', targets: ['a.py'], root: dir });
