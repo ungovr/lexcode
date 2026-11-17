@@ -1,0 +1,63 @@
+# Installs the locked dependencies through Socket Firewall Free, which refuses
+# a package Socket has confirmed as malware (ungovr/ungovr#13476). It needs no
+# Socket account or API key; it sends the names of the packages requested to
+# Socket's API, which for this public lockfile says nothing new.
+#
+# `ci.yml` runs its tests and `release.yml` builds the package only after this
+# job passes. package-lock.json pins every package by integrity hash, so those
+# jobs install the same bytes this one let through, and the firewall binary
+# never runs in a job that builds what npm publishes.
+#
+# npm installs a platform's optional packages (native bindings) only on that
+# platform, so the firewall runs on every runner OS that ci.yml installs on.
+# A new OS in ci.yml's matrix needs a row here too.
+#
+# The binary is pinned by version and sha256 for each runner, the way lexcode
+# pins Opengrep. To move it, take each asset's digest from the release
+# (gh api repos/SocketDev/sfw-free/releases/tags/<tag>) and change the version
+# and every sha256 together. Socket drops support for old versions, so a red
+# job that fails before the install step may just mean the pin is too old.
+name: socket
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  firewall:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            asset: sfw-free-linux-x86_64
+            sha256: 1f24d2628aeb3995f1f2651509e37641c7c41d07749ac68594ecb5bb2dd44d8a
+          - os: macos-15
+            asset: sfw-free-macos-arm64
+            sha256: 29df049df2ef705a8ce726c6c41fe73a6034f6b1cd0d87f3f15a780d074b6d83
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    env:
+      SFW_VERSION: v1.16.0
+      SFW_ASSET: ${{ matrix.asset }}
+      SFW_SHA256: ${{ matrix.sha256 }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+      - name: Socket Firewall Free, pinned
+        run: |
+          mkdir -p "$RUNNER_TEMP/sfw-bin"
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/sfw-bin/sfw" \
+            "https://github.com/SocketDev/sfw-free/releases/download/$SFW_VERSION/$SFW_ASSET"
+          echo "$SFW_SHA256  $RUNNER_TEMP/sfw-bin/sfw" | shasum -a 256 -c -
+          chmod +x "$RUNNER_TEMP/sfw-bin/sfw"
+      - name: Install through the firewall
+        # Install scripts stay off: this job only proves every package passes.
+        run: |
+          "$RUNNER_TEMP/sfw-bin/sfw" npm ci --ignore-scripts

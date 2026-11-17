@@ -41,7 +41,10 @@ waits for a reviewer to approve the `npm` environment.
    release's issue.
 6. Commit, then tag `v<version>` (a prerelease such as `v1.1.0-rc.1` publishes
    under the `next` dist-tag; anything else under `latest`) and push the tag.
-7. Approve the `npm` environment when the build job is green.
+7. Approve the `npm` environment when the build job is green. The build waits
+   on the `socket` job, which installs the lockfile through Socket Firewall
+   Free (`.github/workflows/socket.yml`); a red `socket` job means a package
+   Socket confirms as malware is in the lockfile, and nothing publishes.
 8. Verify: `npm view @ungovr/lexcode dist-tags`, the provenance statement on
    https://www.npmjs.com/package/@ungovr/lexcode, and
    `npx @ungovr/lexcode@<version> version`

@@ -1,124 +1,91 @@
-# lexcode
+<p align="center">
+  <a href="https://lexlint.io/lexcode">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/ungovr/lexcode/main/.github/assets/lexlint-logo-on-dark.png">
+      <img src="https://raw.githubusercontent.com/ungovr/lexcode/main/.github/assets/lexlint-logo.png" alt="LexLint" width="300">
+    </picture>
+  </a>
+</p>
 
-lexcode reads a repository on your machine and writes down, file and line,
-what the code does in the vocabulary LexLint uses for legal activities:
-whether it crawls other sites, records voices, tracks devices, generates
-content with a model, sends messages people did not ask for, and so on. In
-CI it checks the declaration you committed (`ACTIVITIES.md` or `lexlint.yml`)
-against that evidence and fails the build when the code does something the
-declaration does not say.
+<h1 align="center">LexCode</h1>
 
-The record is about what the code does, never about what law applies. Law is
-resolved later, by the LexLint lint, from your product's own jurisdictions and
-roles. lexcode gives evidence for questions a person answers; it is not legal
-advice and it never writes a declaration for you.
+<p align="center">
+  LexLint's code reader. It writes down, file and line, what your code does,<br>
+  and fails the build when your declaration stops saying it.
+</p>
+
+<p align="center">
+  <a href="https://www.npmjs.com/package/@ungovr/lexcode"><img src="https://img.shields.io/npm/v/%40ungovr%2Flexcode" alt="npm version"></a>
+  <a href="https://github.com/ungovr/lexcode/actions/workflows/ci.yml"><img src="https://github.com/ungovr/lexcode/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://socket.dev/npm/package/@ungovr/lexcode"><img src="https://socket.dev/api/badge/npm/package/@ungovr/lexcode" alt="Socket"></a>
+  <a href="https://github.com/ungovr/lexcode/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT license"></a>
+</p>
+
+<p align="center">
+  <a href="https://lexlint.io/lexcode">Website</a> &middot;
+  <a href="https://learn.lexlint.io/lint/lexcode">Watch it run</a> &middot;
+  <a href="https://lexlint.io/activities">The activities</a> &middot;
+  <a href="https://github.com/ungovr/lexcode/blob/main/docs/ci.md">Use it in CI</a>
+</p>
+
+---
+
+LexCode reads a repository on your machine and records what the code does in
+the words LexLint uses for activities: crawling other sites, recording a
+voice, tracking a device, generating content with a model, sending messages
+nobody asked for. In CI, `lexcode check` holds your declaration
+(`ACTIVITIES.md` or `lexlint.yml`) to that evidence.
+
+It says what the code does, never what law applies, and it never writes a
+declaration for you. Law comes later, from the
+[LexLint lint](https://lexlint.io), for your own jurisdictions and roles.
+LexCode is not legal advice.
 
 ## Run it
 
-```
+```sh
 npx @ungovr/lexcode scan    # writes lexcode.json in the repository root
 npx @ungovr/lexcode check   # compares the code with your declaration
 ```
 
-The package is `@ungovr/lexcode` on npm for now, while npm decides on the
-unscoped name `lexcode`; the command it installs is `lexcode` either way
-(`npm install -g @ungovr/lexcode`, then `lexcode scan`).
+Or install it: `npm install -g @ungovr/lexcode`, then `lexcode scan`. Node 20
+or later.
 
-Node 20 or later. On first run lexcode downloads the analysis engine it is
-pinned to (Opengrep, about 40 MB) from the Opengrep GitHub release, checks its
-sha256 against the value shipped in this package, and caches it. The engine
-unpacks itself under lexcode's own cache directory the first time it runs
-(see Privacy for everything the engine writes and where).
+On first run LexCode downloads the analysis engine it is pinned to (Opengrep,
+about 40 MB) from the Opengrep GitHub release, checks its sha256 against the
+value shipped in the package, and caches it. The package is `@ungovr/lexcode`
+while npm decides on the unscoped name `lexcode`; the command is `lexcode`
+either way.
 
-To scan code you do not trust (a stranger's clone, a pull request, an unpacked
-archive), run lexcode from outside it, with a copy you chose:
-`cd ~ && npx @ungovr/lexcode@1 scan /path/to/repo`. npm honors a project's
-`.npmrc` `registry=` line and a local `@ungovr/lexcode` dependency, so
-`npx @ungovr/lexcode` run inside an untrusted repository may run something
-other than this package. lexcode itself never runs a program from the scanned
-directory (see Privacy).
+> **Scanning code you do not trust** (a stranger's clone, a pull request, an
+> unpacked archive)? Run LexCode from outside it:
+> `cd ~ && npx @ungovr/lexcode@1 scan /path/to/repo`. npm honors a project's
+> `.npmrc` `registry=` line and a local `@ungovr/lexcode` dependency, so `npx`
+> run inside an untrusted repository may run something other than this
+> package. LexCode itself never runs a program from the scanned directory.
 
 ## What it reads
 
-Files tracked by git or trackable by it, honoring `.gitignore`. Outside a git
-work tree lexcode walks the directory instead, and then also leaves out
-virtual environments (`.venv`, `venv` and `env` where a `pyvenv.cfg` says they
-are one), `site-packages`, `__pycache__`, `.tox`, `.nox`, `.mypy_cache`,
-`.pytest_cache`, `.next`, `.nuxt`, `.svelte-kit`, `target`, `.gradle`,
-`.terraform`, `.build`, `DerivedData` and .NET build output (`obj` where it
-holds a `project.assets.json`, `bin` where it holds a `Debug` or `Release`
-directory), and applies the simple patterns of the root `.gitignore`: a name,
-`dir/`, a glob such as `*.ext`, and a leading `/`. Negations (`!pattern`) are
-not supported, and neither is a `.gitignore` below the root; the scan says so
-in a notice. Never `node_modules`, `vendor`, `dist`, `build`, `.git`, `Pods`
-or `Carthage`, never a legacy NuGet restore folder (a `packages` directory
-whose subdirectories hold a `.nupkg`; a `packages/` of your own code is read),
-never minified or bundled files (including any named `*.min.js`,
-`*.bundle.js`, `vendor.*.js` or `*.vendor.js`), never C# the compiler
-generated (`*.g.cs` and `*.g.i.cs`; a `*.Designer.cs` is read), never
-generated Swift (`*.generated.swift`, `*+Generated.swift`, `*.pb.swift`,
-`*.grpc.swift`, and anything under a directory named `GeneratedSources`,
-where swift-openapi-generator writes its output; the name is case-sensitive),
-never a file with a line over 100,000 characters (generated code, counted in
-a notice), never symbolic links, never files over 5 MB, never a file you
-cannot open for reading (counted in a notice), and never directories named
-`test`, `tests`, `__tests__`, `spec`, `fixtures`, `testdata`, `benches`,
-`androidTest`, `testFixtures` or `integrationTest`, or
-the Kotlin Multiplatform test source sets `commonTest`, `jvmTest`,
-`androidUnitTest`, `androidInstrumentedTest`, `iosTest`, `jsTest` or
-`nativeTest`, or .NET test projects (a directory whose name ends in `.Tests`,
-`.Test`, `.UnitTests`, `.IntegrationTests`, `.FunctionalTests`,
-`.AcceptanceTests` or `.Specs`, so `src/MyApp.Tests`), in any case (so
-Symfony's `Tests` and Magento's `Test` too), or Xcode test targets (a
-directory whose name ends in `Tests` with a capital T, so `WikipediaTests`,
-`WikipediaUITests`, `UITests`, `APITests` and `iOSTests` but not `Contests`;
-this one is case-sensitive), unless you pass `--include-tests`. `app.scope` in
-`lexlint.yml` narrows the read, as the lint reads it.
+| | |
+|---|---|
+| **Languages** | TypeScript, JavaScript, Python, Go, Ruby, Java, Kotlin, PHP, C#, Swift, Rust |
+| **Views** | The `<script>` blocks of Vue, Svelte, HTML, Jinja, ERB, JSP, Twig, Tera and Razor files; PHP and Blade views in full |
+| **Package manifests** | npm, PyPI, Go, RubyGems, Maven and Gradle, Composer, NuGet, Cargo, Swift packages, CocoaPods |
+| **Apple app configuration** | `Info.plist`, `PrivacyInfo.xcprivacy`, `*.entitlements`, `project.pbxproj` |
+| **Which files** | What git tracks or could track, honoring `.gitignore` |
+| **Left out** | Dependencies, build output, generated and minified code, files over 5 MB, and tests unless you pass `--include-tests` |
 
-Languages: TypeScript, JavaScript (with JSX and TSX), Python, Go, Ruby
-(`.rb`, `.rake`, `.ru` and `.gemspec` files, and a `Rakefile`, `Fastfile`,
-`Appfile` or `Capfile`), Java (`.java`), Kotlin (`.kt`, `.kts`), PHP (`.php`,
-`.phtml`, and `.inc`, `.module`, `.theme` and `.install` files that open with
-`<?php`), C# (`.cs`; `.csx` and `.cake` scripts are not read), Swift
-(`.swift`) and Rust (`.rs`), plus the `<script>` blocks of Vue, Svelte, HTML,
-Jinja, ERB (`.erb`, so `.html.erb`), JSP (`.jsp`, `.jspf`, `.tag`), PHP
-(`.php`, `.phtml`), Blade (`.blade.php`), Twig (`.twig`, so `.html.twig`),
-Tera (`.tera`, so `.html.tera`) and Razor (`.cshtml`, `.razor`) files. In an
-ERB, JSP, Twig, Tera or Razor view only the `<script>` blocks are read, as
-JavaScript; the Ruby, Java, C# or template code inside the tags is not (the
-tags are blanked, so line numbers hold), except that a Razor file's `@code`
-and `@functions` blocks are also read as C#. A PHP, Blade or `.phtml` view is
-PHP source, so the whole file is also scanned as PHP, and its `<script>`
-blocks are read as JavaScript as well. In a Rust file, code inside a
-`#[cfg(test)]` module is left out unless you pass `--include-tests`. For
-Apple apps lexcode also reads, as text, the files that declare what an app may
-do: `Info.plist` (and Xcode's `<Target>-Info.plist`), `PrivacyInfo.xcprivacy`,
-`*.entitlements` and `project.pbxproj`; a binary plist is not read. Code in
-any other language (Objective-C, F#, Visual Basic and the like) is not read,
-and the scan names each such language with its file count in a notice, so a
-missing activity there reads as "not checked", never as "not there".
-Manifests: npm
-(`package.json` with `package-lock.json`, `pnpm-lock.yaml` or `yarn.lock`),
-PyPI (`pyproject.toml`, `requirements*.txt`, `uv.lock`, `poetry.lock`), Go
-(`go.mod`), RubyGems (`Gemfile` or `gems.rb`, with `Gemfile.lock` or
-`gems.locked`, and `*.gemspec`), Maven (`pom.xml`, and Gradle's `build.gradle`
-and `build.gradle.kts` with their version catalogs, `gradle/*.versions.toml`,
-and the constants and `findLibrary` lookups in `buildSrc` and `build-logic`),
-Composer (`composer.json`, with the `composer.lock` beside it), NuGet
-(`*.csproj`, `*.fsproj`, `*.vbproj`, `Directory.Build.props`,
-`Directory.Build.targets`, `Directory.Packages.props` and `packages.config`,
-with the `packages.lock.json` beside a project), Cargo (`Cargo.toml`, with
-the `Cargo.lock` beside it or above it), Swift packages (`Package.swift` and
-the Swift packages of an Xcode project's `project.pbxproj`, with
-`Package.resolved`) and CocoaPods (`Podfile` and `Podfile.lock`). Carthage's
-`Cartfile.resolved` is not read; the scan counts its entries in a notice.
-How Ruby, gems, Java, Kotlin, Maven, Gradle, PHP, Composer, C#, Razor, NuGet,
-Swift, Rust, Cargo, Swift packages, CocoaPods and the Apple configuration
-files are read, in detail, is in [rules/README.md](rules/README.md).
+A language it does not read is named in the scan with its file count, so an
+activity there reads as "not checked", never as "not there".
+
+More:
+[languages on lexlint.io](https://lexlint.io/lexcode#languages) &middot;
+[every file, extension and exclusion](https://github.com/ungovr/lexcode/blob/main/docs/what-it-reads.md) &middot;
+[how each language is read, rule by rule](https://github.com/ungovr/lexcode/blob/main/rules/README.md)
 
 ## What it writes
 
-`lexcode.json`:
+`lexcode.json`, an evidence record ([how a scan works](https://lexlint.io/lexcode#how)):
 
 ```yaml
 schema: https://lexlint.io/lexcode/v1
@@ -141,55 +108,15 @@ searched_not_found:
 components: [...]
 ```
 
-- `performs`: a rule matched the project's own code doing it.
-- `enables`: only a dependency makes it possible. A dependency is a question,
-  not an answer: a package can be installed and never called.
-- `signals`: weak hints shown as "worth a look". They never affect a result.
-- `searched_not_found`: activities lexcode has rules for and found nothing,
-  with how many rules it tried. That is a finding, not an absence of one. A
-  rule is tried only when the scope holds a file it reads (one of its
-  languages, with a name its `paths.include` matches); the engine is handed
-  those rules and those files, nothing else.
+| Field | Means |
+|---|---|
+| `performs` | A rule matched the project's own code doing it |
+| `enables` | Only a dependency makes it possible. A dependency is a question, not an answer: a package can be installed and never called |
+| `signals` | Weak hints shown as "worth a look". They never affect a result |
+| `searched_not_found` | Activities LexCode has rules for and found nothing, with how many rules it tried. That is a finding, not an absence of one. A rule is tried only when the scope holds a file it reads |
 
 `--sarif out.sarif` also writes SARIF 2.1.0 for GitHub code scanning or any
 SARIF viewer. `--json` prints the record instead of writing a file.
-
-## Privacy
-
-Your code never leaves your machine. lexcode makes no network call during a
-scan; its one network call is the engine download above, which
-`lexcode engine fetch` does on its own for air-gapped setups. The record holds
-paths, line numbers, rule ids, activity ids and package URLs, and no source
-text unless you pass `--snippets`; a manifest that does not parse is reported
-by line and column, never by quoting it. lexcode has no telemetry.
-
-### What the engine writes, and where
-
-The engine is a separate program, and left alone it writes outside the
-directory it is given. lexcode points every one of those writes into its own
-directories, and sets nothing in your home directory:
-
-| What | Where | When it goes |
-|------|-------|--------------|
-| Scratch files: a copy of the merged rule set (`semgrep-*.rules`) and temporary target files | `TMPDIR`, `TMP` and `TEMP` for the engine are set to `<system temp>/lexcode-engine-*/tmp` | removed when the scan ends, and when lexcode is interrupted by Ctrl-C, SIGTERM or SIGHUP |
-| The engine's log, which names the scanned paths (`~/.opengrep/semgrep.log` otherwise) | `SEMGREP_LOG_FILE` is set to `engine.log` in that same directory | with the scratch files |
-| The engine's own unpacked runtime (`~/.cache/opengrep/<version>/` otherwise), loaded and run | `XDG_CACHE_HOME` is set to `<cache>/engine-home`, by default `~/.cache/lexcode/engine-home`; a directory only you can write to, kept between runs | stays, like the engine download in `<cache>/engine`; delete it to reclaim the space |
-| lexcode's copies of the `<script>` blocks it extracts, and the merged rule file | `<system temp>/lexcode-scan-*` | removed when the scan ends or is interrupted |
-
-The engine runs in a directory of lexcode's own inside `lexcode-engine-*`, not
-in the repository, and reaches the repository through a link there. It is
-started in its own process group, so a deadline or an interrupt stops its
-workers too (SIGTERM, then SIGKILL after 3 seconds). If lexcode itself is killed
-with SIGKILL or the machine loses power, the `lexcode-*` directories stay in the
-system temp directory and are safe to delete.
-
-`XDG_CACHE_HOME` is honored on Linux and macOS (verified for the pinned
-engine on Linux); on Windows the engine's own cache location is not
-redirected. lexcode runs `git ls-files` in the directory it scans, as the
-program found on `PATH` (never one in the current or scanned directory), and
-tells git to ignore the repository's own `core.fsmonitor`,
-`core.untrackedCache` and `core.excludesFile` settings, so a `.git/config`
-that came from someone else cannot run a program or point it at a file.
 
 ## The drift check
 
@@ -210,6 +137,23 @@ satisfies a declared `generates_content`, and the reverse.
 | 1 | | at least one FAIL |
 | 2 | tool error | tool error |
 | 3 | | no declaration found (`--allow-undeclared` makes it a warning) |
+
+More: [the check in CI](https://lexlint.io/lexcode#check) &middot;
+[sample output from real runs](https://lexlint.io/lexcode#samples) &middot;
+[how often it agrees with a reader](https://lexlint.io/lexcode#agreement) &middot;
+[setting it up in CI](https://github.com/ungovr/lexcode/blob/main/docs/ci.md)
+
+## Your code stays on your machine
+
+- No network call during a scan. The only one is the first-run engine
+  download, which `lexcode engine fetch` does on its own for air-gapped setups.
+- No source text in the record unless you pass `--snippets`: paths, line
+  numbers, rule ids, activity ids and package URLs.
+- No telemetry.
+
+More: [privacy on lexlint.io](https://lexlint.io/lexcode#privacy) &middot;
+[what the engine writes, and where](https://github.com/ungovr/lexcode/blob/main/docs/privacy.md) &middot;
+[what LexCode does not do](https://lexlint.io/lexcode#limits)
 
 ## `.lexcode.yml`
 
@@ -244,38 +188,29 @@ lexcode engine fetch | path | verify
 lexcode version
 ```
 
-`lexcode deps` lists the packages lexcode read from the manifests of one or
+`lexcode deps` lists the packages LexCode read from the manifests of one or
 more repositories (the dependencies `scan` reads: same scope, development
 dependencies skipped), with the activities the component map gives each and
 the number of repositories each appears in, most first. `--unmapped` keeps
 only the packages the map gives no activity: the review list for new map
-entries (see [CONTRIBUTING.md](CONTRIBUTING.md)).
+entries (see [CONTRIBUTING.md](https://github.com/ungovr/lexcode/blob/main/CONTRIBUTING.md)).
 
-`--engine <path>` or `LEXCODE_ENGINE` uses an engine you installed yourself; a
-relative path is resolved against the directory you ran lexcode from, never
-against the repository being scanned.
-Behind a proxy, run the download under `NODE_USE_ENV_PROXY=1` (Node 22.21 or
-later), or fetch the engine on another machine. `LEXCODE_CACHE_DIR` moves the
-cache; lexcode refuses an engine directory that another user owns or that group
-or everyone can write to, since it runs a program from there.
-`LEXCODE_ENGINE_DEADLINE=<seconds>` changes how long a whole engine run may
-take (900, 15 minutes, by default); past it the engine is stopped and the scan
-fails with exit 2.
+### Environment
 
-A large scan runs the engine as several processes at once, one per 4 MB of
-files it reads, at most 8, and no more than the cores and one per 3 GB of
-memory allow. Each process holds its own copy of the rules, so memory rises
-with them. `LEXCODE_ENGINE_LANES=<n>` sets the number; `1` runs the engine as
-one process, for a machine that runs short of memory.
-
-`LEXCODE_RULES_HOME=<dir>` replaces the bundled `rules/` directory (it needs `ruleset.yml`, `classes.yml`, `registry.snapshot.json` and `components/`), for a vendored rule set or a test.
-
-CI: see [docs/ci.md](docs/ci.md).
+| Variable | What it does |
+|---|---|
+| `LEXCODE_ENGINE` | Uses an engine you installed yourself, as `--engine <path>` does. A relative path is resolved against the directory you ran LexCode from, never against the repository being scanned |
+| `LEXCODE_CACHE_DIR` | Moves the cache. LexCode refuses an engine directory that another user owns or that group or everyone can write to, since it runs a program from there |
+| `LEXCODE_ENGINE_DEADLINE` | Seconds a whole engine run may take (900, 15 minutes, by default). Past it the engine is stopped and the scan fails with exit 2 |
+| `LEXCODE_ENGINE_LANES` | How many engine processes a large scan runs at once. By default one per 4 MB of files read, at most 8, and no more than the cores and one per 3 GB of memory allow; each holds its own copy of the rules. `1` runs one process, for a machine short of memory |
+| `LEXCODE_RULES_HOME` | Replaces the bundled `rules/` directory (it needs `ruleset.yml`, `classes.yml`, `registry.snapshot.json` and `components/`), for a vendored rule set or a test |
+| `NODE_USE_ENV_PROXY=1` | Lets the engine download go through a proxy (Node 22.21 or later). Or fetch the engine on another machine |
 
 ## License
 
 The code and the rules are MIT. The engine is Opengrep, under the LGPL-2.1,
-run as a separate program and never modified; `NOTICE` says where its source
-is. The activity registry snapshot in `rules/` is CC BY 4.0, credit LexLint
-(UnGovr). Rules are written here from each activity's definition; see
-[CONTRIBUTING.md](CONTRIBUTING.md).
+run as a separate program and never modified;
+[`NOTICE`](https://github.com/ungovr/lexcode/blob/main/NOTICE) says where its
+source is. The activity registry snapshot in `rules/` is CC BY 4.0, credit
+LexLint (UnGovr). Rules are written here from each activity's definition; see
+[CONTRIBUTING.md](https://github.com/ungovr/lexcode/blob/main/CONTRIBUTING.md).
