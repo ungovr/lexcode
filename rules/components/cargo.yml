@@ -8,6 +8,9 @@ entries:
   # description names no signing (jwt, jsonwebtoken), and a TLS library (rustls), since stock TLS is not
   # counted as shipping encryption. Each AWS service crate gets its own entry, never a prefix. A crate that is a
   # vendor's client library is read as performing what that vendor's service does, as the other maps read one.
+  # Accepted as thin (#13297): aws-sdk-sns and aws-sdk-pinpoint name only their service, as every AWS SDK
+  # entry does in every map. Cargo takes `feed_rs` for `feed-rs`, so a match folds `_` and `-`. Hash, MAC and
+  # password-hashing crates stay out of this map (#13318).
 
   # Crash and error reporting, and product analytics
   - match: "sentry"

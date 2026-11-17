@@ -270,6 +270,26 @@ describe('readCargo', () => {
     ]);
   });
 
+  it('a crate written with an underscore for its hyphen takes its locked version and the locked name (#13297)', () => {
+    const manifest = ['[package]', 'name = "app"', 'version = "0.1.0"', '', '[dependencies]', 'feed_rs = "2"', 'serde-json = { package = "serde_json", version = "1" }', 'tokio_util = "0.7"', ''].join('\n');
+    const root = tree({
+      'Cargo.toml': manifest,
+      'Cargo.lock': lock([
+        { name: 'app', version: '0.1.0' },
+        { name: 'feed-rs', version: '2.3.1', source: CRATES },
+        { name: 'serde_json', version: '1.0.133', source: CRATES },
+        { name: 'tokio-util', version: '0.7.12', source: CRATES },
+      ]),
+    });
+    const r = readCargo(root, ['Cargo.toml', 'Cargo.lock']);
+    expect(r.deps).toEqual([
+      { ecosystem: 'cargo', name: 'feed-rs', version: '2.3.1', manifest: `Cargo.toml:${lineOf(manifest, 'feed_rs')}` },
+      { ecosystem: 'cargo', name: 'serde_json', version: '1.0.133', manifest: `Cargo.toml:${lineOf(manifest, 'serde-json')}` },
+      { ecosystem: 'cargo', name: 'tokio-util', version: '0.7.12', manifest: `Cargo.toml:${lineOf(manifest, 'tokio_util')}` },
+    ]);
+    expect(r.notices).toEqual([]);
+  });
+
   it('a git dependency takes the git lock entry', () => {
     const manifest = [
       '[package]',

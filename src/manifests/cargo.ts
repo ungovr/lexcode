@@ -152,8 +152,15 @@ class CargoLines {
 // ---- versions from Cargo.lock ----------------------------------------------------------------
 
 interface Candidate {
+  /** The crate's name as the lock writes it, which is its name on the registry. */
+  name: string;
   version: string;
   source?: string;
+}
+
+/** Cargo takes `feed_rs` for the crate `feed-rs`: a crate name compared as Cargo looks it up. */
+export function crateKey(name: string): string {
+  return name.toLowerCase().replace(/_/g, '-');
 }
 
 type Triple = [number, number, number];
@@ -233,12 +240,12 @@ function admits(range: Range, c: Parsed): boolean {
  * candidate; otherwise the highest registry candidate the requirement admits, and none when the
  * requirement is not a plain caret, tilde or exact form.
  */
-function pickVersion(cands: Candidate[], req: string | undefined, git: boolean): string | undefined {
+function pickVersion(cands: Candidate[], req: string | undefined, git: boolean): Candidate | undefined {
   if (git) {
     const g = cands.filter((c) => c.source?.startsWith('git+'));
-    return g.length === 1 ? (g[0] as Candidate).version : undefined;
+    return g.length === 1 ? g[0] : undefined;
   }
-  if (cands.length === 1) return (cands[0] as Candidate).version;
+  if (cands.length === 1) return cands[0];
   if (cands.length === 0 || req === undefined) return undefined;
   const range = parseRequirement(req);
   if (!range) return undefined;
@@ -249,7 +256,7 @@ function pickVersion(cands: Candidate[], req: string | undefined, git: boolean):
     if (!p || !admits(range, p)) continue;
     if (!best || cmpVersion(p, best.p) > 0) best = { c, p };
   }
-  return best?.c.version;
+  return best?.c;
 }
 
 class CargoLocks {
@@ -291,10 +298,11 @@ class CargoLocks {
         const pkgs = Array.isArray(data['package']) ? data['package'] : [];
         for (const p of pkgs) {
           if (!isTable(p) || typeof p['name'] !== 'string' || typeof p['version'] !== 'string') continue;
-          const c: Candidate = { version: p['version'], ...(typeof p['source'] === 'string' ? { source: p['source'] } : {}) };
-          const list = out.get(p['name']);
+          const c: Candidate = { name: p['name'], version: p['version'], ...(typeof p['source'] === 'string' ? { source: p['source'] } : {}) };
+          const key = crateKey(p['name']);
+          const list = out.get(key);
           if (list) list.push(c);
-          else out.set(p['name'], [c]);
+          else out.set(key, [c]);
         }
       } catch (e) {
         this.notices.push(`${rel}: did not parse (${describeParseError(e, 'TOML', text)}); versions from it are unavailable`);
@@ -304,10 +312,11 @@ class CargoLocks {
     return out;
   }
 
-  resolve(manifestRel: string, name: string, req: string | undefined, git: boolean): string | undefined {
+  /** The locked entry of one dependency: its version and its name as the lock writes it. */
+  resolve(manifestRel: string, name: string, req: string | undefined, git: boolean): Candidate | undefined {
     const lock = this.lockFor(dirOf(manifestRel));
     if (lock === undefined) return undefined;
-    const cands = this.load(lock)?.get(name);
+    const cands = this.load(lock)?.get(crateKey(name));
     return cands ? pickVersion(cands, req, git) : undefined;
   }
 }
@@ -411,13 +420,16 @@ export function readCargo(root: string, files: string[]): ReaderResult {
       for (const [key, value] of Object.entries(table)) {
         const spec = manifests.spec(rel, key, value);
         if (spec === undefined) continue;
-        const version = locks.resolve(rel, spec.name, spec.req, spec.git);
+        const locked = locks.resolve(rel, spec.name, spec.req, spec.git);
+        const version = locked?.version;
+        // The row is named as the lock names the crate, so `feed_rs = "2"` is the row `feed-rs`.
+        const name = locked?.name ?? spec.name;
         // One row per crate and version: a crate listed again under a target is the same dependency, while a
         // second version of it under another key (`rand07 = { package = "rand", ... }`) is its own row.
-        const id = `${spec.name.toLowerCase()}@${version ?? spec.req ?? ''}`;
+        const id = `${crateKey(name)}@${version ?? spec.req ?? ''}`;
         if (seen.has(id)) continue;
         seen.add(id);
-        deps.push({ ecosystem: 'cargo', name: spec.name, ...(version !== undefined ? { version } : {}), manifest: `${rel}:${lines.line([...path, key])}` });
+        deps.push({ ecosystem: 'cargo', name, ...(version !== undefined ? { version } : {}), manifest: `${rel}:${lines.line([...path, key])}` });
       }
     };
     const dev = (table: unknown): void => {
