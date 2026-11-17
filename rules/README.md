@@ -1156,7 +1156,10 @@ The engine sets most of these limits, and the rules' comments point here.
   Bedrock `ModelId` as a statement or non-literal, Vertex `PredictAsync` and
   `PredictLongRunning`, or a Vertex client from `builder.Build()`.
 - Text chat: a history held in memory and sent to a model vendor is not
-  `records_text_chat`, because the rules read a store.
+  `records_text_chat`, because the rules read a store. A receiver named for a
+  store, collection, container or table that is given a chat record with a
+  synchronous `Add` or `AddRange` is read as an in-memory list, so a database
+  wrapper of the app's own with that name and that method is missed.
 - Voice and calls: no rule reads Android call audio, LiveKit egress,
   BigBlueButton, WebRTC audio taps or AWS Transcribe streaming.
 - Crawling: the `HtmlWeb` and AngleSharp arms do not judge an interpolated
