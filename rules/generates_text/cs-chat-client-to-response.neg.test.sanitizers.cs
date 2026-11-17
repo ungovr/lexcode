@@ -39,4 +39,25 @@ public class MetadataController : Controller
         var chat = services.GetService<IChatClient>();
         return Ok(chat != null);
     }
+
+    // $C.GetType(...)
+    public async Task<IActionResult> Case5(IServiceProvider services, OpenAIClient openAi)
+    {
+        var chat = services.GetRequiredService<IChatClient>();
+        return Ok(chat.GetType().Name);
+    }
+
+    // $C.GetService(typeof(Microsoft.Extensions.AI.ChatClientMetadata), ...)
+    public async Task<IActionResult> Case6(IServiceProvider services, OpenAIClient openAi)
+    {
+        var chat = services.GetRequiredService<IChatClient>();
+        return Ok(chat.GetService(typeof(Microsoft.Extensions.AI.ChatClientMetadata)));
+    }
+
+    // The short form under the using.
+    public async Task<IActionResult> Case7(IServiceProvider services, OpenAIClient openAi)
+    {
+        var chat = services.GetRequiredService<IChatClient>();
+        return Ok(chat.GetService(typeof(ChatClientMetadata)));
+    }
 }

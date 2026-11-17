@@ -60,4 +60,11 @@ public class MetadataController : Controller
         var model = googleAI.GenerativeModel("text-embedding-004");
         return Ok(await model.BatchEmbedContent(new[] { q }));
     }
+
+    // $C.GetType(...)
+    public async Task<IActionResult> Case8(GoogleAI googleAI, string q)
+    {
+        var model = googleAI.GenerativeModel("gemini-2.5-flash");
+        return Ok(model.GetType().FullName);
+    }
 }

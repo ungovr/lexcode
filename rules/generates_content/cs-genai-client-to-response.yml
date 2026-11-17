@@ -27,6 +27,8 @@ rules:
       # Reading which model a client or request names generates nothing.
       - pattern: $C.Model
       - pattern: $C.Name
+      # Neither does asking a client for its runtime type,
+      - pattern: $C.GetType(...)
       # or checking whether one is configured.
       - pattern: $C is not null
       - pattern: $C != null

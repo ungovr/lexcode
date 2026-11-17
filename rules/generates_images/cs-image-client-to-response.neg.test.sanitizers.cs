@@ -31,4 +31,11 @@ public class MetadataController : Controller
         var images = openAi.GetImageClient("dall-e-3");
         return Ok(images != null);
     }
+
+    // $C.GetType(...)
+    public async Task<IActionResult> Case4(OpenAIClient openAi)
+    {
+        var images = openAi.GetImageClient("dall-e-3");
+        return Ok(images.GetType().Name);
+    }
 }
