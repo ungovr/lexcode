@@ -1535,7 +1535,10 @@ The engine sets most of these limits, and the rules' comments point here.
   `catch is CancellationError`). A completion closure whose capture list holds
   three or more items (`{ [weak self, a, b] result in`) is not read as a source:
   the engine takes no ellipsis in a capture list, so each length is a pattern of
-  its own, and the rules stop at two to hold their cost. Polly audio written to a
+  its own, and the rules stop at two to hold their cost. A streaming call's
+  second closure (`} completion: { [weak self, a] _ in`) is read with no capture
+  list or one capture only, so a stream whose completion closure captures two or
+  more is not read as a source at all. Polly audio written to a
   file and played by URL breaks the flow at the write. With
   about 1,800 appends in one function the engine drops the history rule's match.
 - **Identity, signatures and encryption.** No Swift rule reads a selfie with an

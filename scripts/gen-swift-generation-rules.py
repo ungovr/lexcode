@@ -78,6 +78,8 @@ POLLY = dict(name="polly", anchors=[IMPORT("AWSPolly")])
 # its specifier, but a capture list takes no ellipsis (`[...]` and `[$...CAPS]` are parse errors), so each
 # length is a pattern of its own. A list of three matches `[$CAP, $CAP2, $CAP4]`, but every length adds a
 # copy of each closure pattern (two per completion pair), so the rules stop at two and three is a known gap.
+# A streaming call's completion closure takes none or one (closure2), and two or more is a known gap too
+# (rules/README.md, "Known Swift gaps").
 CAPTURES = ["", "[$CAP] ", "[$CAP, $CAP2] "]
 
 
