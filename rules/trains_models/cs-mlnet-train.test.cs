@@ -1,8 +1,9 @@
-// lexcode-expect: 7
+// lexcode-expect: 9
 // Training ML.NET models on the app's own data: a Model Builder style pipeline on a context it is
 // given, a recommendation model and a demand forecast on a context the class builds, a classifier on
 // a context reached through an alias, an AutoML experiment, and AutoML's newer experiment type
-// built with target-typed new.
+// built with target-typed new and taken from the AutoML catalog with CreateExperiment, with and
+// without its settings.
 using Microsoft.ML;
 using Microsoft.ML.AutoML;
 using Microsoft.ML.Trainers;
@@ -46,5 +47,7 @@ public sealed class ChurnModel(MLContext mlContext)
 
         AutoMLExperiment sweep = new(_ml, new AutoMLExperiment.AutoMLExperimentSettings());
         var classic = new Microsoft.ML.AutoML.AutoMLExperiment(_ml, new AutoMLExperiment.AutoMLExperimentSettings());
+        var general = mlContext.Auto().CreateExperiment();
+        var tuned = _ml.Auto().CreateExperiment(new AutoMLExperiment.AutoMLExperimentSettings { MaxModels = 20 });
     }
 }
