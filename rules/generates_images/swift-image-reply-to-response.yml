@@ -276,15 +276,24 @@ rules:
                     return $X
                   }
               # a handler of one expression, whose value is its implicit return (a route closure of one
-              # expression is already matched by the closure forms above)
-              - pattern: |
-                  func $F(..., $REQ: Request, ...) -> $T {
-                    $X
-                  }
-              - pattern: |
-                  func $F(..., $REQ: HBRequest, ...) -> $T {
-                    $X
-                  }
+              # expression is already matched by the closure forms above); a handler that returns Void
+              # or `()` has no implicit return, so its one statement (`_ = try await ...`, a log line)
+              # is not one
+              - patterns:
+                  - pattern-either:
+                      - pattern: |
+                          func $F(..., $REQ: Request, ...) -> $T {
+                            $X
+                          }
+                      - pattern: |
+                          func $F(..., $REQ: HBRequest, ...) -> $T {
+                            $X
+                          }
+                  # (the engine binds `-> ()` in an `async throws` handler as `async throws(()`, so the
+                  # empty tuple is read as a type that ends in `(` or `()`)
+                  - metavariable-regex:
+                      metavariable: $T
+                      regex: ^(?!(?:Swift\.)?Void$|.*\(\s*\)?$)
           - focus-metavariable: $X
       - patterns:
           - pattern-either:
