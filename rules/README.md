@@ -1461,6 +1461,9 @@ Any other exemption must be argued and ruled before it is added.
   sherpa-rs in Rust) is `processes_voice` evidence in both languages. Loading
   its model counts in both, and in Swift so does each transcription or
   spoken-language detection.
+- An install ID the app makes for itself and sends with its requests is
+  `tracks_devices` evidence, as the vendor identifier is; keeping it on the
+  device only is not.
 
 ### Known Swift gaps
 
@@ -1545,10 +1548,15 @@ The engine sets most of these limits, and the rules' comments point here.
   what it encrypts, so one that holds only a sign-in token still counts and is
   for a person to confirm.
 - **Data and tracking.** No rule reads a Vapor server's client address or a
-  device fingerprint, and an install ID the app mints for itself (a random UUID
-  kept in its own store and sent with every request) is not read, so
-  `tracks_devices` is missed on an app that does only that. Taint does not follow
-  a class property initialized from a source into a method.
+  device fingerprint. An install ID the app mints for itself (a random UUID kept
+  in its own store and sent with every request) is read by its names only
+  (`swift-install-id-sent`): a header named for an install or device ID (or
+  `X-<name>-UUID`), a query item named for an install ID, or a header or query
+  item filled from a value named as one. The mint and the send sit in different
+  files, which taint does not join, so an install ID sent under other names, or
+  in a header dictionary (`allHTTPHeaderFields = [...]`, Alamofire's
+  `HTTPHeaders`), is missed. Taint does not follow a class property initialized
+  from a source into a method.
 - **Shipping.** A tvOS-only or visionOS-only app whose delegate file carries no
   platform cue is matched as a mobile app, an SDK's non-open delegate forwarder
   is matched, a delegate that conforms in fourth place or later is missed, and a

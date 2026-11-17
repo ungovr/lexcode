@@ -1,0 +1,68 @@
+# An install ID the app makes for itself (a random UUID kept in its own defaults or Keychain) and
+# sends with its requests identifies one device across visits as the vendor's identifier does, so
+# it is read beside swift-device-id-sent, which follows identifierForVendor. The mint and the send
+# usually sit in different files (Wikipedia for iOS mints in one extension and sends from a
+# service), and taint does not cross a file, so the send is read by its names: a request header
+# whose name says it carries an install or device ID, or a header or query item filled from a
+# value named as an install ID.
+#
+# - Header names: `X-...-Install-Id` (and `Installation-Id`), `X-...-Device-Id` or `-Device-UUID`,
+#   and `X-<name>-UUID`, as Wikipedia's `X-WMF-UUID` is; a name that also says request, trace,
+#   correlation, transaction, idempotency, message, session or nonce is left out, since those
+#   change with each request or visit, and so is one that says user, account, customer, member or
+#   tenant (`X-User-UUID`), which names a person's account, not the device.
+# - Query item names: `install_id`, `installation_id` and `app_install_id`, in any case and with or
+#   without the underscore. A query item called `device_id` is left out: in an app that drives
+#   cameras, locks or other hardware it names that device, not the phone.
+# - A value named as an install ID (`installID`, `appInstallId`, `installationId`) put into a header
+#   or a query item, whatever the header's name.
+#
+# Keeping the ID only on the device (a defaults or Keychain write) is not a send and is not matched.
+# A header given in a dictionary (`allHTTPHeaderFields = [...]`, Alamofire's `HTTPHeaders`) is not read
+# (rules/README.md, "Known Swift gaps").
+# A header set from the vendor identifier is swift-device-id-sent's, and may match here too when its
+# name says device ID; a session token is not matched (see the definition's exclusion).
+rules:
+  - id: lexcode.tracking.swift-install-id-sent
+    languages: [swift]
+    severity: INFO
+    message: Sends an install or device ID the app keeps for itself with a request (a header or a query item named for it), which identifies one device across visits and is tracking devices (tracks_devices).
+    pattern-either:
+      # a header named for an install or device ID
+      - patterns:
+          - pattern-either:
+              - pattern: '$R.setValue($V, forHTTPHeaderField: $H)'
+              - pattern: '$R.addValue($V, forHTTPHeaderField: $H)'
+              # inside an extension of URLRequest, on the request itself
+              - pattern: 'setValue($V, forHTTPHeaderField: $H)'
+              - pattern: 'addValue($V, forHTTPHeaderField: $H)'
+          - metavariable-regex:
+              metavariable: $H
+              regex: '(?i)^"x-(?![\w-]*(?:request|trace|correlation|transaction|idempotency|message|session|nonce|user|account|customer|member|tenant))(?:[a-z0-9]+-)*(?:install(?:ation)?-?id|device-?(?:id|uuid)|uuid)"$'
+      # any header or query item filled from a value named as an install ID
+      - patterns:
+          - pattern-either:
+              - pattern: '$R.setValue($V, forHTTPHeaderField: $H)'
+              - pattern: '$R.addValue($V, forHTTPHeaderField: $H)'
+              # inside an extension of URLRequest, on the request itself
+              - pattern: 'setValue($V, forHTTPHeaderField: $H)'
+              - pattern: 'addValue($V, forHTTPHeaderField: $H)'
+              - pattern: 'Foundation.URLQueryItem(name: $N, value: $V)'
+              - pattern: 'URLQueryItem(name: $N, value: $V)'
+          - metavariable-regex:
+              metavariable: $V
+              regex: '(?i)^(?:self\.)?(?:app_?)?install(?:ation)?_?(?:id|uuid)$'
+      # a query item named for an install ID
+      - patterns:
+          - pattern-either:
+              - pattern: 'Foundation.URLQueryItem(name: $N, value: $V)'
+              - pattern: 'URLQueryItem(name: $N, value: $V)'
+          - metavariable-regex:
+              metavariable: $N
+              regex: '(?i)^"(?:app_?)?install(?:ation)?_?id"$'
+    metadata:
+      activity: tracks_devices
+      mentioned: performs
+      definition: https://lexlint.io/activities/tracks-devices
+      provenance: ungovr-original
+      license: MIT
