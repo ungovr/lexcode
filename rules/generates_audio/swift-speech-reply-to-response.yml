@@ -36,7 +36,11 @@ rules:
                         ...
                       }
                   - pattern: |
-                      $C.audioCreateSpeech(query: $Q) { [weak self] $R in
+                      $C.audioCreateSpeech(query: $Q) { [$CAP] $R in
+                        ...
+                      }
+                  - pattern: |
+                      $C.audioCreateSpeech(query: $Q) { [$CAP, $CAP2] $R in
                         ...
                       }
               - focus-metavariable: $R
@@ -159,6 +163,18 @@ rules:
                 var $S: $U = $E
                 ...
               }
+          - pattern-not-inside: |
+              var $P: $PT {
+                ...
+                var $S = $E
+                ...
+              }
+          - pattern-not-inside: |
+              var $P: $PT {
+                ...
+                var $S: $U = $E
+                ...
+              }
           - focus-metavariable: $X
       - pattern: 'AVFoundation.AVAudioPlayer(data: $X, ...)'
       - pattern: 'AVFoundation.AVAudioPlayer(contentsOf: $X, ...)'
@@ -195,6 +211,16 @@ rules:
                   func $F(..., $REQ: HBRequest, ...) -> $T {
                     ...
                     return $X
+                  }
+              # a handler of one expression, whose value is its implicit return (a route closure of one
+              # expression is already matched by the closure forms above)
+              - pattern: |
+                  func $F(..., $REQ: Request, ...) -> $T {
+                    $X
+                  }
+              - pattern: |
+                  func $F(..., $REQ: HBRequest, ...) -> $T {
+                    $X
                   }
           - focus-metavariable: $X
       - patterns:

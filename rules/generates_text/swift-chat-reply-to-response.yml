@@ -52,7 +52,11 @@ rules:
                         ...
                       }
                   - pattern: |
-                      $C.chats(query: $Q) { [weak self] $R in
+                      $C.chats(query: $Q) { [$CAP] $R in
+                        ...
+                      }
+                  - pattern: |
+                      $C.chats(query: $Q) { [$CAP, $CAP2] $R in
                         ...
                       }
                   - pattern: |
@@ -60,7 +64,11 @@ rules:
                         ...
                       }
                   - pattern: |
-                      $C.completions(query: $Q) { [weak self] $R in
+                      $C.completions(query: $Q) { [$CAP] $R in
+                        ...
+                      }
+                  - pattern: |
+                      $C.completions(query: $Q) { [$CAP, $CAP2] $R in
                         ...
                       }
                   - pattern: |
@@ -68,7 +76,11 @@ rules:
                         ...
                       }
                   - pattern: |
-                      $C.responses.createResponse(query: $Q) { [weak self] $R in
+                      $C.responses.createResponse(query: $Q) { [$CAP] $R in
+                        ...
+                      }
+                  - pattern: |
+                      $C.responses.createResponse(query: $Q) { [$CAP, $CAP2] $R in
                         ...
                       }
                   - pattern: |
@@ -78,9 +90,33 @@ rules:
                         ...
                       }
                   - pattern: |
-                      $C.chatsStream(query: $Q) { [weak self] $R in
+                      $C.chatsStream(query: $Q) { $R in
+                        ...
+                      } completion: { [$CAP3] $E in
+                        ...
+                      }
+                  - pattern: |
+                      $C.chatsStream(query: $Q) { [$CAP] $R in
                         ...
                       } completion: { $E in
+                        ...
+                      }
+                  - pattern: |
+                      $C.chatsStream(query: $Q) { [$CAP] $R in
+                        ...
+                      } completion: { [$CAP3] $E in
+                        ...
+                      }
+                  - pattern: |
+                      $C.chatsStream(query: $Q) { [$CAP, $CAP2] $R in
+                        ...
+                      } completion: { $E in
+                        ...
+                      }
+                  - pattern: |
+                      $C.chatsStream(query: $Q) { [$CAP, $CAP2] $R in
+                        ...
+                      } completion: { [$CAP3] $E in
                         ...
                       }
                   - pattern: |
@@ -90,9 +126,33 @@ rules:
                         ...
                       }
                   - pattern: |
-                      $C.completionsStream(query: $Q) { [weak self] $R in
+                      $C.completionsStream(query: $Q) { $R in
+                        ...
+                      } completion: { [$CAP3] $E in
+                        ...
+                      }
+                  - pattern: |
+                      $C.completionsStream(query: $Q) { [$CAP] $R in
                         ...
                       } completion: { $E in
+                        ...
+                      }
+                  - pattern: |
+                      $C.completionsStream(query: $Q) { [$CAP] $R in
+                        ...
+                      } completion: { [$CAP3] $E in
+                        ...
+                      }
+                  - pattern: |
+                      $C.completionsStream(query: $Q) { [$CAP, $CAP2] $R in
+                        ...
+                      } completion: { $E in
+                        ...
+                      }
+                  - pattern: |
+                      $C.completionsStream(query: $Q) { [$CAP, $CAP2] $R in
+                        ...
+                      } completion: { [$CAP3] $E in
                         ...
                       }
                   - pattern: |
@@ -102,9 +162,33 @@ rules:
                         ...
                       }
                   - pattern: |
-                      $C.responses.createResponseStreaming(query: $Q) { [weak self] $R in
+                      $C.responses.createResponseStreaming(query: $Q) { $R in
+                        ...
+                      } completion: { [$CAP3] $E in
+                        ...
+                      }
+                  - pattern: |
+                      $C.responses.createResponseStreaming(query: $Q) { [$CAP] $R in
                         ...
                       } completion: { $E in
+                        ...
+                      }
+                  - pattern: |
+                      $C.responses.createResponseStreaming(query: $Q) { [$CAP] $R in
+                        ...
+                      } completion: { [$CAP3] $E in
+                        ...
+                      }
+                  - pattern: |
+                      $C.responses.createResponseStreaming(query: $Q) { [$CAP, $CAP2] $R in
+                        ...
+                      } completion: { $E in
+                        ...
+                      }
+                  - pattern: |
+                      $C.responses.createResponseStreaming(query: $Q) { [$CAP, $CAP2] $R in
+                        ...
+                      } completion: { [$CAP3] $E in
                         ...
                       }
               - focus-metavariable: $R
@@ -273,6 +357,18 @@ rules:
                 var $S: $U = $E
                 ...
               }
+          - pattern-not-inside: |
+              var $P: $PT {
+                ...
+                var $S = $E
+                ...
+              }
+          - pattern-not-inside: |
+              var $P: $PT {
+                ...
+                var $S: $U = $E
+                ...
+              }
           - focus-metavariable: $X
       - pattern: $V.text = $X
       - pattern: $V.attributedText = $X
@@ -309,6 +405,16 @@ rules:
                   func $F(..., $REQ: HBRequest, ...) -> $T {
                     ...
                     return $X
+                  }
+              # a handler of one expression, whose value is its implicit return (a route closure of one
+              # expression is already matched by the closure forms above)
+              - pattern: |
+                  func $F(..., $REQ: Request, ...) -> $T {
+                    $X
+                  }
+              - pattern: |
+                  func $F(..., $REQ: HBRequest, ...) -> $T {
+                    $X
                   }
           - focus-metavariable: $X
       - patterns:

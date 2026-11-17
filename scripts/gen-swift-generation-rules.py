@@ -73,13 +73,23 @@ PLAYGROUND = dict(name="imageplayground", anchors=[IMPORT("ImagePlayground")])
 POLLY = dict(name="polly", anchors=[IMPORT("AWSPolly")])
 
 
+# A capture list of one item (`[weak self]`, `[unowned self]`, `[self]`, `[weak delegate]`) or of two
+# (`[weak self, model]`); probed for #13294 on Opengrep 1.33.1: `[$CAP]` matches any one capture whatever
+# its specifier, but a capture list takes no ellipsis (`[...]` and `[$...CAPS]` are parse errors), so each
+# length is a pattern of its own. A list of three matches `[$CAP, $CAP2, $CAP4]`, but every length adds a
+# copy of each closure pattern (two per completion pair), so the rules stop at two and three is a known gap.
+CAPTURES = ["", "[$CAP] ", "[$CAP, $CAP2] "]
+
+
 def closure1(call: str) -> list:
-    return [call + " { $R in\n  ...\n}", call + " { [weak self] $R in\n  ...\n}"]
+    return [call + " { " + c + "$R in\n  ...\n}" for c in CAPTURES]
 
 
 def closure2(call: str) -> list:
-    return [call + " { $R in\n  ...\n} completion: { $E in\n  ...\n}",
-            call + " { [weak self] $R in\n  ...\n} completion: { $E in\n  ...\n}"]
+    # the completion closure may carry its own capture list of one item; a pattern cannot leave it out
+    # (`completion: { ... }` and `completion: $COMP` matched nothing, probed)
+    return [call + " { " + c + "$R in\n  ...\n} completion: { " + d + "$E in\n  ...\n}"
+            for c in CAPTURES for d in ("", "[$CAP3] ")]
 
 
 # ---------------------------------------------------------------- sources per activity
@@ -318,7 +328,9 @@ def state_sink(names: str, lists: str) -> str:
     swift-image-reply-to-response's time on rule-cost's plain 900 KB filler (two runs at high load, same
     matches). A local-`var` exclusion written with no return type also covers a function that has one, so
     there is no `-> $T` copy of either; each reply rule's `.neg.test.scope.swift` holds that shape, untyped
-    and typed, and matches once the exclusions are removed."""
+    and typed, and matches once the exclusions are removed. A computed property's body (SwiftUI's `var body`,
+    whose `.task { }` closure keeps a local accumulator) is excluded the same way (#13294); a local `var` in
+    a closure inside a function is already inside the function's exclusion."""
     return f"""
       - patterns:
           - patterns:
@@ -339,6 +351,18 @@ def state_sink(names: str, lists: str) -> str:
               }}
           - pattern-not-inside: |
               func $F(...) {{
+                ...
+                var $S: $U = $E
+                ...
+              }}
+          - pattern-not-inside: |
+              var $P: $PT {{
+                ...
+                var $S = $E
+                ...
+              }}
+          - pattern-not-inside: |
+              var $P: $PT {{
                 ...
                 var $S: $U = $E
                 ...
@@ -408,6 +432,16 @@ SERVER_SINKS = """
                   func $F(..., $REQ: HBRequest, ...) -> $T {{
                     ...
                     return $X
+                  }}
+              # a handler of one expression, whose value is its implicit return (a route closure of one
+              # expression is already matched by the closure forms above)
+              - pattern: |
+                  func $F(..., $REQ: Request, ...) -> $T {{
+                    $X
+                  }}
+              - pattern: |
+                  func $F(..., $REQ: HBRequest, ...) -> $T {{
+                    $X
                   }}
           - focus-metavariable: $X
       - patterns:

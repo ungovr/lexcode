@@ -61,7 +61,11 @@ rules:
                         ...
                       }
                   - pattern: |
-                      $C.images(query: $Q) { [weak self] $R in
+                      $C.images(query: $Q) { [$CAP] $R in
+                        ...
+                      }
+                  - pattern: |
+                      $C.images(query: $Q) { [$CAP, $CAP2] $R in
                         ...
                       }
                   - pattern: |
@@ -69,7 +73,11 @@ rules:
                         ...
                       }
                   - pattern: |
-                      $C.imageEdits(query: $Q) { [weak self] $R in
+                      $C.imageEdits(query: $Q) { [$CAP] $R in
+                        ...
+                      }
+                  - pattern: |
+                      $C.imageEdits(query: $Q) { [$CAP, $CAP2] $R in
                         ...
                       }
                   - pattern: |
@@ -77,7 +85,11 @@ rules:
                         ...
                       }
                   - pattern: |
-                      $C.imageVariations(query: $Q) { [weak self] $R in
+                      $C.imageVariations(query: $Q) { [$CAP] $R in
+                        ...
+                      }
+                  - pattern: |
+                      $C.imageVariations(query: $Q) { [$CAP, $CAP2] $R in
                         ...
                       }
               - focus-metavariable: $R

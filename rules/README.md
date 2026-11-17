@@ -1522,8 +1522,11 @@ The engine sets most of these limits, and the rules' comments point here.
   history only in a Foundation Models `session.transcript` has no rule. The
   scheduled-job send rule skips a send inside a `do { } catch { }` clause, an
   alert to the operator, but not one inside a typed clause (`catch let error`,
-  `catch is CancellationError`). Polly
-  audio written to a file and played by URL breaks the flow at the write. With
+  `catch is CancellationError`). A completion closure whose capture list holds
+  three or more items (`{ [weak self, a, b] result in`) is not read as a source:
+  the engine takes no ellipsis in a capture list, so each length is a pattern of
+  its own, and the rules stop at two to hold their cost. Polly audio written to a
+  file and played by URL breaks the flow at the write. With
   about 1,800 appends in one function the engine drops the history rule's match.
 - **Identity, signatures and encryption.** No Swift rule reads a selfie with an
   ID document, a verifiable credential or a PDF signature, and identity vendors
