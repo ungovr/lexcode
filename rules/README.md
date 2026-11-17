@@ -1456,6 +1456,11 @@ Any other exemption must be argued and ruled before it is added.
   for `ships_consumer_interface` and `operates_social_platform`, never evidence.
 - Opening the microphone (an `AVAudioRecorder`, a tap on an audio engine's input
   node, cpal's input streams) is `processes_voice` evidence in both languages.
+- A speech recognizer run on the device (WhisperKit, SwiftWhisper and
+  whisper.cpp's C API in Swift; whisper-rs, Vosk, Candle's Whisper, rwhisper and
+  sherpa-rs in Rust) is `processes_voice` evidence in both languages. Loading
+  its model counts in both, and in Swift so does each transcription or
+  spoken-language detection.
 
 ### Known Swift gaps
 
@@ -1515,9 +1520,11 @@ The engine sets most of these limits, and the rules' comments point here.
 - **Generation and chat.** Discord posts through DiscordBM, Anthropic's Swift
   clients, Slack bot messages, Firebase Cloud Messaging from a Swift server,
   Hummingbird jobs, `BGTaskScheduler` tasks and a Lambda event handler as a job
-  shape, Soto's `SNS.PublishInput` type, a model reached through the app's own
-  wrapper service, and on-device speech models (WhisperKit, whisper.cpp
-  bindings) are not read. A system prompt placed in front of a request's
+  shape, Soto's `SNS.PublishInput` type and a model reached through the app's own
+  wrapper service are not read. On-device speech models are read for WhisperKit,
+  SwiftWhisper and whisper.cpp's C API (`swift-local-speech-engines`); other
+  on-device recognizers (sherpa-onnx, Moonshine, FluidAudio) are not. A system
+  prompt placed in front of a request's
   messages (`[sys] + body.messages`) is missed, and a screen that keeps its
   history only in a Foundation Models `session.transcript` has no rule. The
   scheduled-job send rule skips a send inside a `do { } catch { }` clause, an

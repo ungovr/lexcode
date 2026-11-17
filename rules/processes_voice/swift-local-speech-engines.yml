@@ -1,0 +1,70 @@
+# A speech recognizer run inside the app, with no network call: WhisperKit (Argmax's on-device
+# Whisper, also re-exported by its ArgmaxOSS umbrella), SwiftWhisper (a Swift package over
+# whisper.cpp) and whisper.cpp's own C API called from Swift, through its `whisper` module or a
+# bridging header. Like rs-local-speech-engines, loading a model to transcribe is the act, and so is
+# each transcription or language-detection call.
+#
+# - WhisperKit: the `WhisperKit` type carries the product's own name, so its initializer is
+#   matched with or without the file's import (an `@_exported import WhisperKit` elsewhere in the
+#   target, as ArgmaxOSS does). Its methods (`transcribe(audioPath:)`, `transcribe(audioArray:)`
+#   and their plural forms, `transcribeWithResults`, `transcribeWithOptions`, `detectLanguage`, and
+#   `detectLangauge(audioArray:)`, which is WhisperKit's own spelling of the array form: keep it)
+#   and the `AudioStreamTranscriber` are names any app may use, so they count only in a file that
+#   imports WhisperKit or ArgmaxOSS. Model downloads and listings (`WhisperKit.download`,
+#   `fetchAvailableModels`) transcribe nothing, and TTSKit reads typed text aloud: neither is matched.
+# - SwiftWhisper: `Whisper` is a name an app's own OpenAI client may carry, so it is written
+#   module-qualified, and `transcribe(audioFrames:)` counts only under `import SwiftWhisper`.
+# - whisper.cpp: its C functions carry the library's own `whisper_` prefix, and an app that reaches
+#   them through a bridging header has no import, so they are matched in any Swift file. Only the
+#   calls that load a model, transcribe or detect the spoken language are read; freeing a context,
+#   default parameters and the benchmark helpers are not.
+#
+# The method names were checked against WhisperKit's sources (argmaxinc/argmax-oss-swift,
+# Sources/WhisperKit/Core/WhisperKit.swift, read 2026-11-17), SwiftWhisper's README and apps that use
+# it, and whisper.cpp's examples/whisper.swiftui; none was compiled here, so a rename upstream is a
+# silent recall loss. Opening the microphone is swift-microphone-capture's, and a call's audio
+# tapped beside CallKit is swift-call-audio-tap's; no pattern here reads an audio tap or a recorder,
+# so an app that records and transcribes on the device has one match from each, on different lines.
+rules:
+  - id: lexcode.voice.swift-local-speech-engines
+    languages: [swift]
+    severity: INFO
+    message: Runs a speech recognizer inside the app (WhisperKit, SwiftWhisper or whisper.cpp), which is transcribing human voices (processes_voice).
+    pattern-either:
+      # WhisperKit: the pipeline, with or without the import
+      - pattern: WhisperKit.WhisperKit(...)
+      - pattern: WhisperKit(...)
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?(?:WhisperKit|ArgmaxOSS)\b).*'
+          - pattern-either:
+              - pattern: '$K.transcribe(audioPath: $A, ...)'
+              - pattern: '$K.transcribe(audioArray: $A, ...)'
+              - pattern: '$K.transcribe(audioPaths: $A, ...)'
+              - pattern: '$K.transcribe(audioArrays: $A, ...)'
+              - pattern: $K.transcribeWithResults(...)
+              - pattern: $K.transcribeWithOptions(...)
+              - pattern: '$K.detectLanguage(audioPath: $A)'
+              - pattern: '$K.detectLangauge(audioArray: $A)'
+              - pattern: AudioStreamTranscriber(...)
+      # SwiftWhisper
+      - pattern: SwiftWhisper.Whisper(...)
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?SwiftWhisper\b).*'
+          - pattern: '$W.transcribe(audioFrames: $A, ...)'
+      # whisper.cpp's C API, by its own prefixed names
+      - pattern: whisper_init_from_file_with_params(...)
+      - pattern: whisper_init_from_file_with_params_no_state(...)
+      - pattern: whisper_init_from_buffer_with_params(...)
+      - pattern: whisper_init_from_buffer_with_params_no_state(...)
+      - pattern: whisper_init_from_file(...)
+      - pattern: whisper_init_from_buffer(...)
+      - pattern: whisper_full(...)
+      - pattern: whisper_full_with_state(...)
+      - pattern: whisper_full_parallel(...)
+      - pattern: whisper_lang_auto_detect(...)
+    metadata:
+      activity: processes_voice
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-voice
+      provenance: ungovr-original
+      license: MIT
