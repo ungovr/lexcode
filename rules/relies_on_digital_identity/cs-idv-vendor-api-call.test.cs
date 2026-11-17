@@ -1,4 +1,4 @@
-// lexcode-expect: 8
+// lexcode-expect: 10
 using System.Net.Http.Json;
 using RestSharp;
 using Rs = RestSharp;
@@ -22,5 +22,10 @@ public class KycClient(HttpClient http, IHttpClientFactory factory)
         var restAlias = new Rs.RestClient(new RestClientOptions { Timeout = TimeSpan.FromSeconds(5) });
         var req = new Rs.RestRequest("https://api.trulioo.com/v3/verifications/verify"); // 7 alias
         var full = new System.Net.Http.HttpRequestMessage(HttpMethod.Get, "https://api.yoti.com/idverify/v1/sessions"); // 8
+
+        // Stripe Identity over its REST API, on a client the engine knows no type for
+        var stripe = factory.CreateClient("stripe");
+        await stripe.PostAsync("https://api.stripe.com/v1/identity/verification_sessions", new FormUrlEncodedContent([])); // 9
+        var report = await stripe.GetStringAsync($"https://api.stripe.com/v1/identity/verification_reports/{applicantId}"); // 10
     }
 }

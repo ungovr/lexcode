@@ -9,7 +9,8 @@ using Stripe;
 namespace MyShop.Accounts;
 
 // Sign-in with a password and social or workforce sign-in that only links an account do not count,
-// nor does a payment with the same vendor, nor the app's own email-verification session service.
+// nor does a payment with the same vendor (also through a StripeClient's service held in a local),
+// nor the app's own email-verification session service.
 public static class AuthSetup
 {
     public static void Configure(IServiceCollection services, IConfiguration config)
@@ -22,7 +23,7 @@ public static class AuthSetup
     }
 }
 
-public class Login(SignInManager<IdentityUser> signIn, PaymentIntentService payments)
+public class Login(SignInManager<IdentityUser> signIn, PaymentIntentService payments, StripeClient stripe)
 {
     public async Task RunAsync(string email, string password)
     {
@@ -31,6 +32,8 @@ public class Login(SignInManager<IdentityUser> signIn, PaymentIntentService paym
         var sessions = new VerificationSessionService();
         sessions.Create(email);
         var scan = new DocScanClient("receipts");
+        var intents = stripe.V1.PaymentIntents;
+        await intents.CreateAsync(new PaymentIntentCreateOptions { Amount = 500, Currency = "eur" });
     }
 }
 
