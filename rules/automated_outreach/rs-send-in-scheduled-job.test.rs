@@ -1,4 +1,4 @@
-// lexcode-expect: 9
+// lexcode-expect: 13
 use std::time::Duration;
 
 use clokwerk::{AsyncScheduler, TimeUnits};
@@ -38,6 +38,32 @@ pub async fn weekly(state: AppState) {
         }
         if let Err(e) = send_weekly_newsletter().await {
             log_failure(e);
+        }
+    }
+}
+
+// The send is a `match` or `if let` scrutinee and the Err branch alerts the operator: the
+// scrutinee's send is the timer's own (one match each), the alert in the branch is not. A send in
+// the Ok arm or the else of a failure branch is the timer's own too.
+pub async fn monthly(state: AppState, admin: String) {
+    let mut interval = tokio::time::interval(Duration::from_secs(2592000));
+    loop {
+        interval.tick().await;
+        match send_monthly_newsletter(&state).await {
+            Ok(_) => {}
+            Err(e) => send_alert_email(&admin, &e.to_string()),
+        }
+        if let Err(e) = state.mailer.send(monthly_digest()).await {
+            send_alert_email(&admin, &e.to_string());
+        }
+        match run_job(&state).await {
+            Err(_) => {}
+            Ok(report) => send_report_email(&report),
+        }
+        if let Err(e) = run_job(&state).await {
+            log_failure(e);
+        } else {
+            send_digest_email();
         }
     }
 }

@@ -44,6 +44,29 @@ pub async fn nightly(state: AppState, admin: String) {
     }
 }
 
+// The same alert from a `match` arm on the job's failure: two arms in either order, and three.
+pub async fn nightly_match(state: AppState, admin: String) {
+    let mut interval = tokio::time::interval(Duration::from_secs(86400));
+    loop {
+        interval.tick().await;
+        match run_job(&state).await {
+            Ok(n) => tracing::info!("ran {n}"),
+            Err(e) => send_alert_email(&admin, &e.to_string()),
+        }
+        match run_job(&state).await {
+            Err(e) => {
+                send_alert_email(&admin, &e.to_string());
+            }
+            Ok(_) => {}
+        }
+        match run_job(&state).await {
+            Ok(Some(_)) => {}
+            Ok(None) => {}
+            Err(_) => state.mailer.send(alert_message(&admin)).await.unwrap(),
+        }
+    }
+}
+
 // The lookalike Job running a send.
 pub fn lookalike() {
     let _job = Job::new_async("0 0 9 * * *", || {

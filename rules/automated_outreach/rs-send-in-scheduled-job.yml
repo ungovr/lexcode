@@ -3,11 +3,15 @@
 # clokwerk schedule. A polling loop that only sleeps (`tokio::time::sleep`) is not a timer here,
 # because a retry loop that backs off between attempts at ONE message has the same shape.
 #
-# A send in the error branch of the job (`if let Err(e) = run_job().await { send_alert_email(..) }`)
-# mails an operator about the failure, which is an alert and not outreach; it is left out, as the
-# Java and Kotlin rules leave out a send in a catch block. The same send in a `match` arm
-# (`Err(e) => send_alert_email(..)`) is not left out: on Opengrep 1.33.1 a `match` with an `Err`
-# arm does not parse as a Rust pattern, so that form is a known residual.
+# A send in the error branch of the job (`if let Err(e) = run_job().await { send_alert_email(..) }`,
+# or the arm `Err(e) => send_alert_email(..)` of a `match`) mails an operator about the failure,
+# which is an alert and not outreach; it is left out, as the Java and Kotlin rules leave out a send
+# in a catch block. Only the branch's body is left out, so a send that is the scrutinee itself
+# (`if let Err(e) = mailer.send(msg).await`: the timer sends and handles its failure), a send in the
+# `else` and a send in the `Ok` arm are kept. On Opengrep 1.33.1 a Rust `match` pattern cannot hold
+# an ellipsis among its arms, so the arms are spelled out: two arms with `Err` first or last, and
+# three with `Err` last. A `match` of four arms or more, or one whose `Err` arm sits in the middle
+# of three, is a known residual.
 #
 # The sends are rs-send-in-loop's. tokio-cron-scheduler's Job is written by its crate path, which
 # the engine resolves through `use tokio_cron_scheduler::{Job, JobScheduler}` and an alias; a
@@ -34,17 +38,23 @@ rules:
           - pattern-inside: tokio_cron_scheduler::Job::new_cron_job_async(...)
           - pattern-inside: $SCHED.every($EVERY).at($AT).run(...)
           - pattern-inside: $SCHED.every($EVERY).run(...)
-      # The exclusion's range is the whole `if let`, condition included, so a scrutinee that is
-      # itself a send (`if let Err(e) = mailer.send(msg).await { log(e) }`: the timer sends and
-      # only logs a failure) keeps the match: the term applies only when the scrutinee names no
-      # send. A send in an `else` after such a branch stays excluded, a smaller residual.
+      # The exclusions' ranges are the error branch's body only (focus-metavariable), never the
+      # scrutinee, an `else` or another arm.
       - pattern-not-inside:
           patterns:
             - pattern: |
-                if let Err($ERR) = $RES { ... }
-            - metavariable-regex:
-                metavariable: $RES
-                regex: '(?is)^(?!.*(send|mail|smtp|sms|push|notif|remind|digest|newsletter|alert)).*$'
+                if let Err($ERR) = $RES { $...BODY }
+            - focus-metavariable: $...BODY
+      - pattern-not-inside:
+          patterns:
+            - pattern-either:
+                - pattern: |
+                    match $RES { $P => $A, Err($ERR) => $BODY }
+                - pattern: |
+                    match $RES { Err($ERR) => $BODY, $P => $A }
+                - pattern: |
+                    match $RES { $P => $A, $Q => $C, Err($ERR) => $BODY }
+            - focus-metavariable: $BODY
       - pattern-either:
           - patterns:
               - pattern: $T.send(...)

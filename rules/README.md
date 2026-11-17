@@ -1617,8 +1617,10 @@ The engine sets most of these limits, and the rules' comments point here.
   req.send()`), a handler that returns the model's output as its tail expression
   with no response wrapper, a model id or address held in a `const`, and an
   `mpsc` channel between a generating task and a stream are not joined. A send
-  from a `match` arm on `Err` inside a timer matches, because the rule excludes
-  only `if let Err`. The client-address rule counts a write only when its
+  from the `Err` arm of a `match` inside a timer, an alert to the operator, is
+  left out when the `match` has two arms or has three with `Err` last, since the
+  engine reads no ellipsis among a Rust `match`'s arms; in a `match` of four arms
+  or more, or with `Err` in the middle of three, it still matches. The client-address rule counts a write only when its
   statement is an INSERT or UPDATE string literal, so a `const` SQL string or a
   `query(&format!("INSERT ..."))` is missed, and a predicate other than `is_ok`,
   `is_err`, `is_some` or `is_none` at the end of a write chain (`.is_empty()`,
