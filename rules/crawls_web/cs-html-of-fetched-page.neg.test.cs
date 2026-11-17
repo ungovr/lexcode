@@ -1,5 +1,6 @@
 // lexcode-expect: 0
 using System.Data.Common;
+using System.Net;
 using AngleSharp;
 using AngleSharp.Html.Parser;
 using HtmlAgilityPack;
@@ -58,6 +59,11 @@ public class PostSanitizer(IDistributedCache cache, HttpClient http, DbConnectio
         var page = await http.GetStringAsync("pages/preview");
         doc.LoadHtml(page);
         var blank = await BrowsingContext.New(Configuration.Default).OpenAsync("about:blank");
+        doc.LoadHtml(new WebClient().DownloadString("http://localhost:5000/newsletter/preview"));
+        var wc = new WebClient { BaseAddress = "http://localhost:5000/" };
+        doc.LoadHtml(wc.DownloadString("newsletter/preview"));
+        var own = new WebClient().DownloadString($"pages/{id}");
+        doc.LoadHtml(own);
     }
 
     // A documented partner API returning JSON, never parsed as HTML.

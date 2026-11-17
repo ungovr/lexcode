@@ -42,22 +42,28 @@ rules:
               # A raw literal (`"""..."""`, `$"""..."""`, on one line or several) is read the same way.
               - metavariable-regex:
                   metavariable: $SRC
-                  regex: (?s)^(?!.*\b(Get(String|Stream|ByteArray)?Async|DownloadString(TaskAsync)?|DownloadData(TaskAsync)?|OpenRead(TaskAsync)?)\(\s*(?:(?>"{3,}+\s*+|@?")(?!https?://)|(?>\$++"{3,}+\s*+|(?:\$@?|@\$)")(?!https?://|\{))).*$
+                  regex: &download_not_relative (?s)^(?!.*\bGet(String|Stream|ByteArray)?Async\(\s*(?:(?>"{3,}+\s*+|@?")(?!https?://)|(?>\$++"{3,}+\s*+|(?:\$@?|@\$)")(?!https?://|\{))).*$
               - metavariable-pattern:
                   metavariable: $SRC
-                  patterns:
+                  patterns: &http_get
                     # The engine reads this value apart from its file, so a declared type and the
                     # file's `using` lines are not seen here: a client is known by `new HttpClient()`
-                    # (in full or by its short name), by `CreateClient(...)` on a factory, or by a
-                    # receiver named for an HTTP client. A cache, a store or a session with a
-                    # GetStringAsync of its own (IDistributedCache) is not one.
-                    - pattern: $HC.$GET($URL, ...)
-                    - metavariable-regex:
-                        metavariable: $HC
-                        regex: ^((this\.)?_?(?!(?i:\w*(cache|store|storage|redis|blob|queue|session|context|accessor|config|settings)))\w*([cC]lient|[hH]ttp\w*)|[\w.]+\.CreateClient\([^)]*\)|new\s+(System\.Net\.Http\.)?HttpClient\(\))$
+                    # (System.Net.Http is imported implicitly, so in full or by its short name), by
+                    # `CreateClient(...)` on a factory, or by a receiver named for an HTTP client. A
+                    # cache, a store or a session with a GetStringAsync of its own (IDistributedCache)
+                    # is not one. An HttpClient under another name is missed. This block is
+                    # cs-html-of-fetched-page's, word for word (test/unit/cs-crawl-shared-blocks.test.ts).
+                    - pattern-either:
+                        - pattern: (System.Net.Http.HttpClient $HC).$GET($URL, ...)
+                        - pattern: (HttpClient $HC).$GET($URL, ...)
+                        - patterns:
+                            - pattern: $HC.$GET($URL, ...)
+                            - metavariable-regex:
+                                metavariable: $HC
+                                regex: ^((this\.)?_?(?!(?i:\w*(cache|store|storage|redis|blob|queue|session|context|accessor|config|settings)))\w*([cC]lient|[hH]ttp\w*)|[\w.]+\.CreateClient\([^)]*\))$
                     - metavariable-regex:
                         metavariable: $GET
-                        regex: ^Get(Stream|String|ByteArray)?Async$
+                        regex: ^Get(String|Stream|ByteArray)?Async$
           # A reader made on the feed's address the line before.
           - patterns:
               - pattern-inside: |
@@ -93,17 +99,10 @@ rules:
               # A raw literal (`"""..."""`, `$"""..."""`, on one line or several) is read the same way.
               - metavariable-regex:
                   metavariable: $FETCH
-                  regex: (?s)^(?!.*\b(Get(String|Stream|ByteArray)?Async|DownloadString(TaskAsync)?|DownloadData(TaskAsync)?|OpenRead(TaskAsync)?)\(\s*(?:(?>"{3,}+\s*+|@?")(?!https?://)|(?>\$++"{3,}+\s*+|(?:\$@?|@\$)")(?!https?://|\{))).*$
+                  regex: *download_not_relative
               - metavariable-pattern:
                   metavariable: $FETCH
-                  patterns:
-                    - pattern: $HC.$GET($URL, ...)
-                    - metavariable-regex:
-                        metavariable: $HC
-                        regex: ^((this\.)?_?(?!(?i:\w*(cache|store|storage|redis|blob|queue|session|context|accessor|config|settings)))\w*([cC]lient|[hH]ttp\w*)|[\w.]+\.CreateClient\([^)]*\)|new\s+(System\.Net\.Http\.)?HttpClient\(\))$
-                    - metavariable-regex:
-                        metavariable: $GET
-                        regex: ^Get(Stream|String|ByteArray)?Async$
+                  patterns: *http_get
           - patterns:
               - pattern-inside: |
                   var $S = $FETCH;
@@ -122,17 +121,10 @@ rules:
               # A raw literal (`"""..."""`, `$"""..."""`, on one line or several) is read the same way.
               - metavariable-regex:
                   metavariable: $FETCH
-                  regex: (?s)^(?!.*\b(Get(String|Stream|ByteArray)?Async|DownloadString(TaskAsync)?|DownloadData(TaskAsync)?|OpenRead(TaskAsync)?)\(\s*(?:(?>"{3,}+\s*+|@?")(?!https?://)|(?>\$++"{3,}+\s*+|(?:\$@?|@\$)")(?!https?://|\{))).*$
+                  regex: *download_not_relative
               - metavariable-pattern:
                   metavariable: $FETCH
-                  patterns:
-                    - pattern: $HC.$GET($URL, ...)
-                    - metavariable-regex:
-                        metavariable: $HC
-                        regex: ^((this\.)?_?(?!(?i:\w*(cache|store|storage|redis|blob|queue|session|context|accessor|config|settings)))\w*([cC]lient|[hH]ttp\w*)|[\w.]+\.CreateClient\([^)]*\)|new\s+(System\.Net\.Http\.)?HttpClient\(\))$
-                    - metavariable-regex:
-                        metavariable: $GET
-                        regex: ^Get(Stream|String|ByteArray)?Async$
+                  patterns: *http_get
           # CodeHollow.FeedReader reads a feed, or finds the feeds a page links to, from an address.
           # Its ReadFromFile, ReadFromString and ReadFromByteArray read what the app holds.
           - pattern: CodeHollow.FeedReader.FeedReader.ReadAsync($URL, ...)
@@ -160,17 +152,10 @@ rules:
               # A raw literal (`"""..."""`, `$"""..."""`, on one line or several) is read the same way.
               - metavariable-regex:
                   metavariable: $SRC
-                  regex: (?s)^(?!.*\b(Get(String|Stream|ByteArray)?Async|DownloadString(TaskAsync)?|DownloadData(TaskAsync)?|OpenRead(TaskAsync)?)\(\s*(?:(?>"{3,}+\s*+|@?")(?!https?://)|(?>\$++"{3,}+\s*+|(?:\$@?|@\$)")(?!https?://|\{))).*$
+                  regex: *download_not_relative
               - metavariable-pattern:
                   metavariable: $SRC
-                  patterns:
-                    - pattern: $HC.$GET($URL, ...)
-                    - metavariable-regex:
-                        metavariable: $HC
-                        regex: ^((this\.)?_?(?!(?i:\w*(cache|store|storage|redis|blob|queue|session|context|accessor|config|settings)))\w*([cC]lient|[hH]ttp\w*)|[\w.]+\.CreateClient\([^)]*\)|new\s+(System\.Net\.Http\.)?HttpClient\(\))$
-                    - metavariable-regex:
-                        metavariable: $GET
-                        regex: ^Get(Stream|String|ByteArray)?Async$
+                  patterns: *http_get
           - patterns:
               - pattern-inside: |
                   var $S = $FETCH;
@@ -189,17 +174,10 @@ rules:
               # A raw literal (`"""..."""`, `$"""..."""`, on one line or several) is read the same way.
               - metavariable-regex:
                   metavariable: $FETCH
-                  regex: (?s)^(?!.*\b(Get(String|Stream|ByteArray)?Async|DownloadString(TaskAsync)?|DownloadData(TaskAsync)?|OpenRead(TaskAsync)?)\(\s*(?:(?>"{3,}+\s*+|@?")(?!https?://)|(?>\$++"{3,}+\s*+|(?:\$@?|@\$)")(?!https?://|\{))).*$
+                  regex: *download_not_relative
               - metavariable-pattern:
                   metavariable: $FETCH
-                  patterns:
-                    - pattern: $HC.$GET($URL, ...)
-                    - metavariable-regex:
-                        metavariable: $HC
-                        regex: ^((this\.)?_?(?!(?i:\w*(cache|store|storage|redis|blob|queue|session|context|accessor|config|settings)))\w*([cC]lient|[hH]ttp\w*)|[\w.]+\.CreateClient\([^)]*\)|new\s+(System\.Net\.Http\.)?HttpClient\(\))$
-                    - metavariable-regex:
-                        metavariable: $GET
-                        regex: ^Get(Stream|String|ByteArray)?Async$
+                  patterns: *http_get
       # Not another publisher's feed: loopback hosts, a file address, and a path relative to the app
       # itself, in a plain or a raw literal. A string read from inside a value comes without its
       # quotes, so the quote is optional.

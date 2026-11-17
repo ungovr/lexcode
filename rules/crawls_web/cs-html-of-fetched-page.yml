@@ -38,7 +38,7 @@ rules:
                   regex: (?s)^(?!.*=>)(?!(?i:\w*(token|ct)$))(?!(?>"{3,}+\s*+|@?")(?!https?://)).*$
           # A page fetched inside the parser call itself.
           - patterns:
-              - pattern-either:
+              - pattern-either: &parsers
                   - pattern: (HtmlAgilityPack.HtmlDocument $D).LoadHtml($SRC)
                   - pattern: (HtmlAgilityPack.HtmlDocument $D).Load($SRC, ...)
                   - pattern: (AngleSharp.Html.Parser.HtmlParser $P).ParseDocument($SRC)
@@ -55,16 +55,18 @@ rules:
               # A raw literal (`"""..."""`, `$"""..."""`, on one line or several) is read the same way.
               - metavariable-regex:
                   metavariable: $SRC
-                  regex: (?s)^(?!.*\b(Get(String|Stream|ByteArray)?Async|DownloadString(TaskAsync)?|DownloadData(TaskAsync)?|OpenRead(TaskAsync)?)\(\s*(?:(?>"{3,}+\s*+|@?")(?!https?://)|(?>\$++"{3,}+\s*+|(?:\$@?|@\$)")(?!https?://|\{))).*$
+                  regex: &download_not_relative (?s)^(?!.*\bGet(String|Stream|ByteArray)?Async\(\s*(?:(?>"{3,}+\s*+|@?")(?!https?://)|(?>\$++"{3,}+\s*+|(?:\$@?|@\$)")(?!https?://|\{))).*$
               - metavariable-pattern:
                   metavariable: $SRC
-                  patterns:
+                  patterns: &http_get
                     # The engine reads this value apart from its file, so a declared type and the
                     # file's `using` lines are not seen here: a client is known by `new HttpClient()`
                     # (System.Net.Http is imported implicitly, so in full or by its short name), by
-                    # `new WebClient()`, by `CreateClient(...)` on a factory, or by a receiver named
-                    # for an HTTP client. A cache, a store or a session with a GetStringAsync of its
-                    # own (IDistributedCache) is not one. An HttpClient under another name is missed.
+                    # `CreateClient(...)` on a factory, or by a receiver named for an HTTP client. A
+                    # cache, a store or a session with a GetStringAsync of its own (IDistributedCache)
+                    # is not one. An HttpClient under another name is missed. WebClient is read in
+                    # the branches below, where the file's `using` lines are seen. cs-feed-read holds
+                    # this block word for word (test/unit/cs-crawl-shared-blocks.test.ts).
                     - pattern-either:
                         - pattern: (System.Net.Http.HttpClient $HC).$GET($URL, ...)
                         - pattern: (HttpClient $HC).$GET($URL, ...)
@@ -72,25 +74,16 @@ rules:
                             - pattern: $HC.$GET($URL, ...)
                             - metavariable-regex:
                                 metavariable: $HC
-                                regex: ^((this\.)?_?(?!(?i:\w*(cache|store|storage|redis|blob|queue|session|context|accessor|config|settings)))\w*([cC]lient|[hH]ttp\w*)|[\w.]+\.CreateClient\([^)]*\)|new\s+(System\.Net\.)?WebClient\(\))$
+                                regex: ^((this\.)?_?(?!(?i:\w*(cache|store|storage|redis|blob|queue|session|context|accessor|config|settings)))\w*([cC]lient|[hH]ttp\w*)|[\w.]+\.CreateClient\([^)]*\))$
                     - metavariable-regex:
                         metavariable: $GET
-                        regex: ^(Get(String|Stream|ByteArray)?Async|DownloadString(TaskAsync)?|DownloadData(TaskAsync)?|OpenRead(TaskAsync)?)$
+                        regex: ^Get(String|Stream|ByteArray)?Async$
           # A page fetched into a variable, then parsed. The fetch is read from the assigned value.
           - patterns:
               - pattern-inside: |
                   var $SRC = $FETCH;
                   ...
-              - pattern-either:
-                  - pattern: (HtmlAgilityPack.HtmlDocument $D).LoadHtml($SRC)
-                  - pattern: (HtmlAgilityPack.HtmlDocument $D).Load($SRC, ...)
-                  - pattern: (AngleSharp.Html.Parser.HtmlParser $P).ParseDocument($SRC)
-                  - pattern: (AngleSharp.Html.Parser.HtmlParser $P).ParseDocumentAsync($SRC, ...)
-                  - pattern: (AngleSharp.Html.Parser.IHtmlParser $P).ParseDocument($SRC)
-                  - pattern: (AngleSharp.Html.Parser.IHtmlParser $P).ParseDocumentAsync($SRC, ...)
-                  - patterns:
-                      - pattern-regex: '(?s)(?m:^\x{FEFF}?[ \t]*(?:global[ \t]+)?using[ \t]+(?:static[ \t]+)?(?:\w+[ \t]*=[ \t]*)?(?:global::)?AngleSharp\b|^(?!\x{FEFF}?[ \t]*(?://|/?\*))(?:"(?:[^"\\\n]|\\.)*+"|(?!//|/\*)[^\n"])*?(?<![\w.])AngleSharp\.\w)(?!(?:[^*/]++|\*(?!/)|/(?!\*))*+\*/).*'
-                      - pattern: $C.OpenAsync($R => $R.Content($SRC, ...))
+              - pattern-either: *parsers
               # The download's address, read with its quotes and braces here: a plain literal, or an
               # interpolated one that starts with text, that is not an http or https address (a path
               # relative to the client's BaseAddress, `pages/{id}`) is the app's own. One that starts with an
@@ -98,21 +91,47 @@ rules:
               # A raw literal (`"""..."""`, `$"""..."""`, on one line or several) is read the same way.
               - metavariable-regex:
                   metavariable: $FETCH
-                  regex: (?s)^(?!.*\b(Get(String|Stream|ByteArray)?Async|DownloadString(TaskAsync)?|DownloadData(TaskAsync)?|OpenRead(TaskAsync)?)\(\s*(?:(?>"{3,}+\s*+|@?")(?!https?://)|(?>\$++"{3,}+\s*+|(?:\$@?|@\$)")(?!https?://|\{))).*$
+                  regex: *download_not_relative
               - metavariable-pattern:
                   metavariable: $FETCH
-                  patterns:
-                    - pattern-either:
-                        - pattern: (System.Net.Http.HttpClient $HC).$GET($URL, ...)
-                        - pattern: (HttpClient $HC).$GET($URL, ...)
-                        - patterns:
-                            - pattern: $HC.$GET($URL, ...)
-                            - metavariable-regex:
-                                metavariable: $HC
-                                regex: ^((this\.)?_?(?!(?i:\w*(cache|store|storage|redis|blob|queue|session|context|accessor|config|settings)))\w*([cC]lient|[hH]ttp\w*)|[\w.]+\.CreateClient\([^)]*\)|new\s+(System\.Net\.)?WebClient\(\))$
-                    - metavariable-regex:
-                        metavariable: $GET
-                        regex: ^(Get(String|Stream|ByteArray)?Async|DownloadString(TaskAsync)?|DownloadData(TaskAsync)?|OpenRead(TaskAsync)?)$
+                  patterns: *http_get
+          # A page fetched with System.Net.WebClient, in the parser call or into a variable the line
+          # before. No namespace imports WebClient's implicitly, so its type is written in full and
+          # read at this level, where the file's `using` lines are seen: an app's own `WebClient` in
+          # another namespace is not taken for it. The client is built inline, or held in a field, a
+          # parameter or a local built with `new`. The address filter is the one above, on the
+          # address itself.
+          - patterns:
+              - pattern-either:
+                  - pattern-inside: (HtmlAgilityPack.HtmlDocument $D).LoadHtml(...)
+                  - pattern-inside: (HtmlAgilityPack.HtmlDocument $D).Load(...)
+                  - pattern-inside: (AngleSharp.Html.Parser.HtmlParser $P).ParseDocument(...)
+                  - pattern-inside: (AngleSharp.Html.Parser.HtmlParser $P).ParseDocumentAsync(...)
+                  - pattern-inside: (AngleSharp.Html.Parser.IHtmlParser $P).ParseDocument(...)
+                  - pattern-inside: (AngleSharp.Html.Parser.IHtmlParser $P).ParseDocumentAsync(...)
+                  - patterns:
+                      - pattern-regex: '(?s)(?m:^\x{FEFF}?[ \t]*(?:global[ \t]+)?using[ \t]+(?:static[ \t]+)?(?:\w+[ \t]*=[ \t]*)?(?:global::)?AngleSharp\b|^(?!\x{FEFF}?[ \t]*(?://|/?\*))(?:"(?:[^"\\\n]|\\.)*+"|(?!//|/\*)[^\n"])*?(?<![\w.])AngleSharp\.\w)(?!(?:[^*/]++|\*(?!/)|/(?!\*))*+\*/).*'
+                      - pattern-inside: $C.OpenAsync($R => $R.Content(...))
+              - pattern-either:
+                  - pattern: new System.Net.WebClient().$GET($URL, ...)
+                  - pattern: (System.Net.WebClient $WC).$GET($URL, ...)
+              - metavariable-regex: &webclient_reads
+                  metavariable: $GET
+                  regex: ^(DownloadString|DownloadData|OpenRead)(TaskAsync)?$
+              - metavariable-regex: &not_a_relative_literal
+                  metavariable: $URL
+                  regex: (?s)^(?!(?:(?>"{3,}+\s*+|@?")(?!https?://)|(?>\$++"{3,}+\s*+|(?:\$@?|@\$)")(?!https?://|\{))).*$
+          - patterns:
+              - pattern-either:
+                  - pattern-inside: |
+                      var $SRC = <... new System.Net.WebClient().$GET($URL, ...) ...>;
+                      ...
+                  - pattern-inside: |
+                      var $SRC = <... (System.Net.WebClient $WC).$GET($URL, ...) ...>;
+                      ...
+              - pattern-either: *parsers
+              - metavariable-regex: *webclient_reads
+              - metavariable-regex: *not_a_relative_literal
       # Not a page on another site: loopback hosts, a file address, and a path relative to the app
       # itself (an HttpClient whose BaseAddress is the app's own server), in a plain or a raw
       # literal. A string read from inside a value comes without its quotes, so the quote is optional.
