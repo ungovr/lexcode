@@ -37,11 +37,11 @@ public class VideoJobsController : ControllerBase
         return Ok(await r.Content.ReadAsStringAsync());
     }
 
-    // The status as a string built by concatenation.
+    // The status, its address built by concatenation.
     public async Task<IActionResult> StatusJoined(HttpClient http, string id)
     {
-        var r = await http.GetStringAsync("https://api.openai.com/v1/videos/" + id);
-        return Ok(r);
+        var r = await http.GetAsync("https://api.openai.com/v1/videos/" + id);
+        return Ok(await r.Content.ReadAsStringAsync());
     }
 
     // The status through a request message, sent.
