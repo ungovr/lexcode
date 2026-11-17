@@ -81,9 +81,10 @@ Languages: TypeScript, JavaScript (with JSX and TSX), Python, Go, Ruby
 `.phtml`, and `.inc`, `.module`, `.theme` and `.install` files that open with
 `<?php`), C# (`.cs`; `.csx` and `.cake` scripts are not read), Swift
 (`.swift`) and Rust (`.rs`), plus the `<script>` blocks of Vue, Svelte, HTML,
-Jinja, ERB (`.erb`, so `.html.erb`), JSP (`.jsp`, `.jspf`, `.tag`), PHP
-(`.php`, `.phtml`), Blade (`.blade.php`), Twig (`.twig`, so `.html.twig`),
-Tera (`.tera`, so `.html.tera`) and Razor (`.cshtml`, `.razor`) files. In an
+Jinja and Nunjucks (`.jinja`, `.jinja2`, `.j2`, `.njk`), ERB (`.erb`, so
+`.html.erb`), JSP (`.jsp`, `.jspf`, `.tag`), PHP (`.php`, `.phtml`), Blade
+(`.blade.php`), Twig (`.twig`, so `.html.twig`), Tera (`.tera`, so
+`.html.tera`) and Razor (`.cshtml`, `.razor`) files. In a Jinja, Nunjucks,
 ERB, JSP, Twig, Tera or Razor view only the `<script>` blocks are read, as
 JavaScript; the Ruby, Java, C# or template code inside the tags is not (the
 tags are blanked, so line numbers hold), except that a Razor file's `@code`

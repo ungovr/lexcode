@@ -6,7 +6,7 @@ import { textHasLongLine } from './longlines.js';
 import { blankRazorTags, razorCSharp } from './razor.js';
 
 // Opengrep has no Vue or Svelte parser (design section 6.10), so a JS or TS
-// rule never reads those files, nor the scripts inside an HTML or Jinja page,
+// rule never reads those files, nor the scripts inside an HTML page, a Jinja or Nunjucks template (Twig's blanking),
 // an ERB view (`.erb`, whose ERB tags are blanked first), a JSP, a PHP view
 // (`.php`, `.phtml`), a Blade view (`.blade.php`), a Twig template (`.twig`), a Tera template (`.tera`, `.html.tera`;
 // Tera's tags are Twig's, so it gets Twig's blanking) or a Razor view or component
@@ -24,18 +24,16 @@ const BLADE_SUFFIX = '.blade.php';
 // Razor views and components: their script blocks are read as JavaScript, and their `@code` and `@functions`
 // blocks as C# through a `.lexcode.cs` copy (the engine reads only `.cs` as C#).
 const RAZOR_EXTENSIONS = new Set(['.cshtml', '.razor']);
-// Templates whose tags are Twig's (`{{ }}`, `{% %}`, `{# #}`, with `-` whitespace control): Twig itself and Rust's Tera.
-// A `.html.tera` file's extension is `.tera`.
-const TWIG_EXTENSIONS = new Set(['.twig', '.tera']);
+// Templates whose tags are Twig's (`{{ }}`, `{% %}`, `{# #}`, with `-` whitespace control): Twig itself, Rust's
+// Tera, and Jinja and Nunjucks (#12993). A `.html.tera` file's extension is `.tera`, a `.html.j2` file's `.j2`.
+// A Jinja page saved as `.html` is read as plain HTML: its extension does not say its braces are template tags.
+const JINJA_EXTENSIONS = ['.jinja', '.jinja2', '.j2', '.njk'];
+const TWIG_EXTENSIONS = new Set(['.twig', '.tera', ...JINJA_EXTENSIONS]);
 const EXTRACT_EXTENSIONS = new Set([
   '.vue',
   '.svelte',
   '.html',
   '.htm',
-  '.jinja',
-  '.jinja2',
-  '.j2',
-  '.njk',
   '.erb',
   ...JSP_EXTENSIONS,
   ...PHP_VIEW_EXTENSIONS,
@@ -608,7 +606,7 @@ function twigTagEnd(text: string, from: number, closer: string): number {
  * with spaces to its length, and `{% ... %}` and `{# ... #}` become spaces, the `-` and `~` whitespace-control
  * forms included. Line breaks stay. A comment ends at the first `#}`; an output or statement tag ends at its
  * closer past quoted strings and nested brackets (`twigTagEnd`). Anything that never ends is blanked to the end
- * of the body. It is applied to `.twig` and `.tera` files only: Jinja files keep their tags.
+ * of the body. It is applied to Twig, Tera, Jinja and Nunjucks templates (`TWIG_EXTENSIONS`).
  */
 export function blankTwigTags(body: string): string {
   const opener = /\{[{%#]/g;

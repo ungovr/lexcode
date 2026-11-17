@@ -991,12 +991,26 @@ describe('PHP, Blade and Twig views', () => {
     expect(lines(t.text)[6]).toBe('  track("after");');
   });
 
-  it('Jinja handling is unchanged: a .jinja, .j2 or .njk copy keeps its tags, and no Twig blanking reaches it', () => {
-    const src = '<script>gtag("config", "{{ gid }}"); {% if x %}a();{% endif %} {# c #}</script>';
-    for (const rel of ['t/a.jinja', 't/b.jinja2', 't/c.j2', 't/d.njk']) {
-      expect(extractOne(rel, src)[0]!.text, rel).toBe(sp('<script>') + 'gtag("config", "{{ gid }}"); {% if x %}a();{% endif %} {# c #}' + sp('</script>'));
+  it('a Jinja or Nunjucks template gets Twig\'s blanking, whitespace control included (#12993)', () => {
+    const src = '<script>gtag("config", "{{ gid }}"); {%- if x %}a();{% endif -%} {# c #} v = {{- u|tojson -}};</script>';
+    const want =
+      sp('<script>') +
+      `gtag("config", "${pad('{{ gid }}')}"); ${sp('{%- if x %}')}a();${sp('{% endif -%}')} ${sp('{# c #}')} v = ${pad('{{- u|tojson -}}')};` +
+      sp('</script>');
+    for (const rel of ['t/a.jinja', 't/b.jinja2', 't/c.j2', 't/d.njk', 't/E.HTML.J2']) {
+      expect(extractOne(rel, src)[0]!.text, rel).toBe(want);
     }
-    expect(extractOne('t/e.twig', src)[0]!.text).not.toContain('{{');
+    expect(extractOne('t/e.twig', src)[0]!.text).toBe(want);
+  });
+
+  it('a Jinja raw block keeps its body as script text, and its tags are blanked (#12993)', () => {
+    const src = '<script>{% raw %}const t = `${a}`;{% endraw %} b();</script>';
+    expect(extractOne('t/a.jinja', src)[0]!.text).toBe(sp('<script>') + `${sp('{% raw %}')}const t = \`\${a}\`;${sp('{% endraw %}')} b();` + sp('</script>'));
+  });
+
+  it('a plain .html page keeps its braces: only a Jinja or Twig extension says the tags are template syntax (#12993)', () => {
+    const src = '<script>const o = {{a: 1}}.a; b();</script>';
+    expect(extractOne('t/page.html', src)[0]!.text).toBe(sp('<script>') + 'const o = {{a: 1}}.a; b();' + sp('</script>'));
   });
 
   describe('characters outside the Basic Multilingual Plane (an emoji is two UTF-16 units)', () => {
