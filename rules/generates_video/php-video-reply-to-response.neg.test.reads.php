@@ -103,4 +103,11 @@ class VideoJobController extends Controller
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         echo curl_exec($ch);
     }
+
+    // The list through Symfony HttpClient, the method written as Symfony's constant.
+    public function allConstant()
+    {
+        $list = $this->httpClient->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, 'https://api.openai.com/v1/videos');
+        return response()->json($list->toArray());
+    }
 }

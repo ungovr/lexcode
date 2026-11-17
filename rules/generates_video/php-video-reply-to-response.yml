@@ -52,12 +52,14 @@ rules:
                   - metavariable-regex:
                       metavariable: $URL
                       regex: &openai-content '^[''"]https://api\.openai\.com/v1/videos/(?:\{[^}]*\}|[^''"/?{}]+|[''"]\s*\.(?:[^''"]|''[^'']*''|"[^"]*")*\.\s*[''"])/content(?!.*variant=(?:thumbnail|spritesheet))/?(?:[?''"].*)?$'
-              # request() names its method: any but GET makes a clip, and any reads /content.
+              # request() names its method: any but GET makes a clip, and any reads /content. GET
+              # is the quoted name or Symfony's Request::METHOD_GET; a method in a variable, another
+              # constant or HEAD counts as generation.
               - patterns:
                   - pattern: $HTTP->request($VERB, $URL, ...)
                   - metavariable-regex:
                       metavariable: $VERB
-                      regex: (?i)^['"](?!get['"])
+                      regex: '(?i)^(?![''"]get[''"]$|(?:[\w\\]*::)?METHOD_GET$)'
                   - metavariable-regex:
                       metavariable: $URL
                       regex: *openai-create
