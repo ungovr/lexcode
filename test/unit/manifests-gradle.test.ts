@@ -365,6 +365,80 @@ describe('readGradle: variables and properties', () => {
     expect(read({ 'build.gradle': text }).deps.map((d) => d.version)).toEqual(['2.9.0', '4.12.0']);
   });
 
+  it('reads the Groovy map accessor of a dependency, `implementation deps.okhttp` (#12967)', () => {
+    const text = [
+      "ext.deps = [okhttp: 'com.squareup.okhttp3:okhttp:4.12.0', retrofit: \"com.squareup.retrofit2:retrofit:${versions.retrofit}\"]",
+      "ext.versions = [retrofit: '2.9.0']",
+      'dependencies {',
+      '    implementation deps.okhttp',
+      '    api(deps.retrofit)',
+      '}',
+      '',
+    ].join('\n');
+    const r = read({ 'build.gradle': text });
+    expect(r.deps).toEqual([
+      { ecosystem: 'maven', name: 'com.squareup.okhttp3:okhttp', version: '4.12.0', manifest: 'build.gradle:4' },
+      { ecosystem: 'maven', name: 'com.squareup.retrofit2:retrofit', version: '2.9.0', manifest: 'build.gradle:5' },
+    ]);
+    expect(r.notices).toEqual([]);
+  });
+
+  it('reads `rootProject.ext.deps.sentry` in a module from the map in the root build file, and an entry with no version (#12967)', () => {
+    const files = {
+      'settings.gradle': "include ':app'\n",
+      'build.gradle': "ext.deps = [sentry: 'io.sentry:sentry-android:7.3.0', junit: 'junit:junit']\n",
+      'app/build.gradle': ['dependencies {', '    implementation rootProject.ext.deps.sentry', '    implementation deps.junit', '    implementation deps.missing', '}', ''].join('\n'),
+    };
+    const r = read(files);
+    expect(r.deps).toEqual([
+      { ecosystem: 'maven', name: 'io.sentry:sentry-android', version: '7.3.0', manifest: 'app/build.gradle:2' },
+      { ecosystem: 'maven', name: 'junit:junit', manifest: 'app/build.gradle:3' },
+    ]);
+    expect(r.notices).toEqual([
+      '1 Gradle dependency has no version lexcode can read (a platform BOM, a plugin or a computed value); recorded without a version',
+      '1 Gradle dependency is named by a constant or variable lexcode does not evaluate; not recorded',
+    ]);
+  });
+
+  it('reads a nested map entry, `deps.support.v4`, and a map assigned to a key of another, `deps.kotlin = [...]` (#12967)', () => {
+    const text = [
+      'ext.versions = [support: "26.0.2"]',
+      'ext.deps = [',
+      "    'support': [",
+      "        'v4': \"com.android.support:support-v4:${versions.support}\",",
+      '    ],',
+      ']',
+      'deps.kotlin = [stdlib: "org.jetbrains.kotlin:kotlin-stdlib:1.3.72"]',
+      'dependencies {',
+      '    implementation deps.support.v4',
+      '    implementation deps.kotlin.stdlib',
+      '}',
+      '',
+    ].join('\n');
+    const r = read({ 'build.gradle': text });
+    expect(r.deps.map((d) => `${d.name}@${d.version} ${d.manifest}`)).toEqual([
+      'com.android.support:support-v4@26.0.2 build.gradle:9',
+      'org.jetbrains.kotlin:kotlin-stdlib@1.3.72 build.gradle:10',
+    ]);
+    expect(r.notices).toEqual([]);
+  });
+
+  it('reads the maps of a script the build applies, `apply from: "$rootDir/dependencies.gradle"` (#12967)', () => {
+    const files = {
+      'settings.gradle': "include ':app'\n",
+      'build.gradle': 'buildscript {\n    apply from: "$rootDir/dependencies.gradle"\n}\n',
+      'dependencies.gradle': ["ext.versions = [kotlin: '1.3.72']", 'ext.deps = [:]', 'deps.kotlin = [stdlib: "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$versions.kotlin"]', ''].join('\n'),
+      'app/build.gradle': ["apply from: '../more.gradle'", 'dependencies {', '    implementation deps.kotlin.stdlib', '    implementation more.timber', '}', ''].join('\n'),
+      'more.gradle': "ext.more = [timber: 'com.jakewharton.timber:timber:4.5.1']\n",
+    };
+    const r = read(files);
+    expect(r.deps.map((d) => `${d.name}@${d.version} ${d.manifest}`)).toEqual([
+      'org.jetbrains.kotlin:kotlin-stdlib-jdk8@1.3.72 app/build.gradle:3',
+      'com.jakewharton.timber:timber@4.5.1 app/build.gradle:4',
+    ]);
+    expect(r.notices).toEqual([]);
+  });
+
   it('bounds a variable that names itself or fans out', () => {
     const lines = ['def a = "$b"', 'def b = "$a"', "def x0 = 'v'"];
     for (let i = 1; i <= 40; i++) lines.push(`def x${i} = "$x${i - 1}$x${i - 1}"`);

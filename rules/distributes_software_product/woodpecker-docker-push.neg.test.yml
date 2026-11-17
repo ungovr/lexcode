@@ -1,0 +1,32 @@
+# lexcode-expect: 0
+# A build that never pushes: dry-run on, no repository named, or a plugin that does not push images.
+steps:
+  check_docker_build:
+    image: woodpeckerci/plugin-docker-buildx
+    settings:
+      repo: example/relay
+      dockerfile: docker/Dockerfile
+      dry-run: true
+
+  check_drone_build:
+    image: plugins/docker
+    settings:
+      repo: example/relay
+      dry_run: true
+
+  no_repo:
+    image: woodpeckerci/plugin-docker-buildx
+    settings:
+      dockerfile: docker/Dockerfile
+
+  deploy_docs:
+    image: woodpeckerci/plugin-s3
+    settings:
+      bucket: docs
+      source: site/**
+
+  unit_tests:
+    image: rust:1.92
+    commands:
+      - cargo test --workspace
+

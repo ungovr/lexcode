@@ -39,8 +39,10 @@ export function globMatch(pattern: string, path: string): boolean {
   return new RegExp(re + '$').test(path);
 }
 
+/** A name as the ecosystem compares it: PEP 503 for PyPI; for Cargo, which takes `feed_rs` for `feed-rs`, `_` is `-`. */
 function canon(ecosystem: Dependency['ecosystem'], s: string): string {
-  return ecosystem === 'pypi' ? normalizePypiName(s) : s.toLowerCase();
+  if (ecosystem === 'pypi') return normalizePypiName(s);
+  return ecosystem === 'cargo' ? s.toLowerCase().replace(/_/g, '-') : s.toLowerCase();
 }
 
 /** An exact bare package name, or a prefix glob ending in `/*` (an npm scope, a Go module path prefix). */

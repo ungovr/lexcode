@@ -125,6 +125,16 @@ describe('matchComponents', () => {
     expect(matchComponents([d], [], [entry({ ecosystem: 'npm', match: 'async-openai', enables: ['x'] })]).components).toEqual([]);
   });
 
+  it('matches a crate whether its name is written with a hyphen or an underscore, as Cargo does, and only for Cargo (#13297)', () => {
+    const d: Dependency = { ecosystem: 'cargo', name: 'Feed_RS', version: '2.3.1', manifest: 'Cargo.toml:8' };
+    const r = matchComponents([d], [], [entry({ ecosystem: 'cargo', match: 'feed-rs', enables: ['aggregates_content'] })]);
+    expect(r.components.map((c) => c.enables)).toEqual([['aggregates_content']]);
+    const r2 = matchComponents([{ ...d, name: 'feed-rs' }], [], [entry({ ecosystem: 'cargo', match: 'feed_rs', enables: ['aggregates_content'] })]);
+    expect(r2.components).toHaveLength(1);
+    const g: Dependency = { ecosystem: 'gem', name: 'feed_rs', version: '1.0.0', manifest: 'Gemfile:1' };
+    expect(matchComponents([g], [], [entry({ ecosystem: 'gem', match: 'feed-rs', enables: ['aggregates_content'] })]).components).toEqual([]);
+  });
+
   it('matches a Swift package by host/owner/repo case-insensitively, and its evidence rule reads lexcode.manifest.swift', () => {
     const d: Dependency = { ecosystem: 'swift', name: 'github.com/Alamofire/Alamofire', version: '5.10.2', manifest: 'Package.swift:12' };
     const r = matchComponents([d], [], [entry({ ecosystem: 'swift', match: 'github.com/alamofire/alamofire', enables: ['x'] })]);

@@ -12,6 +12,10 @@ entries:
   # library), the Gemini Swift SDK (archived; its description only points to Firebase), Persona's
   # inquiry-ios-2 (no description), Stripe's stripe-ios (payments), Twilio's voice and video SDKs, and
   # general HTTP, logging, image and parsing libraries.
+  # Accepted as thin (#13297): posthog-ios ("PostHog iOS SDK"), adjust/ios_sdk, AppsFlyerFramework ("AppsFlyer
+  # Apple SDK"), facebook-ios-sdk under both owners, Google's Mobile Ads package and twilio/conversations-ios.
+  # Neither the README nor the repository description says more than the vendor's product (read 2026-11-17),
+  # and each stays under the vendor-SDK rule above, as the same SDK's pod does in cocoapods.yml.
 
   # Analytics, attribution and advertising SDKs
   - match: "github.com/mixpanel/mixpanel-swift"

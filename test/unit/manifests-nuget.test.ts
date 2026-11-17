@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { isNugetManifest, readNuget } from '../../src/manifests/nuget.js';
+import { expectNearLinear, measureScaling } from '../helpers/scaling.js';
 import { lineOf, tree } from './helpers.js';
 
 function project(items: string, props = ''): string {
@@ -402,6 +403,64 @@ describe('readNuget', () => {
     const root = tree({ 'App.csproj': csproj });
     const r = readNuget(root, ['App.csproj']);
     expect(r.deps).toEqual([{ ecosystem: 'nuget', name: 'Twilio', version: '7.4.0', manifest: `App.csproj:${lineOf(csproj, 'Twilio')}` }]);
+  });
+
+  it('a development reference does not hide a later runtime reference of the same Id (#13213)', () => {
+    const csproj = project(
+      [
+        '    <PackageReference Include="Serilog" Version="4.0.0" PrivateAssets="all" Condition="\'$(TargetFramework)\' == \'net6.0\'" />',
+        '    <PackageReference Include="serilog" Version="4.0.0" />',
+        '    <PackageReference Include="StyleCop.Analyzers" Version="1.1.118" PrivateAssets="all" />',
+        '    <PackageReference Include="stylecop.analyzers" Version="1.1.118" PrivateAssets="All" />',
+      ].join('\n'),
+    );
+    const root = tree({ 'App.csproj': csproj });
+    const r = readNuget(root, ['App.csproj']);
+    expect(r.deps).toEqual([{ ecosystem: 'nuget', name: 'serilog', version: '4.0.0', manifest: `App.csproj:${lineOf(csproj, 'Include="serilog"')}` }]);
+    expect(r.devSkipped).toBe(1);
+  });
+
+  it('a floating own Version does not fall through to the central version (#13213)', () => {
+    const props = '<Project><ItemGroup><PackageVersion Include="Twilio" Version="7.0.0" /></ItemGroup></Project>\n';
+    const app = project('    <PackageReference Include="Twilio" Version="7.*" />');
+    const root = tree({ 'Directory.Packages.props': props, 'App.csproj': app });
+    const r = readNuget(root, ['App.csproj']);
+    expect(r.deps).toEqual([{ ecosystem: 'nuget', name: 'Twilio', manifest: `App.csproj:${lineOf(app, 'Twilio')}` }]);
+    expect(r.notices).toEqual([UNRESOLVED(1)]);
+  });
+
+  it('GlobalPackageReference in a project file and in a Directory.Build file is development (#13213)', () => {
+    const build = '<Project><ItemGroup><GlobalPackageReference Include="Nerdbank.GitVersioning" Version="3.6.143" /></ItemGroup></Project>\n';
+    const app = project(['    <GlobalPackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" />', '    <PackageReference Include="Twilio" Version="7.4.0" />'].join('\n'));
+    const root = tree({ 'Directory.Build.props': build, 'App.csproj': app });
+    const r = readNuget(root, ['Directory.Build.props', 'App.csproj']);
+    expect(r.deps).toEqual([{ ecosystem: 'nuget', name: 'Twilio', version: '7.4.0', manifest: `App.csproj:${lineOf(app, 'Twilio')}` }]);
+    expect(r.devSkipped).toBe(2);
+  });
+
+  it('central versions for 30,000 references cost time that grows near-linearly (#13212)', () => {
+    const m = measureScaling({
+      small: 3_000,
+      large: 30_000,
+      setup: (n) => {
+        const files: Record<string, string> = {};
+        const versions: string[] = [];
+        const perProject = 100;
+        for (let i = 0; i < n; i++) versions.push(`    <PackageVersion Include="Pkg${i}" Version="1.0.${i}" />`);
+        files['Directory.Packages.props'] = ['<Project>', '  <ItemGroup>', ...versions, '  </ItemGroup>', '</Project>', ''].join('\n');
+        for (let p = 0; p < n / perProject; p++) {
+          const refs: string[] = [];
+          for (let i = p * perProject; i < (p + 1) * perProject; i++) refs.push(`    <PackageReference Include="Pkg${i}" />`);
+          files[`src/P${p}/P${p}.csproj`] = project(refs.join('\n'));
+        }
+        return { root: tree(files), list: Object.keys(files) };
+      },
+      run: ({ root, list }) => readNuget(root, list),
+      reps: 2,
+    });
+    expectNearLinear(m, 'readNuget (central versions)');
+    expect(m.result.deps).toHaveLength(30_000);
+    expect(m.result.deps[29_999]?.version).toBe('1.0.29999');
   });
 
   it('packages.config', () => {

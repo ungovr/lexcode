@@ -270,6 +270,63 @@ describe('readCargo', () => {
     ]);
   });
 
+  it('a crate written with an underscore for its hyphen takes its locked version and the locked name (#13297)', () => {
+    const manifest = ['[package]', 'name = "app"', 'version = "0.1.0"', '', '[dependencies]', 'feed_rs = "2"', 'serde-json = { package = "serde_json", version = "1" }', 'tokio_util = "0.7"', ''].join('\n');
+    const root = tree({
+      'Cargo.toml': manifest,
+      'Cargo.lock': lock([
+        { name: 'app', version: '0.1.0' },
+        { name: 'feed-rs', version: '2.3.1', source: CRATES },
+        { name: 'serde_json', version: '1.0.133', source: CRATES },
+        { name: 'tokio-util', version: '0.7.12', source: CRATES },
+      ]),
+    });
+    const r = readCargo(root, ['Cargo.toml', 'Cargo.lock']);
+    expect(r.deps).toEqual([
+      { ecosystem: 'cargo', name: 'feed-rs', version: '2.3.1', manifest: `Cargo.toml:${lineOf(manifest, 'feed_rs')}` },
+      { ecosystem: 'cargo', name: 'serde_json', version: '1.0.133', manifest: `Cargo.toml:${lineOf(manifest, 'serde-json')}` },
+      { ecosystem: 'cargo', name: 'tokio-util', version: '0.7.12', manifest: `Cargo.toml:${lineOf(manifest, 'tokio_util')}` },
+    ]);
+    expect(r.notices).toEqual([]);
+  });
+
+  it('a pre-release is picked only by a requirement that names a pre-release of the same version, and loses to its release (#13298)', () => {
+    const manifest = ['[package]', 'name = "app"', 'version = "0.1.0"', '', '[dependencies]', 'a = "1.2"', 'b = "2.0.0-rc.1"', 'c = "3.0.0-alpha.2"', ''].join('\n');
+    const root = tree({
+      'Cargo.toml': manifest,
+      'Cargo.lock': lock([
+        { name: 'app', version: '0.1.0' },
+        // a: a plain caret never takes a pre-release, even a higher one
+        { name: 'a', version: '1.2.3', source: CRATES },
+        { name: 'a', version: '1.3.0-beta.1', source: CRATES },
+        // b: the release of the named version outranks its pre-releases
+        { name: 'b', version: '2.0.0-rc.1', source: CRATES },
+        { name: 'b', version: '2.0.0-rc.10', source: CRATES },
+        { name: 'b', version: '2.0.0', source: CRATES },
+        // c: identifiers compare numerically, so alpha.10 is above alpha.2; another version's pre-release is not admitted
+        { name: 'c', version: '3.0.0-alpha.10', source: CRATES },
+        { name: 'c', version: '3.0.0-alpha.2', source: CRATES },
+        { name: 'c', version: '3.1.0-alpha.1', source: CRATES },
+      ]),
+    });
+    const r = readCargo(root, ['Cargo.toml', 'Cargo.lock']);
+    expect(r.deps.map((d) => `${d.name}@${d.version}`)).toEqual(['a@1.2.3', 'b@2.0.0', 'c@3.0.0-alpha.10']);
+  });
+
+  it('a member of a nested workspace inherits from the nearest [workspace], not the outer one (#13298)', () => {
+    const outer = ['[workspace]', 'members = ["crates/*"]', 'exclude = ["vendor/inner"]', '', '[workspace.dependencies]', 'rand = "0.7"', ''].join('\n');
+    const inner = ['[workspace]', 'members = ["member"]', '', '[workspace.dependencies]', 'rand = "0.8"', ''].join('\n');
+    const member = ['[package]', 'name = "member"', 'version = "0.1.0"', '', '[dependencies]', 'rand.workspace = true', ''].join('\n');
+    const root = tree({
+      'Cargo.toml': outer,
+      'Cargo.lock': lock([{ name: 'rand', version: '0.7.3', source: CRATES }, { name: 'rand', version: '0.8.5', source: CRATES }]),
+      'vendor/inner/Cargo.toml': inner,
+      'vendor/inner/member/Cargo.toml': member,
+    });
+    const r = readCargo(root, ['Cargo.toml', 'Cargo.lock', 'vendor/inner/Cargo.toml', 'vendor/inner/member/Cargo.toml']);
+    expect(r.deps).toEqual([{ ecosystem: 'cargo', name: 'rand', version: '0.8.5', manifest: `vendor/inner/member/Cargo.toml:${lineOf(member, 'rand.workspace')}` }]);
+  });
+
   it('a git dependency takes the git lock entry', () => {
     const manifest = [
       '[package]',

@@ -18,6 +18,10 @@ entries:
     enables: [tracks_devices, processes_personal_data]
     says: "Simple, powerful, first-party analytics for Rails"
     source: https://rubygems.org/gems/ahoy_matey
+  - match: "posthog-ruby"
+    enables: [tracks_devices, processes_personal_data]
+    says: "The PostHog ruby library"
+    source: https://rubygems.org/gems/posthog-ruby
 
   # Crash and error reporting SDKs
   - match: "sentry-ruby"
@@ -52,6 +56,10 @@ entries:
     enables: [tracks_devices, processes_personal_data]
     says: "Airbrake is an online tool that provides robust exception tracking in any of your Ruby applications."
     source: https://rubygems.org/gems/airbrake
+  - match: "raygun4ruby"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Ruby Adapter for Raygun"
+    source: https://rubygems.org/gems/raygun4ruby
 
   # Model SDKs
   - match: "ruby-openai"
@@ -196,12 +204,32 @@ entries:
     enables: [automated_outreach]
     says: "The push notification service for Ruby."
     source: https://rubygems.org/gems/rpush
+  - match: "vonage"
+    enables: [automated_outreach]
+    says: "Vonage Server SDK for Ruby"
+    source: https://rubygems.org/gems/vonage
+  - match: "resend"
+    enables: [automated_outreach]
+    says: "The Ruby and Rails SDK for resend.com"
+    source: https://rubygems.org/gems/resend
+  - match: "customerio"
+    enables: [automated_outreach]
+    says: "A ruby client for the Customer.io Journeys Track API and Transactional API."
+    source: https://rubygems.org/gems/customerio
+  - match: "aws-sdk-pinpoint"
+    enables: [automated_outreach]
+    says: "Official AWS Ruby gem for Amazon Pinpoint. This gem is part of the AWS SDK for Ruby."
+    source: https://rubygems.org/gems/aws-sdk-pinpoint
 
   # Identity verification
   - match: "yoti"
     enables: [relies_on_digital_identity]
     says: "This gem contains the tools you need to quickly integrate your Ruby back-end with Yoti, so that your users can share their identity details with your application in a secure and trusted way."
     source: https://rubygems.org/gems/yoti
+  - match: "onfido"
+    enables: [relies_on_digital_identity]
+    says: "Ruby Library for the Onfido API"
+    source: https://rubygems.org/gems/onfido
 
   # E-signature
   - match: "docusign_esign"
@@ -220,8 +248,30 @@ entries:
     source: https://rubygems.org/gems/stream-chat-ruby
 
   # Bundled cryptography
-  # No entry. Only a gem whose own description says its purpose is encryption would be listed (#13318,
-  # #13336). A general cryptography library that mixes hashing, MACs or signing with its ciphers (rbnacl,
-  # for one) has no entry, as golang.org/x/crypto has none in go.yml: an app can link one only for a hash
-  # or a signature, which holds no cipher it uses. rules/ships_encryption/rb-library-encryption.yml and
-  # rb-platform-encryption.yml read the cipher and key-agreement calls in use instead.
+  # Only a gem whose own description says its purpose is encryption is listed (#13318, #13336). A general
+  # cryptography library that mixes hashing, MACs or signing with its ciphers has no entry, as
+  # golang.org/x/crypto has none in go.yml: an app can link one only for a hash, a MAC or a signature,
+  # which holds no cipher it uses. So rbnacl ("a high-level toolkit for building cryptographic systems"),
+  # fernet (its description names HMAC authentication beside AES), gibberish (AES, HMAC and digests) and
+  # json-jwt (JWS and JWK beside JWE) are not listed, and rules/ships_encryption/rb-library-encryption.yml
+  # and rb-platform-encryption.yml read their cipher and key-agreement calls in use instead.
+  - match: "lockbox"
+    enables: [ships_encryption]
+    says: "Modern encryption for Ruby and Rails"
+    source: https://rubygems.org/gems/lockbox
+  - match: "attr_encrypted"
+    enables: [ships_encryption]
+    says: "Generates attr_accessors that encrypt and decrypt attributes transparently"
+    source: https://rubygems.org/gems/attr_encrypted
+  - match: "jwe"
+    enables: [ships_encryption]
+    says: "A Ruby implementation of the RFC 7516 JSON Web Encryption (JWE) standard"
+    source: https://rubygems.org/gems/jwe
+  - match: "symmetric-encryption"
+    enables: [ships_encryption]
+    says: "Encrypt ActiveRecord and Mongoid attributes, files and passwords in configuration files."
+    source: https://rubygems.org/gems/symmetric-encryption
+  - match: "encryptor"
+    enables: [ships_encryption]
+    says: "A simple wrapper for the standard ruby OpenSSL library to encrypt and decrypt strings"
+    source: https://rubygems.org/gems/encryptor

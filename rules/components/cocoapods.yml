@@ -10,7 +10,9 @@ entries:
   # Left out: FirebaseMessaging and FirebasePerformance (the summary names the product only), Branch (its
   # summary is about links), TwilioVoice, TwilioVideo and TwilioVerify (no activity in the summary),
   # PersonaInquirySDK2 and HCaptcha. A vendor's SDK is read as performing what that vendor's service does, as
-  # the other maps read one (Sentry, PostHog, Adjust).
+  # the other maps read one (Sentry, PostHog, Adjust). Accepted as thin (#13297): Adjust's summary names only
+  # the vendor ("This is the iOS SDK of Adjust"), and it stays under that rule, as the Adjust rows of the
+  # other maps do.
 
   # Analytics, attribution and advertising SDKs
   - match: "firebaseanalytics"
@@ -74,6 +76,21 @@ entries:
     says: "Monetize your mobile applications with Google ads"
     source: https://cocoapods.org/pods/Google-Mobile-Ads-SDK
 
+  # A subspec is matched by its whole name, so each one an app names in Podfile.lock (an ad-ID choice of
+  # FirebaseAnalytics, Sentry's hybrid-SDK build) has its own entry and quotes its parent pod (#13297).
+  - match: "firebaseanalytics/withoutadidsupport"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Firebase Analytics is a free, out-of-the-box analytics solution that inspires actionable insights based on app usage and user engagement."
+    source: https://cocoapods.org/pods/FirebaseAnalytics
+  - match: "firebaseanalytics/adidsupport"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Firebase Analytics is a free, out-of-the-box analytics solution that inspires actionable insights based on app usage and user engagement."
+    source: https://cocoapods.org/pods/FirebaseAnalytics
+  - match: "firebaseanalytics/identitysupport"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Firebase Analytics is a free, out-of-the-box analytics solution that inspires actionable insights based on app usage and user engagement."
+    source: https://cocoapods.org/pods/FirebaseAnalytics
+
   # Crash and error reporting SDKs
   - match: "firebasecrashlytics"
     enables: [tracks_devices, processes_personal_data]
@@ -84,6 +101,10 @@ entries:
     says: "Best and lightest-weight crash reporting for mobile, desktop and tvOS."
     source: https://cocoapods.org/pods/FirebaseCrashlytics
   - match: "sentry"
+    enables: [tracks_devices, processes_personal_data]
+    says: "Sentry client for cocoa"
+    source: https://cocoapods.org/pods/Sentry
+  - match: "sentry/hybridsdk"
     enables: [tracks_devices, processes_personal_data]
     says: "Sentry client for cocoa"
     source: https://cocoapods.org/pods/Sentry

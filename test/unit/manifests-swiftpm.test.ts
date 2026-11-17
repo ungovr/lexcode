@@ -101,6 +101,19 @@ describe('readSwiftPm', () => {
     expect(readSwiftPm(root, ['ios/Pkgs/Lib/Package.swift']).deps.map((d) => d.version)).toEqual(['1.0.0']);
   });
 
+  it('the Xcode pins fallback reads on to the next bundle of the nearest directory when the first lacks the package, and stops there (#13298)', () => {
+    const text = manifest(['.package(url: "https://github.com/a/Lib", from: "1.0.0")', '.package(url: "https://github.com/a/Gone", from: "1.0.0")'], []);
+    const pins = (list: [string, string][]): string => resolved(list.map(([id, v]) => ({ identity: id, location: `https://github.com/a/${id}`, state: { version: v } })));
+    const root = tree({
+      'ios/Pkgs/Lib/Package.swift': text,
+      'ios/A.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved': pins([['other', '3.0.0']]),
+      'ios/B.xcworkspace/xcshareddata/swiftpm/Package.resolved': pins([['lib', '2.0.0']]),
+      // A farther directory is another app: its pins are not read once the nearest directory has a pins file.
+      'Z.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved': pins([['gone', '9.0.0']]),
+    });
+    expect(readSwiftPm(root, ['ios/Pkgs/Lib/Package.swift']).deps.map((d) => d.version)).toEqual(['2.0.0', undefined]);
+  });
+
   it('the Xcode pins fallback is not used when a Package.resolved sits at or above the manifest', () => {
     const text = manifest(['.package(url: "https://github.com/a/Lib", from: "1.0.0")'], []);
     const root = tree({
@@ -472,6 +485,16 @@ describe('readSwiftPm: Xcode projects', () => {
     const rb = readSwiftPm(b, ['ios/App.xcodeproj/project.pbxproj']);
     expect(rb.deps.map((d) => d.version)).toEqual(['5.9.0']);
     expect(rb.notices).toEqual([]);
+  });
+
+  it('a project reads on to the next workspace beside it when the first lacks the package (#13298)', () => {
+    const text = pbxproj();
+    const root = tree({
+      'ios/App.xcodeproj/project.pbxproj': text,
+      'ios/A.xcworkspace/xcshareddata/swiftpm/Package.resolved': resolved([{ identity: 'other', location: 'https://github.com/a/Other', state: { version: '1.0.0' } }]),
+      'ios/B.xcworkspace/xcshareddata/swiftpm/Package.resolved': resolved([{ identity: 'alamofire', location: 'https://github.com/Alamofire/Alamofire.git', state: { version: '5.10.0' } }]),
+    });
+    expect(readSwiftPm(root, ['ios/App.xcodeproj/project.pbxproj']).deps.map((d) => d.version)).toEqual(['5.10.0']);
   });
 
   it('a package used by an application target and a test target is a row; a ui-testing-only one is development', () => {

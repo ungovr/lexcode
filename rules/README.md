@@ -557,7 +557,13 @@ version when there is none. A gemspec states ranges by design, so a gem that has
 no locked version is recorded without one and without a flag. A gem named in
 both a Gemfile and a gemspec of the same directory is recorded once, at the
 Gemfile line. The gem a gemspec itself defines is not one of its own
-dependencies, even though the lockfile's `DEPENDENCIES` section lists it.
+dependencies, even though the lockfile's `DEPENDENCIES` section lists it, and
+that holds for a second Gemfile pointed at the same gemspec (a dummy app's):
+it records neither that gem nor the gemspec's development gems. The names in a
+gemspec may be plain strings or the `%q<name>.freeze` form generated gemspecs
+use, and a dependency call whose arguments start on the line after its `(` is
+read with them. A one-line block (`group :test do gem "rspec" end`) is read
+with its group, and `end.each do` closes one block and opens the next.
 
 ### Ruby files
 
@@ -742,7 +748,7 @@ prefixes included (`releaseImplementation`, `fdroidImplementation`,
 
 `$name` and `${name}` in a coordinate resolve from the same file (`val name =`,
 `def name =`, `ext.name =`, `ext { name = }`, `extra["name"] =`), then the root
-build file's `ext`, then `gradle.properties` beside the file and at the build
+build file's `ext`, then the scripts either applies (`apply from:`), then `gradle.properties` beside the file and at the build
 root. A version that stays unresolved is recorded without a version, and one
 notice counts those (`N Gradle dependencies have no version lexcode can read
 (a platform BOM, a plugin or a computed value); recorded without a version`).
@@ -769,12 +775,19 @@ counted. Their `.kt` and `.kts` sources are read for `findLibrary("alias")` and
 `findBundle("alias")` literals, recorded under the configuration named on the
 same line (`add("conf", ...)`, `"conf"(...)`), else `implementation`. A
 reference such as `Libs.OKHTTP` in a build file is read from the `object`
-constants those sources declare. A module a settings file moves with
+constants those sources declare. A bare map accessor, `implementation
+deps.okhttp` or `rootProject.ext.deps.sentry`, is read from a Groovy map
+(`ext.deps = [okhttp: 'g:a:v']`, nested maps such as `deps.support.v4`, and a
+map assigned to a key, `deps.kotlin = [...]`) in the same file, the root build
+file, or a script either applies with a literal path (`apply from:
+"$rootDir/dependencies.gradle"`, one level). A module a settings file moves with
 `project(':x').projectDir = ...` is followed to its new directory.
 
 Known gaps: Gradle lockfiles (`gradle.lockfile`) are not read, because a
 lockfile lists transitive dependencies with no way to tell the direct ones, and
-few apps commit one. `apply from:` scripts and `.groovy` sources under `buildSrc` are not read, and
+few apps commit one. An `apply from:` script is read only for the variables
+and maps it defines (its own `dependencies` blocks are not), and `.groovy`
+sources under `buildSrc` are not read, and
 neither are the dependency declarations of precompiled `*.gradle.kts` plugins
 (their `findLibrary` and `findBundle` literals are). A coordinate built by
 string concatenation is not recorded. A dependency whose version comes from a
@@ -1035,7 +1048,10 @@ project) is not a test project, so under `--include-tests` its references count;
 in a Directory.Build `Condition`, `IsTestProject` is recognized only in a quoted
 comparison (in a project it is the property
 `<IsTestProject>true</IsTestProject>`); `Include="Foo;Bar"` is read as one Id; a
-package referenced twice in one file is read once, from its first reference; and
+package referenced twice in one file is read once, from its first runtime
+reference (a development reference before it, `PrivateAssets="all"` under one
+condition, does not hide it), so a version or condition on a later reference is
+not read; and
 a reference's own floating `Version` does not fall through to
 `Directory.Packages.props`, and a `$(Name)` in a central version resolves from
 the props file's location, not the project's.
@@ -1234,9 +1250,11 @@ dependencies have no resolved version (no Cargo.lock, or a requirement lexcode
 could not match to one locked version); recorded without a version`. A
 `Cargo.toml` or `Cargo.lock` that does not parse gets a notice naming it.
 
-Known Cargo gaps: a crate spelled with a hyphen in one place and an underscore
-in another (`serde_json`, `serde-json`) is looked up by the spelling the manifest
-uses, in the lock and in the component map. Which cryptography crates and Swift
+Cargo takes `feed_rs` for the crate `feed-rs`, and so does lexcode: a hyphen
+and an underscore are the same in a crate name in the lock lookup and in the
+component map, and a row is named as the lock spells the crate.
+
+Known Cargo gaps: which cryptography crates and Swift
 packages are mapped follows the rule for every map, under "Shipping encryption".
 Key-agreement crates (`x25519-dalek`, `p256`) are not mapped, a known gap
 since key agreement counts (#13318): `rs-library-encryption` reads
@@ -1264,8 +1282,10 @@ A version comes from the first of these that is present: the pin in the
 `Package.resolved` beside a `Package.swift` (for a project file, the one at
 `<X>.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved`); the
 nearest ancestor directory's `Package.resolved`; for a `Package.swift` with none
-of those, the pins of the Xcode project or workspace in its own directory or an
-ancestor's (a local package of an app resolves through the app's workspace);
+of those, the pins of the Xcode projects and workspaces in its own directory or
+the nearest ancestor that has any (a local package of an app resolves through
+the app's workspace), each read in sorted order until one pins the package, and
+no farther directory;
 and an `exact:` argument, `.exact(...)` or `requirement = { kind = exactVersion; ...}`.
 A pin is matched by the last path segment of the URL, lowercased and without
 `.git`, and `Package.resolved` formats 1, 2 and 3 are all read. A branch or
@@ -1626,7 +1646,7 @@ The engine sets most of these limits, and the rules' comments point here.
   staff, and an inline staff-named `mod` is excluded by a text regex, so a brace
   in a string inside it can end its range early.
 - **Not read.** A serenity (Discord) or teloxide (Telegram) bot is not read as
-  a chatbot, and no Rust rule reads Woodpecker CI (`.woodpecker.yml`), `tauri.conf.json`, `cargo-apk` metadata, a
+  a chatbot, and no Rust rule reads `tauri.conf.json`, `cargo-apk` metadata, a
   `publish.workspace = true` that the workspace turns on, a Dioxus `launch` with
   the `mobile` feature, SIP stacks, or a TLS stack chosen only by the `rustls-tls`
   feature with no call. Twilio calls placed through an OpenAPI-generated client,
@@ -1664,7 +1684,8 @@ what the code does, not whose library does it. So the rules read:
   purpose is encryption in the dependency tree (the component map).
 - In every component map, a library is listed only when its own description
   says its purpose is encryption: the RustCrypto ciphers, age, MinIO's sio,
-  Jasypt, aes-js, @noble/ciphers, @stablelib/chacha20poly1305, pyaes. A
+  Jasypt, aes-js, @noble/ciphers, @stablelib/chacha20poly1305, pyaes, and the
+  gems Lockbox, attr_encrypted, jwe, symmetric-encryption and encryptor. A
   general cryptography library that also hashes, MACs or signs has no entry,
   because an app can link one only for a hash or a signature, which holds no
   cipher it uses. Its cipher and key-agreement calls, encrypting or
@@ -1673,7 +1694,8 @@ what the code does, not whose library does it. So the rules read:
   `js-library-encryption`; cryptography, PyCryptodome, PyNaCl, libnacl, Tink,
   rsa and PGPy by `py-library-encryption`; Bouncy Castle and Tink by `java-` and
   `kt-library-encryption`; phpseclib by `php-library-encryption`; ProtonMail's
-  OpenPGP, Tink and CIRCL by `go-library-encryption`; swift-crypto,
+  OpenPGP, Tink and CIRCL by `go-library-encryption`; RbNaCl, Fernet, Gibberish
+  and json-jwt's JWE by `rb-library-encryption`; swift-crypto,
   CryptoSwift and swift-sodium by `swift-library-encryption`; orion,
   sodiumoxide, ring and aws-lc-rs by `rs-library-encryption`. Go's own
   `golang.org/x/crypto` is the first case: Go links only the subpackages a

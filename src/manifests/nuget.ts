@@ -198,15 +198,22 @@ class NugetReader {
     return parsed;
   }
 
-  /** The nearest file of this name at or above `dir`, parsed. */
+  private readonly nearestCache = new Map<string, { rel: string; file: MsbuildFile } | undefined>();
+
+  /** The nearest file of this name at or above `dir`, parsed; looked up once per directory and name. */
   private nearest(dir: string, name: string): { rel: string; file: MsbuildFile } | undefined {
+    const key = `${dir}\0${name}`;
+    if (this.nearestCache.has(key)) return this.nearestCache.get(key);
+    let found: { rel: string; file: MsbuildFile } | undefined;
     for (const d of ancestorDirs(dir)) {
       const rel = joinRel(d, name);
       if (!fileExists(this.root, rel)) continue;
       const file = this.file(rel);
-      return file ? { rel, file } : undefined;
+      found = file ? { rel, file } : undefined;
+      break;
     }
-    return undefined;
+    this.nearestCache.set(key, found);
+    return found;
   }
 
   /** Resolved `Direct` versions by lowercased Id from the lock beside `dir`; undefined without a usable one. */
@@ -269,16 +276,24 @@ class NugetReader {
     return v !== undefined && PLAIN_VERSION.test(v) ? v : undefined;
   }
 
+  /** `<PackageVersion>` Version by lowercased Id, per Directory.Packages.props; the first element of an Id wins. */
+  private readonly centralMaps = new Map<string, Map<string, string | undefined>>();
+
   /** The `Version` of the nearest Directory.Packages.props's `<PackageVersion>` for `id`, if it has one. */
   private central(dir: string, id: string): { value: string; rel: string } | undefined {
     const found = this.nearest(dir, PACKAGES_PROPS);
     if (!found) return undefined;
-    for (const el of descendants(found.file.root)) {
-      if (!same(el.name, 'PackageVersion') || !same(include(el) ?? '', id)) continue;
-      const value = meta(el, 'Version');
-      return value === undefined ? undefined : { value, rel: found.rel };
+    let map = this.centralMaps.get(found.rel);
+    if (!map) {
+      map = new Map();
+      for (const el of descendants(found.file.root)) {
+        const key = same(el.name, 'PackageVersion') ? include(el)?.toLowerCase() : undefined;
+        if (key !== undefined && !map.has(key)) map.set(key, meta(el, 'Version'));
+      }
+      this.centralMaps.set(found.rel, map);
     }
-    return undefined;
+    const value = map.get(id.toLowerCase());
+    return value === undefined ? undefined : { value, rel: found.rel };
   }
 
   /** Decision 4's order: the lock beside the file, the element's own value, the central version. */
@@ -317,19 +332,24 @@ class NugetReader {
     const isTest =
       isProject &&
       (same(file.props.get('istestproject')?.trim() ?? '', 'true') || usesMstestSdk(file.root) || refs.some((r) => r.id.toLowerCase() === TEST_SDK));
-    const seen = new Set<string>();
+    // An Id is one row, at its first runtime reference; one that is development wherever the file names it
+    // is counted once. A development reference first (a `PrivateAssets="all"` under one condition) does
+    // not hide a runtime one later.
+    const recorded = new Set<string>();
+    const devIds = new Set<string>();
     for (const { el, id, testOnly } of refs) {
       const key = id.toLowerCase();
-      if (seen.has(key)) continue;
-      seen.add(key);
+      if (recorded.has(key)) continue;
       const priv = meta(el, 'PrivateAssets') ?? '';
       const dev = isTest || (!isProject && (testOnly || key === TEST_SDK));
       if (dev || priv.split(';').some((a) => same(a.trim(), 'all'))) {
-        this.devSkipped++;
+        devIds.add(key);
         continue;
       }
+      recorded.add(key);
       this.push(rel, el, id, this.version(rel, id, meta(el, 'VersionOverride') ?? meta(el, 'Version')));
     }
+    for (const key of devIds) if (!recorded.has(key)) this.devSkipped++;
   }
 
   /** A Directory.Packages.props gives versions only; its `<GlobalPackageReference>` entries are counted. */

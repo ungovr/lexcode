@@ -201,7 +201,8 @@ export function opensRubyBlock(code: string): boolean {
   if (/\bdo(?:\s*\|[^|]*\|)?$/.test(code)) return true;
   if (/^def\s+[^\s(]+(?:\([^)]*\))?\s*=[^=~]/.test(code)) return false;
   if (/^(?:if|unless|case|begin|while|until|for|def|class|module)\b/.test(code)) return true;
-  return /[=(]\s*(?:if|unless|case|begin)\b/.test(code);
+  // `x = if ...`, `(case ...`, `y || begin`: an opener in an expression, unless its `end` is on the same line.
+  return /(?:[=(]|\|\||&&)\s*(?:if|unless|case|begin)\b(?!.*\bend\b)/.test(code);
 }
 
 /**

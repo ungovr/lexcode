@@ -22,13 +22,13 @@ import { ancestorDirs, baseName, describeParseError, dirOf, fileExists, joinRel,
  * A row's name is its repository's `host/owner/repo` (Decision 2). Its version is, in order: the pin in
  * the `Package.resolved` beside the `Package.swift` (for a project, the one in its
  * `project.xcworkspace/xcshareddata/swiftpm/`); the pin in the nearest ancestor directory's
- * `Package.resolved` (for a project, the first `*.xcworkspace` beside the `.xcodeproj`, in sorted order);
- * for a `Package.swift` with no `Package.resolved` at or above it, the first Xcode pins file
+ * `Package.resolved` (for a project, each `*.xcworkspace` beside the `.xcodeproj`, in sorted order);
+ * for a `Package.swift` with no `Package.resolved` at or above it, the Xcode pins files
  * (`*.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/` or `*.xcworkspace/xcshareddata/swiftpm/`, in
  * sorted order) in its own directory or the nearest ancestor that has one, since a local package inside an
  * Xcode app resolves through the app's workspace. Both bundle kinds sort together by name, so
- * `App.xcodeproj` comes before `App.xcworkspace`, and the search stops at the first pins file it finds,
- * even when that file lacks the package. Last, an exact requirement. A pin is matched by identity, the URL's last path segment lowercased without
+ * `App.xcodeproj` comes before `App.xcworkspace`; the first of them that pins the package gives its
+ * version, and the search does not go past that directory (#13298). Last, an exact requirement. A pin is matched by identity, the URL's last path segment lowercased without
  * `.git`. A pin with no `version` (a branch or revision pin) gives no version.
  */
 
@@ -499,16 +499,16 @@ function resolvedFor(root: string, rel: string): string[] {
       }
     }
     // No Package.resolved at or above it: a local package inside an Xcode app resolves through the
-    // app's workspace, so take the first Xcode pins file in its own directory or the nearest ancestor.
+    // app's workspace, so take the Xcode pins files of its own directory or the nearest ancestor that has
+    // one, every bundle there in sorted order (one app's project and workspace). A farther directory is
+    // another app and is not read (#13298).
     if (out.length === 0) {
-      search: for (const d of ancestorDirs(dir)) {
+      for (const d of ancestorDirs(dir)) {
         for (const bundle of bundlesIn(root, d, ['.xcodeproj', '.xcworkspace'])) {
           const pins = bundlePins(d, bundle);
-          if (fileExists(root, pins)) {
-            out.push(pins);
-            break search;
-          }
+          if (fileExists(root, pins)) out.push(pins);
         }
+        if (out.length > 0) break;
       }
     }
   } else {
@@ -517,10 +517,7 @@ function resolvedFor(root: string, rel: string): string[] {
     const parent = dirOf(dir);
     for (const ws of bundlesIn(root, parent, ['.xcworkspace'])) {
       const pins = bundlePins(parent, ws);
-      if (fileExists(root, pins)) {
-        out.push(pins);
-        break;
-      }
+      if (fileExists(root, pins)) out.push(pins);
     }
   }
   return out;

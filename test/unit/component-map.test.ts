@@ -43,9 +43,32 @@ function nameProblems(ecosystem: 'cargo' | 'swift' | 'cocoapods', entries: Entry
     const at = `entry ${i + 1} (${String(e.match)})`;
     if (typeof e.match !== 'string' || !NAME.test(e.match)) out.push(`${at}: match is not a lowercased ${ecosystem} name`);
     if (typeof e.source !== 'string' || !SOURCE.test(e.source)) out.push(`${at}: source is not a ${ecosystem} page`);
-    if (ecosystem === 'swift' && typeof e.match === 'string' && typeof e.source === 'string') {
+    if (typeof e.match !== 'string' || typeof e.source !== 'string') return;
+    if (ecosystem === 'swift') {
       const repo = e.source.replace(/^https:\/\//, '').toLowerCase();
       if (repo !== e.match) out.push(`${at}: source names ${repo}`);
+    }
+    if (!SOURCE.test(e.source)) return;
+    const page = (e.source.split('/').pop() ?? '').toLowerCase();
+    // A crate's page is its own name (Cargo takes `_` for `-`); a pod's page is the pod, a subspec's its parent
+    // pod. A Firebase umbrella subspec (firebase/analytics) has no page of its own and quotes the pod it brings.
+    if (ecosystem === 'cargo' && page.replace(/_/g, '-') !== e.match.replace(/_/g, '-')) out.push(`${at}: source names the crate ${page}`);
+    if (ecosystem === 'cocoapods') {
+      const pod = e.match.split('/')[0] as string;
+      const umbrella = pod === 'firebase' && e.match.includes('/') && page.startsWith('firebase');
+      if (page !== pod && !umbrella) out.push(`${at}: source names the pod ${page}`);
+    }
+  });
+  return out;
+}
+
+/** A gem entry's `source` is `https://rubygems.org/gems/<match>`; gem names are compared without case. */
+function gemSourceProblems(entries: Entry[]): string[] {
+  const out: string[] = [];
+  entries.forEach((e, i) => {
+    const m = /^https:\/\/rubygems\.org\/gems\/([A-Za-z0-9_.-]+)$/.exec(String(e.source));
+    if (!m || (m[1] as string).toLowerCase() !== String(e.match).toLowerCase()) {
+      out.push(`entry ${i + 1} (${String(e.match)}): source is not https://rubygems.org/gems/${String(e.match)}`);
     }
   });
   return out;
@@ -91,7 +114,7 @@ function problems(ecosystem: string, doc: { ecosystem: unknown; entries: Entry[]
     const at = `entry ${i + 1} (${String(e.match)})`;
     if (typeof e.match !== 'string' || e.match.trim() === '') out.push(`${at}: no match`);
     else {
-      const key = ecosystem === 'pypi' ? normalizePypiName(e.match) : e.match.toLowerCase();
+      const key = ecosystem === 'pypi' ? normalizePypiName(e.match) : ecosystem === 'cargo' ? e.match.toLowerCase().replace(/_/g, '-') : e.match.toLowerCase();
       if (seen.has(key)) out.push(`${at}: duplicate match`);
       seen.add(key);
     }
@@ -123,6 +146,17 @@ describe('component map', () => {
     });
   }
 
+  it('gem.yml cites each gem by its own rubygems.org page (#12879)', () => {
+    expect(gemSourceProblems(load('gem.yml').entries)).toEqual([]);
+  });
+
+  it('catches a gem entry whose source is not its own rubygems.org page (self-check of the checker)', () => {
+    const e = (match: string, source: string) => ({ match, enables: ['crawls_web'], says: 'x', source });
+    expect(gemSourceProblems([e('mailchimpmarketing', 'https://rubygems.org/gems/MailchimpMarketing')])).toEqual([]);
+    expect(gemSourceProblems([e('lockbox', 'https://github.com/ankane/lockbox')])).toHaveLength(1);
+    expect(gemSourceProblems([e('lockbox', 'https://rubygems.org/gems/blind_index')])).toHaveLength(1);
+  });
+
   it('catches a badly named cargo, swift or cocoapods entry (self-check of the checker)', () => {
     const e = (match: string, source: string) => ({ match, enables: ['crawls_web'], says: 'x', source });
     expect(nameProblems('cargo', [e('async-openai', 'https://crates.io/crates/async-openai')])).toEqual([]);
@@ -138,6 +172,13 @@ describe('component map', () => {
     expect(nameProblems('cocoapods', [e('Firebase/Analytics', 'https://cocoapods.org/pods/Firebase')])[0]).toContain(
       'not a lowercased cocoapods name',
     );
+    // #13297: the page must be the entry's own crate or pod.
+    expect(nameProblems('cargo', [e('aes-gcm', 'https://crates.io/crates/aes')])[0]).toContain('source names the crate aes');
+    expect(nameProblems('cargo', [e('headless_chrome', 'https://crates.io/crates/headless_chrome')])).toEqual([]);
+    expect(nameProblems('cocoapods', [e('sentry/hybridsdk', 'https://cocoapods.org/pods/Sentry')])).toEqual([]);
+    expect(nameProblems('cocoapods', [e('firebase/auth', 'https://cocoapods.org/pods/FirebaseAuth')])).toEqual([]);
+    expect(nameProblems('cocoapods', [e('mixpanel', 'https://cocoapods.org/pods/Amplitude')])[0]).toContain('source names the pod amplitude');
+    expect(nameProblems('cocoapods', [e('sentry/hybridsdk', 'https://cocoapods.org/pods/FirebaseAuth')])[0]).toContain('source names the pod firebaseauth');
   });
 
   it('golang.org/x/crypto enables nothing: Go links only the subpackages an app imports (#13318)', () => {

@@ -1,0 +1,54 @@
+rules:
+  - id: lexcode.distribute.woodpecker-docker-push
+    languages: [yaml]
+    severity: INFO
+    message: A Woodpecker or Drone CI step builds a container image and pushes it to a registry, which may make a server available for others to run or may only feed the operator's own hosting (distributes_software_product).
+    # The Woodpecker and Drone counterpart of workflow-docker-push, and a signal for the same reason: a
+    # pushed image may be what people self-host (Lemmy's server, #13300) or only the operator's own
+    # deployment. A step counts when its image is a container-image plugin (Woodpecker's docker-buildx
+    # and kaniko plugins, Drone's docker, docker-buildx and kaniko plugins, any registry prefix or tag)
+    # and its settings name a `repo` to push to; dry-run on, in either spelling, pushes nothing. Steps
+    # as a map or a list, and settings before or after the image, all match. Settings merged in from a
+    # YAML anchor (`<<: *docker_settings`) that carry the `repo` key are not read.
+    patterns:
+      - pattern: |
+          image: $IMG
+          ...
+          settings:
+            ...
+            repo: $REPO
+      - metavariable-regex:
+          metavariable: $IMG
+          regex: '^(?:[a-z0-9.-]+(?::[0-9]+)?/)?(?:woodpeckerci/plugin-(?:docker-buildx|kaniko)|plugins/(?:docker|docker-buildx|kaniko))(?::[A-Za-z0-9._-]+)?$'
+      - pattern-not: |
+          image: $IMG
+          ...
+          settings:
+            ...
+            dry-run: true
+      - pattern-not: |
+          image: $IMG
+          ...
+          settings:
+            ...
+            dry_run: true
+    paths:
+      include:
+        - ".woodpecker.yml"
+        - ".woodpecker.yaml"
+        - ".woodpecker/*.yml"
+        - ".woodpecker/*.yaml"
+        - "**/.woodpecker.yml"
+        - "**/.woodpecker.yaml"
+        - "**/.woodpecker/*.yml"
+        - "**/.woodpecker/*.yaml"
+        - ".drone.yml"
+        - "**/.drone.yml"
+        - "woodpecker-docker-push.*"
+    metadata:
+      activity: distributes_software_product
+      mentioned: performs
+      strength: signal
+      definition: https://lexlint.io/activities/distributes-software-product
+      provenance: ungovr-original
+      license: MIT
