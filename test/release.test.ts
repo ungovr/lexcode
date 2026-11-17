@@ -229,13 +229,25 @@ describe('release: the rule set is complete and well formed', () => {
       rust: String.raw`(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+`,
     };
     // The keyword followed by white space as a regex writes it: an import or use line is what the regex reads.
-    // A content guard that only names a word (`importFile`, `user`) is not one.
-    const keyword = { swift: /(?<![\w$])import(?=\\s|\s|\[ \\t\]|\\x20)/, rust: /(?<![\w$])use(?=\\s|\s|\[ \\t\]|\\x20)/ };
+    // A content guard that only names a word (`importFile`, `user`) is not one. The keyword may follow a regex
+    // escape (`\bimport`, `\nuse`), and the white space may be any escape for it (`\s`, `\h`, `\t`, `\x20`,
+    // `\p{Zs}`), a class that holds one (`[\s]`, `[ \t]`, `[[:space:]]`), a literal space or tab, inside any
+    // number of opening groups (`import(?:\s+)`) (#13303).
+    const space = String.raw`(?:\\[shtv]|\\x(?:20|09|\{0*(?:20|9)\})|\\p\{Z\w*\}|\[\^?[^\]]*?(?:\\[sht]|\\x(?:20|09)|[ \t]|\[:(?:space|blank):\])[^\]]*\]|[ \t])`;
+    const kw = (word: string): RegExp =>
+      new RegExp(String.raw`(?:(?<![\w$\\])|(?<=(?<!\\)\\[A-Za-z]))${word}(?:\((?:\?:|\?<\w+>|\?P<\w+>)?)*${space}`);
+    const keyword = { swift: kw('import'), rust: kw('use') };
     // By the rule's languages, so a Swift or Rust rule in a file of another name is held to the shape too, and by
     // the file name for a regex outside a rule (#13303).
+    // Every import or use line the regex reads is one in the canonical form: the opening's own, or a further
+    // lookahead written the same way.
     const offShape = (lang: 'swift' | 'rust', rx: string): boolean => {
-      if (!keyword[lang].test(rx)) return false;
-      return !rx.startsWith(opening[lang]) || !rx.endsWith(').*');
+      const hits = [...rx.matchAll(new RegExp(keyword[lang].source, 'g'))];
+      if (hits.length === 0) return false;
+      if (!rx.startsWith(opening[lang]) || !rx.endsWith(').*')) return true;
+      const lookahead = opening[lang].slice(String.raw`(?ms)\A`.length);
+      const at = lookahead.search(keyword[lang]);
+      return hits.some((h) => rx.slice(h.index - at, h.index - at + lookahead.length) !== lookahead);
     };
     // A deliberately off-shape copy of each is refused: no BOM, no line anchor, a lazy tail, and a guard with no
     // whole-file lookahead at all (#13303: before, only a regex holding `\A(?=` was checked).
@@ -247,7 +259,28 @@ describe('release: the rule set is complete and well formed', () => {
     expect(offShape('rust', String.raw`(?m)^\s*use\s+async_openai\b`)).toBe(true);
     expect(offShape('swift', `${opening.swift}Firebase\\b).*`)).toBe(false);
     expect(offShape('rust', `${opening.rust}ring::[^;]*\\bLessSafeKey\\b).*`)).toBe(false);
+    // The keyword after a regex escape, and white space written any other way, is still an import or use line.
+    for (const rx of [
+      String.raw`(?s)\A(?=.*\bimport\s+Firebase\b).*`,
+      String.raw`(?s)\A(?=.*\nimport\s+Firebase\b).*`,
+      String.raw`import[\s]+Firebase`,
+      String.raw`import\h+Firebase`,
+      String.raw`import(?:\s+)Firebase`,
+      String.raw`import(?<sp>\s+)Firebase`,
+      String.raw`import[[:space:]]+Firebase`,
+      String.raw`import\x{20}Firebase`,
+      String.raw`import\p{Zs}+Firebase`,
+      'import +Firebase',
+    ]) expect(offShape('swift', rx), rx).toBe(true);
+    for (const rx of [String.raw`(?s)\A(?=.*\buse\s+rig\b).*`, String.raw`use[\s]+rig`, String.raw`use\h+rig`, String.raw`use(?:\s+)rig`, String.raw`(?m)^\s*use[ \t]+rig`]) {
+      expect(offShape('rust', rx), rx).toBe(true);
+    }
+    // A canonical guard with a second, off-shape lookahead beside it is refused too.
+    expect(offShape('swift', `${opening.swift}Firebase\\b)(?=.*\\bimport\\s+FirebaseAuth\\b).*`)).toBe(true);
+    expect(offShape('rust', `${opening.rust}rig\\b)(?=.*use\\s+tokio\\b).*`)).toBe(true);
     // Content guards that name a word, not an import or use line, are the rule's own.
+    expect(offShape('swift', String.raw`\bimportance\s+`)).toBe(false);
+    expect(offShape('rust', String.raw`\\use\s+`)).toBe(false); // an escaped backslash, then the word
     expect(offShape('swift', String.raw`\bimportDocument\(`)).toBe(false);
     expect(offShape('rust', String.raw`(?s)\A(?=.*\buser_agent\b).*`)).toBe(false);
     const bad: string[] = [];
