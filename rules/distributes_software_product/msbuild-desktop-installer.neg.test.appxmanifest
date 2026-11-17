@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- lexcode-expect: 0 -->
+<!-- A Windows Phone product identity, which is not the package's <Identity> element, and package
+     identities left in comments, on one line and across lines. -->
+<Package
+        xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+        xmlns:mp="http://schemas.microsoft.com/appx/2014/phone/manifest"
+        IgnorableNamespaces="mp">
+
+    <mp:PhoneIdentity PhoneProductId="00000000-0000-0000-0000-000000000000" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
+
+    <!-- <Identity Name="Feedlint.Desktop" Publisher="CN=Feedlint Ltd" Version="1.4.0.0" /> -->
+    <!--
+    <Identity
+        Name="Feedlint.Desktop"
+        Publisher="CN=Feedlint Ltd"
+        Version="1.4.0.0" />
+    -->
+
+</Package>

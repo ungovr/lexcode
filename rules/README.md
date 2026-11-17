@@ -1171,7 +1171,9 @@ The engine sets most of these limits, and the rules' comments point here.
   list are missed. A project that sets `PackageLicenseUrl`,
   `PackageLicenseExpression` or `PackageLicenseFile` for its license metadata
   only, or an app's own attribute named `Activity` with a `MainLauncher`
-  property, matches.
+  property, matches. A `Package.appxmanifest` is read on its own, so a Windows head
+  that keeps the template's manifest while its project sets
+  `WindowsPackageType` to `None` (an unpackaged app) matches.
 - Encryption: a symmetric algorithm's encryptor (`CreateEncryptor`,
   `EncryptCbc` and the rest) is read where `System.Security.Cryptography`
   itself is imported (a deeper namespace such as `X509Certificates` alone does
