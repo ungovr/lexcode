@@ -1,4 +1,4 @@
-// lexcode-expect: 10
+// lexcode-expect: 11
 import Foundation
 
 final class APIClient {
@@ -12,7 +12,10 @@ final class APIClient {
         return id
     }
 
+    var installUUID: UUID { UUID() }
+
     func common(_ request: inout URLRequest, utility: () -> String?) {
+        // Wikipedia for iOS's two sends: by the value's name here, by the header's in `events`.
         if let appInstallID = utility() {
             request.setValue(appInstallID, forHTTPHeaderField: "X-WMF-UUID")
         }
@@ -27,17 +30,11 @@ final class APIClient {
         var request = URLRequest(url: URL(string: "https://events.example.org/v1/events")!)
         request.setValue(self.installID, forHTTPHeaderField: "X-Client")
         request.setValue(token, forHTTPHeaderField: "X-Acme-Device-UUID")
+        request.setValue(installUUID.uuidString, forHTTPHeaderField: "X-Foo")
+        request.setValue(token, forHTTPHeaderField: "X-App-Instance-Id")
+        request.setValue(token, forHTTPHeaderField: "X-User-Device-Id")
+        request.setValue(token, forHTTPHeaderField: "X-ACME-UUID")
         return request
-    }
-
-    func pixel() -> URL? {
-        var components = URLComponents(string: "https://px.example.net/p")!
-        components.queryItems = [
-            URLQueryItem(name: "install_id", value: installID),
-            Foundation.URLQueryItem(name: "src", value: self.installID),
-            URLQueryItem(name: "installationId", value: defaults.string(forKey: "iid")),
-        ]
-        return components.url
     }
 }
 

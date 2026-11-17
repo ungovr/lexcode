@@ -1,0 +1,68 @@
+# An install ID the app makes for itself, put into a query item of a URL the app then requests,
+# identifies one device across visits as a header does (swift-install-id-sent reads the headers).
+# As in swift-device-id-sent, a URL or query item that holds the ID is not by itself a send: the
+# sink is the request or URL session call the components' URL reaches. An app-scheme deep link
+# opened on the phone, or a URL only built and returned, is not matched.
+#
+# - Query item names: `install_id` and `app_install_id`, in any case and with or without the
+#   underscore (`installId`). A query item called `device_id` is left out: it names the resource
+#   the request is about, which in an app that drives cameras, locks or other hardware is that
+#   device, not the phone.
+# - A value named as an install ID (`installID`, `appInstallId`, `installID.uuidString`) put into a
+#   query item, whatever its name.
+# - `installation_id` (and a value named `installationID`) is not read: it is GitHub's (and other
+#   platforms') name for an app's installation in an organization, not a device.
+#
+# A URL built in one function and requested in another is not joined (taint does not cross a
+# function; rules/README.md, "Known Swift gaps").
+rules:
+  - id: lexcode.tracking.swift-install-id-query-sent
+    languages: [swift]
+    severity: INFO
+    message: Puts an install ID the app keeps for itself into a query item of a URL it then requests, which identifies one device across visits and is tracking devices (tracks_devices).
+    mode: taint
+    pattern-sources:
+      # a query item named for an install ID
+      - patterns:
+          - pattern-either:
+              - pattern: 'Foundation.URLQueryItem(name: $N, value: $V)'
+              - pattern: 'URLQueryItem(name: $N, value: $V)'
+          - metavariable-regex:
+              metavariable: $N
+              regex: '(?i)^"(?:app_?)?install_?id"$'
+      # any query item filled from a value named as an install ID
+      - patterns:
+          - pattern-either:
+              - pattern: 'Foundation.URLQueryItem(name: $N, value: $V)'
+              - pattern: 'URLQueryItem(name: $N, value: $V)'
+          - metavariable-regex:
+              metavariable: $V
+              regex: '(?i)^(?:self\.)?(?:app_?)?install_?(?:id|uuid)(?:\??\.uuidString)?$'
+    # A query item puts the ID into the components' URL (`components.queryItems = [...]` or an
+    # append), so the components carry it to the request built from their `url`.
+    pattern-propagators:
+      - pattern: $C.queryItems = $V
+        from: $V
+        to: $C
+      - pattern: $C.queryItems?.append($V)
+        from: $V
+        to: $C
+      - pattern: $C.queryItems.append($V)
+        from: $V
+        to: $C
+    pattern-sinks:
+      # Each sink is the URL itself (focus), so a request built from another URL is not a sink.
+      - patterns:
+          - pattern-either:
+              - pattern: 'Foundation.URLRequest(url: $V, ...)'
+              - pattern: 'URLRequest(url: $V, ...)'
+              - pattern: '$S.data(from: $V, ...)'
+              - pattern: '$S.dataTask(with: $V, ...)'
+              - pattern: '$S.download(from: $V, ...)'
+          - focus-metavariable: $V
+    metadata:
+      activity: tracks_devices
+      mentioned: performs
+      definition: https://lexlint.io/activities/tracks-devices
+      provenance: ungovr-original
+      license: MIT

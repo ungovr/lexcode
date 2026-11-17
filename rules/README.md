@@ -1549,14 +1549,17 @@ The engine sets most of these limits, and the rules' comments point here.
   for a person to confirm.
 - **Data and tracking.** No rule reads a Vapor server's client address or a
   device fingerprint. An install ID the app mints for itself (a random UUID kept
-  in its own store and sent with every request) is read by its names only
-  (`swift-install-id-sent`): a header named for an install or device ID (or
-  `X-<name>-UUID`), a query item named for an install ID, or a header or query
-  item filled from a value named as one. The mint and the send sit in different
-  files, which taint does not join, so an install ID sent under other names, or
-  in a header dictionary (`allHTTPHeaderFields = [...]`, Alamofire's
-  `HTTPHeaders`), is missed. Taint does not follow a class property initialized
-  from a source into a method.
+  in its own store and sent with every request) is read by its names only: a
+  header named for an install or device ID (or `X-<ACRONYM>-UUID` in capitals,
+  as Wikipedia's `X-WMF-UUID` is) or filled from a value named as one
+  (`swift-install-id-sent`), and a query item named for one or filled from such a
+  value, followed to the request its URL reaches (`swift-install-id-query-sent`).
+  The mint and the send sit in different files, which taint does not join, so an
+  install ID sent under other names (`X-Client-UUID`, `x-wishkit-uuid`), under
+  the name `installation_id` (which GitHub uses for an app's installation), in a
+  URL opened in a browser or a web view, or in a header dictionary
+  (`allHTTPHeaderFields = [...]`, Alamofire's `HTTPHeaders`), is missed. Taint
+  does not follow a class property initialized from a source into a method.
 - **Shipping.** A tvOS-only or visionOS-only app whose delegate file carries no
   platform cue is matched as a mobile app, an SDK's non-open delegate forwarder
   is matched, a delegate that conforms in fourth place or later is missed, and a
