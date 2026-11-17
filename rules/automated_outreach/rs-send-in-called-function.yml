@@ -17,10 +17,17 @@
 # sleeps or ticks a timer and never breaks or returns. A `loop` that breaks or returns is a retry of
 # one message until it goes through, and a `loop` that neither sleeps nor ticks is an event loop
 # answering what arrives (a sign-up's confirmation sent as the sign-up comes in); neither is read.
+# A sleep only in an `Err` arm or an `if let Err` body is a backoff after a failure, not polling,
+# and a loop that awaits `accept()`, `recv()` or `next()` waits on what arrives, so an accept loop
+# that sleeps after a failed accept is an event loop too.
 # Binding that loop's body would pair it with every later function, so the polling check is a text
-# regex (braces balanced) for a function holding such a loop, whose range runs to the end of the
-# file: the sender must come after the first polling function, and an event loop that calls a
-# sender written after a polling function is read too, a known over-match. A function named for a
+# regex for a function holding such a loop, whose range runs to the end of the file: the sender
+# must come after the first polling function, and an event loop that calls a sender written after
+# a polling function is read too, a known over-match. The regex balances braces and steps over line
+# and block comments, strings, raw strings with up to two hashes and char literals, so a `return`
+# in a comment or a `'}'` does not end the loop; a block comment nested in another or a raw string
+# with three hashes or more is read as code. A call inside a macro body (`tokio::select! { }`) is
+# not seen by the engine, so a loop whose call sits there is not read. A function named for a
 # send (`send_email`, `send_reminder`) called in a loop is rs-send-in-loop's own match, so a send
 # inside one is not matched again here.
 #
@@ -49,13 +56,17 @@ rules:
                       ...
                       fn $F(...) { ... }
               # A polling loop, read from the text: a function whose body holds a `loop` whose
-              # body (braces balanced) sleeps or ticks and never breaks or returns. The regex's
-              # range runs from that function to the end of the file, and the sender's item must
-              # lie in it, so the sender comes after the first polling function of the file. A
-              # pattern binding the caller's loop body would pair it with every later function.
+              # body sleeps or ticks outside an `Err` arm or `if let Err` body, and never breaks,
+              # returns or awaits accept(), recv() or next(). Groups: tk a comment, string, raw
+              # string or char literal (stepped over whole), ch one character or tk, pb and lb
+              # balanced parentheses and braces, ea an Err arm or `if let Err` body, sb a block
+              # that sleeps or ticks outside ea, nb a block with no way out. The regex's range
+              # runs from that function to the end of the file, and the sender's item must lie in
+              # it, so the sender comes after the first polling function of the file. A pattern
+              # binding the caller's loop body would pair it with every later function.
               - pattern: |
                   fn $F(...) { ... }
-              - pattern-regex: '(?s)(?<![\w.])fn\s[^{;]*(?=\{(?:[^{}]|(?&lb))*?(?<![\w.])loop\s*(?=(?<sb>\{(?:[^{}]|(?&lb))*?(?:(?<!\w)(?:sleep|tick)\s*\(|(?&sb))(?:[^{}]|(?&lb))*\}))(?<nb>\{(?:(?!(?<![\w.])(?:break|return)(?!\w))[^{}]|(?&nb))*\}))(?(DEFINE)(?<lb>\{(?:[^{}]|(?&lb))*\})).*'
+              - pattern-regex: '(?s)(?<![\w.])fn\s[^{;]*(?=\{(?:(?&ch)|(?&lb))*?(?<![\w.])loop\s*(?=(?&sb))(?&nb))(?(DEFINE)(?<tk>//[^\n]*|/\*[\s\S]*?\*/|(?<!\w)r"[^"]*"|(?<!\w)r#"[\s\S]*?"#|(?<!\w)r##"[\s\S]*?"##|"(?:[^"\\]|\\[\s\S])*"|''(?:[^''\\\n]|\\(?:u\{[0-9a-fA-F]{1,6}\}|[\s\S]))\'')(?<ch>(?>(?&tk)|[^{}]))(?<pb>\((?:(?>(?&tk)|[^()])|(?&pb))*\))(?<lb>\{(?:(?&ch)|(?&lb))*\})(?<ea>(?<![\w:])Err\s*(?&pb)\s*=>\s*(?:(?&lb)|(?:(?&pb)|(?&lb)|(?>(?&tk)|[^,{}()]))*)|(?<![\w:])if\s+let\s+Err\s*(?&pb)\s*=(?:(?&pb)|(?>(?&tk)|[^{;()]))*(?&lb))(?<sb>\{(?:(?>(?&ea)|(?&ch))|(?&lb))*?(?:(?<!\w)(?:sleep|tick)\s*\(|(?&sb))(?:(?&ch)|(?&lb))*\})(?<nb>\{(?:(?!(?<![\w.])(?:break|return)(?!\w)|\.(?:accept|recv|next)\s*\(\s*\)\s*\.await)(?&ch)|(?&nb))*\})).*'
           - patterns:
               - pattern-either:
                   - pattern-inside: |

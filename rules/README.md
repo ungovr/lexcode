@@ -1617,7 +1617,9 @@ The engine sets most of these limits, and the rules' comments point here.
   and a sender written after it in one file, among free functions or among the
   methods of one `impl`; whether a bare `loop` polls is read from the file's
   text, so an event loop calling a sender written after a polling function is
-  read as one), a request built in one
+  read as one, a loop whose call sits in a macro body such as `tokio::select!`
+  is not read, and a block comment nested in another or a raw string with three
+  hashes or more is read as code), a request built in one
   statement and sent in the next (`let req = c.get(url); req.send()`), a handler
   that returns the model's output as its tail expression with no response
   wrapper, a model id or address held in a `const` declared after its use, and
