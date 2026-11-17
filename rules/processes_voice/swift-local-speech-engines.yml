@@ -10,8 +10,11 @@
 #   and their plural forms, `transcribeWithResults`, `transcribeWithOptions`, `detectLanguage`, and
 #   `detectLangauge(audioArray:)`, which is WhisperKit's own spelling of the array form: keep it)
 #   and the `AudioStreamTranscriber` are names any app may use, so they count only in a file that
-#   imports WhisperKit or ArgmaxOSS. Model downloads and listings (`WhisperKit.download`,
-#   `fetchAvailableModels`) transcribe nothing, and TTSKit reads typed text aloud: neither is matched.
+#   imports WhisperKit or ArgmaxOSS, and never when called on `self` (an app's own method of that
+#   name). Model downloads and listings (`WhisperKit.download`, `fetchAvailableModels`, a pipeline
+#   made with `load: false`) transcribe nothing, and TTSKit reads typed text aloud: none is matched.
+#   A `load: false` config held in a variable before the initializer is not seen, and the
+#   pipeline then counts.
 # - SwiftWhisper: `Whisper` is a name an app's own OpenAI client may carry, so it is written
 #   module-qualified, and `transcribe(audioFrames:)` counts only under `import SwiftWhisper`.
 # - whisper.cpp: its C functions carry the library's own `whisper_` prefix, and an app that reaches
@@ -31,20 +34,34 @@ rules:
     severity: INFO
     message: Runs a speech recognizer inside the app (WhisperKit, SwiftWhisper or whisper.cpp), which is transcribing human voices (processes_voice).
     pattern-either:
-      # WhisperKit: the pipeline, with or without the import
-      - pattern: WhisperKit.WhisperKit(...)
-      - pattern: WhisperKit(...)
+      # WhisperKit: the pipeline, with or without the import, unless it is made only to download a
+      # model (`load: false`, in its config or as the older initializer's argument)
+      - patterns:
+          - pattern-either:
+              - pattern: WhisperKit.WhisperKit(...)
+              - pattern: WhisperKit(...)
+          - pattern-not: 'WhisperKit(..., load: false, ...)'
+          - pattern-not: 'WhisperKit(WhisperKitConfig(..., load: false, ...))'
+          - pattern-not: 'WhisperKit.WhisperKit(..., load: false, ...)'
+          - pattern-not: 'WhisperKit.WhisperKit(WhisperKitConfig(..., load: false, ...))'
       - patterns:
           - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?(?:WhisperKit|ArgmaxOSS)\b).*'
           - pattern-either:
-              - pattern: '$K.transcribe(audioPath: $A, ...)'
-              - pattern: '$K.transcribe(audioArray: $A, ...)'
-              - pattern: '$K.transcribe(audioPaths: $A, ...)'
-              - pattern: '$K.transcribe(audioArrays: $A, ...)'
-              - pattern: $K.transcribeWithResults(...)
-              - pattern: $K.transcribeWithOptions(...)
-              - pattern: '$K.detectLanguage(audioPath: $A)'
-              - pattern: '$K.detectLangauge(audioArray: $A)'
+              # on a pipeline, never on `self`: an app's own method of the same name, in a file that
+              # imports WhisperKit only to download models, is not WhisperKit's
+              - patterns:
+                  - pattern-either:
+                      - pattern: '$K.transcribe(audioPath: $A, ...)'
+                      - pattern: '$K.transcribe(audioArray: $A, ...)'
+                      - pattern: '$K.transcribe(audioPaths: $A, ...)'
+                      - pattern: '$K.transcribe(audioArrays: $A, ...)'
+                      - pattern: $K.transcribeWithResults(...)
+                      - pattern: $K.transcribeWithOptions(...)
+                      - pattern: '$K.detectLanguage(audioPath: $A)'
+                      - pattern: '$K.detectLangauge(audioArray: $A)'
+                  - metavariable-regex:
+                      metavariable: $K
+                      regex: ^(?!self$)
               - pattern: AudioStreamTranscriber(...)
       # SwiftWhisper
       - pattern: SwiftWhisper.Whisper(...)
