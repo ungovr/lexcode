@@ -580,7 +580,10 @@ JavaScript around it still parses; every other tag (`<%`, `<%-`, `<%#`) becomes
 spaces. Line breaks are kept, so line numbers hold. `<%%` is a literal and is
 left. A tag ends at the first `%>`, as ERB ends it; one that never ends is
 blanked to the end of the block. The Ruby inside an ERB tag is never scanned,
-and an ERB file with no `<script>` block gives the scan nothing.
+and an ERB file with no `<script>` block gives the scan nothing. Blocks are
+looked for with the file's ERB tags blanked, so a `<script>` inside a comment
+tag (`<%# <script> %>`) or a Ruby string is not read as live, and a
+`</script>` inside a tag does not end a block.
 
 ### Model output a view, a partial or a broadcast shows
 
@@ -806,8 +809,9 @@ Opengrep 1.33.1): `value class`, `fun interface`, the `..<` range, some `in`
 and `->` forms in `when` branches, soft keywords used as identifiers, and
 `object : T by it`. The rest of such a file still matches, but a match inside
 the dropped construct is missing. The engine reports the file as partly parsed,
-and the scan counts it and says so in the record: `the engine could not read N
-files; their evidence is missing from this record`. Two engine limits shape the
+and the scan names it in the record's notice: `the engine could not read N
+files in full; evidence in them may be missing from this record`, followed by
+the files under "Not parsed in full". Two engine limits shape the
 rules. A class literal in a pattern matches every class literal, so a rule does
 not key on one. A wildcard import binds no class, so a rule that guards on an
 import keeps its list of names for the wildcard arm.
@@ -844,8 +848,11 @@ value="#{msgs.x}"/>`, a JSTL action such as `<c:if test="${a}">` or `</c:if>`,
 `>`, past quoted values) also becomes `_` padded, so it stays valid JavaScript
 in a string and in an expression; `<![CDATA[` and a `]]>` that closes it become
 spaces. A comparison such as `a < b:c`, an unprefixed HTML tag and a namespaced
-tag with no closing `>` are left alone. A `<script>` inside a JSP comment is
-still read, because extraction finds the element before the comment is blanked.
+tag with no closing `>` are left alone. Blocks are looked for with the file's
+JSP syntax blanked the same way, so a `<script>` inside a JSP comment
+(`<%-- --%>`), a scriptlet or expression string, an EL expression or a
+namespaced tag's attribute is not read as live, and a `</script>` inside one
+does not end a block.
 Thymeleaf templates are `.html` and already read; FreeMarker and Velocity
 templates are not read.
 
@@ -906,13 +913,17 @@ padded, and `{{-- ... --}}` becomes spaces. Any other directive becomes spaces,
 together with its argument list when one follows: an `@` plus an identifier, not
 preceded by a word character or `@`. An `@php ... @endphp` span becomes spaces
 too. An `@` inside a word, such as an email address in a JavaScript string, is
-left alone.
+left alone. Blocks are looked for with the PHP regions and then the Blade syntax
+blanked, so a `<script>` inside a Blade comment (`{{-- --}}`), an echo or an
+`@php` span is not read as live.
 
 A `.twig` file (so `.html.twig`) is read the same way. Inside a block, `{{ ... }}`
 becomes `_` padded, and `{% ... %}` and `{# ... #}` become spaces, including the
-forms with a `-` for white-space control. Jinja files (`.jinja`, `.j2`, `.njk`)
-keep their earlier handling and do not get this blanking, because giving it to
-them would change a language that was already read. Mustache is not read: its
+forms with a `-` for white-space control. Tera (`.tera`), Jinja (`.jinja`,
+`.jinja2`, `.j2`) and Nunjucks (`.njk`) files get the same blanking. Blocks are
+looked for with these tags blanked, so a `<script>` inside a comment
+(`{# #}`), a `{% set %}` string or an output tag is not read as live, and a
+`</script>` inside a tag does not end a block. Mustache is not read: its
 sections are a convention of one app, and that app's JavaScript lives in plain
 `.js` files that lexcode already reads.
 
@@ -971,8 +982,9 @@ ruled before it is added.
   libraries' `composer.json` files. An app can list such directories in a file
   of its own (Moodle does, in `thirdpartylibs.xml`), but lexcode does not read
   that list in this release.
-- A commented-out script in Blade (`{{-- --}}`) or Twig (`{# #}`) is extracted
-  as live, as in Jinja and ERB, and so is a `@verbatim` or `{% raw %}` span.
+- Inside a `@verbatim` span in Blade, a `{{ }}` is still blanked as a tag, and
+  so is a `{{ }}` or `{# #}` inside a `{% raw %}` or `{% verbatim %}` span in
+  Twig, Tera, Jinja and Nunjucks, though the template prints each as written.
 - An Artisan command that extends an app's own base command class is not
   excluded from the signature rule, because the engine cannot follow
   inheritance.
@@ -1047,8 +1059,8 @@ The engine reads only `.cs` as C#: given as explicit targets, `.csx`, `.cake`,
 `.csx` and `.cake` scripts are not read, a known gap that the scan's notice about
 other languages does not name. `*.g.cs` and `*.g.i.cs` are skipped as generated,
 and `*.Designer.cs` is read. A file the parser cannot read is counted in the
-notice `the engine could not read N files; their evidence is missing from this
-record`. In a walk, `bin` is skipped only where it holds a `Debug` or `Release`
+notice `the engine could not read N files in full; evidence in them may be missing from
+this record`, which names the file. In a walk, `bin` is skipped only where it holds a `Debug` or `Release`
 directory, so `bin/x64/Debug` is read. A legacy NuGet restore folder is skipped,
 but missed where its `.nupkg` files are gitignored and absent from the disk, and
 where the restore uses the `RestorePackagesPath` layout. Files under
@@ -1058,8 +1070,13 @@ JavaScript, a known gap.
 ### Razor views
 
 `.cshtml` and `.razor` files join the `<script>` block extraction used for Vue,
-Svelte, HTML and the other template languages, and the block search runs on the
-original text. Inside a block the Razor syntax is blanked so the JavaScript
+Svelte, HTML and the other template languages. Blocks are looked for with the
+file's `@* *@` comments blanked, and the C# strings and comments that hold a
+`<script` inside a code block, control block or expression, so a script in a
+comment or a C# string (`@{ var s = "<script>..."; }`, `@Html.Raw("<script>...")`)
+is not read as live. A code or control block is not blanked whole for the
+search, because markup inside one (a `<script>` element written in `@if { }` or
+`@{ }`) is live. Inside a block the Razor syntax is blanked so the JavaScript
 around it still parses and line numbers hold. Comments, `@{ }` code blocks and
 control blocks (`@if`, `@foreach`, `@using` and the rest, header and braces
 included) become spaces, except the content of `<text>` elements and `@:` lines
@@ -1092,6 +1109,9 @@ Known Razor gaps:
   beside it, in another file, so a library type there is found only by a
   short-form pattern. A `@{ ... }` statement block is not read as C#; only
   `@code` and `@functions` are.
+- The block search reads markup inside a code or control block as C# when it
+  looks for strings and comments, so a `//` in that markup's text (a written-out
+  `http://` address) hides a `<script>` later on the same line.
 - Markup inside an `@functions` method lands in the C# copy, which the engine
   reads as partly parsed, so a match inside the dropped part is missing (the
   scan counts the file in its unread-files notice), and `@@code {` (an escaped
@@ -1308,14 +1328,17 @@ commits them.
 
 The engine reads `.swift`, which includes `Package.swift`. Skipped as generated:
 `*.generated.swift`, `*+Generated.swift`, `*.pb.swift`, `*.grpc.swift`, and any
-directory named `GeneratedSources` (swift-openapi-generator's output). Xcode test
+`.swift` file under a directory named `GeneratedSources` (swift-openapi-generator's
+output; the name is case-sensitive, and the directory's other files are read). Xcode test
 targets, a directory whose name ends in `Tests` with a capital T, are test
 directories. Objective-C is not read, and the scan counts its files in the
 notice about other languages: every `.mm` file, and each `.m` file in a scope that
 holds a `project.pbxproj`, a `Podfile` or a `Package.swift` (a `.m` file is also
-MATLAB's). `.h` stays with C and C++. A Swift string interpolation
-(`"https://\(host)/path"`) is not read as a literal host, so an address the code
-builds from a variable is never taken for one of your own hosts. Leaf templates
+MATLAB's). `.h` stays with C and C++. A Swift string interpolation is read as
+the file writes it: a host written before the first `\( )` is the host
+(`"https://api.example.com/\(id)"`), and one with the interpolation in the
+scheme or host (`"https://\(host)/path"`) stays a signal, so an address the
+code builds from a variable is never taken for one of your own hosts. Leaf templates
 (`.leaf`, Vapor's) are not extracted: the one Swift server app measured holds 3,
 all Markdown message bodies with no `<script>` block.
 
@@ -1466,8 +1489,8 @@ The engine sets most of these limits, and the rules' comments point here.
   x: T {`, `#unavailable(...)`, a `#Predicate<...> { }` expression, an `if` or
   `switch` used as an expression, `consume`, `& ~Escapable`, `package import`,
   `@objc(selector:)` accessors or `nonisolated(unsafe)`. A file with one is read
-  in part or not at all, for every rule, and the scan counts it in `the engine
-  could not read N files`. Of the three Swift apps measured on 2026-11-15, 32
+  in part or not at all, for every rule, and the scan names it in `the engine
+  could not read N files in full`. Of the three Swift apps measured on 2026-11-15, 32
   files were lost: 2 of a SwiftUI reference app, 13 of a Vapor Discord bot (among
   them its interaction and message handlers) and 17 of Wikipedia for iOS. Two of
   the 32 are raw-string losses from the scanner fault below, and 30 are grammar
