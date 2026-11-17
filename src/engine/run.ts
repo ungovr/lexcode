@@ -444,7 +444,8 @@ const num = (v: unknown): number => (typeof v === 'number' ? v : 0);
 /**
  * A metavariable's text as the file holds it, sliced from the match's `lines` (which start at line `firstLine`)
  * by the engine's position for it: 1-based lines, 1-based UTF-8 byte columns, `end` exclusive. Undefined when
- * the position is missing or falls outside the lines, as a binding from a `pattern-inside` can. The engine's
+ * the position is missing or falls outside the lines, as a binding from a `pattern-inside` can, or when a sliced
+ * line holds U+FFFD (a file that is not UTF-8, whose byte columns no longer line up). The engine's
  * printed text (`abstract_content`) drops most interpolations' braces, so only this says where a hole is (#12882).
  */
 export function metavarSource(lines: string, firstLine: number, start: RawPos | undefined, end: RawPos | undefined): string | undefined {
@@ -454,7 +455,11 @@ export function metavarSource(lines: string, firstLine: number, start: RawPos | 
   const from = sl - firstLine;
   const to = el - firstLine;
   if (from < 0 || to >= all.length || to < from || sc < 1 || ec < 1) return undefined;
-  const bytes = all.slice(from, to + 1).map((l) => Buffer.from(l, 'utf8'));
+  const span = all.slice(from, to + 1);
+  // A file that is not UTF-8 comes back with U+FFFD (three bytes) for each byte it could not decode, while the
+  // positions count the file's own bytes, so every column past one is shifted: no source, the printed text decides.
+  if (span.some((l) => l.includes('\uFFFD'))) return undefined;
+  const bytes = span.map((l) => Buffer.from(l, 'utf8'));
   const first = bytes[0] as Buffer;
   const last = bytes[bytes.length - 1] as Buffer;
   if (sc - 1 > first.length || ec - 1 > last.length || (from === to && ec < sc)) return undefined;

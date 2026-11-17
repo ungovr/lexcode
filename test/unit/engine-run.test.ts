@@ -324,6 +324,17 @@ describe.skipIf(skipStub)('runEngine with the fake engine', () => {
     expect(metavarSource('a\r\nb', 1, { line: 1, col: 1 }, { line: 2, col: 2 })).toBe('a\r\nb');
   });
 
+  // A file that is not UTF-8 (Latin-1 `caf\xe9`) comes back in `lines` with U+FFFD, three bytes, for a one-byte
+  // character, while the engine's columns count the file's own bytes: the slice would land two bytes early
+  // (`t(f"https://p.example.com/{id`). No source then; the printed text decides (#12882).
+  it('gives no source when the sliced lines hold U+FFFD, since the byte columns no longer line up', () => {
+    const latin1 = 'x = "caf\uFFFD"; fetchit(f"https://p.example.com/{id}")';
+    expect(metavarSource(latin1, 1, { line: 1, col: 24 }, { line: 1, col: 52 })).toBeUndefined();
+    expect(metavarSource(`ok\n${latin1}`, 1, { line: 1, col: 1 }, { line: 2, col: 3 })).toBeUndefined();
+    // A U+FFFD on a line outside the slice leaves it alone.
+    expect(metavarSource(`${latin1}\nfetchit("https://q.example.com/x")`, 1, { line: 2, col: 9 }, { line: 2, col: 34 })).toBe('"https://q.example.com/x"');
+  });
+
   it('lists each per-file error that names its file, with why, in the paths it gave (#13209)', async () => {
     setEnv(
       'FAKE_OPENGREP_ERRORS',

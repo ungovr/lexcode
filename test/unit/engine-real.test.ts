@@ -139,6 +139,26 @@ describe.skipIf(!engine)('the real pinned engine', () => {
     }
   });
 
+  // The engine prints a non-UTF-8 byte as U+FFFD in `lines` but counts columns in the file's bytes, so a
+  // slice on that line would be shifted; it gets no source, and a line without one keeps it (#12882).
+  it('gives no source on a line of a Latin-1 file that holds a non-UTF-8 byte', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'lexcode-real-'));
+    try {
+      await writeFile(
+        join(dir, 'l.py'),
+        Buffer.concat([Buffer.from('x = "caf'), Buffer.from([0xe9]), Buffer.from('"; fetchit(f"https://p.example.com/{id}")\nfetchit(f"https://q.example.com/{id}")\n')]),
+      );
+      await writeFile(join(dir, 'rule.yml'), ['rules:', '  - id: t.py', '    languages: [python]', '    severity: INFO', '    message: m', '    pattern: fetchit($URL)', ''].join('\n'));
+      const r = await runEngine({ engine: engine!, configFile: join(dir, 'rule.yml'), targets: ['l.py'], root: dir });
+      expect(r.matches.map((m) => [m.line, m.source?.$URL])).toEqual([
+        [1, undefined],
+        [2, 'f"https://q.example.com/{id}"'],
+      ]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
   it('still applies a rule path exclude to the repository-relative path when the repository lives under a directory named examples', async () => {
     const outer = await mkdtemp(join(tmpdir(), 'lexcode-real-'));
     try {
