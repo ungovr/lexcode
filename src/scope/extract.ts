@@ -3,7 +3,7 @@ import path from 'node:path';
 import { ToolError } from '../errors.js';
 import { blank } from './blank.js';
 import { textHasLongLine } from './longlines.js';
-import { blankRazorTags, razorCSharp } from './razor.js';
+import { blankRazorScriptHiders, blankRazorTags, razorCSharp } from './razor.js';
 
 // Opengrep has no Vue or Svelte parser (design section 6.10), so a JS or TS
 // rule never reads those files, nor the scripts inside an HTML page, a Jinja or Nunjucks template (Twig's blanking),
@@ -663,9 +663,9 @@ function blankTemplateTags(body: string, opts: TemplateOptions): string {
 /**
  * Keeps the body of each qualifying `<script>` element and replaces every
  * other character except line breaks with a space, so line and column numbers
- * hold. Returns null when no block qualifies. In a PHP or Blade view the blocks
- * are looked for in `blankPhpRegions(text)`, and in an ERB view in `blankErbTags(text)`, so only markup holds one, and
- * each body is taken from the original text and then blanked; blanking keeps
+ * hold. Returns null when no block qualifies. In a template view the blocks
+ * are looked for in `searchedText(text)`, the text with the template's own syntax blanked, so only markup holds one,
+ * and each body is taken from the original text and then blanked; blanking keeps
  * every length, so the offsets agree.
  */
 export function blankOutsideScripts(text: string, opts: TemplateOptions = {}): { text: string; lang: 'ts' | 'js' } | null {
@@ -673,13 +673,30 @@ export function blankOutsideScripts(text: string, opts: TemplateOptions = {}): {
   return found === null ? null : { text: blankAround(text, found.blocks, opts), lang: found.lang };
 }
 
+/**
+ * The text a view's script blocks are looked for in: a `<script>` inside the template's own comment or code (a
+ * commented-out `<%# <script> %>`, `{# <script> #}`, `<%-- <script> --%>`, `@* <script> *@`, `{{-- <script> --}}`, or
+ * a string in a tag or code block) is template text, not markup, so each template's syntax is blanked first, as its
+ * script bodies are (#12882): PHP regions, then Blade syntax; Twig, Tera, Jinja and Nunjucks tags; ERB tags; JSP
+ * tags, EL expressions and namespaced tags. A Razor code block can hold live markup, so only its comments and the C#
+ * strings and comments that hold a `<script` are blanked (`blankRazorScriptHiders`). Blanking keeps every length,
+ * so the blocks' offsets are the text's, and a `</script>` inside a tag no longer ends a block.
+ */
+function searchedText(text: string, opts: TemplateOptions): string {
+  if (opts.razor === true) return blankRazorScriptHiders(text);
+  if (opts.blade === true) return blankBladeTags(blankPhpRegions(text));
+  if (opts.php === true) return blankPhpRegions(text);
+  if (opts.twig === true) return blankTwigTags(text);
+  if (opts.erb === true) return blankErbTags(text);
+  if (opts.jsp === true) return blankJspTags(text);
+  return text;
+}
+
 /** The qualifying script blocks of `text` and the language of its copy, or null when no block qualifies. */
 function qualifyingScripts(text: string, opts: TemplateOptions): { blocks: ScriptBlock[]; lang: 'ts' | 'js' } | null {
   // No "<script" at all, as in a PHP class file: nothing to find, and no PHP region to walk.
   if (!/<script/i.test(text)) return null;
-  // A script inside a PHP region or an ERB tag (a commented-out `<%# <script> %>`, or a Ruby string) is code
-  // text, not markup (#12882). Blanking keeps every length, so the blocks' offsets are the text's.
-  const searched = opts.php === true || opts.blade === true ? blankPhpRegions(text) : opts.erb === true ? blankErbTags(text) : text;
+  const searched = searchedText(text, opts);
   const blocks = findScriptBlocks(searched).filter((b) => qualifies(b, searched));
   if (blocks.length === 0) return null;
   return { blocks, lang: blocks.some(isTypeScript) ? 'ts' : 'js' };

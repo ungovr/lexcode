@@ -20,6 +20,8 @@ interface StringFrame {
   verbatim: boolean;
   interpolated: boolean;
   raw: number;
+  /** Where the literal starts, its `$` or `@` included. */
+  start: number;
 }
 
 /** Offset of the line break that ends the line holding `from`, or `text.length`. */
@@ -71,8 +73,8 @@ function stringOpen(text: string, i: number): { frame: StringFrame; next: number
   if (text[j] !== '"') return null;
   let quotes = 0;
   while (text[j + quotes] === '"') quotes++;
-  if (!verbatim && quotes >= 3) return { frame: { kind: 'string', verbatim: false, interpolated: dollars > 0, raw: quotes }, next: j + quotes };
-  return { frame: { kind: 'string', verbatim, interpolated: dollars > 0, raw: 0 }, next: j + 1 };
+  if (!verbatim && quotes >= 3) return { frame: { kind: 'string', verbatim: false, interpolated: dollars > 0, raw: quotes, start: i }, next: j + quotes };
+  return { frame: { kind: 'string', verbatim, interpolated: dollars > 0, raw: 0, start: i }, next: j + 1 };
 }
 
 /**
@@ -98,9 +100,10 @@ function textElementClose(text: string, from: number): number {
  * keeps an explicit stack, so nesting costs no call depth. With `razor`, the code is a Razor code or control
  * block: at its own level a `@* ... *@` comment is stepped over, and the content of each `<text> ... </text>`
  * element (to its own closing tag, past nested ones) and `@:` line is stepped over and pushed to `keeps` as
- * `[start, end)`.
+ * `[start, end)`. Each string literal and comment it steps over (a Razor comment too) is pushed to `texts` as
+ * `[start, end)`, an unclosed string's to the end of its line.
  */
-function csBracketEnd(text: string, open: number, razor: boolean, keeps?: [number, number][]): number {
+function csBracketEnd(text: string, open: number, razor: boolean, keeps?: [number, number][], texts?: [number, number][]): number {
   const first = text[open] as string;
   const stack: (CodeFrame | StringFrame)[] = [{ kind: 'code', open: first, close: BRACKET_CLOSE[first] as string, depth: 0 }];
   let i = open;
@@ -113,17 +116,20 @@ function csBracketEnd(text: string, open: number, razor: boolean, keeps?: [numbe
         if (close === -1) return -1;
         stack.pop();
         i = close + top.raw;
+        texts?.push([top.start, i]);
       } else if (ch === '"') {
         if (top.verbatim && text[i + 1] === '"') {
           i += 2;
         } else {
           stack.pop();
           i++;
+          texts?.push([top.start, i]);
         }
       } else if (!top.verbatim && ch === '\\') {
         i += 2;
       } else if (!top.verbatim && (ch === '\n' || ch === '\r')) {
         stack.pop(); // an unclosed string ends at its line, as the compiler reports it
+        texts?.push([top.start, i]);
       } else if (top.interpolated && ch === '{') {
         if (text[i + 1] === '{') {
           i += 2;
@@ -137,12 +143,15 @@ function csBracketEnd(text: string, open: number, razor: boolean, keeps?: [numbe
       continue;
     }
     if (ch === '/' && text[i + 1] === '/') {
-      i = lineEnd(text, i);
+      const end = lineEnd(text, i);
+      texts?.push([i, end]);
+      i = end;
       continue;
     }
     if (ch === '/' && text[i + 1] === '*') {
       const close = text.indexOf('*/', i + 2);
       if (close === -1) return -1;
+      texts?.push([i, close + 2]);
       i = close + 2;
       continue;
     }
@@ -150,6 +159,7 @@ function csBracketEnd(text: string, open: number, razor: boolean, keeps?: [numbe
       if (ch === '@' && text[i + 1] === '*') {
         const close = text.indexOf('*@', i + 2);
         if (close === -1) return -1;
+        texts?.push([i, close + 2]);
         i = close + 2;
         continue;
       }
@@ -228,9 +238,9 @@ const RAZOR_HEADED = new Set(['if', 'foreach', 'for', 'while', 'switch', 'using'
  * Offset just past the Razor control block whose keyword (`if`, `try`, `do` ...) ends at `from`, with chained
  * `else`, `else if`, `catch` and `finally` blocks and a `do` block's `while (...)` and `;`. Each block's `<text>`
  * and `@:` content goes to `keeps`. -1 when a header or a block never closes; the offset after the keyword and
- * header when no `{` follows them.
+ * header when no `{` follows them. The string literals and comments stepped over go to `texts` (`csBracketEnd`).
  */
-function razorControlEnd(text: string, keyword: string, from: number, keeps: [number, number][]): number {
+function razorControlEnd(text: string, keyword: string, from: number, keeps: [number, number][], texts?: [number, number][]): number {
   let kw = keyword;
   let i = from;
   for (;;) {
@@ -244,14 +254,14 @@ function razorControlEnd(text: string, keyword: string, from: number, keeps: [nu
     if (RAZOR_HEADED.has(kw)) {
       const k = skipSpace(text, i);
       if (text[k] === '(') {
-        const end = csBracketEnd(text, k, false);
+        const end = csBracketEnd(text, k, false, undefined, texts);
         if (end === -1) return -1;
         i = end;
       }
     }
     const brace = skipSpace(text, i);
     if (text[brace] !== '{') return i;
-    const end = csBracketEnd(text, brace, true, keeps);
+    const end = csBracketEnd(text, brace, true, keeps, texts);
     if (end === -1) return -1;
     i = end;
     const next = skipSpace(text, i);
@@ -259,7 +269,7 @@ function razorControlEnd(text: string, keyword: string, from: number, keeps: [nu
       if (!wordAt(text, next, 'while')) return i;
       const paren = skipSpace(text, next + 5);
       if (text[paren] !== '(') return next + 5;
-      const close = csBracketEnd(text, paren, false);
+      const close = csBracketEnd(text, paren, false, undefined, texts);
       if (close === -1) return -1;
       const semi = skipSpace(text, close);
       return text[semi] === ';' ? semi + 1 : close;
@@ -277,13 +287,13 @@ function razorControlEnd(text: string, keyword: string, from: number, keeps: [nu
 }
 
 /** Offset just past the implicit expression whose identifier starts at `from`: the identifier, then any run of `.identifier`, `( ... )` and `[ ... ]`. */
-function razorImplicitEnd(text: string, from: number): number {
+function razorImplicitEnd(text: string, from: number, texts?: [number, number][]): number {
   let i = from + identifierAt(text, from).length;
   for (;;) {
     if (text[i] === '.' && identifierAt(text, i + 1) !== '') {
       i += 1 + identifierAt(text, i + 1).length;
     } else if (text[i] === '(' || text[i] === '[') {
-      const end = csBracketEnd(text, i, false);
+      const end = csBracketEnd(text, i, false, undefined, texts);
       if (end === -1) return text.length;
       i = end;
     } else {
@@ -371,6 +381,63 @@ function razorBlank(body: string, depth: number): string {
  */
 export function blankRazorTags(body: string): string {
   return razorBlank(body, 0);
+}
+
+/** A `<script` or `</script` tag opener, in either case. */
+const SCRIPT_TAG = /<\/?script/i;
+
+/**
+ * `text` with each place a `<script` stands that is Razor or C# text, not markup, blanked, so a search for script
+ * blocks finds only live ones (#12882): a Razor comment (`@* ... *@`), and a C# string literal or comment that holds
+ * `<script` or `</script` inside a code block (`@{ ... }`, `@code { ... }`, `@functions { ... }`), a control block
+ * (`@if (...) { ... }` and the rest of `RAZOR_CONTROL`), an explicit expression (`@( ... )`) or an implicit one
+ * (`@Html.Raw("...")`). Markup inside a code or control block (a `<script>` element written as a tag, Razor's
+ * transition back to markup) is left, so it is still found: a block is not blanked whole, only those strings and
+ * comments, matched string-aware as `csBracketEnd` matches brackets. Every length and line break holds. A block or
+ * expression that never closes runs to the end of the text, and the walk stops there.
+ */
+export function blankRazorScriptHiders(text: string): string {
+  const hidden: [number, number][] = [];
+  const opener = new RegExp(RAZOR_OPENER.source, RAZOR_OPENER.flags);
+  for (let m = opener.exec(text); m !== null; m = opener.exec(text)) {
+    const open = m.index;
+    const texts: [number, number][] = [];
+    let end: number;
+    if (m[0] === '@@') {
+      end = open + 2;
+    } else if (m[0] === '@*') {
+      const close = text.indexOf('*@', open + 2);
+      end = close === -1 ? text.length : close + 2;
+      hidden.push([open, end]);
+    } else if (m[0] === '@(' || m[0] === '@{') {
+      end = csBracketEnd(text, open + 1, m[0] === '@{', undefined, texts);
+    } else {
+      const word = identifierAt(text, open + 1);
+      const after = open + 1 + word.length;
+      if (word === 'code' || word === 'functions') {
+        const brace = skipSpace(text, after);
+        end = text[brace] === '{' ? csBracketEnd(text, brace, true, undefined, texts) : after;
+      } else if (RAZOR_CONTROL.has(word)) {
+        end = razorControlEnd(text, word, after, [], texts);
+      } else {
+        end = razorImplicitEnd(text, open + 1, texts);
+      }
+    }
+    for (const [s, e] of texts) if (SCRIPT_TAG.test(text.slice(s, e))) hidden.push([s, e]);
+    if (end === -1 || end >= text.length) break;
+    opener.lastIndex = end;
+  }
+  if (hidden.length === 0) return text;
+  hidden.sort((a, b) => a[0] - b[0]);
+  let out = '';
+  let cursor = 0;
+  for (const [s, e] of hidden) {
+    if (e <= cursor) continue;
+    const from = Math.max(s, cursor);
+    out += text.slice(cursor, from) + blank(text.slice(from, e));
+    cursor = e;
+  }
+  return out + text.slice(cursor);
 }
 
 /** A Razor comment, or an `@code` or `@functions` directive up to its `{`. */

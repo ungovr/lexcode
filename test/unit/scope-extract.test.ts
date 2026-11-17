@@ -1877,3 +1877,118 @@ describe('a copy with a line over 100,000 characters (#13251)', () => {
     }
   });
 });
+
+// A <script> inside a template's own comment or code (a string in a tag or code block) is template text, not
+// markup: each view is searched for script blocks with that syntax blanked, as ERB's and PHP's are (#12882).
+describe('a script inside template code or a template comment is not markup (#12882)', () => {
+  function extract(file: string, body: string): string[] {
+    const root = tmp();
+    const out = tmp();
+    writeFileSync(path.join(root, file), body);
+    // Script copies only: a Razor `@code` block also gives a `.lexcode.cs` copy, which is not markup.
+    return extractScripts(root, [file], out)
+      .filter((p) => /\.lexcode\.[jt]s$/.test(p.tempPath))
+      .map((p) => readFileSync(p.tempPath, 'utf8'));
+  }
+  const live = ['<script>', "  gtag('config', 'x');", '</script>', ''].join('\n');
+  /** The hidden script gives no copy, and a live one after it is read on its own lines with nothing else kept. */
+  function hiddenThenLive(file: string, hidden: string): void {
+    expect(extract(file, hidden + '\n'), `${file}: ${hidden}`).toEqual([]);
+    const view = hidden + '\n' + live;
+    const copies = extract(file, view);
+    expect(copies, `${file}: ${hidden}`).toHaveLength(1);
+    sameShape(view, copies[0]!);
+    expect(copies[0]!.includes('old()'), `${file}: ${hidden}`).toBe(false);
+    expect(copies[0]).toContain("  gtag('config', 'x');");
+  }
+
+  for (const file of ['a.twig', 'a.html.tera', 'a.jinja', 'a.jinja2', 'a.j2', 'a.njk']) {
+    it(`${file}: a comment, a set tag and an output tag`, () => {
+      hiddenThenLive(file, '{# <script>old();</script> #}');
+      hiddenThenLive(file, ['{#', '  <script>', '    old();', '  </script>', '#}'].join('\n'));
+      hiddenThenLive(file, '{% set s = "<script>old();</script>" %}');
+      hiddenThenLive(file, `{{ "<script>old();</script>" }}`);
+      hiddenThenLive(file, `{{- '<script>old();</script>' -}}`);
+    });
+  }
+
+  it('Twig: a </script> inside a tag in a block does not end the block', () => {
+    const view = `<script>var s = "{{ '</script>' }}"; track();</script>`;
+    const copies = extract('a.twig', view);
+    expect(copies).toHaveLength(1);
+    expect(copies[0]).toContain(' track();');
+  });
+
+  for (const file of ['a.jsp', 'a.jspf', 'a.tag']) {
+    it(`${file}: a JSP comment, a scriptlet string, an expression and an EL string`, () => {
+      hiddenThenLive(file, '<%-- <script>old();</script> --%>');
+      hiddenThenLive(file, ['<%--', '  <script>', '    old();', '  </script>', '--%>'].join('\n'));
+      hiddenThenLive(file, '<% String s = "<script>old();</script>"; %>');
+      hiddenThenLive(file, '<%= "<script>old();</script>" %>');
+      hiddenThenLive(file, '${"<script>old();</script>"}');
+      hiddenThenLive(file, '<c:out value="<script>old();</script>" escapeXml="false"/>');
+    });
+  }
+
+  for (const file of ['a.cshtml', 'a.razor']) {
+    it(`${file}: a Razor comment, and a C# string or comment in code`, () => {
+      hiddenThenLive(file, '@* <script>old();</script> *@');
+      hiddenThenLive(file, ['@*', '  <script>', '    old();', '  </script>', '*@'].join('\n'));
+      hiddenThenLive(file, '@{ var s = "<script>old();</script>"; }');
+      hiddenThenLive(file, ['@{', '    // <script>old();</script>', '    var n = 1;', '}'].join('\n'));
+      hiddenThenLive(file, '@("<script>old();</script>")');
+      hiddenThenLive(file, '@Html.Raw("<script>old();</script>")');
+      hiddenThenLive(file, '@if (x) { var s = @"<script>old();</script>"; }');
+      hiddenThenLive(file, '@code { string s = $"<script>old({n});</script>"; }');
+    });
+
+    it(`${file}: a script that is markup inside a code or control block is still read`, () => {
+      for (const view of [
+        ['@{', '    <script>', "        gtag('config', 'x');", '    </script>', '}', ''].join('\n'),
+        ['@if (Model.Track)', '{', '    <script>', "        gtag('config', 'x');", '    </script>', '}', ''].join('\n'),
+        ['@section Scripts {', '    <script>', "        gtag('config', 'x');", '    </script>', '}', ''].join('\n'),
+        ['@{ var title = "Home"; }', '<script>', "    gtag('config', 'x');", '</script>', ''].join('\n'),
+      ]) {
+        const copies = extract(file, view);
+        expect(copies.filter((c) => c.includes("gtag('config', 'x');")), view).toHaveLength(1);
+      }
+    });
+  }
+
+  it('Blade: a Blade comment, an echo, a raw echo and a @php span', () => {
+    hiddenThenLive('a.blade.php', '{{-- <script>old();</script> --}}');
+    hiddenThenLive('a.blade.php', ['{{--', '  <script>', '    old();', '  </script>', '--}}'].join('\n'));
+    hiddenThenLive('a.blade.php', `{{ "<script>old();</script>" }}`);
+    hiddenThenLive('a.blade.php', `{!! '<script>old();</script>' !!}`);
+    hiddenThenLive('a.blade.php', ['@php', '  $s = "<script>old();</script>";', '@endphp'].join('\n'));
+  });
+
+  it('Blade: a live script inside a directive block is still read', () => {
+    const view = ["@push('scripts')", '<script>', "  gtag('config', 'x');", '</script>', '@endpush', ''].join('\n');
+    expect(extract('a.blade.php', view)).toHaveLength(1);
+    const cond = ['@if ($track)', '<script>', "  gtag('config', 'x');", '</script>', '@endif', ''].join('\n');
+    expect(extract('a.blade.php', cond)).toHaveLength(1);
+  });
+
+  it('the search for script blocks grows near-linearly over each view\'s worst-case shapes', () => {
+    for (const [name, opts, body] of [
+      ['Razor code blocks with script strings', { razor: true }, (n: number) => '@{ var s = "<script>"; }\n'.repeat(n / 25) + '<script>a();</script>'],
+      ['Razor implicit calls', { razor: true }, (n: number) => '@x("<script>")'.repeat(n / 14) + '<script>a();</script>'],
+      ['Razor control blocks', { razor: true }, (n: number) => '@if (a) { <b>"</b> }\n'.repeat(n / 20) + '<script>a();</script>'],
+      ['Razor unclosed openers', { razor: true }, (n: number) => '<script>a();</script>' + '@{ @( @x( '.repeat(n / 10)],
+      ['Twig comments', { twig: true }, (n: number) => '{# <script> #}'.repeat(n / 14) + '<script>a();</script>'],
+      ['JSP comments and EL', { jsp: true }, (n: number) => '<%-- <script> --%>${a}'.repeat(n / 22) + '<script>a();</script>'],
+      ['Blade comments and directives', { blade: true }, (n: number) => '{{-- <script> --}}@if($a)'.repeat(n / 25) + '<script>a();</script>'],
+    ] as const) {
+      const m = measureScaling({ small: 2_000, large: 20_000, setup: body, run: (t) => blankOutsideScripts(t, opts) });
+      expect(m.result, name).not.toBeNull();
+      expectNearLinear(m, `the script search over ${name}`);
+    }
+  });
+
+  it('an .html file keeps reading a script that sits inside template-like text', () => {
+    for (const body of ['{# <script>gtag();</script> #}', '<%-- <script>gtag();</script> --%>', '@* <script>gtag();</script> *@', '{{-- <script>gtag();</script> --}}']) {
+      expect(extract('a.html', body), body).toHaveLength(1);
+    }
+  });
+});
