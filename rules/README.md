@@ -1324,14 +1324,28 @@ all Markdown message bodies with no `<script>` block.
 The engine reads `.rs`, including `build.rs` and `examples/`. `benches` is a test
 directory. Unit tests live in the source file, in a `#[cfg(test)]` module, so a
 scan drops every match in a `.rs` file that starts inside one, unless you pass
-`--include-tests`. The module is a `mod <name> { ... }` item with the exact
-attribute `#[cfg(test)]` among its outer attributes (other attributes, comments
-and a visibility such as `pub(crate)` may sit between), found by a tokenizer that
-knows strings, raw strings (`r#"}"#`), character literals and comments, so a
-brace inside one does not end the module. `cfg(not(test))` and
-`cfg(any(test, ...))` are code. Measured over three Rust apps on 2026-11-15, the
-filter dropped 2 findings in Lemmy, 3 in a newsletter service and none in an API
-server, and the default scan holds no finding that `--include-tests` lacks.
+`--include-tests`. The module is a `mod <name> { ... }` item with a test-only
+`cfg` among its outer attributes (other attributes, comments and a visibility
+such as `pub(crate)` may sit between), or one whose body opens with a test-only
+`#![cfg(...)]`, found by a tokenizer that knows strings, raw strings (`r#"}"#`),
+character literals, comments and identifiers in any script, so a brace inside a
+literal or comment does not end the module. A `cfg` is test-only when it holds in
+a test build and in no other build: `cfg(test)`, `cfg(all(test, ...))` and
+`cfg(not(not(test)))` are, while `cfg(not(test))` and `cfg(any(test, ...))` are
+code. The dropped lines run from the module's first attribute to its closing
+brace, less a first line that holds code before the module and a last line that
+holds code after it. A whole file is dropped when its first lines carry a
+test-only `#![cfg(...)]`, or when the module it holds is declared as a test in
+another file (`#[cfg(test)] mod tests;`): lexcode reads the files Rust's layout
+says may declare it (`a/tests.rs` from `a/mod.rs`, `a/lib.rs`, `a/main.rs` or
+`a.rs`, or from an inline `mod` of a file up to three directories higher) and
+drops the file when every declaration it finds is a test module or sits in one.
+Measured over three Rust apps on 2026-11-17 by finding (the record's rows), the
+filter dropped 2 in Lemmy and none in a newsletter service or an API server, as
+before the out-of-line, file-level and `cfg(all(test, ...))` modules were
+followed: Lemmy's 5 such files (4 declared `#[cfg(test)] mod x;` and 1 with
+`#![cfg(test)]`) hold no finding. The default scan holds no finding that
+`--include-tests` lacks.
 
 Tera templates (`.tera`, so `.html.tera`) join the `<script>` block extraction,
 with Twig's tags blanked (`{{ }}`, `{% %}` and `{# #}`, with `-` whitespace
@@ -1569,11 +1583,12 @@ The engine sets most of these limits, and the rules' comments point here.
   body, nearly all in test assertions or on generic names (`parse`, `contains`,
   `from`). Of the 1,609 lines that hold a name specific enough to be a rule's
   own, 1 does, a `select!` in Lemmy that hosts an `insert`.
-- **Test modules.** A `#[cfg(test)] mod tests;` whose module is in another file
-  is not followed (4 in Lemmy), a file-level `#![cfg(test)]` is not honored,
-  `cfg(all(test, ...))` and `cfg(any(test, ...))` are kept as code, a module
-  whose name has a non-ASCII character is not recognized and code on the same line
-  as the attribute is dropped with the module.
+- **Test modules.** A module file declared through `#[path = "..."]`, or from
+  inside a function body, is not followed, and a `#[cfg(test)]` on an item other
+  than a module (a function, an `impl`, a `use`) is code. `cfg(any(test, ...))`
+  is code, since it is built outside tests too. A line that holds both code and
+  part of a test module (`fn a() {} #[cfg(test)] mod t { ... }` on one line) is
+  kept whole.
 - **Engine parse faults.** The grammar does not read async closures (`async |x| {
   ... }`, `async move || { ... }`, Rust 2024), an associated-type bound inside a
   generic parameter list (`CursorKey<C, SqlType: Send>`) or an attribute on a
