@@ -1,9 +1,14 @@
-# Builds and tests lexcode on every push and pull request. The fixture tests
-# download the pinned engine once per runner and cache it.
+# Builds and tests lexcode on every branch push and pull request. The fixture
+# tests download the pinned engine once per runner and cache it.
+#
+# A tag push runs only release.yml, which tests the tagged commit itself; a
+# second full run here would only compete for macOS runners
+# (ungovr/ungovr#13493).
 name: ci
 
 on:
   push:
+    branches: ["**"]
   pull_request:
 
 permissions:
@@ -11,7 +16,10 @@ permissions:
 
 jobs:
   socket:
+    # Every OS in the test matrix below installs its own native bindings.
     uses: ./.github/workflows/socket.yml
+    with:
+      runners: '["ubuntu-24.04", "macos-15"]'
 
   test:
     needs: socket
