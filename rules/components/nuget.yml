@@ -24,6 +24,9 @@ entries:
     enables: [generates_content]
     says: "Registers OpenAIClient as a singleton in the DI container for connecting to Azure OpenAI or OpenAI."
     source: https://www.nuget.org/packages/Aspire.Azure.AI.OpenAI
+  # A general model SDK enables the family parent, generates_content, since its description names no
+  # one kind of output. DeepL's names text (translations and improvements to the text), so it enables
+  # the child, generates_text; the check reads parent and child as one family either way (#13206).
   - match: "deepl.net"
     enables: [generates_text]
     says: "The DeepL API is a language AI API that allows other computer programs to send texts and documents to DeepL's servers and receive high-quality translations and improvements to the text."
@@ -42,3 +45,6 @@ entries:
   # has none in go.yml: an app can link one only for a hash or a signature, which holds no cipher it
   # uses. rules/ships_encryption/cs-library-encryption.yml and cs-platform-encryption.yml read the cipher
   # and key-agreement calls in use instead.
+  # GoogleAuthenticator has no entry for the same reason: its description ("Simple, easy to use
+  # server-side two-factor authentication library for .NET that works with Google Authenticator") names
+  # no cipher, and its one-time codes are HMACs, not encryption (#13206).
