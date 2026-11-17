@@ -1,8 +1,9 @@
 <?php
-// lexcode-expect: 6
+// lexcode-expect: 9
 // OpenAI's Videos API addresses that make or return a clip, each sent back to the person: a remix
 // of a finished video (a new generation), the clip with its variant named, the clip's address
-// joined by concatenation, creation through Guzzle's request(), and the clip with curl.
+// joined by concatenation, creation through Guzzle's request(), the clip with curl, and an edit
+// or an extension of a finished video (each makes a new clip).
 
 namespace App\Http\Controllers;
 
@@ -54,6 +55,29 @@ class SoraController extends Controller
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, 'https://api.openai.com/v1/videos/' . $id . '/content');
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        echo curl_exec($ch);
+    }
+
+    // POST /v1/videos/extensions makes a longer clip from a finished one.
+    public function extend(Request $request)
+    {
+        $body = ['video' => ['id' => $request->input('id')], 'prompt' => $request->input('prompt'), 'seconds' => 8];
+        $job = Http::post('https://api.openai.com/v1/videos/extensions', $body);
+        return response()->json($job->json());
+    }
+
+    // POST /v1/videos/edits makes a new clip from a finished one.
+    public function edit(Request $request, Client $http)
+    {
+        $res = $http->post('https://api.openai.com/v1/videos/edits', ['json' => $request->all()]);
+        return json_decode((string) $res->getBody(), true);
+    }
+
+    // An edit with curl.
+    public function curlEdit(string $payload): void
+    {
+        $ch = curl_init('https://api.openai.com/v1/videos/edits');
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
         echo curl_exec($ch);
     }
 }

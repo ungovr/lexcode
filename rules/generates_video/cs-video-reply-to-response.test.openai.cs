@@ -1,8 +1,8 @@
-// lexcode-expect: 6
+// lexcode-expect: 9
 // OpenAI's Videos API addresses that make or return a clip, each sent back as the response: a
 // remix of a finished video (a new generation), the clip downloaded with its variant named, the
-// download address built by concatenation, and the download and the creation through request
-// messages.
+// download address built by concatenation, the download and the creation through request
+// messages, and an edit or an extension of a finished video (each makes a new clip).
 using Microsoft.AspNetCore.Mvc;
 
 namespace Demo.Generated;
@@ -50,6 +50,28 @@ public class SoraController : ControllerBase
     public async Task<IActionResult> Create(HttpClient http)
     {
         var request = new HttpRequestMessage(System.Net.Http.HttpMethod.Post, "https://api.openai.com/v1/videos");
+        var r = await http.SendAsync(request);
+        return Ok(r);
+    }
+
+    // POST /v1/videos/edits makes a new clip from a finished one.
+    public async Task<IActionResult> Edit(HttpClient http, object body)
+    {
+        var r = await http.PostAsJsonAsync("https://api.openai.com/v1/videos/edits", body);
+        return Ok(r);
+    }
+
+    // POST /v1/videos/extensions makes a longer clip from a finished one.
+    public async Task<IActionResult> Extend(HttpClient http, object body)
+    {
+        var r = await http.PostAsJsonAsync(requestUri: "https://api.openai.com/v1/videos/extensions", value: body);
+        return Ok(r);
+    }
+
+    // An extension through a request message.
+    public async Task<IActionResult> ExtendMessage(HttpClient http)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/videos/extensions");
         var r = await http.SendAsync(request);
         return Ok(r);
     }

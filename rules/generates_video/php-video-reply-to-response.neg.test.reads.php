@@ -2,8 +2,9 @@
 // lexcode-expect: 0
 // The Videos API's reads, each sent straight back to the person: listing the account's videos,
 // and a job's status, with Laravel's Http facade, Guzzle or Symfony HttpClient and curl. Neither
-// makes or returns a clip; only creating one (POST /v1/videos, or a remix) and downloading it
-// (/content) count. A thumbnail of a finished job is a still, not the clip.
+// makes or returns a clip; only creating one (POST /v1/videos, a remix, an edit or an extension)
+// and downloading it (/content) count. A thumbnail of a finished job is a still, not the clip,
+// and a character made for later prompts is an asset, not a clip.
 
 namespace App\Http\Controllers;
 
@@ -69,5 +70,11 @@ class VideoJobController extends Controller
         curl_setopt($ch, CURLOPT_URL, "https://api.openai.com/v1/videos/$id");
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         echo curl_exec($ch);
+    }
+
+    // POST /v1/videos/characters makes a character asset for later prompts, not a clip.
+    public function character(Request $request)
+    {
+        return response()->json(Http::post('https://api.openai.com/v1/videos/characters', $request->all())->json());
     }
 }

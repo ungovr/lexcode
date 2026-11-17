@@ -1,7 +1,8 @@
 // lexcode-expect: 0
 // The Videos API's reads, each sent straight back as the response: listing the account's videos,
-// and a job's status, polled with a GET or with a request message. Neither makes or returns a
-// clip; only creating one (POST /v1/videos, or a remix) and downloading it (/content) count.
+// a job's status, polled with a GET or with a request message, and a character asset made for
+// later prompts. None makes or returns a clip; only creating one (POST /v1/videos, a remix, an
+// edit or an extension) and downloading it (/content) count.
 using Microsoft.AspNetCore.Mvc;
 
 namespace Demo.Generated;
@@ -72,5 +73,12 @@ public class VideoJobsController : ControllerBase
     {
         var r = await http.GetByteArrayAsync($"https://api.openai.com/v1/videos/{id}/content?variant=thumbnail");
         return File(r, "image/webp");
+    }
+
+    // POST /v1/videos/characters makes a character asset for later prompts, not a clip.
+    public async Task<IActionResult> Character(HttpClient http, object body)
+    {
+        var r = await http.PostAsJsonAsync("https://api.openai.com/v1/videos/characters", body);
+        return Ok(await r.Content.ReadAsStringAsync());
     }
 }
