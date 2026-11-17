@@ -301,7 +301,8 @@ describe('the skip list', () => {
     expect(listFiles(root, { ...plain, includeTests: true }).files).toEqual([...files].sort());
   });
 
-  // A git listing and a walk skip a test directory by two code paths, so each is asserted (#13222).
+  // A git listing and a walk find the files by two code paths (git ls-files, a directory walk) that both pass
+  // through the one test-directory check (underSkippedDir), so the skip is asserted on each listing (#13222).
   it.each([true, false])('a .NET test project directory is skipped (git listing: %s)', (viaGit) => {
     // The .NET convention keeps a test project beside the app's own, outside any tests/ directory (#13012).
     const files = [
