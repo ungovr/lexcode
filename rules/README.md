@@ -1250,9 +1250,11 @@ dependencies have no resolved version (no Cargo.lock, or a requirement lexcode
 could not match to one locked version); recorded without a version`. A
 `Cargo.toml` or `Cargo.lock` that does not parse gets a notice naming it.
 
-Known Cargo gaps: a crate spelled with a hyphen in one place and an underscore
-in another (`serde_json`, `serde-json`) is looked up by the spelling the manifest
-uses, in the lock and in the component map. Which cryptography crates and Swift
+Cargo takes `feed_rs` for the crate `feed-rs`, and so does lexcode: a hyphen
+and an underscore are the same in a crate name in the lock lookup and in the
+component map, and a row is named as the lock spells the crate.
+
+Known Cargo gaps: which cryptography crates and Swift
 packages are mapped follows the rule for every map, under "Shipping encryption".
 Key-agreement crates (`x25519-dalek`, `p256`) are not mapped, a known gap
 since key agreement counts (#13318): `rs-library-encryption` reads
@@ -1280,8 +1282,10 @@ A version comes from the first of these that is present: the pin in the
 `Package.resolved` beside a `Package.swift` (for a project file, the one at
 `<X>.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved`); the
 nearest ancestor directory's `Package.resolved`; for a `Package.swift` with none
-of those, the pins of the Xcode project or workspace in its own directory or an
-ancestor's (a local package of an app resolves through the app's workspace);
+of those, the pins of the Xcode projects and workspaces in its own directory or
+the nearest ancestor that has any (a local package of an app resolves through
+the app's workspace), each read in sorted order until one pins the package, and
+no farther directory;
 and an `exact:` argument, `.exact(...)` or `requirement = { kind = exactVersion; ...}`.
 A pin is matched by the last path segment of the URL, lowercased and without
 `.git`, and `Package.resolved` formats 1, 2 and 3 are all read. A branch or
