@@ -159,6 +159,9 @@ rules:
         to: $L
         by-side-effect: true
     pattern-sinks:
+      # Copied into every C# generation rule; test/unit/cs-reply-sinks.test.ts holds the nine copies
+      # to one set (the four signal rules add one wiring regex to the Blazor sink), so an edit here
+      # goes into all nine (#13207).
       # ASP.NET Core MVC and Web API: a public action of a controller or a view component is the
       # response, whether it returns, streams with yield return, or is written as an expression
       # body. A controller is a class named like one (the framework's own convention, any base),

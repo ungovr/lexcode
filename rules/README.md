@@ -1123,6 +1123,10 @@ argued and ruled before it is added.
 - Generation evidence is a direct generating call whose result reaches a sink (a
   response, a view, a component field). A client or request object handed around
   (`GetService<IChatClient>()`, `GetChatClient(...)`, a new request) is a signal.
+  The nine generation taint rules (five evidence, four signal) share one set of
+  response sinks and propagators, and a unit test holds the copies to it; the
+  signal rules add one regex to the Blazor sink so that keeping the client
+  itself in a component field is not counted.
 - .NET's own cryptography used to keep data confidential (`AesGcm`, an `Aes`
   encryptor, RSA encryption, `ECDiffieHellman`, `ProtectedData`) is
   `ships_encryption` evidence, as a bundled library that encrypts (Bouncy
