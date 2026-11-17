@@ -299,7 +299,11 @@ interface RawResult {
   path?: unknown;
   start?: { line?: unknown; col?: unknown };
   end?: { line?: unknown; col?: unknown };
-  extra?: { metavars?: Record<string, { abstract_content?: unknown }>; lines?: unknown };
+  extra?: { metavars?: Record<string, { abstract_content?: unknown; start?: RawPos; end?: RawPos }>; lines?: unknown };
+}
+interface RawPos {
+  line?: unknown;
+  col?: unknown;
 }
 
 function errorType(e: RawError): string {
@@ -411,14 +415,39 @@ interface Placed {
 
 const num = (v: unknown): number => (typeof v === 'number' ? v : 0);
 
+/**
+ * A metavariable's text as the file holds it, sliced from the match's `lines` (which start at line `firstLine`)
+ * by the engine's position for it: 1-based lines, 1-based UTF-8 byte columns, `end` exclusive. Undefined when
+ * the position is missing or falls outside the lines, as a binding from a `pattern-inside` can. The engine's
+ * printed text (`abstract_content`) drops most interpolations' braces, so only this says where a hole is (#12882).
+ */
+export function metavarSource(lines: string, firstLine: number, start: RawPos | undefined, end: RawPos | undefined): string | undefined {
+  const [sl, sc, el, ec] = [start?.line, start?.col, end?.line, end?.col];
+  if (typeof sl !== 'number' || typeof sc !== 'number' || typeof el !== 'number' || typeof ec !== 'number') return undefined;
+  const all = lines.split('\n');
+  const from = sl - firstLine;
+  const to = el - firstLine;
+  if (from < 0 || to >= all.length || to < from || sc < 1 || ec < 1) return undefined;
+  const bytes = all.slice(from, to + 1).map((l) => Buffer.from(l, 'utf8'));
+  const first = bytes[0] as Buffer;
+  const last = bytes[bytes.length - 1] as Buffer;
+  if (sc - 1 > first.length || ec - 1 > last.length || (from === to && ec < sc)) return undefined;
+  if (from === to) return first.subarray(sc - 1, ec - 1).toString('utf8');
+  return [first.subarray(sc - 1), ...bytes.slice(1, -1), last.subarray(0, ec - 1)].map((b) => b.toString('utf8')).join('\n');
+}
+
 function mapResults(results: unknown): Placed[] {
   if (!Array.isArray(results)) return [];
   const out: Placed[] = [];
   for (const r of results as RawResult[]) {
     if (typeof r.check_id !== 'string' || typeof r.path !== 'string') continue;
     const metavars: Record<string, string> = {};
+    const source: Record<string, string> = {};
+    const lines = typeof r.extra?.lines === 'string' ? r.extra.lines : '';
     for (const [name, v] of Object.entries(r.extra?.metavars ?? {})) {
       if (typeof v?.abstract_content === 'string') metavars[name] = v.abstract_content;
+      const text = metavarSource(lines, num(r.start?.line), v?.start, v?.end);
+      if (text !== undefined) source[name] = text;
     }
     out.push({
       m: {
@@ -426,7 +455,8 @@ function mapResults(results: unknown): Placed[] {
         path: fromEngine(r.path),
         line: num(r.start?.line),
         metavars,
-        lines: typeof r.extra?.lines === 'string' ? r.extra.lines : '',
+        lines,
+        ...(Object.keys(source).length > 0 ? { source } : {}),
       },
       col: num(r.start?.col),
       endLine: num(r.end?.line),

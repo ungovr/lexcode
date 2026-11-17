@@ -48,6 +48,38 @@ describe.skipIf(!engine)('the real pinned engine', () => {
     }
   });
 
+  // The printed text of an interpolated string has lost its holes; the source slice keeps them, in every
+  // language whose printed form the engine mangles, and across a non-ASCII prefix (columns are bytes) (#12882).
+  it('gives each host metavariable its text as the file writes it, interpolations included', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'lexcode-real-'));
+    try {
+      const files: Record<string, [string, string]> = {
+        'a.rb': ['ruby', 'x = "é"; fetchit("https://r.example.com/v1/#{id}")\n'],
+        'a.js': ['javascript', 'const é = 1; fetchit(\n  `https://${host}/x`)\n'],
+        'a.py': ['python', 'fetchit(f"https://p.example.com/{id}")\n'],
+        'a.kt': ['kotlin', 'fun f() { fetchit("https://k.example.com/$id") }\n'],
+        'a.php': ['php', '<?php\nfetchit("https://{$host}/x");\n'],
+      };
+      const rules = ['rules:'];
+      for (const [name, [lang, body]] of Object.entries(files)) {
+        await writeFile(join(dir, name), body);
+        rules.push(`  - id: t.${lang}`, `    languages: [${lang}]`, '    severity: INFO', '    message: m', '    pattern: fetchit($URL)');
+      }
+      await writeFile(join(dir, 'rule.yml'), rules.join('\n') + '\n');
+      const r = await runEngine({ engine: engine!, configFile: join(dir, 'rule.yml'), targets: Object.keys(files), root: dir });
+      const source = Object.fromEntries(r.matches.map((m) => [m.path, m.source?.$URL]));
+      expect(source).toEqual({
+        'a.rb': '"https://r.example.com/v1/#{id}"',
+        'a.js': '`https://${host}/x`',
+        'a.py': 'f"https://p.example.com/{id}"',
+        'a.kt': '"https://k.example.com/$id"',
+        'a.php': '"https://{$host}/x"',
+      });
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
   it('still applies a rule path exclude to the repository-relative path when the repository lives under a directory named examples', async () => {
     const outer = await mkdtemp(join(tmpdir(), 'lexcode-real-'));
     try {

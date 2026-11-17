@@ -205,6 +205,43 @@ describe('buildRecord', () => {
       expect(r.activities).toEqual([]);
       expect(r.signals[0]?.evidence[0]?.host).toBe('www.gov.example');
     });
+
+    // An interpolated URL is read from the text the file holds (`source`), where its holes are; the printed
+    // text has lost them, so without a source it stays a signal (#12882).
+    describe('an interpolated URL read from its source text (#12882)', () => {
+      const withSource = (printed: string, written: string, own: string[] = []) =>
+        buildRecord({
+          ...base,
+          rs,
+          sidecar: { ignore: [], fail_on_enables: false, own_hosts: own, include: [], exclude: [] },
+          matches: [{ ...match('lexcode.crawl.fetch', 'c.rb', 8, { $URL: printed }), source: { $URL: written } }],
+        });
+
+      it('a third-party host before the hole is evidence with that host', () => {
+        const r = withSource('"""https://www.gov.example/p/#{id}"', '"https://www.gov.example/p/#{id}"');
+        expect(r.activities[0]?.evidence[0]?.host).toBe('www.gov.example');
+        expect(r.signals).toEqual([]);
+      });
+
+      it('an own host before the hole is dropped', () => {
+        expect(withSource('"""https://api.example.org/v1/#{id}"', '"https://api.example.org/v1/#{id}"', ['example.org']).activities).toEqual([]);
+        expect(withSource('``/api/${id}`', '`/api/${id}`').signals).toEqual([]);
+      });
+
+      it('a hole in the host stays a signal, never dropped', () => {
+        for (const [printed, written] of [['"""#{base}/x"', '"#{base}/x"'], ['f"https://host/x"', 'f"https://{host}/x"']] as const) {
+          const r = withSource(printed, written);
+          expect(r.activities, written).toEqual([]);
+          expect(r.signals, written).toHaveLength(1);
+        }
+      });
+
+      it('without a source the printed interpolation stays a signal', () => {
+        const r = run('"""https://www.gov.example/p/#{id}"');
+        expect(r.activities).toEqual([]);
+        expect(r.signals).toHaveLength(1);
+      });
+    });
   });
 
   describe('sidecar ignores', () => {

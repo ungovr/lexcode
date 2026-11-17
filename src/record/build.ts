@@ -482,8 +482,11 @@ export function buildRecord(i: BuildInput): EvidenceRecord {
     let strength: Item['strength'] = cls === 'signal' ? 'signal' : rule.strength;
     const ev: Evidence = { rule: rule.id, where: `${m.path}:${m.line}` };
     if (rule.hostMetavar !== undefined) {
+      // The text as the file holds it when the engine placed it, so an interpolated URL's host is read (#12882).
+      const written = m.source?.[rule.hostMetavar];
       const value = m.metavars[rule.hostMetavar];
-      const url = value === undefined ? ({ literal: false } as const) : urlLiteral(value);
+      const url =
+        written !== undefined ? urlLiteral(written, { source: true }) : value === undefined ? ({ literal: false } as const) : urlLiteral(value);
       if (url.literal) {
         if (url.host === null || isOwnHost(url.host, ownHosts)) {
           droppedByHost += 1;

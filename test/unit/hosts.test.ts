@@ -163,6 +163,113 @@ describe('hostOfLiteral', () => {
   });
 });
 
+// The metavariable's text as the file holds it (`urlLiteral(text, { source: true })`), sliced from the
+// match's lines by the position the engine gives (#12882). The engine's printed text drops the braces of
+// most interpolations, so only the source says where a hole starts: a host written out before the first
+// hole is that host, and a hole in the scheme or host part makes the string code.
+describe('urlLiteral on source text: the literal scheme and host before the first hole (#12882)', () => {
+  const src = (t: string) => urlLiteral(t, { source: true });
+  const host = (h: string) => ({ literal: true, host: h });
+  const code = { literal: false };
+
+  it('Ruby #{}: a hole past the host keeps the host; one in the host or at the start is code', () => {
+    expect(src('"https://api.example.com/v1/#{id}"')).toEqual(host('api.example.com'));
+    expect(src('"https://a.example.com/x/#@ivar"')).toEqual(host('a.example.com'));
+    expect(src('"https://a.example.com/?q=#$global"')).toEqual(host('a.example.com'));
+    expect(src('"#{base}/x"')).toEqual(code);
+    expect(src('"https://#{host}/x"')).toEqual(code);
+    expect(src('"https://#@host/x"')).toEqual(code);
+    expect(src('"api#{env}.example.com/x"')).toEqual(code);
+    expect(src('"#{scheme}://api.example.com/x"')).toEqual(code);
+    expect(src('"https://api.example.com:#{port}/x"')).toEqual(code);
+    expect(src('"/v1/items/#{id}"')).toEqual({ literal: true, host: null });
+  });
+
+  it('JavaScript templates', () => {
+    expect(src('`https://api.example.com/v1/${id}`')).toEqual(host('api.example.com'));
+    expect(src('`${base}/x`')).toEqual(code);
+    expect(src('`https://${host}/x`')).toEqual(code);
+    expect(src('`https://plain.example.com/v1`')).toEqual(host('plain.example.com'));
+  });
+
+  it('Python f-strings', () => {
+    expect(src('f"https://api.example.com/v1/{id}"')).toEqual(host('api.example.com'));
+    expect(src("F'https://up.example.com/{id}'")).toEqual(host('up.example.com'));
+    expect(src('rf"https://rf.example.com/{id}"')).toEqual(host('rf.example.com'));
+    expect(src('f"{base}/x"')).toEqual(code);
+    expect(src('f"https://{host}/x"')).toEqual(code);
+    expect(src('f"""https://{host}/x"""')).toEqual(code);
+    expect(src('f"""https://tq.example.com/{id}"""')).toEqual(host('tq.example.com'));
+  });
+
+  it('Kotlin and PHP $ templates', () => {
+    expect(src('"https://api.example.com/v1/$id"')).toEqual(host('api.example.com'));
+    expect(src('"https://api.example.com/v1/${item.id}"')).toEqual(host('api.example.com'));
+    expect(src('"$base/x"')).toEqual(code);
+    expect(src('"https://$host/x"')).toEqual(code);
+    expect(src('"https://${cfg.host}/x"')).toEqual(code);
+    expect(src('"https://{$host}/x"')).toEqual(code);
+    expect(src('"""https://raw.example.com/$id"""')).toEqual(host('raw.example.com'));
+    expect(src('"""https://$host/v1"""')).toEqual(code);
+  });
+
+  it('C# interpolated strings, closed as the file writes them', () => {
+    expect(src('$"https://api.example.com/v1/{id}"')).toEqual(host('api.example.com'));
+    expect(src('$@"https://d.example.com/{id}"')).toEqual(host('d.example.com'));
+    expect(src('@$"https://e.example.com/{id}"')).toEqual(host('e.example.com'));
+    expect(src('$"""https://g.example.com/{id}"""')).toEqual(host('g.example.com'));
+    expect(src('$$"""https://k.example.com/{{id}}"""')).toEqual(host('k.example.com'));
+    expect(src('$"https://plain.example.com/v1"')).toEqual(host('plain.example.com'));
+    expect(src('$"https://{host}/x"')).toEqual(code);
+    expect(src('$"{baseUrl}/x"')).toEqual(code);
+    expect(src('$"https://a.example.org" + "/x"')).toEqual(code);
+  });
+
+  it('Swift \\( ) interpolation', () => {
+    expect(src('"https://api.example.com/v1/\\(id)"')).toEqual(host('api.example.com'));
+    expect(src('"\\(base)/x"')).toEqual(code);
+    expect(src('"https://\\(h)/x"')).toEqual(code);
+    expect(src('URL(string: "https://\\(h)/x")!')).toEqual(code);
+    expect(src('URL(string: "https://swift.example.com/\\(id)")!')).toEqual(host('swift.example.com'));
+  });
+
+  it('a template output tag blanked in a view copy (`_` and spaces) in the host part is code', () => {
+    expect(src('"https://_           /x"')).toEqual(code);
+    expect(src('"https://api.example.com/_        "')).toEqual(host('api.example.com'));
+  });
+
+  it('a plain literal and code read as they always have', () => {
+    expect(src('"https://plain.example.com/v1"')).toEqual(host('plain.example.com'));
+    expect(src("'/v1/items'")).toEqual({ literal: true, host: null });
+    expect(src("'not a url'")).toEqual({ literal: true, host: null });
+    expect(src('base + "/x"')).toEqual(code);
+    expect(src('url')).toEqual(code);
+    expect(src('"https://a.example.org".format(x)')).toEqual(code);
+  });
+
+  it('the printed path still reads every interpolation as code, since the printed text has lost its holes', () => {
+    expect(urlLiteral('f"https://api.example.com/v1/{id}"')).toEqual(code);
+    expect(urlLiteral('`https://api.example.com/v1/${id}`')).toEqual(code);
+    expect(urlLiteral('$"https://api.example.com/v1"')).toEqual(code);
+    expect(urlLiteral('"""https://api.example.com/v1/#{id}"')).toEqual(code); // Ruby, as the engine prints it
+  });
+});
+
+// A C# raw literal with no `$` in front is plain text, `$` and all: an OData `$metadata` address keeps its host.
+// A `$` inside one is a hole only in the host part, where no host can hold one (Kotlin's `"""https://$host"""`).
+describe('a raw literal that holds a $ (#13223)', () => {
+  it('keeps the host written before the $, on the printed and the source path', () => {
+    for (const opts of [undefined, { source: true }]) {
+      expect(urlLiteral('"""https://services.odata.org/V4/Northwind/$metadata"""', opts)).toEqual({ literal: true, host: 'services.odata.org' });
+      expect(urlLiteral('"""\n    https://services.odata.org/V4/$metadata?$format=json\n    """', opts)).toEqual({ literal: true, host: 'services.odata.org' });
+      expect(urlLiteral('"""https://$host/v1"""', opts)).toEqual({ literal: false });
+      expect(urlLiteral('"""$base/v1"""', opts)).toEqual({ literal: false });
+    }
+    // Kotlin's raw template as the engine prints it: the quotes doubled and the `$` tripled.
+    expect(urlLiteral('""""""https://raw.example.com/$$$id"""')).toEqual({ literal: false });
+  });
+});
+
 describe('isOwnHost', () => {
   it('treats loopback as own with no configuration', () => {
     for (const h of ['localhost', 'app.localhost', '127.0.0.1', '127.5.6.7', '::1', '0.0.0.0', 'LOCALHOST', '[::1]', 'localhost:3000']) {
