@@ -63,7 +63,11 @@ rules:
                         ...
                       }
                   - pattern: |
-                      $C.images(query: $Q) { [weak self] $R in
+                      $C.images(query: $Q) { [$CAP] $R in
+                        ...
+                      }
+                  - pattern: |
+                      $C.images(query: $Q) { [$CAP, $CAP2] $R in
                         ...
                       }
                   - pattern: |
@@ -71,7 +75,11 @@ rules:
                         ...
                       }
                   - pattern: |
-                      $C.imageEdits(query: $Q) { [weak self] $R in
+                      $C.imageEdits(query: $Q) { [$CAP] $R in
+                        ...
+                      }
+                  - pattern: |
+                      $C.imageEdits(query: $Q) { [$CAP, $CAP2] $R in
                         ...
                       }
                   - pattern: |
@@ -79,7 +87,11 @@ rules:
                         ...
                       }
                   - pattern: |
-                      $C.imageVariations(query: $Q) { [weak self] $R in
+                      $C.imageVariations(query: $Q) { [$CAP] $R in
+                        ...
+                      }
+                  - pattern: |
+                      $C.imageVariations(query: $Q) { [$CAP, $CAP2] $R in
                         ...
                       }
               - focus-metavariable: $R
@@ -212,6 +224,18 @@ rules:
                 var $S: $U = $E
                 ...
               }
+          - pattern-not-inside: |
+              var $P: $PT {
+                ...
+                var $S = $E
+                ...
+              }
+          - pattern-not-inside: |
+              var $P: $PT {
+                ...
+                var $S: $U = $E
+                ...
+              }
           - focus-metavariable: $X
       - pattern: $V.image = $X
       - pattern: '$V.setImage($X, for: $ST)'
@@ -251,6 +275,25 @@ rules:
                     ...
                     return $X
                   }
+              # a handler of one expression, whose value is its implicit return (a route closure of one
+              # expression is already matched by the closure forms above); a handler that returns Void
+              # or `()` has no implicit return, so its one statement (`_ = try await ...`, a log line)
+              # is not one
+              - patterns:
+                  - pattern-either:
+                      - pattern: |
+                          func $F(..., $REQ: Request, ...) -> $T {
+                            $X
+                          }
+                      - pattern: |
+                          func $F(..., $REQ: HBRequest, ...) -> $T {
+                            $X
+                          }
+                  # (the engine binds `-> ()` in an `async throws` handler as `async throws(()`, so the
+                  # empty tuple is read as a type that ends in `(` or `()`)
+                  - metavariable-regex:
+                      metavariable: $T
+                      regex: ^(?!(?:Swift\.)?Void$|.*\(\s*\)?$)
           - focus-metavariable: $X
       - patterns:
           - pattern-either:

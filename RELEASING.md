@@ -19,6 +19,29 @@ waits for a reviewer to approve the `npm` environment.
    names as not cleared is timed by hand on real Swift with that rule's modifiers
    or attributes, and the result is recorded in the release's issue. The bounds
    and why they matter are in CONTRIBUTING.md, Cost.
+
+   Until the engine pin moves past the Swift scanner fault (CONTRIBUTING.md,
+   "Swift pattern notes"), the Swift rules below are timed by hand at every
+   release whatever the script says, because they key on a modifier or an
+   attribute and the plain filler can never clear them.
+   `test/unit/rule-cost-swift.test.ts` holds this list equal to the rules
+   `scripts/swift-modifiers.mjs` names, so a new rule of that kind fails the
+   suite until it is added here. Run each rule alone with the engine's `--time`
+   (`"$(lexcode engine path)" scan --time --jobs 1 --config <rule.yml> <dir>`)
+   over the real code named, beside a bare rule (`pattern: C0`) over the same
+   files, and record in the release's issue the largest per-file run time and
+   any file where the rule takes more than five times the bare rule's time:
+
+   <!-- swift-by-hand:start -->
+   | Rule | What it keys on | Real code to time it on |
+   |---|---|---|
+   | `swift-entity-field` | `@Model`, `@NSManaged`, `@Field`, `@OptionalField` | a SwiftData app (`clean-architecture-swiftui`), Core Data classes (`wikipedia-ios`) and a Vapor app with Fluent models |
+   | `swift-chat-message-entity` | `@SwiftData.Model` (a SwiftData message model) | `clean-architecture-swiftui` and a SwiftData chat app |
+   | `swift-follow-relation` | access modifiers, `final`, `@Siblings` and any attribute | a Vapor app with Fluent models, and `wikipedia-ios` for its many modified classes |
+   | `swift-post-composer` | access modifiers, `final` and any attribute | `wikipedia-ios` (its talk page compose screens) |
+   | `swift-library-encryption` | `open` (a cipher's or a secret box's `open`) | a Vapor app that imports swift-crypto's `Crypto` (`penny-bot`) |
+   | `swift-platform-encryption` | `open` (a cipher's `open`) | `wikipedia-ios` and a CryptoKit app with `AES.GCM` or `ChaChaPoly` |
+   <!-- swift-by-hand:end -->
 3. The truth sets pass with zero false FAIL, and the recall table in
    `rules/README.md` is refreshed with its date: the runner's
    `--write-readme <checkout>/rules/README.md` rewrites the block between

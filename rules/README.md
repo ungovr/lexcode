@@ -1456,6 +1456,14 @@ Any other exemption must be argued and ruled before it is added.
   for `ships_consumer_interface` and `operates_social_platform`, never evidence.
 - Opening the microphone (an `AVAudioRecorder`, a tap on an audio engine's input
   node, cpal's input streams) is `processes_voice` evidence in both languages.
+- A speech recognizer run on the device (WhisperKit, SwiftWhisper and
+  whisper.cpp's C API in Swift; whisper-rs, Vosk, Candle's Whisper, rwhisper and
+  sherpa-rs in Rust) is `processes_voice` evidence in both languages. Loading
+  its model counts in both, and in Swift so does each transcription or
+  spoken-language detection.
+- An install ID the app makes for itself and sends with its requests is
+  `tracks_devices` evidence, as the vendor identifier is; keeping it on the
+  device only is not.
 
 ### Known Swift gaps
 
@@ -1515,15 +1523,23 @@ The engine sets most of these limits, and the rules' comments point here.
 - **Generation and chat.** Discord posts through DiscordBM, Anthropic's Swift
   clients, Slack bot messages, Firebase Cloud Messaging from a Swift server,
   Hummingbird jobs, `BGTaskScheduler` tasks and a Lambda event handler as a job
-  shape, Soto's `SNS.PublishInput` type, a model reached through the app's own
-  wrapper service, and on-device speech models (WhisperKit, whisper.cpp
-  bindings) are not read. A system prompt placed in front of a request's
+  shape, Soto's `SNS.PublishInput` type and a model reached through the app's own
+  wrapper service are not read. On-device speech models are read for WhisperKit,
+  SwiftWhisper and whisper.cpp's C API (`swift-local-speech-engines`); other
+  on-device recognizers (sherpa-onnx, Moonshine, FluidAudio) are not. A system
+  prompt placed in front of a request's
   messages (`[sys] + body.messages`) is missed, and a screen that keeps its
   history only in a Foundation Models `session.transcript` has no rule. The
   scheduled-job send rule skips a send inside a `do { } catch { }` clause, an
   alert to the operator, but not one inside a typed clause (`catch let error`,
-  `catch is CancellationError`). Polly
-  audio written to a file and played by URL breaks the flow at the write. With
+  `catch is CancellationError`). A completion closure whose capture list holds
+  three or more items (`{ [weak self, a, b] result in`) is not read as a source:
+  the engine takes no ellipsis in a capture list, so each length is a pattern of
+  its own, and the rules stop at two to hold their cost. A streaming call's
+  second closure (`} completion: { [weak self, a] _ in`) is read with no capture
+  list or one capture only, so a stream whose completion closure captures two or
+  more is not read as a source at all. Polly audio written to a
+  file and played by URL breaks the flow at the write. With
   about 1,800 appends in one function the engine drops the history rule's match.
 - **Identity, signatures and encryption.** No Swift rule reads a selfie with an
   ID document, a verifiable credential or a PDF signature, and identity vendors
@@ -1535,10 +1551,18 @@ The engine sets most of these limits, and the rules' comments point here.
   what it encrypts, so one that holds only a sign-in token still counts and is
   for a person to confirm.
 - **Data and tracking.** No rule reads a Vapor server's client address or a
-  device fingerprint, and an install ID the app mints for itself (a random UUID
-  kept in its own store and sent with every request) is not read, so
-  `tracks_devices` is missed on an app that does only that. Taint does not follow
-  a class property initialized from a source into a method.
+  device fingerprint. An install ID the app mints for itself (a random UUID kept
+  in its own store and sent with every request) is read by its names only: a
+  header named for an install or device ID (or `X-<ACRONYM>-UUID` in capitals,
+  as Wikipedia's `X-WMF-UUID` is) or filled from a value named as one
+  (`swift-install-id-sent`), and a query item named for one or filled from such a
+  value, followed to the request its URL reaches (`swift-install-id-query-sent`).
+  The mint and the send sit in different files, which taint does not join, so an
+  install ID sent under other names (`X-Client-UUID`, `x-wishkit-uuid`), under
+  the name `installation_id` (which GitHub uses for an app's installation), in a
+  URL opened in a browser or a web view, or in a header dictionary
+  (`allHTTPHeaderFields = [...]`, Alamofire's `HTTPHeaders`), is missed. Taint
+  does not follow a class property initialized from a source into a method.
 - **Shipping.** A tvOS-only or visionOS-only app whose delegate file carries no
   platform cue is matched as a mobile app, an SDK's non-open delegate forwarder
   is matched, a delegate that conforms in fourth place or later is missed, and a

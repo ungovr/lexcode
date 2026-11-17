@@ -16,10 +16,13 @@
 //   weight  the rule's 900 KB time over the bare rule's. A rule that costs several parses runs out of its
 //           30 s on a slower machine.
 // Each size is timed in an engine run of its own, and each time is the lowest of up to three runs, because load
-// on the machine only adds time; a rule within both bounds after its first run is not run again. A Swift rule over a
-// bound is measured again on a second filler the engine's Swift scanner bug cannot touch (`plain`, in filler.mjs); a rule
-// within bounds there is cleared only if it names no modifier or attribute (BARE_HIT, MODIFIER_WORD). The script names
-// every rule over a bound, every rule not cleared, and every rule the engine failed on, and exits 1 if there is any.
+// on the machine only adds time. The 90 KB file is run in all three rounds: a 90 KB time inflated by load lowers the
+// growth ratio and would let a rule through, while the 900 KB file of a rule within both bounds after its first run is
+// not run again (lowest, scripts/cost-samples.mjs). A Swift rule over a bound is measured again on a second filler
+// the engine's Swift scanner bug cannot touch (`plain`, in filler.mjs); a rule within bounds there is cleared only if
+// it names no modifier or attribute and matches no more on the first filler than on the plain one (BARE_HIT,
+// scripts/swift-modifiers.mjs). The script names every rule over a bound, every rule not cleared, and every rule the
+// engine failed on, and exits 1 if there is any.
 //
 // It needs the built CLI for the engine's path (`npm run build`, then `lexcode engine fetch` once), or
 // LEXCODE_ENGINE=<path>. Rules for build and config files (Gradle, Maven, Composer, package manifests) are
@@ -30,8 +33,9 @@ import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'n
 import { tmpdir } from 'node:os';
 import { basename, dirname, extname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parse as parseYaml } from 'yaml';
+import { lowest } from './cost-samples.mjs';
 import { FILLER, fill } from './filler.mjs';
+import { namedModifiers, notClearedReasons } from './swift-modifiers.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const RULES = join(ROOT, 'rules');
@@ -39,7 +43,6 @@ const SMALL_KB = 90;
 const LARGE_KB = 900;
 const GROWTH_MAX = 2;
 const WEIGHT_MAX = 5;
-const ATTEMPTS = 3;
 /**
  * The two files' names, without the extension. With it, each path the engine is handed (`unit-090kb.swift`, run in the
  * files' own directory) is 12 characters or more on purpose: the pinned engine's Swift
@@ -63,30 +66,18 @@ const LARGE_NAME = 'unit-900kb';
  * the first filler is measured again on LANGS['.swift'].plain (scripts/filler.mjs), a filler of plain classes with no modifier at all,
  * against a bare rule on that filler. Those figures can show only what that filler exercises:
  * - over on the plain filler: the rule is over (it is slow on plain declarations);
- * - within bounds there, and the rule's file names no modifier or attribute outside a `pattern-not` (MODIFIER_WORD, ATTRIBUTE): the
- *   rule is cleared, since its first-filler time was the bug;
- * - within bounds there, but the rule names a modifier or attribute: not cleared. The plain filler gives such a rule
- *   nothing to match, so it cannot tell a rule slowed by the bug from one that is slow on modified declarations
- *   itself; the script names it and exits 1, and a person decides.
+ * - within bounds there, the rule's file names no modifier or attribute outside a `pattern-not` (namedModifiers in
+ *   scripts/swift-modifiers.mjs), and the rule matched no more on the first filler's 900 KB file than on the plain
+ *   one's: the rule is cleared, since its first-filler time was the bug;
+ * - within bounds there, but the rule names a modifier or attribute, or matched more on the first filler: not
+ *   cleared (notClearedReasons). The plain filler gives such a rule nothing to match, so it cannot tell a rule slowed
+ *   by the bug from one that is slow on modified declarations itself; the script names it and exits 1, and a person
+ *   decides. The match count catches a rule keyed on modified declarations through a shape that names no modifier
+ *   (`^\S+ class`), which the name test cannot see (#13322).
  * A bare Swift rule whose 900 KB time is over BARE_HIT times its 90 KB time (a clean parse grows about 10x) stops the
  * script: every Swift ratio divides by it.
  */
 const BARE_HIT = 40;
-/**
- * A Swift declaration modifier or attribute named in a rule's positive patterns, read conservatively: a NOT CLEARED
- * that was not needed only sends a rule to a person, while a miss lets a slow rule ship. A modifier word anywhere as a
- * whole word (`$X.open(...)` included), after each backslash escape is blanked so `\bfinal` and `\sfinal` read as
- * `final`; and an `@` followed by a letter, `\w`, `(` or `[`, so `@Model`, `@\w+`, `@(?:A|B)` and `@[A-Z]` all count.
- */
-const MODIFIER_WORD = /\b(?:final|open|public|internal|private|fileprivate)\b/g;
-const ATTRIBUTE = /@(?:[A-Za-z_]\w*|\\w|\(|\[)/g;
-/** The shared Swift import guard's attribute-before-import part, which names no declaration's attribute. */
-const IMPORT_GUARD_ATTRIBUTE = '(?:@\\w+(?:\\([^)]*\\))?\\s+)*import';
-/**
- * Keys whose text is not a positive pattern: exclusions, sanitizers, what is not a pattern at all, and a
- * metavariable's regex or comparison, which tests text a pattern already bound (a path, a name), not a declaration.
- */
-const NOT_POSITIVE = /^(?:pattern-not.*|pattern-sanitizers|metavariable-regex|metavariable-comparison|metadata|message|id|languages|severity|paths|options|fix)$/;
 /** One engine run on the two files; far above any rule worth keeping, so a runaway rule fails instead of hanging. */
 const SCAN_CAP_MS = 15 * 60 * 1000;
 
@@ -143,7 +134,10 @@ function rulesWithFixtures(dir) {
   return out.sort((x, y) => x.rule.localeCompare(y.rule));
 }
 
-/** Runs the engine once; `times` maps each target's file name to its run time, or `error` says why there are none. */
+/**
+ * Runs the engine once; `times` maps each target's file name to its run time and `counts` to its number of matches, or
+ * `error` says why there are none.
+ */
 function scan(engine, config, cwd, targets) {
   const out = join(cwd, 'out.json');
   rmSync(out, { force: true });
@@ -159,39 +153,35 @@ function scan(engine, config, cwd, targets) {
       }
       const times = {};
       for (const t of doc.time?.targets ?? []) times[basename(t.path)] = t.run_time;
-      resolve({ times });
+      const counts = Object.fromEntries(targets.map((t) => [basename(t), 0]));
+      for (const m of doc.results ?? []) {
+        const f = basename(m.path ?? '');
+        if (f in counts) counts[f]++;
+      }
+      resolve({ times, counts });
     });
   });
 }
 
 /**
- * The lowest time per file over up to ATTEMPTS rounds, stopping early once `enough` says so. Each file is timed in
- * an engine run of its own, so one file's parse cannot change the allocations another is parsed after.
+ * Writes the two files and times them with `lowest`, the 90 KB file in every round: it is cheap, and one sample taken
+ * under load keeps a rule's growth ratio low, which fails open here and kept a probe under the bound in
+ * rule-cost-check.mjs (#13322). Resolves to `{ small, large, matches }` (`matches` is the 900 KB file's match count, of
+ * its fastest run), `{ error }` or `{ notRun: true }`.
  */
-async function lowest(engine, config, dir, files, enough = () => false) {
-  const best = {};
-  for (let i = 0; i < ATTEMPTS; i++) {
-    for (const f of files) {
-      const r = await scan(engine, config, dir, [f]);
-      if (r.error) return { error: r.error };
-      if (r.times[f] !== undefined) best[f] = Math.min(best[f] ?? Infinity, r.times[f]);
-    }
-    if (files.some((f) => best[f] === undefined) || enough(best)) break;
-  }
-  return { best };
-}
-
-/** Writes the two files and times them with `lowest`: `{ small, large }`, `{ error }` or `{ notRun: true }`. */
 async function timePair(engine, config, dir, ext, text, enough = () => false) {
   const small = `${SMALL_NAME}${ext}`;
   const large = `${LARGE_NAME}${ext}`;
   writeFileSync(join(dir, small), text.small);
   writeFileSync(join(dir, large), text.large);
   try {
-    const r = await lowest(engine, config, dir, [small, large], (t) => t[small] !== undefined && t[large] !== undefined && enough({ small: t[small], large: t[large] }));
+    const r = await lowest((f) => scan(engine, config, dir, [f]), [small, large], {
+      enough: (t) => t[small] !== undefined && t[large] !== undefined && enough({ small: t[small], large: t[large] }),
+      always: [small],
+    });
     if (r.error) return { error: r.error };
     if (r.best[small] === undefined || r.best[large] === undefined) return { notRun: true };
-    return { small: r.best[small], large: r.best[large] };
+    return { small: r.best[small], large: r.best[large], matches: r.counts[large] };
   } finally {
     rmSync(join(dir, small), { force: true });
     rmSync(join(dir, large), { force: true });
@@ -230,25 +220,6 @@ async function baselines(engine, exts) {
   return base;
 }
 
-/** The modifiers and attributes a rule file names in its positive patterns (MODIFIER_WORD, ATTRIBUTE), without repeats. */
-function namedModifiers(ruleFile) {
-  const found = new Set();
-  const walk = (node, key) => {
-    if (key !== undefined && NOT_POSITIVE.test(key)) return;
-    if (typeof node === 'string') {
-      const text = node.replaceAll(IMPORT_GUARD_ATTRIBUTE, 'import');
-      for (const m of text.matchAll(ATTRIBUTE)) found.add(m[0]);
-      for (const m of text.replace(/\\[A-Za-z]/g, ' ').matchAll(MODIFIER_WORD)) found.add(m[0]);
-    } else if (Array.isArray(node)) {
-      for (const v of node) walk(v, key);
-    } else if (node !== null && typeof node === 'object') {
-      for (const [k, v] of Object.entries(node)) walk(v, k);
-    }
-  };
-  walk(parseYaml(readFileSync(ruleFile, 'utf8')));
-  return [...found];
-}
-
 async function measure(engine, base, { rule, fixture }) {
   const ext = extname(fixture);
   const l = LANGS[ext];
@@ -277,11 +248,12 @@ async function measure(engine, base, { rule, fixture }) {
     if (within(pq)) {
       let named;
       try {
-        named = namedModifiers(rule);
+        named = namedModifiers(readFileSync(rule, 'utf8'));
       } catch (e) {
         return { rule, failed: `cannot read the rule file for its modifiers: ${e instanceof Error ? e.message : String(e)}` };
       }
-      if (named.length > 0) return { rule, notCleared: named, plain: { small: p.small, large: p.large, ...pq }, first };
+      const reasons = notClearedReasons({ named, firstMatches: r.matches, plainMatches: p.matches });
+      if (reasons.length > 0) return { rule, notCleared: reasons, plain: { small: p.small, large: p.large, ...pq }, first };
     }
     return { rule, small: p.small, large: p.large, ...pq, over: !within(pq), first };
   } finally {
@@ -332,7 +304,7 @@ for (const r of failed) process.stdout.write(`FAILED ${relative(RULES, r.rule)}:
 const notCleared = results.filter((r) => r.notCleared);
 for (const r of notCleared) {
   process.stdout.write(
-    `NOT CLEARED ${relative(RULES, r.rule)}: the plain filler does not exercise it (it names ${r.notCleared.join(', ')}); ` +
+    `NOT CLEARED ${relative(RULES, r.rule)}: the plain filler does not exercise it (${r.notCleared.join('; ')}); ` +
       `first filler ${r.first.small.toFixed(2)} -> ${r.first.large.toFixed(2)} s, plain ${r.plain.small.toFixed(2)} -> ${r.plain.large.toFixed(2)} s\n`,
   );
 }
