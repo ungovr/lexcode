@@ -1591,11 +1591,23 @@ The engine sets most of these limits, and the rules' comments point here.
   kept whole.
 - **Engine parse faults.** The grammar does not read async closures (`async |x| {
   ... }`, `async move || { ... }`, Rust 2024), an associated-type bound inside a
-  generic parameter list (`CursorKey<C, SqlType: Send>`) or an attribute on a
-  generic parameter (`#[cfg(feature = "ts-rs")] T: TS`). A file with one is read
-  in part, for every rule, and counted in the scan's notice. Of Lemmy's 18
-  unreadable files, 15 use async closures, 1 has the bound and 2 have the
-  attributes, and 1 of the 18 is a test file.
+  generic argument list (`CursorKey<C, SqlType: Send>`) or an attribute on a
+  generic parameter (`#[cfg(feature = "ts-rs")] T: TS`), in Opengrep 1.33.1 or
+  2.0.0. Each file with one is counted in the scan's notice, but what is lost
+  differs. For an async closure the engine drops the `async` keyword and reads the
+  closure as a plain one, and for the bound it drops `: Send`; the rest of the
+  file is read, and a rule that needs neither token still matches there. For an attribute on a generic parameter the item that
+  carries it (a `struct`, `impl` or `fn` with its body) is lost, and the whole file
+  is lost when that item has a `where` clause or is the file's last item. Measured
+  on Lemmy on 2026-11-17: its 18 counted files are 15 with async closures and 1
+  with the bound, each losing one line's keyword or bound (the lines its reading
+  cites in `user/create.rs`, `api_utils/src/utils.rs`, `setup_local_site.rs` and
+  `scheduled_tasks.rs` are all read; the evidence missing there is missing because
+  no rule reads it), and 2 with the
+  attribute (`diesel_utils/src/pagination.rs`, `db_views/vote/src/impls.rs`), both
+  lost whole and neither holding a line its reading cites. Each construct has a
+  probe in `test/engine-probes/rust/`, and `test/unit/engine-rust-parse-faults.test.ts`
+  pins what the engine reads of it, so a new engine that reads one fails the test.
 - **Cost.** The engine gives a rule 30 seconds per file, and a rule that matches
   thousands of times in one file (about 3,000) does not finish, whatever its
   shape, so a file of that size loses that rule's matches.
