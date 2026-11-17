@@ -150,7 +150,7 @@ export async function scan(o: ScanOptions): Promise<EvidenceRecord> {
   }
   if (listed.skippedBundled > 0) {
     notices.push(
-      `skipped ${listed.skippedBundled} bundled, minified or generated ${listed.skippedBundled === 1 ? 'file' : 'files'} (named *.min.js, *.bundle.js, vendor.*.js, *.vendor.js, *.g.cs, *.g.i.cs, *.generated.swift, *+Generated.swift, *.pb.swift or *.grpc.swift, or under a GeneratedSources directory)`,
+      `skipped ${listed.skippedBundled} bundled, minified or generated ${listed.skippedBundled === 1 ? 'file' : 'files'} (named *.min.js, *.bundle.js, vendor.*.js, *.vendor.js, *.g.cs, *.g.i.cs, *.generated.swift, *+Generated.swift, *.pb.swift or *.grpc.swift, or Swift under a GeneratedSources directory)`,
     );
   }
   if (listed.skippedLarge > 0) {

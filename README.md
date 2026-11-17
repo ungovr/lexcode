@@ -57,8 +57,9 @@ never minified or bundled files (including any named `*.min.js`,
 `*.bundle.js`, `vendor.*.js` or `*.vendor.js`), never C# the compiler
 generated (`*.g.cs` and `*.g.i.cs`; a `*.Designer.cs` is read), never
 generated Swift (`*.generated.swift`, `*+Generated.swift`, `*.pb.swift`,
-`*.grpc.swift`, and anything under a directory named `GeneratedSources`,
-where swift-openapi-generator writes its output; the name is case-sensitive),
+`*.grpc.swift`, and any `.swift` file under a directory named
+`GeneratedSources`, where swift-openapi-generator writes its output; the name
+is case-sensitive, and other files there are read),
 never a file with a line over 100,000 characters (generated code, counted in
 a notice), never symbolic links, never files over 5 MB, never a file you
 cannot open for reading (counted in a notice), and never directories named
