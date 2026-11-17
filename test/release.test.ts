@@ -181,19 +181,13 @@ describe('release: the rule set is complete and well formed', () => {
     ).toEqual([]);
   });
 
-  // C# (v1.4, Decision 11). The one C# exemption is
-  // distributes_software_product, whose package evidence lives in the project
-  // file (`<PackageId>`, `<IsPackable>`, a `.nuspec`) as Java's lives in its
-  // build files: it may be met by an msbuild- rule (read as generic text over
-  // `*.csproj`, `*.props` and `*.nuspec`) instead of a C# source rule. No
-  // other exemption was ruled.
+  // C# (v1.4, Decision 11). Decision 11 allowed one exemption,
+  // distributes_software_product, met by an msbuild- rule over the project
+  // files. It is no longer used: cs-desktop-updater meets that id from C#, so
+  // the gate takes only rules whose languages include csharp (#13229). No
+  // exemption stands; a new one must be argued and ruled first.
   it('every evidence-class id has a C# rule', () => {
-    const msbuildRule = (r: RuleMeta): boolean => /^msbuild-/.test(basename(r.file));
-    expect(
-      evidenceIdsWithoutRule(
-        (r) => r.languages.includes('csharp') || (r.activity === 'distributes_software_product' && msbuildRule(r)),
-      ),
-    ).toEqual([]);
+    expect(evidenceIdsWithoutRule((r) => r.languages.includes('csharp'))).toEqual([]);
   });
 
   // Swift (v1.5, Decision 16). Only a rule whose languages include swift counts:

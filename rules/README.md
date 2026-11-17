@@ -1106,11 +1106,10 @@ Known Razor gaps:
 ### The C# gate
 
 The release test requires every evidence-class activity to have a rule whose
-`languages` include `csharp`. One exemption stands:
-`distributes_software_product`, whose evidence lives in project files, is met by
-an `msbuild-` rule, as Java's is met by a build-file rule. Those rules read
-project and `.nuspec` text as `generic` files. Any other exemption must be
-argued and ruled before it is added.
+`languages` include `csharp`, and no exemption stands: `distributes_software_product`
+is met by `cs-desktop-updater`, beside the `msbuild-` rules that read project,
+`.nuspec`, publish-profile and package-manifest text as `generic` files. Any
+exemption must be argued and ruled before it is added.
 
 ### What the C# rules decide
 
@@ -1402,7 +1401,7 @@ configuration rules are additional evidence, not Swift, and do not count toward
 the Swift gate. One Rust exemption stands: `distributes_software_product`, whose
 package evidence lives in `Cargo.toml` (`[package]` listing keys, `publish`, a
 release packaging section), is met by a `cargo-` rule, as Java's is met by a
-build-file rule and C#'s by an `msbuild-` rule. No Swift exemption was needed.
+build-file rule. No Swift exemption was needed.
 Any other exemption must be argued and ruled before it is added.
 
 ### What the Swift and Rust rules decide
