@@ -245,21 +245,15 @@ export interface EnginePlan {
   targets: string[];
 }
 
+/** Which of `files` a rule reads, by index (`'all'` for every one), and whether that makes it run. */
+type RuleReach = (rule: RuleMeta) => { runs: boolean; reads: number[] | 'all' };
+
 /**
- * The rules worth running and the files worth reading. A rule reads the files with one of its languages'
- * extensions (every file, for `generic` and `regex`) that its `paths.include`, when it has one, can match; a
- * rule with no such file is left out of the engine's config, and a file no rule reads is not handed over.
- *
- * Both matter for speed (#12997). The engine parses the whole config again for every run of targets, and
- * parsing the 60 PHP rules alone cost about 2.6 s a run on a repository with no PHP. And a `generic` rule
- * limited to `pyproject.toml` once put every file in the target list, 53,444 photographs included, so the
- * UnGovr monorepo took eight engine runs where its 9,488 readable files fit in one.
- *
- * A language rule's file counts as read only when it is not an original the engine reads through a whole-file
- * copy (`COPIED_WHOLE_EXTENSIONS`): such an original alone does not make the rule run. When the rule runs, the
- * original is still handed over, as before.
+ * The files of `files` each rule reads: one of its languages' extensions (every file, for `generic` and `regex`)
+ * that its `paths.include`, when it has one, can match. Results are shared between rules with the same
+ * extensions and include, so asking for every rule of a set costs one pass per distinct pair.
  */
-export function enginePlan(rules: RuleMeta[], files: string[]): EnginePlan {
+function ruleReach(files: string[]): RuleReach {
   const exts = files.map(engineExtension);
   const byExt = new Map<string, number[]>();
   exts.forEach((e, i) => {
@@ -280,7 +274,7 @@ export function enginePlan(rules: RuleMeta[], files: string[]): EnginePlan {
 
   /** Per distinct (extensions, include) pair: whether a rule with it runs, and which files it reads. */
   const seen = new Map<string, { runs: boolean; reads: number[] | 'all' }>();
-  const reach = (rule: RuleMeta): { runs: boolean; reads: number[] | 'all' } => {
+  return (rule) => {
     const ruleExts = extensionsOf(rule);
     const key = `${ruleExts === 'all' ? '*' : [...new Set(ruleExts)].sort().join(',')}\0${(rule.include ?? []).join('\0')}`;
     const known = seen.get(key);
@@ -316,7 +310,24 @@ export function enginePlan(rules: RuleMeta[], files: string[]): EnginePlan {
     seen.set(key, result);
     return result;
   };
+}
 
+/**
+ * The rules worth running and the files worth reading. A rule reads the files with one of its languages'
+ * extensions (every file, for `generic` and `regex`) that its `paths.include`, when it has one, can match; a
+ * rule with no such file is left out of the engine's config, and a file no rule reads is not handed over.
+ *
+ * Both matter for speed (#12997). The engine parses the whole config again for every run of targets, and
+ * parsing the 60 PHP rules alone cost about 2.6 s a run on a repository with no PHP. And a `generic` rule
+ * limited to `pyproject.toml` once put every file in the target list, 53,444 photographs included, so the
+ * UnGovr monorepo took eight engine runs where its 9,488 readable files fit in one.
+ *
+ * A language rule's file counts as read only when it is not an original the engine reads through a whole-file
+ * copy (`COPIED_WHOLE_EXTENSIONS`): such an original alone does not make the rule run. When the rule runs, the
+ * original is still handed over, as before.
+ */
+export function enginePlan(rules: RuleMeta[], files: string[]): EnginePlan {
+  const reach = ruleReach(files);
   const sent: RuleMeta[] = [];
   const take = new Uint8Array(files.length);
   let takeAll = false;
@@ -352,34 +363,42 @@ function languageName(ext: string): string {
 }
 
 /**
- * Per language, how many of the files handed to the engine are over PREFILTER_REACH_BYTES and in a language
- * that at least one loaded rule pre-filters with a whole-file lookahead: most first, then by name. The
- * languages come from the loaded rules (`wholeFilePrefilter`), so a rule added for another language, or
- * one from `--rules`, moves the set with it; `bytesOf` is asked only about files in those languages.
+ * Per language, how many of the files handed to the engine are over PREFILTER_REACH_BYTES and read by at least
+ * one loaded rule that pre-filters with a whole-file lookahead: most first, then by name. The files come from
+ * the loaded rules (`wholeFilePrefilter`, their languages and `paths.include`), so a rule added for another
+ * language, or one from `--rules`, moves the set with it; `bytesOf` is asked only about files such a rule reads.
  */
 export function largePrefilteredFiles(
   rules: RuleMeta[],
   targets: string[],
   bytesOf: (file: string) => number,
 ): { language: string; files: number }[] {
-  const exts = new Set<string>();
+  const prefiltered = rules.filter((r) => r.wholeFilePrefilter);
+  if (prefiltered.length === 0) return [];
+  // The files a pre-filtered rule reads, as `enginePlan` hands them over: by language and `paths.include`, so a
+  // generic rule limited to plists counts only plists (#13303). A language rule reads an `.inc` or `.rake`
+  // original only through its copy, which is a target of its own; a generic rule reads the original as text.
+  const reach = ruleReach(targets);
+  const read = new Uint8Array(targets.length);
   let all = false;
-  for (const r of rules) {
-    if (!r.wholeFilePrefilter) continue;
-    const e = extensionsOf(r);
-    if (e === 'all') all = true;
-    else for (const x of e) exts.add(x);
+  for (const r of prefiltered) {
+    const { reads } = reach(r);
+    if (reads === 'all') {
+      all = true;
+      break;
+    }
+    const generic = extensionsOf(r) === 'all';
+    for (const i of reads) {
+      if (generic || !COPIED_WHOLE_EXTENSIONS.has(posix.extname(targets[i] as string).toLowerCase())) read[i] = 1;
+    }
   }
-  if (!all && exts.size === 0) return [];
   const counts = new Map<string, number>();
-  for (const f of targets) {
-    const ext = posix.extname(f).toLowerCase();
-    // A language rule reads an `.inc` or `.rake` original only through its copy, which is a target of its own.
-    if (!all && (!exts.has(ext) || COPIED_WHOLE_EXTENSIONS.has(ext))) continue;
-    if (bytesOf(f) <= PREFILTER_REACH_BYTES) continue;
-    const name = languageName(ext);
+  targets.forEach((f, i) => {
+    if (!all && read[i] !== 1) return;
+    if (bytesOf(f) <= PREFILTER_REACH_BYTES) return;
+    const name = languageName(posix.extname(f).toLowerCase());
     counts.set(name, (counts.get(name) ?? 0) + 1);
-  }
+  });
   return [...counts.entries()]
     .map(([language, n]) => ({ language, files: n }))
     .sort((a, b) => b.files - a.files || (a.language < b.language ? -1 : a.language > b.language ? 1 : 0));

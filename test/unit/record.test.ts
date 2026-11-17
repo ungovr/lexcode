@@ -878,6 +878,24 @@ describe('the notice for files past a whole-file pre-filter\'s reach', () => {
     expect(largePrefilteredFiles(only(every), ['pascal/huge.inc'], () => big)).toEqual([{ language: 'PHP', files: 1 }]);
   });
 
+  // A generic rule reads every file only when it has no `paths.include`: one limited to plists (the Apple
+  // config rules' shape) counts only large plists, not every file over 1 MB in the repository (#13303).
+  it("follows a rule's paths.include, a generic rule's included", () => {
+    const plist = ruleSetWith([{ id: 'lexcode.a.plist', languages: ['generic'], wholeFilePrefilter: true, include: ['*.plist'] }]);
+    const targets = ['App/Info.plist', 'big.rb', 'big.py', 'data/huge.json', 'small.plist'];
+    const size = (f: string): number => (f === 'small.plist' ? 10 : big);
+    expect(largePrefilteredFiles(only(plist), targets, size)).toEqual([{ language: 'XML', files: 1 }]);
+    const asked: string[] = [];
+    largePrefilteredFiles(only(plist), targets, (f) => (asked.push(f), size(f)));
+    expect(asked.sort()).toEqual(['App/Info.plist', 'small.plist']);
+    // A language rule's include narrows it the same way.
+    const gradle = ruleSetWith([{ id: 'lexcode.a.kts', languages: ['kotlin'], wholeFilePrefilter: true, include: ['build.gradle.kts'] }]);
+    expect(largePrefilteredFiles(only(gradle), ['build.gradle.kts', 'src/Big.kt'], () => big)).toEqual([{ language: 'Kotlin', files: 1 }]);
+    // Unchanged on a repository of big files the rules read by language.
+    const java = ruleSetWith([{ id: 'lexcode.a.java', languages: ['java'], wholeFilePrefilter: true }]);
+    expect(largePrefilteredFiles(only(java), ['A.java', 'B.java', 'c.py'], () => big)).toEqual([{ language: 'Java', files: 2 }]);
+  });
+
   it('asks the size only of files in a pre-filtered language', () => {
     const rs = ruleSetWith([{ id: 'lexcode.a.rb', languages: ['ruby'], wholeFilePrefilter: true }]);
     const asked: string[] = [];
