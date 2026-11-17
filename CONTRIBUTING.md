@@ -611,6 +611,12 @@ Measured on Opengrep 1.33.1:
   `focus-metavariable`). `[X(...)]` matches `[X]`, `[X()]` and `[X(args)]`; an
   attribute-only pattern returns nothing, so give it its class or method, and
   `[global::X]` needs its own pattern.
+- A class's base list matches as a prefix: `class $C : I { ... }` finds a
+  class that lists `I` first, and not one that lists it after a base class or
+  another interface. Write `class $C : $B1, I { ... }` and `class $C : $B1, $B2,
+  I { ... }` for the later places; a base reached through a primary
+  constructor (`: Base(x), I`) matches only `$B1(...)` in its place
+  (`cs-analytics-calls`). The base list cannot be a `$...B` metavariable.
 - A `catch` clause cannot be a pattern on its own, and `try { ... } catch ($T $E)
   { ... }` in a `pattern-not-inside` also drops the try body.
 - An interpolated string prints as `$"` followed by its text with the braces

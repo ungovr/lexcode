@@ -1,4 +1,4 @@
-// lexcode-expect: 14
+// lexcode-expect: 16
 // Stored columns for an email, phone number, date of birth, government identifier or IP address,
 // declared in schema code: EF Core migrations, EF Core model configuration (a configuration class,
 // an owned type, and a DbContext's model builder), and FluentMigrator (a migration and an
@@ -35,6 +35,7 @@ public partial class AddLoginIp : Mig.Migration
     protected override void Up(Mig.MigrationBuilder migrationBuilder)
     {
         migrationBuilder.AddColumn<string>(name: "LastLoginIp", table: "Logins");
+        migrationBuilder.AddColumn<string>(name: "UserIpAddress", table: "Logins");
     }
 }
 
@@ -67,6 +68,7 @@ public class CreateSubscribers : FluentMigrator.Migration
             .WithColumn("EmailAddress").AsString(255).NotNullable()
             .WithColumn(nameof(Customer.IpAddress)).AsString(100).Nullable();
         Alter.Table("Customer").AddColumn(nameof(Customer.MobileNumber)).AsString(50).Nullable();
+        Alter.Table("Order").AddColumn(nameof(Order.CustomerIp)).AsString(100).Nullable();
     }
 
     public override void Down()
@@ -101,4 +103,10 @@ public class Customer
 public class ContactDetails
 {
     public string? PhoneNumber { get; set; }
+}
+
+public class Order
+{
+    public int Id { get; set; }
+    public string? CustomerIp { get; set; }
 }
