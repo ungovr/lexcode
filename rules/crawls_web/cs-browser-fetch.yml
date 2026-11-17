@@ -38,10 +38,11 @@ rules:
       # interpolated; and an address built on a field or variable named for the app's own URL
       # (`appUrl`, `_appUrl`, `AppUrl`). A `baseUrl` is not excluded, since a scraper often names
       # its target site so. The engine prints an interpolated string as `$"` and its text with the
-      # braces dropped, which is the shape the last look-ahead reads.
+      # braces dropped, which is the shape the last look-ahead reads. A raw literal (`"""..."""`,
+      # `$"""..."""`, `$$"""..."""`) is read as a plain or an interpolated one.
       - metavariable-regex:
           metavariable: $URL
-          regex: (?s)^(?![$@]{0,2}"(https?://(localhost|127\.|0\.0\.0\.0|\[::1\])|(file|data|about|blob):|/(?!/)))(?!\$?@?"?\{?(this\.)?_?(?i:app_?url)\b).*$
+          regex: (?s)^(?![$@]{0,2}(?>"{3,}+\s*+|")(https?://(localhost|127\.|0\.0\.0\.0|\[::1\])|(file|data|about|blob):|/(?!/)))(?!\$*+@?(?>"{3,}+|"?)\{*+(this\.)?_?(?i:app_?url)\b).*$
     metadata:
       activity: crawls_web
       mentioned: performs

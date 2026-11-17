@@ -14,11 +14,12 @@ rules:
                   - pattern: (HtmlAgilityPack.HtmlWeb $W).Load($URL, ...)
                   - pattern: (HtmlAgilityPack.HtmlWeb $W).LoadFromWebAsync($URL, ...)
                   - pattern: (HtmlAgilityPack.HtmlWeb $W).LoadFromBrowser($URL, ...)
-              # A plain string literal is a web address, not a file name. An interpolated one is
-              # printed without its braces, so it cannot be judged and stays matched.
+              # A plain string literal is a web address, not a file name, and so is a raw one
+              # (`"""..."""`). An interpolated one is printed without its braces, so it cannot be
+              # judged and stays matched.
               - metavariable-regex:
                   metavariable: $URL
-                  regex: (?s)^(?!@?"(?!https?://)).*$
+                  regex: (?s)^(?!(?>"{3,}+\s*+|@?")(?!https?://)).*$
           # AngleSharp's browsing context opens an address and its loader downloads it. The context
           # comes from `BrowsingContext.New(...)`, whose type the engine does not infer, so the file
           # must name AngleSharp's namespace (a `using` line at the start of a line, aliased or not,
@@ -32,7 +33,7 @@ rules:
               - pattern: $C.OpenAsync($URL, ...)
               - metavariable-regex:
                   metavariable: $URL
-                  regex: (?s)^(?!.*=>)(?!(?i:\w*(token|ct)$))(?!@?"(?!https?://)).*$
+                  regex: (?s)^(?!.*=>)(?!(?i:\w*(token|ct)$))(?!(?>"{3,}+\s*+|@?")(?!https?://)).*$
           # A page fetched inside the parser call itself.
           - patterns:
               - pattern-either:
@@ -49,9 +50,10 @@ rules:
               # interpolated one that starts with text, that is not an http or https address (a path
               # relative to the client's BaseAddress, `pages/{id}`) is the app's own. One that starts with an
               # interpolation (`$"{baseUrl}/listing/{id}"`) is built on a base the code holds and stays matched.
+              # A raw literal (`"""..."""`, `$"""..."""`, on one line or several) is read the same way.
               - metavariable-regex:
                   metavariable: $SRC
-                  regex: (?s)^(?!.*\b(Get(String|Stream|ByteArray)?Async|DownloadString(TaskAsync)?|DownloadData(TaskAsync)?|OpenRead(TaskAsync)?)\(\s*(?:@?"(?!https?://)|(?:\$@?|@\$)"(?!https?://|\{))).*$
+                  regex: (?s)^(?!.*\b(Get(String|Stream|ByteArray)?Async|DownloadString(TaskAsync)?|DownloadData(TaskAsync)?|OpenRead(TaskAsync)?)\(\s*(?:(?>"{3,}+\s*+|@?")(?!https?://)|(?>\$++"{3,}+\s*+|(?:\$@?|@\$)")(?!https?://|\{))).*$
               - metavariable-pattern:
                   metavariable: $SRC
                   patterns:
@@ -91,9 +93,10 @@ rules:
               # interpolated one that starts with text, that is not an http or https address (a path
               # relative to the client's BaseAddress, `pages/{id}`) is the app's own. One that starts with an
               # interpolation (`$"{baseUrl}/listing/{id}"`) is built on a base the code holds and stays matched.
+              # A raw literal (`"""..."""`, `$"""..."""`, on one line or several) is read the same way.
               - metavariable-regex:
                   metavariable: $FETCH
-                  regex: (?s)^(?!.*\b(Get(String|Stream|ByteArray)?Async|DownloadString(TaskAsync)?|DownloadData(TaskAsync)?|OpenRead(TaskAsync)?)\(\s*(?:@?"(?!https?://)|(?:\$@?|@\$)"(?!https?://|\{))).*$
+                  regex: (?s)^(?!.*\b(Get(String|Stream|ByteArray)?Async|DownloadString(TaskAsync)?|DownloadData(TaskAsync)?|OpenRead(TaskAsync)?)\(\s*(?:(?>"{3,}+\s*+|@?")(?!https?://)|(?>\$++"{3,}+\s*+|(?:\$@?|@\$)")(?!https?://|\{))).*$
               - metavariable-pattern:
                   metavariable: $FETCH
                   patterns:
@@ -109,11 +112,11 @@ rules:
                         metavariable: $GET
                         regex: ^(Get(String|Stream|ByteArray)?Async|DownloadString(TaskAsync)?|DownloadData(TaskAsync)?|OpenRead(TaskAsync)?)$
       # Not a page on another site: loopback hosts, a file address, and a path relative to the app
-      # itself (an HttpClient whose BaseAddress is the app's own server). A string read from inside
-      # a value comes without its quotes, so the quote is optional.
+      # itself (an HttpClient whose BaseAddress is the app's own server), in a plain or a raw
+      # literal. A string read from inside a value comes without its quotes, so the quote is optional.
       - metavariable-regex:
           metavariable: $URL
-          regex: (?s)^(?![$@]{0,2}"?(https?://(localhost|127\.|0\.0\.0\.0|\[::1\])|file:|/(?!/))).*$
+          regex: (?s)^(?![$@]{0,2}(?>"{3,}+\s*+|"?)(https?://(localhost|127\.|0\.0\.0\.0|\[::1\])|file:|/(?!/))).*$
     metadata:
       activity: crawls_web
       mentioned: performs

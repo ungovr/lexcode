@@ -118,11 +118,11 @@ rules:
                     - metavariable-regex:
                         metavariable: $A
                         regex: ^"(href|src)"$
-      # A link joined onto the app's own server (loopback, or a path relative to the app) is the app
-      # reading its own pages.
+      # A link joined onto the app's own server (loopback, or a path relative to the app, in a plain
+      # or a raw literal) is the app reading its own pages.
       - metavariable-regex:
           metavariable: $ARG
-          regex: (?s)^(?![$@]{0,2}"(https?://(localhost|127\.|0\.0\.0\.0|\[::1\])|/(?!/))).*$
+          regex: (?s)^(?![$@]{0,2}(?>"{3,}+\s*+|")(https?://(localhost|127\.|0\.0\.0\.0|\[::1\])|/(?!/))).*$
     metadata:
       activity: crawls_web
       mentioned: performs
