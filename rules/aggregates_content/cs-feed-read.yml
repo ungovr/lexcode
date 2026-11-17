@@ -142,12 +142,14 @@ rules:
           # A feed loader or parser of any library, or of the app's own, named for a syndication
           # feed (RssFeed, AtomReader, NewsFeed, feedParser, FeedReader), over a feed downloaded in
           # the same call or the line before. A bare `feed` is not enough: a supplier's product feed
-          # or a feedback service is not another publisher's content.
+          # or a feedback service is not another publisher's content, and neither is a parser or
+          # reader named for a product, shopping, merchant, catalog, supplier, vendor, inventory,
+          # price or offer feed (`productFeedParser`, `ShoppingFeedReader`).
           - patterns:
               - pattern: $FP.$LOAD($SRC)
               - metavariable-regex:
                   metavariable: $FP
-                  regex: (?i)^(this\.)?_?\w*(rss|atom(?!ic)|syndication|newsfeed|feed(parser|reader))\w*$
+                  regex: (?i)^(this\.)?_?(?!\w*(product|shop|merchant|catalog|supplier|vendor|inventory|price|offer))\w*(rss|atom(?!ic)|syndication|newsfeed|feed(parser|reader))\w*$
               - metavariable-regex:
                   metavariable: $LOAD
                   regex: ^(Load|Parse|Read)(Async)?$
@@ -176,7 +178,7 @@ rules:
               - pattern: $FP.$LOAD($S)
               - metavariable-regex:
                   metavariable: $FP
-                  regex: (?i)^(this\.)?_?\w*(rss|atom(?!ic)|syndication|newsfeed|feed(parser|reader))\w*$
+                  regex: (?i)^(this\.)?_?(?!\w*(product|shop|merchant|catalog|supplier|vendor|inventory|price|offer))\w*(rss|atom(?!ic)|syndication|newsfeed|feed(parser|reader))\w*$
               - metavariable-regex:
                   metavariable: $LOAD
                   regex: ^(Load|Parse|Read)(Async)?$

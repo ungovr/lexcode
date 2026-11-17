@@ -10,11 +10,18 @@ namespace Shop.Blog;
 // feed from its own dev server. It also imports a supplier's product feed, reads its feedback
 // service, and reads a partner API's JSON, none of which is a publisher's content. Nothing here reads
 // another publisher's feed.
-public class BlogFeed(IDistributedCache cache, HttpClient http, IProductFeed productFeed, IFeedbackService feedbackService)
+public class BlogFeed(IDistributedCache cache, HttpClient http, IProductFeed productFeed, IFeedbackService feedbackService,
+    IProductFeedParser productFeedParser, IShoppingFeedReader shoppingFeedReader, ISupplierFeedParser supplierFeedParser)
 {
     public async Task ImportAsync(string supplierUrl)
     {
         var products = productFeed.Parse(await http.GetStringAsync(supplierUrl));
+        var parsed = productFeedParser.Parse(await http.GetStringAsync(supplierUrl));
+        var offers = await shoppingFeedReader.ReadAsync(await http.GetStreamAsync(supplierUrl));
+        var priceList = await http.GetStringAsync(supplierUrl);
+        var catalog = supplierFeedParser.Parse(priceList);
+        var merchant = MerchantFeedParser.Parse(await http.GetStringAsync(supplierUrl));
+        var inventory = InventoryFeedReader.Read(await http.GetStringAsync(supplierUrl));
         var feedback = feedbackService.Read(await http.GetStringAsync(supplierUrl));
         var json = await http.GetStringAsync("https://api.partner.example.com/v1/products");
         var stock = JsonSerializer.Deserialize<Dictionary<string, int>>(json);
