@@ -8,6 +8,7 @@ import { pinnedEnginePath } from '../../src/engine/fetch.js';
 import { ENGINE_PIN } from '../../src/engine/pin.js';
 import { platformKey } from '../../src/engine/platform.js';
 import { runEngine } from '../../src/engine/run.js';
+import { urlLiteral } from '../../src/record/hosts.js';
 
 function cachedEngine(): string | undefined {
   try {
@@ -75,6 +76,64 @@ describe.skipIf(!engine)('the real pinned engine', () => {
         'a.kt': '"https://k.example.com/$id"',
         'a.php': '"https://{$host}/x"',
       });
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  // C#: the engine's range for an interpolated string stops before the closing quote (and before the last
+  // hole's `}`), so the slice is unclosed in every form; Swift's slice is complete. urlLiteral must read the
+  // host from the shape the engine really gives, not from a closed string a unit test makes up (#12882).
+  it('slices C# interpolated strings unclosed and Swift ones whole, and urlLiteral reads the host from each', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'lexcode-real-'));
+    try {
+      const cs = [
+        'class A { void F() {',
+        'Fetchit($"https://c.example.com/{id}");',
+        'Fetchit($"https://b.example/x");',
+        'Fetchit(@$"https://d.example.com/{id}");',
+        'Fetchit($@"https://e.example.com/{id}");',
+        'Fetchit($"""https://f.example.com/{id}""");',
+        'Fetchit($$"""https://g.example.com/{{id}}""");',
+        'Fetchit($"https://{host}/x");',
+        'Fetchit($"{baseUrl}/x");',
+        '} }',
+        '',
+      ].join('\n');
+      const swift = ['fetchit("https://s.example.com/\\(id)")', 'fetchit("https://\\(host)/x")', 'fetchit("https://t.example.com/x")', ''].join('\n');
+      await writeFile(join(dir, 'a.cs'), cs);
+      await writeFile(join(dir, 'a.swift'), swift);
+      await writeFile(
+        join(dir, 'rule.yml'),
+        [
+          'rules:',
+          ...['csharp', 'swift'].flatMap((lang) => [
+            `  - id: t.${lang}`,
+            `    languages: [${lang}]`,
+            '    severity: INFO',
+            '    message: m',
+            `    pattern: ${lang === 'csharp' ? 'Fetchit' : 'fetchit'}($URL)`,
+          ]),
+          '',
+        ].join('\n'),
+      );
+      const r = await runEngine({ engine: engine!, configFile: join(dir, 'rule.yml'), targets: ['a.cs', 'a.swift'], root: dir });
+      const got = r.matches.map((m) => [`${m.path}:${m.line}`, m.source?.$URL, urlLiteral(m.source?.$URL ?? '', { source: true })]);
+      const host = (h: string) => ({ literal: true, host: h });
+      const code = { literal: false };
+      expect(got).toEqual([
+        ['a.cs:2', '$"https://c.example.com/{id', host('c.example.com')],
+        ['a.cs:3', '$"https://b.example/x', host('b.example')],
+        ['a.cs:4', '@$"https://d.example.com/{id', host('d.example.com')],
+        ['a.cs:5', '$@"https://e.example.com/{id', host('e.example.com')],
+        ['a.cs:6', '$"""https://f.example.com/{id', host('f.example.com')],
+        ['a.cs:7', '$$"""https://g.example.com/{{id', host('g.example.com')],
+        ['a.cs:8', '$"https://{host}/x', code],
+        ['a.cs:9', '$"{baseUrl}/x', code],
+        ['a.swift:1', '"https://s.example.com/\\(id)"', host('s.example.com')],
+        ['a.swift:2', '"https://\\(host)/x"', code],
+        ['a.swift:3', '"https://t.example.com/x"', host('t.example.com')],
+      ]);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }

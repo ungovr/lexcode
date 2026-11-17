@@ -213,16 +213,36 @@ describe('urlLiteral on source text: the literal scheme and host before the firs
     expect(src('"""https://$host/v1"""')).toEqual(code);
   });
 
-  it('C# interpolated strings, closed as the file writes them', () => {
+  // The engine's range for a C# interpolated string stops before its closing quote (and before a closing
+  // `}` when the string ends in a hole), so the slice is unclosed: `$"https://c.example.com/{id` for
+  // `$"https://c.example.com/{id}"`, `$"https://b.example/x` for a string with no hole (engine-real.test.ts).
+  it('C# interpolated strings, as the engine slices them: no closing quote', () => {
+    expect(src('$"https://api.example.com/v1/{id')).toEqual(host('api.example.com'));
+    expect(src('$"https://h.example.com/{a}/{b}/z')).toEqual(host('h.example.com'));
+    expect(src('$@"https://d.example.com/{id')).toEqual(host('d.example.com'));
+    expect(src('@$"https://e.example.com/{id')).toEqual(host('e.example.com'));
+    expect(src('$"""https://g.example.com/{id')).toEqual(host('g.example.com'));
+    expect(src('$$"""https://k.example.com/{{id')).toEqual(host('k.example.com'));
+    expect(src('$"https://plain.example.com/v1')).toEqual(host('plain.example.com'));
+    expect(src('$"""https://rawplain.example.com/v1')).toEqual(host('rawplain.example.com'));
+    expect(src('$@"https://vplain.example.com/v1')).toEqual(host('vplain.example.com'));
+    expect(src('$"https://q.example.com/{Get("id")')).toEqual(host('q.example.com')); // a hole may hold quotes
+    expect(src('$"https://{host}/x')).toEqual(code);
+    expect(src('$"{baseUrl}/x')).toEqual(code);
+    expect(src('$@"https://{host}/x')).toEqual(code);
+    expect(src('$$"""https://{{host}}/x')).toEqual(code);
+    expect(src('$"https://a.example.org" + "/x"')).toEqual(code);
+    expect(src('$"https://a.example.org" + $"/x/{id')).toEqual(code);
+    expect(src('$@"https://a.example.org" + "/x"')).toEqual(code);
+  });
+
+  it('C# interpolated strings closed as the file writes them read the same', () => {
     expect(src('$"https://api.example.com/v1/{id}"')).toEqual(host('api.example.com'));
     expect(src('$@"https://d.example.com/{id}"')).toEqual(host('d.example.com'));
-    expect(src('@$"https://e.example.com/{id}"')).toEqual(host('e.example.com'));
     expect(src('$"""https://g.example.com/{id}"""')).toEqual(host('g.example.com'));
     expect(src('$$"""https://k.example.com/{{id}}"""')).toEqual(host('k.example.com'));
     expect(src('$"https://plain.example.com/v1"')).toEqual(host('plain.example.com'));
     expect(src('$"https://{host}/x"')).toEqual(code);
-    expect(src('$"{baseUrl}/x"')).toEqual(code);
-    expect(src('$"https://a.example.org" + "/x"')).toEqual(code);
   });
 
   it('Swift \\( ) interpolation', () => {

@@ -81,6 +81,42 @@ function verbatimText(t: string): string | null {
 }
 
 /**
+ * The text of a C# interpolated string up to and including its first hole's `{` (all of it when it has no
+ * hole), read from source; `rest` starts at the opening quote, after the `$`/`@` prefix. Null when the string
+ * closes before the end of `rest` with no hole first (two literals joined, or a literal and code).
+ *
+ * The engine's range for an interpolated string stops before the closing quote, and before the closing `}`
+ * when the string ends in a hole, so the slice is unclosed in every form: `$"https://c.example.com/{id` for
+ * `$"https://c.example.com/{id}"`, `$"https://b.example/x` for one with no hole (engine-real.test.ts). A
+ * closed string is read the same. Only the text before the first hole is checked: a hole's expression may
+ * hold quotes of its own (`{Get("id")}`), and the host is written before it or chosen at run time.
+ */
+function interpolatedText(rest: string, verbatim: boolean): string | null {
+  const fence = /^"{3,}/.exec(rest)?.[0] ?? '"';
+  const body = rest.slice(fence.length);
+  const brace = body.indexOf('{');
+  const head = brace === -1 ? body : body.slice(0, brace);
+  let text: string;
+  if (fence.length > 1) {
+    // A raw literal: the fence may close only at the very end.
+    const close = head.indexOf(fence);
+    if (close !== -1 && !(brace === -1 && close === head.length - fence.length)) return null;
+    text = close === -1 ? head : head.slice(0, close);
+    if (text.endsWith('"') && close !== -1) return null; // a longer closing run
+  } else if (verbatim) {
+    // `""` is a quote; a lone `"` closes the string, which may happen only at the very end.
+    const m = /^((?:[^"]|"")*)("?)$/.exec(head);
+    if (!m || (m[2] !== '' && brace !== -1)) return null;
+    text = (m[1] as string).replace(/""/g, '"');
+  } else {
+    const m = /^((?:[^"\\\r\n]|\\.)*)("?)$/.exec(head);
+    if (!m || (m[2] !== '' && brace !== -1)) return null;
+    text = m[1] as string;
+  }
+  return brace === -1 ? text : `${text}{`;
+}
+
+/**
  * The text of a string literal in one of C#'s own forms, null when that form is code, or undefined when
  * `t` is in none of them: a verbatim string (`@"..."`, where `""` is a quote), a raw string literal
  * (`"""..."""`, three or more quotes) and an interpolated string (`$"..."`, `$@"..."`, `@$"..."`,
@@ -90,20 +126,14 @@ function verbatimText(t: string): string | null {
  * interpolated string without its closing quote and with its braces dropped (`$"https://c.example/n/y`
  * for `$"https://c.example/{n}/y"`, `$"https://b.example/x` for a string with no hole), so a hole-free
  * interpolation cannot be told from one with a hole (#13012). On source text the interpolated string's
- * text is returned with its holes, and `urlLiteral` reads the host written before the first one.
+ * text up to its first hole is returned (`interpolatedText`), and `urlLiteral` reads the host written before it.
  *
  * A raw literal's `$` is its text (an OData `$metadata`, #13223): `urlLiteral` reads a `$` in the host
  * part as a hole, which is what it is in a Kotlin raw template (`"""https://$host/v1"""`).
  */
 function csharpLiteralText(t: string, source: boolean): string | null | undefined {
   const interpolated = /^(?:\$+@?|@\$)(?=")/.exec(t);
-  if (interpolated) {
-    if (!source) return null;
-    const rest = t.slice(interpolated[0].length);
-    if (interpolated[0].includes('@')) return verbatimText(rest);
-    if (rest.startsWith('"""')) return rawLiteralText(rest);
-    return /^"((?:[^"\\\r\n]|\\.)*)"$/.exec(rest)?.[1] ?? null;
-  }
+  if (interpolated) return source ? interpolatedText(t.slice(interpolated[0].length), interpolated[0].includes('@')) : null;
   if (/^\$*"{3,}/.test(t)) {
     if (t.startsWith('$')) return null;
     return rawLiteralText(t);
