@@ -397,4 +397,121 @@ describe('readRuby', () => {
     expect(r.deps.map((d) => d.name)).toEqual(['out']);
     expect(r.devSkipped).toBe(1);
   });
+
+  it('reads a one-line group block, and the gems in a one-line block of any other call (#12880)', () => {
+    const root = tree({
+      Gemfile: [
+        'group :test do gem "rspec" end',
+        'group(:development) do gem "pry"; gem "debug" end',
+        'platforms :jruby do gem "jdbc" end',
+        'group :test do',
+        '  platforms :mri do gem "byebug" end',
+        'end',
+        'gem "after"',
+        '',
+      ].join('\n'),
+      'Gemfile.lock': lock({
+        specs: ['rspec (3.13.0)', 'pry (0.14.2)', 'debug (1.9.0)', 'jdbc (1.0.0)', 'byebug (11.1.3)', 'after (1.0.0)'],
+        deps: ['after', 'byebug', 'debug', 'jdbc', 'pry', 'rspec'],
+      }),
+    });
+    const r = readRuby(root, ['Gemfile', 'Gemfile.lock']);
+    expect(r.deps.map((d) => `${d.name}@${d.manifest}`)).toEqual(['jdbc@Gemfile:3', 'after@Gemfile:7']);
+    expect(r.devSkipped).toBe(4);
+  });
+
+  it('`end.each do` closes one block and opens another, so the group around it still holds (#12880)', () => {
+    const root = tree({
+      Gemfile: [
+        'group :test do',
+        '  %w[a b].map do |n|',
+        '    n',
+        '  end.each do |n|',
+        '    puts n',
+        '  end',
+        '  gem "rspec"',
+        'end',
+        'gem "after"',
+        '',
+      ].join('\n'),
+      'Gemfile.lock': lock({ specs: ['rspec (3.13.0)', 'after (1.0.0)'], deps: ['after', 'rspec'] }),
+    });
+    const r = readRuby(root, ['Gemfile', 'Gemfile.lock']);
+    expect(r.deps.map((d) => d.name)).toEqual(['after']);
+    expect(r.devSkipped).toBe(1);
+  });
+
+  it('a parenthesized one-line `(if ... end)` opens nothing, and `|| begin` opens a block (#12880)', () => {
+    const root = tree({
+      Gemfile: [
+        'group :test do',
+        '  x = (if ENV["A"] then 1 else 2 end)',
+        '  gem "rspec"',
+        'end',
+        'gem "one"',
+        'group :test do',
+        '  y = ENV["B"] || begin',
+        '    3',
+        '  end',
+        '  gem "capybara"',
+        'end',
+        'gem "two"',
+        '',
+      ].join('\n'),
+      'Gemfile.lock': lock({
+        specs: ['rspec (3.13.0)', 'one (1.0.0)', 'capybara (3.40.0)', 'two (2.0.0)'],
+        deps: ['capybara', 'one', 'rspec', 'two'],
+      }),
+    });
+    const r = readRuby(root, ['Gemfile', 'Gemfile.lock']);
+    expect(r.deps.map((d) => d.name)).toEqual(['one', 'two']);
+    expect(r.devSkipped).toBe(2);
+  });
+
+  it('reads the `%q<name>.freeze` form generated gemspecs use, and a dependency call split after its `(` (#12880)', () => {
+    const root = tree({
+      'gen.gemspec': [
+        '# -*- encoding: utf-8 -*-',
+        'Gem::Specification.new do |s|',
+        '  s.name = %q<gen>.freeze',
+        '  s.add_runtime_dependency(%q<faraday>.freeze, [">= 2"])',
+        '  s.add_dependency(%q(zeitwerk).freeze)',
+        '  s.add_development_dependency(%q<rake>.freeze, [">= 0"])',
+        '  s.add_dependency(',
+        '    "split",',
+        '    ">= 1"',
+        '  )',
+        '  s.add_development_dependency(',
+        '    "minitest"',
+        '  )',
+        'end',
+        '',
+      ].join('\n'),
+      Gemfile: 'gemspec\n',
+      'Gemfile.lock': lock({
+        specs: ['faraday (2.9.0)', 'zeitwerk (2.6.13)', 'rake (13.1.0)', 'split (1.2.0)', 'minitest (5.22.0)'],
+        deps: ['gen!', 'minitest', 'rake'],
+      }),
+    });
+    const r = readRuby(root, ['Gemfile', 'Gemfile.lock', 'gen.gemspec']);
+    expect(r.deps).toEqual([
+      { ecosystem: 'gem', name: 'faraday', version: '2.9.0', manifest: 'gen.gemspec:4' },
+      { ecosystem: 'gem', name: 'zeitwerk', version: '2.6.13', manifest: 'gen.gemspec:5' },
+      { ecosystem: 'gem', name: 'split', version: '1.2.0', manifest: 'gen.gemspec:7' },
+    ]);
+    expect(r.devSkipped).toBe(2);
+  });
+
+  it('a second Gemfile on an already-claimed gemspec dir knows that gem and its development gems (#12880)', () => {
+    const spec = 'Gem::Specification.new do |s|\n  s.name = "mygem"\n  s.add_dependency "faraday"\n  s.add_development_dependency "rake"\nend\n';
+    const root = tree({
+      'mygem.gemspec': spec,
+      Gemfile: 'gemspec\n',
+      'Gemfile.lock': lock({ specs: ['mygem (1.0.0)', 'faraday (2.9.0)', 'rake (13.1.0)'], deps: ['mygem!', 'rake'] }),
+      'spec/dummy/Gemfile': 'gemspec path: "../.."\ngem "puma"\n',
+      'spec/dummy/Gemfile.lock': lock({ specs: ['mygem (1.0.0)', 'faraday (2.9.0)', 'rake (13.1.0)', 'puma (6.4.0)'], deps: ['mygem!', 'puma', 'rake'] }),
+    });
+    const r = readRuby(root, ['Gemfile', 'Gemfile.lock', 'mygem.gemspec', 'spec/dummy/Gemfile', 'spec/dummy/Gemfile.lock']);
+    expect(r.deps.map((d) => `${d.name}@${d.manifest}`)).toEqual(['faraday@mygem.gemspec:3', 'puma@spec/dummy/Gemfile:2']);
+  });
 });

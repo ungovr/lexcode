@@ -51,6 +51,21 @@ interface ParsedGemfile {
   gemspecPaths: string[];
 }
 
+/** A `gem "name", ...` call, or undefined. Its groups are the enclosing blocks' plus its own `group:` option. */
+function gemRef(code: string, rel: string, lineNo: number, outer: string[]): GemRef | undefined {
+  const gem = /^gem\s*\(?\s*(["'])([^"']+)\1(.*)$/.exec(code);
+  if (!gem) return undefined;
+  const opt = /(?:\bgroups?\s*:|:groups?\s*=>)\s*(\[[^\]]*\]|%[iw]\[[^\]]*\]|%[iw]\([^)]*\)|:\w+|"\w+"|'\w+')/.exec(gem[3] as string);
+  const groups = [...outer, ...(opt ? groupNames(opt[1] as string) : [])];
+  return { name: gem[2] as string, manifest: `${rel}:${lineNo}`, dev: groups.length > 0 && groups.every((g) => DEV_GROUPS.has(g)) };
+}
+
+/** The group names a `group ... do` head names; any other block head names none. */
+function blockGroups(head: string): string[] {
+  const g = /^group\b\s*\(?(.*?)\)?\s*$/.exec(head.trim());
+  return g ? groupNames(g[1] as string).filter((n) => n !== 'optional' && n !== 'true' && n !== 'false') : [];
+}
+
 function parseGemfile(rel: string, text: string): ParsedGemfile {
   const gems: GemRef[] = [];
   const evals: string[] = [];
@@ -59,15 +74,9 @@ function parseGemfile(rel: string, text: string): ParsedGemfile {
 
   // A gem or group call that runs on over several lines is read as one.
   for (const { code, line: lineNo } of rubyLines(text, /^(?:gem|group)\b/)) {
-    const gem = /^gem\s*\(?\s*(["'])([^"']+)\1(.*)$/.exec(code);
+    const gem = gemRef(code, rel, lineNo, stack.flat());
     if (gem) {
-      const opt = /(?:\bgroups?\s*:|:groups?\s*=>)\s*(\[[^\]]*\]|%[iw]\[[^\]]*\]|%[iw]\([^)]*\)|:\w+|"\w+"|'\w+')/.exec(gem[3] as string);
-      const groups = [...stack.flat(), ...(opt ? groupNames(opt[1] as string) : [])];
-      gems.push({
-        name: gem[2] as string,
-        manifest: `${rel}:${lineNo}`,
-        dev: groups.length > 0 && groups.every((g) => DEV_GROUPS.has(g)),
-      });
+      gems.push(gem);
       continue;
     }
     const ev = /^eval_gemfile\s*\(?\s*(["'])([^"']+)\1/.exec(code);
@@ -83,11 +92,24 @@ function parseGemfile(rel: string, text: string): ParsedGemfile {
     }
     if (/^end\b/.test(code)) {
       stack.pop();
+      // `end.each do |x|` closes one block and opens the next.
+      if (/\bdo(?:\s*\|[^|]*\|)?$/.test(code)) stack.push([]);
+      continue;
+    }
+    // A one-line block, `group :test do gem "x" end` or `platforms :jruby do gem "y"; gem "z" end`: its gems
+    // take the block's groups, and it leaves the stack as it found it.
+    const one = /^(\S.*?)\s+do\b(?:\s*\|[^|]*\|)?\s*(.*?)\s*\bend$/.exec(code);
+    if (one) {
+      const outer = [...stack.flat(), ...blockGroups(one[1] as string)];
+      for (const piece of (one[2] as string).split(';')) {
+        const g = gemRef(piece.trim(), rel, lineNo, outer);
+        if (g) gems.push(g);
+      }
       continue;
     }
     if (opensRubyBlock(code)) {
-      const g = /^group\b\s*\(?(.*?)\)?\s*do\b/.exec(code);
-      stack.push(g ? groupNames(g[1] as string).filter((n) => n !== 'optional' && n !== 'true' && n !== 'false') : []);
+      const g = /^(.*?)\bdo\b/.exec(code);
+      stack.push(g ? blockGroups(g[1] as string) : []);
     }
   }
   return { gems, evals, gemspecPaths };
@@ -99,17 +121,38 @@ interface ParsedGemspec {
   dev: string[];
 }
 
+/** A string literal's text: `"x"`, `'x'`, or the `%q<x>` / `%q(x)` / `%q{x}` / `%q[x]` forms generated gemspecs use. */
+const STR = String.raw`(?:"([^"]+)"|'([^']+)'|%[qQ]<([^>]+)>|%[qQ]\(([^)]+)\)|%[qQ]\{([^}]+)\}|%[qQ]\[([^\]]+)\])`;
+const NAME_RE = new RegExp(String.raw`\.name\s*=\s*` + STR);
+const DEP_RE = new RegExp(String.raw`\.add_(runtime_|development_)?dependency\s*\(?\s*` + STR);
+
+function strText(m: RegExpExecArray, from: number): string {
+  for (let k = from; k < from + 6; k++) if (m[k] !== undefined) return m[k] as string;
+  return '';
+}
+
 function parseGemspec(rel: string, text: string): ParsedGemspec {
   const out: ParsedGemspec = { runtime: [], dev: [] };
-  text.split(/\r?\n/).forEach((raw, i) => {
-    const code = stripRubyComment(raw);
-    const nm = /\.name\s*=\s*(["'])([^"']+)\1/.exec(code);
-    if (nm && out.name === undefined) out.name = nm[2] as string;
-    const dep = /\.add_(runtime_|development_)?dependency\s*\(?\s*(["'])([^"']+)\2/.exec(code);
-    if (!dep) return;
-    if (dep[1] === 'development_') out.dev.push(dep[3] as string);
-    else out.runtime.push({ name: dep[3] as string, manifest: `${rel}:${i + 1}` });
-  });
+  const lines = text.split(/\r?\n/);
+  for (let i = 0; i < lines.length; i++) {
+    let code = stripRubyComment(lines[i] as string);
+    const nm = NAME_RE.exec(code);
+    if (nm && out.name === undefined) out.name = strText(nm, 1);
+    // `s.add_dependency(` with its arguments on the lines below: read the first argument line with it.
+    if (/\.add_(?:runtime_|development_)?dependency\s*\(\s*$/.test(code)) {
+      for (let j = i + 1; j < lines.length; j++) {
+        const next = stripRubyComment(lines[j] as string).trim();
+        if (next === '') continue;
+        code += next;
+        break;
+      }
+    }
+    const dep = DEP_RE.exec(code);
+    if (!dep) continue;
+    const name = strText(dep, 2);
+    if (dep[1] === 'development_') out.dev.push(name);
+    else out.runtime.push({ name, manifest: `${rel}:${i + 1}` });
+  }
   return out;
 }
 
@@ -268,10 +311,12 @@ export function readRuby(root: string, files: string[]): ReaderResult {
       specFiles.push(...(gemspecsByDir.get(d) ?? []));
     }
     // Bundler lists a gemspec's development dependencies in DEPENDENCIES, so they are known before the fallback.
+    // They come from every gemspec the group points at, claimed by an earlier Gemfile or not: a second Gemfile
+    // on the same gemspec (a dummy app's) still must not record the gem itself or its development gems.
     const own = new Set<string>();
     const specDev = new Set<string>();
     const specRuntime = new Set<string>();
-    for (const f of specFiles) {
+    for (const f of [...specDirs].flatMap((d) => gemspecsByDir.get(d) ?? [])) {
       const t = readText(root, f);
       const parsedSpec = t === undefined ? undefined : parseGemspec(f, t);
       own.add(parsedSpec?.name ?? baseName(f).slice(0, -'.gemspec'.length));
