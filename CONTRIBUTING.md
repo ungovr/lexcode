@@ -461,7 +461,9 @@ Swift or Rust on that fixture followed by filler (`scripts/filler.mjs`, where
 every function returns a variable), at 90 KB and 900 KB, beside a bare rule that
 only parses the same filler. It names a rule whose time grows more than twice as
 fast as the bare rule's for the 10x file, or that takes more than five times the
-bare rule's time on 900 KB, and every rule the engine failed on. It names its
+bare rule's time on 900 KB, and every rule the engine failed on. Each time is
+the lowest of several runs, and the 90 KB file always gets three, since one 90 KB
+time inflated by load makes the growth ratio look smaller than it is. It names its
 two test files with 12 characters or more on purpose, because of the Swift
 scanner fault in "Swift pattern notes"; a Swift time taken on a shorter name is
 not a parse time. That fault also follows the rule loaded, so a Swift rule over
@@ -471,10 +473,13 @@ show: a rule over on it is over, and a rule within bounds on it is cleared only
 when its file names no modifier or attribute (`final`, `open`, `public`,
 `internal`, `private`, `fileprivate`, `@...`) outside a `pattern-not`, read
 conservatively: the word anywhere in a pattern or a regex (`\bfinal` included),
-and an `@` before a letter, `\w`, `(` or `[`. A rule that does is listed as not
-cleared, because the plain filler gives it nothing to match, and a person
-decides. `node scripts/rule-cost-check.mjs` checks all three
-outcomes on the engine.
+and an `@` before a letter, `\w`, `(` or `[`, and only when it matched no more
+on the first filler's 900 KB file than on the plain one's, which catches a rule
+keyed on modified declarations through a shape that names no modifier
+(`^\S+ class`). A rule that fails either test is listed as not cleared, because
+the plain filler gives it nothing to match, and a person decides; the Swift
+rules that name a modifier are timed by hand at each release (RELEASING.md).
+`node scripts/rule-cost-check.mjs` checks all three outcomes on the engine.
 
 ### Kotlin pattern notes
 

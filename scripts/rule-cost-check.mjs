@@ -2,14 +2,17 @@
 // Checks scripts/rule-cost.mjs against the engine: `node scripts/rule-cost-check.mjs [<rule-cost script>]`.
 //
 // Release-time only, beside rule-cost.mjs (it runs the real engine for about two minutes). It copies the script
-// into a scratch tree whose rules/ holds five Swift rules, runs it there, and fails unless:
+// into a scratch tree whose rules/ holds six Swift rules, runs it there, and fails unless:
 //   - swift-quadratic-check, a rule that is itself quadratic on any class (each class whose number ends in 00
 //     searches the rest of the file for a name that is never there), is named OVER;
-//   - three rules quadratic only on a modified class are named NOT CLEARED, since the plain filler has none to match
-//     (see MODIFIER_WORD and ATTRIBUTE in rule-cost.mjs): swift-final-quadratic-check (`^final class`),
-//     swift-escaped-final-quadratic-check (`\bfinal class`, a modifier behind a regex escape) and
+//   - four rules quadratic only on a modified class are named NOT CLEARED, since the plain filler has none to match
+//     (see scripts/swift-modifiers.mjs): swift-final-quadratic-check (`^final class`),
+//     swift-escaped-final-quadratic-check (`\bfinal class`, a modifier behind a regex escape),
 //     swift-attribute-quadratic-check (`^(?:@\w+\s+)*\S+ class`, keyed on a regex attribute and a word before
-//     `class`, so it matches `final class` and never a plain `class`);
+//     `class`, so it matches `final class` and never a plain `class`), and swift-unnamed-modifier-quadratic-check
+//     (`^\S+ class`, which names no modifier or attribute at all, so only its match counts on the two fillers can
+//     keep it: it matches each first-filler class whose number ends in 0, ten times as many as the others read, so
+//     its quadratic part outweighs the parse a matching file costs, and nothing on the plain filler, #13322);
 //   - swift-scanner-hit-check, a copy of swift-health-read, which the pinned engine's Swift scanner bug slows to about
 //     56 s on rule-cost's first Swift filler (see BARE_HIT in rule-cost.mjs), is timed and is not OVER;
 //   - nothing failed, and the script exits 1.
@@ -20,7 +23,7 @@
 // The engine is LEXCODE_ENGINE, or the one the built CLI names (`npm run build`, `lexcode engine fetch`).
 
 import { execFileSync, spawnSync } from 'node:child_process';
-import { copyFileSync, mkdirSync, mkdtempSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -42,6 +45,8 @@ const NOT_CLEARED = [
   ['swift-final-quadratic-check', String.raw`(?m)^final class (C[0-9]*00) (?=(?s:.*)C9999999 = )`],
   ['swift-escaped-final-quadratic-check', String.raw`(?m)\bfinal class (C[0-9]*00) (?=(?s:.*)C9999999 = )`],
   ['swift-attribute-quadratic-check', String.raw`(?m)^(?:@\w+\s+)*\S+ class (C[0-9]*00) (?=(?s:.*)C9999999 = )`],
+  // the empty alternative lets each class match after the lookahead has read the rest of the file for nothing
+  ['swift-unnamed-modifier-quadratic-check', String.raw`(?m)^\S+ class (C[0-9]*0) (?:(?=(?s:.*)C9999999 = )|)`],
 ];
 const notClearedRule = (stem, regex) => `rules:
   - id: lexcode.check.${stem}
@@ -56,7 +61,10 @@ try {
   mkdirSync(join(tree, 'scripts'));
   mkdirSync(join(tree, 'rules', 'check'), { recursive: true });
   copyFileSync(script, join(tree, 'scripts', 'rule-cost.mjs'));
-  copyFileSync(join(dirname(script), 'filler.mjs'), join(tree, 'scripts', 'filler.mjs')); // rule-cost.mjs imports its filler
+  // rule-cost.mjs imports its filler and its Swift clearing tests; a script from before #13322 has no second file
+  for (const f of ['filler.mjs', 'swift-modifiers.mjs']) {
+    if (existsSync(join(dirname(script), f))) copyFileSync(join(dirname(script), f), join(tree, 'scripts', f));
+  }
   symlinkSync(join(ROOT, 'node_modules'), join(tree, 'node_modules'), 'dir'); // rule-cost.mjs reads rule files with yaml
   const rules = join(tree, 'rules', 'check');
   writeFileSync(join(rules, 'swift-quadratic-check.yml'), QUADRATIC);
