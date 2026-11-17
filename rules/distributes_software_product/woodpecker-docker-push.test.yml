@@ -1,0 +1,48 @@
+# lexcode-expect: 5
+# A Woodpecker (or Drone) step that runs a container-image plugin with a repository to push to.
+variables:
+  - &docker_settings
+    username:
+      from_secret: docker_username
+
+steps:
+  test:
+    image: rust:1.92
+    commands:
+      - cargo test
+
+  publish_release_docker:
+    image: woodpeckerci/plugin-docker-buildx
+    settings:
+      repo: example/relay
+      dockerfile: docker/Dockerfile
+      platforms: linux/amd64
+      tag: ${CI_COMMIT_TAG}
+    when:
+      - event: tag
+
+  publish_nightly:
+    image: plugins/docker:20
+    settings:
+      registry: ghcr.io
+      repo: ghcr.io/example/relay
+      tags: nightly
+
+  publish_kaniko:
+    image: docker.io/woodpeckerci/plugin-kaniko:2.1
+    settings:
+      repo: example/relay
+      tags: latest
+
+---
+# The list form of steps, and settings written before the image.
+steps:
+  - name: publish_list_form
+    image: woodpeckerci/plugin-docker-buildx:5
+    settings:
+      repo: example/relay
+
+  - name: settings_first
+    settings:
+      repo: ghcr.io/example/relay
+    image: plugins/docker-buildx

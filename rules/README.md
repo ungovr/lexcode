@@ -1622,7 +1622,7 @@ The engine sets most of these limits, and the rules' comments point here.
   staff, and an inline staff-named `mod` is excluded by a text regex, so a brace
   in a string inside it can end its range early.
 - **Not read.** A serenity (Discord) or teloxide (Telegram) bot is not read as
-  a chatbot, and no Rust rule reads Woodpecker CI (`.woodpecker.yml`), `tauri.conf.json`, `cargo-apk` metadata, a
+  a chatbot, and no Rust rule reads `tauri.conf.json`, `cargo-apk` metadata, a
   `publish.workspace = true` that the workspace turns on, a Dioxus `launch` with
   the `mobile` feature, SIP stacks, or a TLS stack chosen only by the `rustls-tls`
   feature with no call. Twilio calls placed through an OpenAPI-generated client,
