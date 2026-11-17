@@ -228,23 +228,45 @@ describe('release: the rule set is complete and well formed', () => {
       swift: String.raw`(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?`,
       rust: String.raw`(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+`,
     };
-    const offShape = (file: string, rx: string): boolean => {
-      const lang = file.startsWith('swift-') ? 'swift' : file.startsWith('rs-') ? 'rust' : undefined;
-      if (lang === undefined || !rx.includes('\\A(?=') || !(lang === 'swift' ? /\bimport\b/ : /\buse\b/).test(rx)) return false;
+    // The keyword followed by white space as a regex writes it: an import or use line is what the regex reads.
+    // A content guard that only names a word (`importFile`, `user`) is not one.
+    const keyword = { swift: /(?<![\w$])import(?=\\s|\s|\[ \\t\]|\\x20)/, rust: /(?<![\w$])use(?=\\s|\s|\[ \\t\]|\\x20)/ };
+    // By the rule's languages, so a Swift or Rust rule in a file of another name is held to the shape too, and by
+    // the file name for a regex outside a rule (#13303).
+    const offShape = (lang: 'swift' | 'rust', rx: string): boolean => {
+      if (!keyword[lang].test(rx)) return false;
       return !rx.startsWith(opening[lang]) || !rx.endsWith(').*');
     };
-    // A deliberately off-shape copy of each is refused: no BOM, no line anchor, a lazy tail.
-    expect(offShape('swift-x.yml', String.raw`(?ms)\A(?=.*^[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?Firebase\b).*`)).toBe(true);
-    expect(offShape('rs-x.yml', String.raw`(?s)\A(?=.*use\s+rig\b).*`)).toBe(true);
-    expect(offShape('rs-x.yml', `${opening.rust}rig\\b).*?`)).toBe(true);
-    expect(offShape('swift-x.yml', `${opening.swift}Firebase\\b).*`)).toBe(false);
-    expect(offShape('rs-x.yml', `${opening.rust}ring::[^;]*\\bLessSafeKey\\b).*`)).toBe(false);
+    // A deliberately off-shape copy of each is refused: no BOM, no line anchor, a lazy tail, and a guard with no
+    // whole-file lookahead at all (#13303: before, only a regex holding `\A(?=` was checked).
+    expect(offShape('swift', String.raw`(?ms)\A(?=.*^[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?Firebase\b).*`)).toBe(true);
+    expect(offShape('rust', String.raw`(?s)\A(?=.*use\s+rig\b).*`)).toBe(true);
+    expect(offShape('rust', `${opening.rust}rig\\b).*?`)).toBe(true);
+    expect(offShape('swift', String.raw`(?m)^import\s+Firebase\b`)).toBe(true);
+    expect(offShape('swift', String.raw`import[ \t]+FirebaseAuth`)).toBe(true);
+    expect(offShape('rust', String.raw`(?m)^\s*use\s+async_openai\b`)).toBe(true);
+    expect(offShape('swift', `${opening.swift}Firebase\\b).*`)).toBe(false);
+    expect(offShape('rust', `${opening.rust}ring::[^;]*\\bLessSafeKey\\b).*`)).toBe(false);
+    // Content guards that name a word, not an import or use line, are the rule's own.
+    expect(offShape('swift', String.raw`\bimportDocument\(`)).toBe(false);
+    expect(offShape('rust', String.raw`(?s)\A(?=.*\buser_agent\b).*`)).toBe(false);
     const bad: string[] = [];
     const walk = (dir: string): void => {
       for (const e of readdirSync(dir)) {
         const p = join(dir, e);
-        if (statSync(p).isDirectory()) walk(p);
-        else if (e.endsWith('.yml')) for (const rx of patternRegexes(parse(readFileSync(p, 'utf8')))) if (offShape(e, rx)) bad.push(`${e}: ${rx}`);
+        if (statSync(p).isDirectory()) {
+          walk(p);
+          continue;
+        }
+        if (!/\.ya?ml$/.test(e)) continue;
+        const doc = parse(readFileSync(p, 'utf8')) as { rules?: { languages?: unknown }[] } | null;
+        for (const rule of Array.isArray(doc?.rules) ? doc.rules : []) {
+          const langs = Array.isArray(rule.languages) ? rule.languages.map((l) => String(l).toLowerCase()) : [];
+          const checked = new Set<'swift' | 'rust'>();
+          if (langs.includes('swift') || e.startsWith('swift-')) checked.add('swift');
+          if (langs.includes('rust') || e.startsWith('rs-')) checked.add('rust');
+          for (const rx of patternRegexes(rule)) for (const lang of checked) if (offShape(lang, rx)) bad.push(`${e}: ${rx}`);
+        }
       }
     };
     walk(rulesDir);
