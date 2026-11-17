@@ -45,6 +45,27 @@ function installingJobs(wf: Workflow): [string, Job][] {
   );
 }
 
+/**
+ * The runner labels a job runs on: its `runs-on`, or its matrix's `os` list when `runs-on` is
+ * `${{ matrix.os }}`. Any other expression fails the test, since the gate cannot be checked against it.
+ */
+function runnersOf(id: string, job: Job): string[] {
+  const runsOn = job['runs-on'];
+  expect(runsOn, `${id} has runs-on`).toBeDefined();
+  if (runsOn === '${{ matrix.os }}') {
+    const osList = job.strategy?.matrix?.os ?? [];
+    expect(osList.length, `${id} has a matrix os list`).toBeGreaterThan(0);
+    return osList;
+  }
+  expect(runsOn, `${id} runs-on is a plain label or \${{ matrix.os }}`).not.toContain('${{');
+  return [runsOn as string];
+}
+
+/** Every runner some job of the workflow installs the lockfile on. */
+function installRunners(wf: Workflow): string[] {
+  return [...new Set(installingJobs(wf).flatMap(([id, job]) => runnersOf(id, job)))].sort();
+}
+
 function needsSocket(job: Job): boolean {
   const needs = Array.isArray(job.needs) ? job.needs : job.needs ? [job.needs] : [];
   return needs.includes('socket');
@@ -57,18 +78,16 @@ const LABEL_PLATFORM: Record<string, string> = {
 };
 
 describe('workflows: the Socket Firewall gate covers what it guards, and nothing more', () => {
-  it('ci.yml runs the gate on every OS its test matrix installs on', () => {
-    const ci = workflow('ci.yml');
-    const osList = ci.jobs.test?.strategy?.matrix?.os ?? [];
-    expect(osList.length).toBeGreaterThan(0);
-    expect([...socketRunners(ci)].sort()).toEqual([...osList].sort());
+  it('each workflow runs the gate on exactly the runners its jobs install the lockfile on', () => {
+    for (const name of ['ci.yml', 'release.yml']) {
+      const wf = workflow(name);
+      expect([...socketRunners(wf)].sort(), `${name} socket runners`).toEqual(installRunners(wf));
+    }
   });
 
-  it('release.yml runs the gate only on the runner its build installs on', () => {
-    const release = workflow('release.yml');
-    const buildRunner = release.jobs.build?.['runs-on'];
-    expect(buildRunner).toBeDefined();
-    expect(socketRunners(release)).toEqual([buildRunner]);
+  it('a release installs only on Linux, so its gate never waits on a macOS runner', () => {
+    expect(socketRunners(workflow('release.yml'))).toEqual(['ubuntu-24.04']);
+    expect(socketRunners(workflow('ci.yml'))).toContain('macos-15');
   });
 
   it('every job that installs the lockfile waits on the gate', () => {
