@@ -16,12 +16,13 @@
 //   weight  the rule's 900 KB time over the bare rule's. A rule that costs several parses runs out of its
 //           30 s on a slower machine.
 // Each size is timed in an engine run of its own, and each time is the lowest of up to three runs, because load
-// on the machine only adds time. The 90 KB file always gets all three (SMALL_SAMPLES): a 90 KB time inflated by load
-// lowers the growth ratio and would let a rule through, while the 900 KB file of a rule within both bounds after its
-// first run is not run again. A Swift rule over a bound is measured again on a second filler the engine's Swift scanner
-// bug cannot touch (`plain`, in filler.mjs); a rule within bounds there is cleared only if it names no modifier or
-// attribute and matches no more on the first filler than on the plain one (BARE_HIT, scripts/swift-modifiers.mjs). The script names
-// every rule over a bound, every rule not cleared, and every rule the engine failed on, and exits 1 if there is any.
+// on the machine only adds time. The 90 KB file is run in all three rounds: a 90 KB time inflated by load lowers the
+// growth ratio and would let a rule through, while the 900 KB file of a rule within both bounds after its first run is
+// not run again (lowest, scripts/cost-samples.mjs). A Swift rule over a bound is measured again on a second filler
+// the engine's Swift scanner bug cannot touch (`plain`, in filler.mjs); a rule within bounds there is cleared only if
+// it names no modifier or attribute and matches no more on the first filler than on the plain one (BARE_HIT,
+// scripts/swift-modifiers.mjs). The script names every rule over a bound, every rule not cleared, and every rule the
+// engine failed on, and exits 1 if there is any.
 //
 // It needs the built CLI for the engine's path (`npm run build`, then `lexcode engine fetch` once), or
 // LEXCODE_ENGINE=<path>. Rules for build and config files (Gradle, Maven, Composer, package manifests) are
@@ -32,6 +33,7 @@ import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'n
 import { tmpdir } from 'node:os';
 import { basename, dirname, extname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { lowest } from './cost-samples.mjs';
 import { FILLER, fill } from './filler.mjs';
 import { namedModifiers, notClearedReasons } from './swift-modifiers.mjs';
 
@@ -41,12 +43,6 @@ const SMALL_KB = 90;
 const LARGE_KB = 900;
 const GROWTH_MAX = 2;
 const WEIGHT_MAX = 5;
-const ATTEMPTS = 3;
-/**
- * Runs of the 90 KB file, always: it is cheap, and one sample taken under load keeps a rule's growth ratio low, which
- * fails open here and kept a probe under the bound in rule-cost-check.mjs (#13322).
- */
-const SMALL_SAMPLES = 3;
 /**
  * The two files' names, without the extension. With it, each path the engine is handed (`unit-090kb.swift`, run in the
  * files' own directory) is 12 characters or more on purpose: the pinned engine's Swift
@@ -168,32 +164,10 @@ function scan(engine, config, cwd, targets) {
 }
 
 /**
- * The lowest time per file over up to ATTEMPTS rounds, and its match count. A file named in `always` is run every
- * round; the others stop once `enough` says so. Each file is timed in an engine run of its own, so one file's parse
- * cannot change the allocations another is parsed after.
- */
-async function lowest(engine, config, dir, files, enough = () => false, always = []) {
-  const best = {};
-  const counts = {};
-  let settled = false;
-  for (let i = 0; i < ATTEMPTS; i++) {
-    for (const f of files) {
-      if (settled && !always.includes(f)) continue;
-      const r = await scan(engine, config, dir, [f]);
-      if (r.error) return { error: r.error };
-      if (r.times[f] !== undefined) best[f] = Math.min(best[f] ?? Infinity, r.times[f]);
-      counts[f] = r.counts[f];
-    }
-    if (files.some((f) => best[f] === undefined)) break;
-    settled = enough(best);
-    if (settled && always.length === 0) break;
-  }
-  return { best, counts };
-}
-
-/**
- * Writes the two files and times them with `lowest`, the 90 KB file SMALL_SAMPLES times: `{ small, large, matches }`
- * (`matches` is the 900 KB file's match count), `{ error }` or `{ notRun: true }`.
+ * Writes the two files and times them with `lowest`, the 90 KB file in every round: it is cheap, and one sample taken
+ * under load keeps a rule's growth ratio low, which fails open here and kept a probe under the bound in
+ * rule-cost-check.mjs (#13322). Resolves to `{ small, large, matches }` (`matches` is the 900 KB file's match count, of
+ * its fastest run), `{ error }` or `{ notRun: true }`.
  */
 async function timePair(engine, config, dir, ext, text, enough = () => false) {
   const small = `${SMALL_NAME}${ext}`;
@@ -201,14 +175,10 @@ async function timePair(engine, config, dir, ext, text, enough = () => false) {
   writeFileSync(join(dir, small), text.small);
   writeFileSync(join(dir, large), text.large);
   try {
-    const r = await lowest(
-      engine,
-      config,
-      dir,
-      [small, large],
-      (t) => t[small] !== undefined && t[large] !== undefined && enough({ small: t[small], large: t[large] }),
-      SMALL_SAMPLES > 1 ? [small] : [],
-    );
+    const r = await lowest((f) => scan(engine, config, dir, [f]), [small, large], {
+      enough: (t) => t[small] !== undefined && t[large] !== undefined && enough({ small: t[small], large: t[large] }),
+      always: [small],
+    });
     if (r.error) return { error: r.error };
     if (r.best[small] === undefined || r.best[large] === undefined) return { notRun: true };
     return { small: r.best[small], large: r.best[large], matches: r.counts[large] };
