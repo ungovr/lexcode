@@ -664,7 +664,7 @@ function blankTemplateTags(body: string, opts: TemplateOptions): string {
  * Keeps the body of each qualifying `<script>` element and replaces every
  * other character except line breaks with a space, so line and column numbers
  * hold. Returns null when no block qualifies. In a PHP or Blade view the blocks
- * are looked for in `blankPhpRegions(text)`, so only inline HTML holds one, and
+ * are looked for in `blankPhpRegions(text)`, and in an ERB view in `blankErbTags(text)`, so only markup holds one, and
  * each body is taken from the original text and then blanked; blanking keeps
  * every length, so the offsets agree.
  */
@@ -677,7 +677,9 @@ export function blankOutsideScripts(text: string, opts: TemplateOptions = {}): {
 function qualifyingScripts(text: string, opts: TemplateOptions): { blocks: ScriptBlock[]; lang: 'ts' | 'js' } | null {
   // No "<script" at all, as in a PHP class file: nothing to find, and no PHP region to walk.
   if (!/<script/i.test(text)) return null;
-  const searched = opts.php === true || opts.blade === true ? blankPhpRegions(text) : text;
+  // A script inside a PHP region or an ERB tag (a commented-out `<%# <script> %>`, or a Ruby string) is code
+  // text, not markup (#12882). Blanking keeps every length, so the blocks' offsets are the text's.
+  const searched = opts.php === true || opts.blade === true ? blankPhpRegions(text) : opts.erb === true ? blankErbTags(text) : text;
   const blocks = findScriptBlocks(searched).filter((b) => qualifies(b, searched));
   if (blocks.length === 0) return null;
   return { blocks, lang: blocks.some(isTypeScript) ? 'ts' : 'js' };

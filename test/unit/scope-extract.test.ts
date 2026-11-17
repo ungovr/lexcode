@@ -340,6 +340,54 @@ describe('ERB views', () => {
     expect(byOriginal.get('a.html')).toContain('<%= x %>');
     expect(byOriginal.get('b.erb')).not.toContain('<%');
   });
+
+  describe('a script inside an ERB tag is Ruby text, not markup (#12882)', () => {
+    function extractErb(body: string): string[] {
+      const root = tmp();
+      const out = tmp();
+      write(root, 'app/views/a.html.erb', body);
+      return extractScripts(root, ['app/views/a.html.erb'], out).map((p) => readFileSync(p.tempPath, 'utf8'));
+    }
+
+    it('a script inside an ERB comment tag gives no copy, on one line or over several', () => {
+      expect(extractErb("<%# <script>gtag('config', 'x');</script> %>\n")).toEqual([]);
+      expect(extractErb(['<%#', '  <script>', "    gtag('config', 'x');", '  </script>', '%>', ''].join('\n'))).toEqual([]);
+      expect(blankOutsideScripts("<%# <script>gtag('config', 'x');</script> %>", { erb: true })).toBeNull();
+    });
+
+    it('a script inside a Ruby string of a code or output tag gives no copy', () => {
+      expect(extractErb('<%= "<script>track();</script>".html_safe %>\n')).toEqual([]);
+      expect(extractErb("<% html = '<script>track();</script>' %>\n")).toEqual([]);
+    });
+
+    it('a live script after a commented-out one is still read, on its own line', () => {
+      const view = ["<%# <script>old();</script> %>", '<script>', "  gtag('config', 'x');", '</script>', ''].join('\n');
+      const copies = extractErb(view);
+      expect(copies).toHaveLength(1);
+      sameShape(view, copies[0]!);
+      expect(lines(copies[0]!)[0]!.trim()).toBe('');
+      expect(lines(copies[0]!)[2]).toBe("  gtag('config', 'x');");
+    });
+
+    it('a </script> inside an ERB tag in a block does not end the block', () => {
+      const view = `<script>var s = "<%= '</script>' %>"; track();</script>`;
+      const copies = extractErb(view);
+      expect(copies).toHaveLength(1);
+      expect(copies[0]).toContain(' track();');
+      expect(copies[0]).not.toContain('<');
+    });
+
+    it('a <%% literal is not a tag, so a script after it is read', () => {
+      expect(extractErb('<p><%% x %></p><script>track();</script>')).toHaveLength(1);
+    });
+
+    it('an .html file keeps reading a script that sits inside ERB-like text', () => {
+      const root = tmp();
+      const out = tmp();
+      write(root, 'a.html', "<%# <script>gtag('config', 'x');</script> %>");
+      expect(extractScripts(root, ['a.html'], out)).toHaveLength(1);
+    });
+  });
 });
 
 describe('JSP views', () => {
