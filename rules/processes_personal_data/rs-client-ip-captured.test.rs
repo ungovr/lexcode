@@ -1,4 +1,4 @@
-// lexcode-expect: 8
+// lexcode-expect: 14
 use actix_web::{HttpRequest, HttpResponse};
 use axum::extract::{ConnectInfo, State};
 use axum::http::HeaderMap;
@@ -76,4 +76,57 @@ pub async fn sign_up(aci::InsecureClientIp(addr): aci::InsecureClientIp) -> sign
         signup_ip: Set(text),
         ..Default::default()
     }
+}
+
+// A test other than is_ok at the end of a write chain tests the write, not the address.
+pub async fn touch(req: HttpRequest, pool: PgPool) -> bool {
+    let ip = req.connection_info().realip_remote_addr().map(str::to_owned);
+    sqlx::query("UPDATE sessions SET last_ip = $1")
+        .bind(ip)
+        .execute(&pool)
+        .await
+        .is_ok_and(|r| r.rows_affected() > 0)
+}
+
+pub async fn first_visit(req: HttpRequest, pool: PgPool) -> bool {
+    let ip = req.connection_info().realip_remote_addr().map(str::to_owned);
+    sqlx::query("INSERT INTO visits (ip) VALUES ($1) ON CONFLICT DO NOTHING RETURNING id")
+        .bind(ip)
+        .fetch_all(&pool)
+        .await
+        .unwrap_or_default()
+        .is_empty()
+}
+
+// The statement held in a const (in the file, in an impl, in the function) or built with format!.
+const INSERT_LOGIN: &str = r#"
+    INSERT INTO logins (ip) VALUES ($1)
+"#;
+
+pub async fn login_row(req: HttpRequest, pool: PgPool) {
+    let ip = req.connection_info().realip_remote_addr().map(str::to_owned);
+    let _ = sqlx::query(INSERT_LOGIN).bind(ip).execute(&pool).await;
+}
+
+pub struct Visits {
+    pool: PgPool,
+}
+
+impl Visits {
+    const TOUCH: &'static str = "UPDATE visitors SET ip = $1";
+
+    pub async fn touch(&self, req: HttpRequest) {
+        let ip = req.connection_info().realip_remote_addr().map(str::to_owned);
+        let _ = sqlx::query(Self::TOUCH).bind(ip).execute(&self.pool).await;
+    }
+}
+
+pub async fn hit(req: HttpRequest, pool: PgPool, table: &str) {
+    const SQL: &str = "INSERT INTO hits (ip) VALUES ($1)";
+    let ip = req.connection_info().realip_remote_addr().map(str::to_owned);
+    let _ = sqlx::query(SQL).bind(ip.clone()).execute(&pool).await;
+    let _ = sqlx::query(&format!("INSERT INTO {table} (ip) VALUES ($1)"))
+        .bind(ip)
+        .execute(&pool)
+        .await;
 }

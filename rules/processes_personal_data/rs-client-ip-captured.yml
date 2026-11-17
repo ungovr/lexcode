@@ -76,10 +76,17 @@ rules:
       - patterns:
           - pattern-either:
               - pattern: $F(...)
-              - pattern: $C.$F(...)
-          # A Result or Option test at the end of a chain is not a check on the address: the
-          # sanitizer covers the whole chain, so `query("INSERT ...").bind(ip).execute(db).await.is_ok()`
-          # would hide its own write.
+              # A test at the end of a write chain is a test of the write, not a check on the
+              # address: the sanitizer would cover the whole chain, so
+              # `query("INSERT ...").bind(ip).execute(db).await.is_ok_and(..)` or `.is_empty()`
+              # would hide its own write. A receiver that binds, inserts, updates or executes is
+              # not a check.
+              - patterns:
+                  - pattern: $C.$F(...)
+                  - metavariable-regex:
+                      metavariable: $C
+                      regex: (?s)^(?!.*(?:\.bind\s*\(|\binsert_into\s*\(|\bupdate\s*\(|\.values\s*\(|\.set\s*\(|\.execute\s*\(|\bquery\w*!?\s*\())
+          # A Result or Option test (is_ok, is_some) is never a check on the address.
           - metavariable-regex:
               metavariable: $F
               regex: ^(.*::)?(?!is_(ok|err|some|none)$)(is|has|can|check|verify|validate|allow|allows|matches)(_\w+)?$
@@ -121,20 +128,58 @@ rules:
                   regex: (?is)^(?:\s|//[^\n]*)*(?:[\w:]+\s*,(?:\s|//[^\n]*)*)?(?:r#*)?"\s*(?:insert|update)\b
           # A bind on a query built from an INSERT or UPDATE statement. Binds chain
           # (`.bind(a).bind(ip)`), so the bind is matched on any receiver and the receiver's
-          # chain is searched for the query and its statement.
+          # chain is searched for the query and its statement: a string literal, or one built
+          # with format! (`query(&format!("INSERT INTO {} ...", table))`), whose format string
+          # is the statement.
           - patterns:
               - pattern: $Q.bind(...)
               - metavariable-pattern:
                   metavariable: $Q
-                  patterns:
-                    - pattern-either:
-                        - pattern: sqlx::query($SQL)
-                        - pattern: sqlx::query_as($SQL)
-                        - pattern: sqlx::query_scalar($SQL)
-                        - pattern: diesel::sql_query($SQL)
-                    - metavariable-regex:
-                        metavariable: $SQL
-                        regex: (?is)^(?:r#*)?"\s*(?:insert|update)\b
+                  pattern-either:
+                    - patterns:
+                        - pattern-either:
+                            - pattern: sqlx::query($SQL)
+                            - pattern: sqlx::query_as($SQL)
+                            - pattern: sqlx::query_scalar($SQL)
+                            - pattern: diesel::sql_query($SQL)
+                        - metavariable-regex:
+                            metavariable: $SQL
+                            regex: (?is)^(?:r#*)?"\s*(?:insert|update)\b
+                    - patterns:
+                        - pattern-either:
+                            - pattern: sqlx::query(&format!($...FMT))
+                            - pattern: sqlx::query_as(&format!($...FMT))
+                            - pattern: sqlx::query_scalar(&format!($...FMT))
+                            - pattern: diesel::sql_query(&format!($...FMT))
+                            - pattern: sqlx::query(format!($...FMT).as_str())
+                            - pattern: sqlx::query_as(format!($...FMT).as_str())
+                            - pattern: sqlx::query_scalar(format!($...FMT).as_str())
+                            - pattern: diesel::sql_query(format!($...FMT))
+                        - metavariable-regex:
+                            metavariable: $...FMT
+                            regex: (?is)^\s*(?:r#*)?"\s*(?:insert|update)\b
+          # The same bind on a statement held in a `const` declared before it, in the file, in an
+          # `impl` (`Self::INSERT_VISIT`) or in the function. A `const` declared after its use is
+          # not read.
+          - patterns:
+              - pattern-inside: |
+                  const $C: $CT = $SQL;
+                  ...
+              - metavariable-regex:
+                  metavariable: $SQL
+                  regex: (?is)^(?:r#*)?"\s*(?:insert|update)\b
+              - pattern: $Q.bind(...)
+              - metavariable-pattern:
+                  metavariable: $Q
+                  pattern-either:
+                    - pattern: sqlx::query($C)
+                    - pattern: sqlx::query_as($C)
+                    - pattern: sqlx::query_scalar($C)
+                    - pattern: diesel::sql_query($C)
+                    - pattern: sqlx::query(Self::$C)
+                    - pattern: sqlx::query_as(Self::$C)
+                    - pattern: sqlx::query_scalar(Self::$C)
+                    - pattern: diesel::sql_query(Self::$C)
           - pattern: diesel::insert_into(...).values(...)
           - pattern: diesel::update(...).set(...)
           - pattern: sea_orm::ActiveValue::Set(...)

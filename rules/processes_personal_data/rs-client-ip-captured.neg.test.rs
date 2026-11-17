@@ -104,3 +104,20 @@ pub fn announce(egress: &Egress) {
     let ip = egress.client_ip();
     info!("egress address {}", ip);
 }
+
+// A lookup statement held in a const or built with format!, and an emptiness test on the address
+// whose answer is logged: the address is matched or tested, not kept.
+const LOOKUP_BAN: &str = "SELECT 1 FROM banned_ips WHERE ip = $1";
+
+pub async fn lookups(req: HttpRequest, pool: sqlx::PgPool, table: &str) -> bool {
+    let ip = req.connection_info().realip_remote_addr().unwrap_or("").to_owned();
+    let missing = ip.is_empty();
+    info!("no address {}", missing);
+    let banned = sqlx::query(LOOKUP_BAN).bind(ip.clone()).fetch_optional(&pool).await.is_ok();
+    let seen = sqlx::query(&format!("SELECT 1 FROM {table} WHERE ip = $1"))
+        .bind(ip)
+        .fetch_optional(&pool)
+        .await
+        .is_ok();
+    banned || seen
+}
