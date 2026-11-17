@@ -1048,7 +1048,10 @@ project) is not a test project, so under `--include-tests` its references count;
 in a Directory.Build `Condition`, `IsTestProject` is recognized only in a quoted
 comparison (in a project it is the property
 `<IsTestProject>true</IsTestProject>`); `Include="Foo;Bar"` is read as one Id; a
-package referenced twice in one file is read once, from its first reference; and
+package referenced twice in one file is read once, from its first runtime
+reference (a development reference before it, `PrivateAssets="all"` under one
+condition, does not hide it), so a version or condition on a later reference is
+not read; and
 a reference's own floating `Version` does not fall through to
 `Directory.Packages.props`, and a `$(Name)` in a central version resolves from
 the props file's location, not the project's.
