@@ -121,3 +121,27 @@ pub async fn lookups(req: HttpRequest, pool: sqlx::PgPool, table: &str) -> bool 
         .is_ok();
     banned || seen
 }
+
+// Ban-list and rate-limit checks whose answer is logged: a receiver that calls a method named
+// query, update or set, or that runs a SELECT (as text or through a const), is still a check.
+const LOOKUP_FLAG: &str = "SELECT is_banned FROM bans WHERE ip = $1";
+
+pub async fn checks(req: HttpRequest, pool: sqlx::PgPool, bans: &Bans, limiter: &Limiter) {
+    let ip = req.connection_info().realip_remote_addr().unwrap_or("").to_owned();
+    let ok = bans.query(&ip).is_allowed();
+    info!("allowed: {}", ok);
+    let ok = limiter.update(&ip).is_allowed();
+    info!("allowed: {}", ok);
+    let ok = limiter.check(&ip).is_allowed();
+    info!("allowed: {}", ok);
+    let ok = limiter.update(&ip).set(1).is_allowed();
+    info!("allowed: {}", ok);
+    let flag = sqlx::query_scalar("SELECT is_banned FROM bans WHERE ip = $1")
+        .bind(&ip)
+        .fetch_one(&pool)
+        .await
+        .is_ok_and(|b| b);
+    info!("banned: {}", flag);
+    let flag = sqlx::query_scalar(LOOKUP_FLAG).bind(&ip).fetch_one(&pool).await.is_ok_and(|b| b);
+    info!("banned: {}", flag);
+}

@@ -79,13 +79,42 @@ rules:
               # A test at the end of a write chain is a test of the write, not a check on the
               # address: the sanitizer would cover the whole chain, so
               # `query("INSERT ...").bind(ip).execute(db).await.is_ok_and(..)` or `.is_empty()`
-              # would hide its own write. A receiver that binds, inserts, updates or executes is
-              # not a check.
+              # would hide its own write. A receiver that holds a write is not a check: an
+              # INSERT or UPDATE statement's text, Diesel's insert_into(..).values(..) or
+              # update(..).set(..), SeaORM's Set(..), or a query on a statement held in a
+              # `const` (read below). A receiver that only calls a method named query, update
+              # or set, or runs a SELECT, keeps the sanitizer (`bans.query(&ip).is_allowed()`).
               - patterns:
                   - pattern: $C.$F(...)
                   - metavariable-regex:
                       metavariable: $C
-                      regex: (?s)^(?!.*(?:\.bind\s*\(|\binsert_into\s*\(|\bupdate\s*\(|\.values\s*\(|\.set\s*\(|\.execute\s*\(|\bquery\w*!?\s*\())
+                      regex: (?s)^(?!.*(?:(?i:"\s*(?:insert|update)\b)|(?<![.\w])insert_into\s*\(.*\.values\s*\(|(?<![.\w])update\s*\(.*\.set\s*\(|\bSet\s*\(|\b(?:query\w*|sql_query)!?\s*\(\s*&?\s*(?:Self::)?[A-Z][A-Z0-9_]*\s*[,)]))
+              # A query on a statement held in a `const` declared before it whose text is not an
+              # INSERT or UPDATE (a ban-list SELECT) is a check, like the literal above. A
+              # `const` declared after its use, or in another file, is not read, so the test
+              # stays tainted.
+              - patterns:
+                  - pattern-inside: |
+                      const $K: $KT = $KSQL;
+                      ...
+                  - metavariable-regex:
+                      metavariable: $KSQL
+                      regex: (?is)^(?!(?:r#*)?"\s*(?:insert|update)\b)
+                  - pattern: $C.$F(...)
+                  - metavariable-regex:
+                      metavariable: $C
+                      regex: (?s)^(?!.*(?:(?i:"\s*(?:insert|update)\b)|(?<![.\w])insert_into\s*\(.*\.values\s*\(|(?<![.\w])update\s*\(.*\.set\s*\(|\bSet\s*\())
+                  - metavariable-pattern:
+                      metavariable: $C
+                      pattern-either:
+                        - pattern: sqlx::query($K)
+                        - pattern: sqlx::query_as($K)
+                        - pattern: sqlx::query_scalar($K)
+                        - pattern: diesel::sql_query($K)
+                        - pattern: sqlx::query(Self::$K)
+                        - pattern: sqlx::query_as(Self::$K)
+                        - pattern: sqlx::query_scalar(Self::$K)
+                        - pattern: diesel::sql_query(Self::$K)
           # A Result or Option test (is_ok, is_some) is never a check on the address.
           - metavariable-regex:
               metavariable: $F

@@ -1,4 +1,4 @@
-// lexcode-expect: 14
+// lexcode-expect: 18
 use actix_web::{HttpRequest, HttpResponse};
 use axum::extract::{ConnectInfo, State};
 use axum::http::HeaderMap;
@@ -129,4 +129,35 @@ pub async fn hit(req: HttpRequest, pool: PgPool, table: &str) {
         .bind(ip)
         .execute(&pool)
         .await;
+}
+
+// A test at the end of a Diesel write chain, or of a query on a const INSERT, tests the write.
+pub fn record_once(req: &Request<'_>, conn: &mut PgConnection) -> bool {
+    let ip = req.client_ip().map(|a| a.to_string());
+    diesel::insert_into(visits::table)
+        .values(visits::address.eq(ip))
+        .execute(conn)
+        .is_ok_and(|n| n > 0)
+}
+
+pub fn retouch(req: &Request<'_>, conn: &mut PgConnection) -> bool {
+    let ip = req.client_ip().map(|a| a.to_string());
+    diesel::update(visits::table)
+        .set(visits::address.eq(ip))
+        .get_results::<Visit>(conn)
+        .unwrap_or_default()
+        .is_empty()
+}
+
+pub async fn login_once(req: HttpRequest, pool: PgPool) -> bool {
+    let ip = req.connection_info().realip_remote_addr().map(str::to_owned);
+    sqlx::query(INSERT_LOGIN).bind(ip).execute(&pool).await.is_ok_and(|r| r.rows_affected() > 0)
+}
+
+pub async fn visit_once(req: HttpRequest, pool: PgPool) -> bool {
+    let ip = req.connection_info().realip_remote_addr().map(str::to_owned);
+    sqlx::query!("INSERT INTO visits (ip) VALUES ($1)", ip)
+        .execute(&pool)
+        .await
+        .is_ok_and(|r| r.rows_affected() > 0)
 }

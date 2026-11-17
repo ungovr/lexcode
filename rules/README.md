@@ -1630,7 +1630,12 @@ The engine sets most of these limits, and the rules' comments point here.
   UPDATE string literal, a `format!` whose format string is one, or a `const`
   holding one declared before the query (in the file, an `impl` or the
   function); a `const` declared after its use, or a statement assembled from
-  parts, is missed.
+  parts, is missed. A test on the address whose answer is logged
+  (`bans.query(&ip).is_allowed()`, a SELECT ending in `.is_ok_and(..)`) is a
+  check, unless the chain holds a write (an INSERT or UPDATE statement, Diesel's
+  `insert_into(..).values(..)` or `update(..).set(..)`, SeaORM's `Set(..)`); a
+  query on a statement held in a `const` the file does not declare before it is
+  read as a possible write, so a logged check through one is matched.
 - **Staff routes.** A route registered in a router built in another function
   and nested by name (`.nest("/admin", admin_routes())`), a route behind an
   authentication layer and a handler in a file under `admin/` are not read as
