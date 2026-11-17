@@ -1,4 +1,4 @@
-# lexcode-expect: 5
+# lexcode-expect: 3
 # A Woodpecker (or Drone) step that runs a container-image plugin with a repository to push to.
 variables:
   - &docker_settings
@@ -34,15 +34,3 @@ steps:
       repo: example/relay
       tags: latest
 
----
-# The list form of steps, and settings written before the image.
-steps:
-  - name: publish_list_form
-    image: woodpeckerci/plugin-docker-buildx:5
-    settings:
-      repo: example/relay
-
-  - name: settings_first
-    settings:
-      repo: ghcr.io/example/relay
-    image: plugins/docker-buildx

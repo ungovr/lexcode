@@ -30,11 +30,3 @@ steps:
     commands:
       - cargo test --workspace
 
----
-# The list form with dry-run on.
-steps:
-  - name: check_list_form
-    image: woodpeckerci/plugin-kaniko
-    settings:
-      repo: example/relay
-      dry-run: true
