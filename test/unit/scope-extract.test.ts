@@ -9,11 +9,10 @@ import {
   blankOutsideScripts,
   blankPhpRegions,
   blankPhpTags,
-  blankRazorTags,
   blankTwigTags,
   extractScripts,
-  razorCSharp,
 } from '../../src/scope/extract.js';
+import { blankRazorTags, razorCSharp } from '../../src/scope/razor.js';
 import { hasLongLine } from '../../src/scope/longlines.js';
 import { expectNearLinear, measureScaling } from '../helpers/scaling.js';
 
