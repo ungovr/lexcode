@@ -60,7 +60,8 @@ async fn attempt_delivery(mailer: &AsyncSmtpTransport<Tokio1Executor>, email: Me
 }
 
 async fn via_relay(relay: Relay, email: Message) {
-    relay.mailer().send(email).await.ok();
+    let relay_mailer = relay.transport();
+    relay_mailer.send(email).await.ok();
 }
 
 async fn tell_staff(mailer: &AsyncSmtpTransport<Tokio1Executor>, admin: &str) {

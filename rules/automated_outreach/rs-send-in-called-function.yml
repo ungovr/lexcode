@@ -3,19 +3,26 @@
 # `notify`, or a delivery worker that polls a queue (`loop { match try_execute_task(..).await {..} }`)
 # and sends in the task function. The engine's taint and patterns do not cross a function, so the
 # two functions are matched as a pair of items in one file (free functions, or methods of one
-# `impl` called through `self.`), the caller written before or after the sender.
+# `impl` called through `self.` or `Self::`).
 #
-# The loops are rs-send-in-loop's (`for`, `while let`, `for_each`), with its exclusions by name
-# (relays, hosts, retries, attempts, administrators, a literal range), and a `loop` that polls or
-# ticks: its body sleeps or ticks a timer and never breaks or returns. A `loop` that breaks or
-# returns is a retry of one message until it goes through, and a `loop` that neither sleeps nor
-# ticks is an event loop answering what arrives (a sign-up's confirmation sent as the sign-up
-# comes in); neither is read. A function named for a send (`send_email`, `send_reminder`) called in
-# a loop is rs-send-in-loop's own match, so a send inside one is not matched again here.
+# The caller must come first. Only a function holding one of the loops below starts a pair, so the
+# pairs grow with the file; reading a sender written before its caller would make every function
+# start one, a cost that grows with the square of the file's functions, so that order is a known
+# residual.
 #
-# Not read: a sender called from another file or through a trait object, a free function calling
-# a method of an `impl` (or the reverse), a bot's message (rs-send-in-loop reads those in the loop
-# itself), and a timer job's closure (rs-send-in-scheduled-job).
+# The loops are rs-send-in-loop's (`for`, `while let`, `for_each` and its `try_` and `_concurrent`
+# forms as a statement), with its exclusions by name (relays, hosts, retries, attempts,
+# administrators, a literal range), and a `loop` that polls or ticks: its body sleeps or ticks a
+# timer and never breaks or returns. A `loop` that breaks or returns is a retry of one message until
+# it goes through, and a `loop` that neither sleeps nor ticks is an event loop answering what arrives
+# (a sign-up's confirmation sent as the sign-up comes in); neither is read. A loop is read only as a
+# statement of the caller's own body, not one nested in another block. A function named for a send
+# (`send_email`, `send_reminder`) called in a loop is rs-send-in-loop's own match, so a send inside
+# one is not matched again here.
+#
+# Not read: a sender written before its caller, called from another file or through a trait object,
+# a free function calling a method of an `impl` (or the reverse), a bot's message (rs-send-in-loop
+# reads those in the loop itself), and a timer job's closure (rs-send-in-scheduled-job).
 rules:
   - id: lexcode.outreach.rs-send-in-called-function
     languages: [rust]
@@ -23,59 +30,88 @@ rules:
     message: Sends an email, text, call or push notification from the app's own function that a loop over recipients or a polling delivery worker calls once per item, which is sending automated outreach (automated_outreach).
     patterns:
       - pattern-either:
-          - pattern-inside: |
-              fn $W(...) { $...WB }
-              ...
-              fn $F(...) { ... }
-          - pattern-inside: |
-              fn $F(...) { ... }
-              ...
-              fn $W(...) { $...WB }
+          - patterns:
+              - pattern-either:
+                  - pattern-inside: |
+                      fn $W(...) { ... loop { $...LB } ... }
+                      ...
+                      fn $F(...) { ... }
+              - metavariable-regex:
+                  metavariable: $...LB
+                  regex: '(?s)^(?!.*(?<![\w.])(break|return)(?!\w))(?=.*(?<!\w)(sleep|tick)\s*\().*'
+              - metavariable-pattern:
+                  metavariable: $...LB
+                  pattern-either:
+                    - pattern: $F(...)
+                    - pattern: self.$F(...)
+                    - pattern: Self::$F(...)
+          - patterns:
+              - pattern-either:
+                  - pattern-inside: |
+                      fn $W(...) { ... for $V in $L { $...LB } ... }
+                      ...
+                      fn $F(...) { ... }
+              - metavariable-regex:
+                  metavariable: $L
+                  regex: '(?is)^(?!.*(relay|host|server|retr|attempt|backoff|endpoint|smtp|fallback|provider|transport|mirror|failover|\bports?\b|admin))(?!\s*\d+\s*\.\.=?\s*\d+\s*$).*$'
+              - metavariable-regex:
+                  metavariable: $V
+                  regex: '(?is)^(?!.*(relay|host|server|retr|attempt|backoff|endpoint|smtp|fallback|provider|transport|mirror|failover|\bports?\b|admin)).*$'
+              - metavariable-pattern:
+                  metavariable: $...LB
+                  pattern-either:
+                    - pattern: $F(...)
+                    - pattern: self.$F(...)
+                    - pattern: Self::$F(...)
+          - patterns:
+              - pattern-either:
+                  - pattern-inside: |
+                      fn $W(...) { ... while let $PAT = $L { $...LB } ... }
+                      ...
+                      fn $F(...) { ... }
+              - metavariable-regex:
+                  metavariable: $L
+                  regex: '(?is)^(?!.*(relay|host|server|retr|attempt|backoff|endpoint|smtp|fallback|provider|transport|mirror|failover|\bports?\b|admin)).*$'
+              - metavariable-pattern:
+                  metavariable: $...LB
+                  pattern-either:
+                    - pattern: $F(...)
+                    - pattern: self.$F(...)
+                    - pattern: Self::$F(...)
+          - patterns:
+              - pattern-either:
+                  - pattern-inside: |
+                      fn $W(...) { ... $L.for_each(..., $CL); ... }
+                      ...
+                      fn $F(...) { ... }
+                  - pattern-inside: |
+                      fn $W(...) { ... $L.for_each_concurrent(..., $CL).await; ... }
+                      ...
+                      fn $F(...) { ... }
+                  - pattern-inside: |
+                      fn $W(...) { ... $L.try_for_each(..., $CL)?; ... }
+                      ...
+                      fn $F(...) { ... }
+                  - pattern-inside: |
+                      fn $W(...) { ... $L.try_for_each(..., $CL).await?; ... }
+                      ...
+                      fn $F(...) { ... }
+                  - pattern-inside: |
+                      fn $W(...) { ... $L.try_for_each_concurrent(..., $CL).await?; ... }
+                      ...
+                      fn $F(...) { ... }
+              - metavariable-regex:
+                  metavariable: $L
+                  regex: '(?is)^(?!.*(relay|host|server|retr|attempt|backoff|endpoint|smtp|fallback|provider|transport|mirror|failover|\bports?\b|admin)).*$'
+              - metavariable-pattern:
+                  metavariable: $CL
+                  pattern-either:
+                    - pattern: $F(...)
+                    - pattern: self.$F(...)
+                    - pattern: Self::$F(...)
       - metavariable-regex:
           metavariable: $F
           regex: ^(?!send_(\w+_)?(email|mail|sms|text_message|push|push_notification|notification|reminder|digest|newsletter|alert)s?$)
-      - metavariable-pattern:
-          metavariable: $...WB
-          patterns:
-            - pattern-either:
-                - patterns:
-                    - pattern-inside: |
-                        for $V in $L { ... }
-                    - metavariable-regex:
-                        metavariable: $L
-                        regex: '(?is)^(?!.*(relay|host|server|retr|attempt|backoff|endpoint|smtp|fallback|provider|transport|mirror|failover|\bports?\b|admin))(?!\s*\d+\s*\.\.=?\s*\d+\s*$).*$'
-                    - metavariable-regex:
-                        metavariable: $V
-                        regex: '(?is)^(?!.*(relay|host|server|retr|attempt|backoff|endpoint|smtp|fallback|provider|transport|mirror|failover|\bports?\b|admin)).*$'
-                - patterns:
-                    - pattern-inside: |
-                        while let $PAT = $L { ... }
-                    - metavariable-regex:
-                        metavariable: $L
-                        regex: '(?is)^(?!.*(relay|host|server|retr|attempt|backoff|endpoint|smtp|fallback|provider|transport|mirror|failover|\bports?\b|admin)).*$'
-                - patterns:
-                    - pattern-either:
-                        # In the caller's body a call statement matches only with its `;`.
-                        - pattern-inside: $L.for_each(...);
-                        - pattern-inside: $L.for_each_concurrent(...).await;
-                        - pattern-inside: $L.try_for_each(...);
-                        - pattern-inside: $L.try_for_each(...).await;
-                        - pattern-inside: $L.try_for_each(...).await?;
-                        - pattern-inside: $L.try_for_each_concurrent(...).await;
-                        - pattern-inside: $L.try_for_each_concurrent(...).await?;
-                    - metavariable-regex:
-                        metavariable: $L
-                        regex: '(?is)^(?!.*(relay|host|server|retr|attempt|backoff|endpoint|smtp|fallback|provider|transport|mirror|failover|\bports?\b|admin)).*$'
-                - patterns:
-                    - pattern-inside: |
-                        loop { $...LB }
-                    - metavariable-regex:
-                        metavariable: $...LB
-                        regex: '(?s)^(?!.*(?<![\w.])(break|return)(?!\w))(?=.*(?<!\w)(sleep|tick)\s*\().*'
-            - pattern-either:
-                - pattern: $F(...)
-                - pattern: self.$F(...)
-                - pattern: Self::$F(...)
       - pattern-inside: |
           fn $F(...) { ... }
       - pattern-either:

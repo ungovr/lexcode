@@ -1612,9 +1612,10 @@ The engine sets most of these limits, and the rules' comments point here.
   thousands of times in one file (about 3,000) does not finish, whatever its
   shape, so a file of that size loses that rule's matches.
 - **Taint and functions.** A fetch and its HTML parse in two functions, a send
-  made in the app's own function that a loop in another file calls (in one file,
-  `rs-send-in-called-function` joins the loop and the sender, among free
-  functions or among the methods of one `impl`), a request built in one
+  made in the app's own function that a loop calls from another file, or that is
+  written before its caller (`rs-send-in-called-function` joins a looping caller
+  and a sender written after it in one file, among free functions or among the
+  methods of one `impl`), a request built in one
   statement and sent in the next (`let req = c.get(url); req.send()`), a handler
   that returns the model's output as its tail expression with no response
   wrapper, a model id or address held in a `const` declared after its use, and

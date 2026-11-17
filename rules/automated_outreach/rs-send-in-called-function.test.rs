@@ -38,16 +38,7 @@ pub async fn try_execute_task(
     Ok(ExecutionOutcome::TaskCompleted)
 }
 
-// The sender is written before the loop that calls it once per subscriber.
-async fn notify(mailer: &AsyncSmtpTransport<Tokio1Executor>, to: &Subscriber) -> anyhow::Result<()> {
-    let email = Message::builder()
-        .to(to.email.parse()?)
-        .subject("New post")
-        .body(String::from("A new post is up"))?;
-    mailer.send(email).await?;
-    Ok(())
-}
-
+// A loop over subscribers, and a for_each over them, each calling a sender written after it.
 pub async fn announce(mailer: AsyncSmtpTransport<Tokio1Executor>, subscribers: Vec<Subscriber>) {
     for subscriber in &subscribers {
         notify(&mailer, subscriber).await.ok();
@@ -55,6 +46,15 @@ pub async fn announce(mailer: AsyncSmtpTransport<Tokio1Executor>, subscribers: V
     subscribers.iter().for_each(|s| {
         remind(s);
     });
+}
+
+async fn notify(mailer: &AsyncSmtpTransport<Tokio1Executor>, to: &Subscriber) -> anyhow::Result<()> {
+    let email = Message::builder()
+        .to(to.email.parse()?)
+        .subject("New post")
+        .body(String::from("A new post is up"))?;
+    mailer.send(email).await?;
+    Ok(())
 }
 
 fn remind(s: &Subscriber) {
