@@ -18,7 +18,14 @@ on:
 permissions: {}
 
 jobs:
+  socket:
+    # Socket Firewall Free over the lockfile; see socket.yml.
+    uses: ./.github/workflows/socket.yml
+    permissions:
+      contents: read
+
   build:
+    needs: socket
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
