@@ -1,0 +1,76 @@
+// lexcode-expect: 0
+// The Videos API's reads, each sent straight back as the response: listing the account's videos,
+// and a job's status, polled with a GET or with a request message. Neither makes or returns a
+// clip; only creating one (POST /v1/videos, or a remix) and downloading it (/content) count.
+using Microsoft.AspNetCore.Mvc;
+
+namespace Demo.Generated;
+
+public class VideoJobsController : ControllerBase
+{
+    // GET /v1/videos lists the account's videos.
+    public async Task<IActionResult> List(HttpClient http)
+    {
+        var r = await http.GetAsync("https://api.openai.com/v1/videos");
+        return Ok(await r.Content.ReadAsStringAsync());
+    }
+
+    // The same list, paged.
+    public async Task<IActionResult> Page(HttpClient http, string after)
+    {
+        var r = await http.GetAsync($"https://api.openai.com/v1/videos?limit=20&after={after}");
+        return Ok(await r.Content.ReadAsStringAsync());
+    }
+
+    // GET /v1/videos/{id} reads a job's status.
+    public async Task<IActionResult> Status(HttpClient http, string id)
+    {
+        var r = await http.GetAsync($"https://api.openai.com/v1/videos/{id}");
+        return Ok(await r.Content.ReadAsStringAsync());
+    }
+
+    // The status, with the address as a named argument.
+    public async Task<IActionResult> StatusNamed(HttpClient http, string id)
+    {
+        var r = await http.GetAsync(requestUri: $"https://api.openai.com/v1/videos/{id}");
+        return Ok(await r.Content.ReadAsStringAsync());
+    }
+
+    // The status as a string built by concatenation.
+    public async Task<IActionResult> StatusJoined(HttpClient http, string id)
+    {
+        var r = await http.GetStringAsync("https://api.openai.com/v1/videos/" + id);
+        return Ok(r);
+    }
+
+    // The status through a request message, sent.
+    public async Task<IActionResult> StatusMessage(HttpClient http, string id)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, $"https://api.openai.com/v1/videos/{id}");
+        var r = await http.SendAsync(request);
+        return Ok(r);
+    }
+
+    // The list through a request message, sent.
+    public async Task<IActionResult> ListMessage(HttpClient http)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, "https://api.openai.com/v1/videos");
+        var r = await http.SendAsync(request);
+        return Ok(r);
+    }
+
+    // The list through a request message with named arguments, sent.
+    public async Task<IActionResult> ListMessageNamed(HttpClient http)
+    {
+        HttpRequestMessage request = new(requestUri: "https://api.openai.com/v1/videos", method: System.Net.Http.HttpMethod.Get);
+        var r = await http.SendAsync(request);
+        return Ok(r);
+    }
+
+    // A thumbnail of a finished job, a still, not the clip.
+    public async Task<IActionResult> Thumbnail(HttpClient http, string id)
+    {
+        var r = await http.GetByteArrayAsync($"https://api.openai.com/v1/videos/{id}/content?variant=thumbnail");
+        return File(r, "image/webp");
+    }
+}
