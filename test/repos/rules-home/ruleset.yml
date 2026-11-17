@@ -1,5 +1,5 @@
 name: lexcode-rules
-version: 1.5.0
+version: 1.5.1
 registry:
   url: https://lexlint.io/activities/v1
   version: "1.15"
