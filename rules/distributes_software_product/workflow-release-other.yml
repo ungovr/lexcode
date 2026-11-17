@@ -2,13 +2,15 @@ rules:
   - id: lexcode.distribute.workflow-release-other
     languages: [yaml]
     severity: INFO
-    message: Runs a workflow step that releases binaries or publishes a crate or gem, which makes software available for others to install (distributes_software_product).
+    message: Runs a workflow step that releases binaries or publishes a crate, gem or NuGet package, which makes software available for others to install (distributes_software_product).
+    # A NuGet push is `dotnet nuget push` or the classic CLI's `nuget push` (`nuget.exe push`);
+    # `nuget restore`, `nuget pack` and `dotnet nuget add source` publish nothing.
     pattern-either:
       - patterns:
           - pattern: "run: $CMD"
           - metavariable-regex:
               metavariable: $CMD
-              regex: '^(?![\s\S]*--dry-run)[\s\S]*(\bcargo\s+publish\b|\bgem\s+push\b|\bdotnet\s+nuget\s+push\b)'
+              regex: '^(?![\s\S]*--dry-run)[\s\S]*(\bcargo\s+publish\b|\bgem\s+push\b|\b(?:dotnet\s+)?nuget(?:\.exe)?\s+push\b)'
       - patterns:
           - pattern: |
               uses: $ACTION

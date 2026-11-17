@@ -29,3 +29,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: gem build feedlint.gemspec
+  restore:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: nuget/setup-nuget@v2
+      - run: nuget restore Feedlint.sln
+      - run: dotnet nuget add source https://pkgs.example.com/index.json --name internal
+      - run: dotnet pack -c Release
