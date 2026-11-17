@@ -18,10 +18,11 @@
 # one message until it goes through, and a `loop` that neither sleeps nor ticks is an event loop
 # answering what arrives (a sign-up's confirmation sent as the sign-up comes in); neither is read.
 # Binding that loop's body would pair it with every later function, so the polling check is a text
-# regex over the file (braces balanced): an event loop that calls a sender in a file whose other
-# `loop` polls is read too, a known over-match. A function named for a send (`send_email`,
-# `send_reminder`) called in a loop is rs-send-in-loop's own match, so a send inside one is not
-# matched again here.
+# regex (braces balanced) for a function holding such a loop, whose range runs to the end of the
+# file: the sender must come after the first polling function, and an event loop that calls a
+# sender written after a polling function is read too, a known over-match. A function named for a
+# send (`send_email`, `send_reminder`) called in a loop is rs-send-in-loop's own match, so a send
+# inside one is not matched again here.
 #
 # Not read: a sender written before its caller, called from another file or through a trait object,
 # a free function calling a method of an `impl` (or the reverse), a bot's message (rs-send-in-loop
@@ -35,23 +36,26 @@ rules:
       - pattern-either:
           - patterns:
               - pattern-either:
-                  - pattern: |
+                  - pattern-inside: |
                       fn $W(...) { ... loop { ... <... $F(...) ...>; ... } ... }
                       ...
                       fn $F(...) { ... }
-                  - pattern: |
+                  - pattern-inside: |
                       fn $W(...) { ... loop { ... <... self.$F(...) ...>; ... } ... }
                       ...
                       fn $F(...) { ... }
-                  - pattern: |
+                  - pattern-inside: |
                       fn $W(...) { ... loop { ... <... Self::$F(...) ...>; ... } ... }
                       ...
                       fn $F(...) { ... }
-              # The file holds a polling loop, read from the text: its body (braces balanced)
-              # sleeps or ticks and never breaks or returns. A pattern binding the caller's loop
-              # body would pair it with every later function, which the engine cannot do cheaply,
-              # so the check is on the file: another loop of the file may be the one that polls.
-              - pattern-regex: '(?s)\A(?=.*(?<![\w.])loop\s*(?=(?<sb>\{(?:[^{}]|(?&lb))*?(?:(?<!\w)(?:sleep|tick)\s*\(|(?&sb))(?:[^{}]|(?&lb))*\}))(?<nb>\{(?:(?!(?<![\w.])(?:break|return)(?!\w))[^{}]|(?&nb))*\})(?(DEFINE)(?<lb>\{(?:[^{}]|(?&lb))*\}))).*'
+              # A polling loop, read from the text: a function whose body holds a `loop` whose
+              # body (braces balanced) sleeps or ticks and never breaks or returns. The regex's
+              # range runs from that function to the end of the file, and the sender's item must
+              # lie in it, so the sender comes after the first polling function of the file. A
+              # pattern binding the caller's loop body would pair it with every later function.
+              - pattern: |
+                  fn $F(...) { ... }
+              - pattern-regex: '(?s)(?<![\w.])fn\s[^{;]*(?=\{(?:[^{}]|(?&lb))*?(?<![\w.])loop\s*(?=(?<sb>\{(?:[^{}]|(?&lb))*?(?:(?<!\w)(?:sleep|tick)\s*\(|(?&sb))(?:[^{}]|(?&lb))*\}))(?<nb>\{(?:(?!(?<![\w.])(?:break|return)(?!\w))[^{}]|(?&nb))*\}))(?(DEFINE)(?<lb>\{(?:[^{}]|(?&lb))*\})).*'
           - patterns:
               - pattern-either:
                   - pattern-inside: |
