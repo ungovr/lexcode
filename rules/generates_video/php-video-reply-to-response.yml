@@ -19,8 +19,13 @@ rules:
     # (#13225): a GET of /v1/videos lists videos and one of /v1/videos/{id} reads a job's status,
     # and neither makes or returns a clip, nor does the thumbnail or spritesheet variant of
     # /content, nor a POST of /v1/videos/characters (a character asset for later prompts). An id
-    # is interpolated or joined with a dot. curl sets its method apart from the
-    # address, so a curl GET of the list still counts (a known gap).
+    # is interpolated or joined with a dot, and may hold a quoted key ($row['video_id']). The
+    # /content address counts whatever its query holds unless it names the thumbnail or
+    # spritesheet variant (a variant in a variable is taken as the clip, the API's default), and a
+    # creation address may end in a slash or, sent with a named method, carry a query. curl sets
+    # its method apart from the address, so a curl GET of the list still counts when the address
+    # has no query (a known gap); with a query it is a list, since a creation is never paged. Each
+    # OpenAI regex is a YAML anchor, written once and read again below.
     pattern-sources:
       # Laravel's Http facade, Guzzle and Symfony HttpClient, or curl_init, with the endpoint
       # written in the call.
@@ -38,7 +43,7 @@ rules:
                       - pattern: Http::post($URL, ...)
                   - metavariable-regex:
                       metavariable: $URL
-                      regex: '^[''"]https://(?:api\.openai\.com/v1/videos(?:/(?:edits|extensions)|/(?:\{[^}]*\}|[^''"/?{}]+|[''"]\s*\.[^''"]*\.\s*[''"])/remix)?[''"]$|generativelanguage\.googleapis\.com/[^''"]*:predictLongRunning|[^''"]*aiplatform\.googleapis\.com/[^''"]*veo[^''"]*:predictLongRunning|api\.(?:dev\.)?runwayml\.com/v1/(?:text|image)_to_video)'
+                      regex: &openai-create '^[''"]https://(?:api\.openai\.com/v1/videos(?:/(?:edits|extensions)|/(?:\{[^}]*\}|[^''"/?{}]+|[''"]\s*\.(?:[^''"]|''[^'']*''|"[^"]*")*\.\s*[''"])/remix)?/?(?:\?.*|[''"])$|generativelanguage\.googleapis\.com/[^''\"]*:predictLongRunning|[^''\"]*aiplatform\.googleapis\.com/[^''\"]*veo[^''\"]*:predictLongRunning|api\.(?:dev\.)?runwayml\.com/v1/(?:text|image)_to_video)'
               # A GET returns the clip only from OpenAI's /content address.
               - patterns:
                   - pattern-either:
@@ -46,7 +51,7 @@ rules:
                       - pattern: Http::get($URL, ...)
                   - metavariable-regex:
                       metavariable: $URL
-                      regex: '^[''"]https://api\.openai\.com/v1/videos/(?:\{[^}]*\}|[^''"/?{}]+|[''"]\s*\.[^''"]*\.\s*[''"])/content(?:\?variant=video)?[''"]$'
+                      regex: &openai-content '^[''"]https://api\.openai\.com/v1/videos/(?:\{[^}]*\}|[^''"/?{}]+|[''"]\s*\.(?:[^''"]|''[^'']*''|"[^"]*")*\.\s*[''"])/content(?!.*variant=(?:thumbnail|spritesheet))/?(?:[?''"].*)?$'
               # request() names its method: any but GET makes a clip, and any reads /content.
               - patterns:
                   - pattern: $HTTP->request($VERB, $URL, ...)
@@ -55,18 +60,18 @@ rules:
                       regex: (?i)^['"](?!get['"])
                   - metavariable-regex:
                       metavariable: $URL
-                      regex: '^[''"]https://(?:api\.openai\.com/v1/videos(?:/(?:edits|extensions)|/(?:\{[^}]*\}|[^''"/?{}]+|[''"]\s*\.[^''"]*\.\s*[''"])/remix)?[''"]$|generativelanguage\.googleapis\.com/[^''"]*:predictLongRunning|[^''"]*aiplatform\.googleapis\.com/[^''"]*veo[^''"]*:predictLongRunning|api\.(?:dev\.)?runwayml\.com/v1/(?:text|image)_to_video)'
+                      regex: *openai-create
               - patterns:
                   - pattern: $HTTP->request($VERB, $URL, ...)
                   - metavariable-regex:
                       metavariable: $URL
-                      regex: '^[''"]https://api\.openai\.com/v1/videos/(?:\{[^}]*\}|[^''"/?{}]+|[''"]\s*\.[^''"]*\.\s*[''"])/content(?:\?variant=video)?[''"]$'
+                      regex: *openai-content
               # curl's method is set apart from the address, so any of the addresses counts.
               - patterns:
                   - pattern: curl_init($URL)
                   - metavariable-regex:
                       metavariable: $URL
-                      regex: '^[''"]https://(?:api\.openai\.com/v1/videos(?:/(?:edits|extensions)|/(?:\{[^}]*\}|[^''"/?{}]+|[''"]\s*\.[^''"]*\.\s*[''"])/(?:remix|content(?:\?variant=video)?))?[''"]$|generativelanguage\.googleapis\.com/[^''"]*:predictLongRunning|[^''"]*aiplatform\.googleapis\.com/[^''"]*veo[^''"]*:predictLongRunning|api\.(?:dev\.)?runwayml\.com/v1/(?:text|image)_to_video)'
+                      regex: &openai-any '^[''"]https://(?:api\.openai\.com/v1/videos(?:/(?:edits|extensions)|/(?:\{[^}]*\}|[^''"/?{}]+|[''"]\s*\.(?:[^''"]|''[^'']*''|"[^"]*")*\.\s*[''"])/remix)?/?[''"]$|api\.openai\.com/v1/videos/(?:\{[^}]*\}|[^''"/?{}]+|[''"]\s*\.(?:[^''"]|''[^'']*''|"[^"]*")*\.\s*[''"])/content(?!.*variant=(?:thumbnail|spritesheet))/?(?:[?''"].*)?$|generativelanguage\.googleapis\.com/[^''\"]*:predictLongRunning|[^''\"]*aiplatform\.googleapis\.com/[^''\"]*veo[^''\"]*:predictLongRunning|api\.(?:dev\.)?runwayml\.com/v1/(?:text|image)_to_video)'
       # curl with the endpoint set as an option, alone or in an options array: the handle carries
       # it to curl_exec.
       - by-side-effect: true
@@ -77,7 +82,7 @@ rules:
               - pattern: "curl_setopt_array($CH, [..., CURLOPT_URL => $URL, ...])"
           - metavariable-regex:
               metavariable: $URL
-              regex: '^[''"]https://(?:api\.openai\.com/v1/videos(?:/(?:edits|extensions)|/(?:\{[^}]*\}|[^''"/?{}]+|[''"]\s*\.[^''"]*\.\s*[''"])/(?:remix|content(?:\?variant=video)?))?[''"]$|generativelanguage\.googleapis\.com/[^''"]*:predictLongRunning|[^''"]*aiplatform\.googleapis\.com/[^''"]*veo[^''"]*:predictLongRunning|api\.(?:dev\.)?runwayml\.com/v1/(?:text|image)_to_video)'
+              regex: *openai-any
           - focus-metavariable: $CH
       # AWS Bedrock Runtime: a video model (Nova Reel, Luma) started by id, as the Java and Kotlin
       # rules read it.

@@ -81,4 +81,25 @@ public class VideoJobsController : ControllerBase
         var r = await http.PostAsJsonAsync("https://api.openai.com/v1/videos/characters", body);
         return Ok(await r.Content.ReadAsStringAsync());
     }
+
+    // A job's status, the id joined from an indexer.
+    public async Task<IActionResult> StatusIndexed(HttpClient http, System.Collections.Generic.Dictionary<string, string> ids)
+    {
+        var r = await http.GetAsync("https://api.openai.com/v1/videos/" + ids["a"]);
+        return Ok(await r.Content.ReadAsStringAsync());
+    }
+
+    // The spritesheet of a finished job, the id joined from an indexer: a still, not the clip.
+    public async Task<IActionResult> Spritesheet(HttpClient http, System.Collections.Generic.Dictionary<string, string> ids)
+    {
+        var r = await http.GetByteArrayAsync("https://api.openai.com/v1/videos/" + ids["a"] + "/content?variant=spritesheet");
+        return File(r, "image/jpeg");
+    }
+
+    // The thumbnail, more of the query after the variant.
+    public async Task<IActionResult> ThumbnailQuery(HttpClient http, string id)
+    {
+        var r = await http.GetByteArrayAsync($"https://api.openai.com/v1/videos/{id}/content?variant=thumbnail&attempt=1");
+        return File(r, "image/webp");
+    }
 }

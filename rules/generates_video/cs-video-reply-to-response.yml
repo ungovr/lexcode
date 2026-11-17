@@ -42,8 +42,12 @@ rules:
       # of /v1/videos lists videos and one of /v1/videos/{id} reads a job's status, and neither
       # makes or returns a clip, nor does the thumbnail or spritesheet variant of /content, nor a
       # POST of /v1/videos/characters (a character asset for later prompts). An id is interpolated
-      # or joined with +; the engine binds an interpolated string without its closing quote, so the
-      # end is an optional quote. No whole-file anchor: the HTTP method names give the engine its
+      # or joined with +, and may hold a quoted key (ids["a"]); the engine binds an interpolated
+      # string without its closing quote, so the end is an optional quote. The /content address
+      # counts whatever its query holds unless it names the thumbnail or spritesheet variant (a
+      # variant in a variable is taken as the clip, the API's default), and a creation address may
+      # end in a slash or carry a query. The two OpenAI regexes are YAML anchors, written once and
+      # read by the request-message sources below. No whole-file anchor: the HTTP method names give the engine its
       # pre-filter, and a C# lookahead would put C# in the large-file notice.
       - patterns:
           - pattern-either:
@@ -57,7 +61,7 @@ rules:
                       - pattern: '$HTTP.PostAsJsonAsync(..., requestUri: $URL, ...)'
                   - metavariable-regex:
                       metavariable: $URL
-                      regex: ^\$?@?"https://(?:api\.openai\.com/v1/videos(?:/(?:edits|extensions)|/(?:[^"/?]+|"\s*\+[^"]*\+\s*\$?@?")/remix)?"?$|generativelanguage\.googleapis\.com/[^"]*:predictLongRunning|[^"]*aiplatform\.googleapis\.com/[^"]*veo[^"]*:predictLongRunning|api\.(?:dev\.)?runwayml\.com/v1/(?:text|image)_to_video)
+                      regex: &openai-create '^\$?@?"https://(?:api\.openai\.com/v1/videos(?:/(?:edits|extensions)|/(?:\{(?:[^{}"]|"[^"]*")*\}|[^"/?{}]+|"\s*\+(?:[^"]|"[^"]*")*\+\s*\$?@?")/remix)?/?(?:\?.*|"?)$|generativelanguage\.googleapis\.com/[^"]*:predictLongRunning|[^"]*aiplatform\.googleapis\.com/[^"]*veo[^"]*:predictLongRunning|api\.(?:dev\.)?runwayml\.com/v1/(?:text|image)_to_video)'
               # A GET returns the clip only from OpenAI's /content address.
               - patterns:
                   - pattern-either:
@@ -69,7 +73,7 @@ rules:
                       - pattern: '$HTTP.GetByteArrayAsync(..., requestUri: $URL, ...)'
                   - metavariable-regex:
                       metavariable: $URL
-                      regex: ^\$?@?"https://api\.openai\.com/v1/videos/(?:[^"/?]+|"\s*\+[^"]*\+\s*\$?@?")/content(?:\?variant=video)?"?$
+                      regex: &openai-content '^\$?@?"https://api\.openai\.com/v1/videos/(?:\{(?:[^{}"]|"[^"]*")*\}|[^"/?{}]+|"\s*\+(?:[^"]|"[^"]*")*\+\s*\$?@?")/content(?!.*variant=(?:thumbnail|spritesheet))/?(?:[?"].*)?$'
       # A request message for the same addresses, with or without an initializer, is a request
       # object: it carries REQUEST, and the result of the Send it goes through is the source.
       # Constructed or declared with target-typed new(), the address positional or named;
@@ -89,14 +93,14 @@ rules:
               - pattern: 'HttpRequestMessage $V = new(..., requestUri: $URL, ...) { ... };'
           - metavariable-regex:
               metavariable: $URL
-              regex: ^\$?@?"https://(?:api\.openai\.com/v1/videos(?:/(?:edits|extensions)|/(?:[^"/?]+|"\s*\+[^"]*\+\s*\$?@?")/remix)?"?$|generativelanguage\.googleapis\.com/[^"]*:predictLongRunning|[^"]*aiplatform\.googleapis\.com/[^"]*veo[^"]*:predictLongRunning|api\.(?:dev\.)?runwayml\.com/v1/(?:text|image)_to_video)
+              regex: *openai-create
           - pattern-not-regex: HttpMethod\.Get\b
       - label: REQUEST
         patterns:
           - pattern-either: *request-message
           - metavariable-regex:
               metavariable: $URL
-              regex: ^\$?@?"https://api\.openai\.com/v1/videos/(?:[^"/?]+|"\s*\+[^"]*\+\s*\$?@?")/content(?:\?variant=video)?"?$
+              regex: *openai-content
       - requires: REQUEST
         patterns:
           - pattern: $CLIENT.$SEND(...)

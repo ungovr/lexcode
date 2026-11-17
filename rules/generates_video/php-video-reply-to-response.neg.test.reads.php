@@ -77,4 +77,30 @@ class VideoJobController extends Controller
     {
         return response()->json(Http::post('https://api.openai.com/v1/videos/characters', $request->all())->json());
     }
+
+    // A job's status, the id joined from a row.
+    public function statusRow(array $row)
+    {
+        return response()->json(Http::get('https://api.openai.com/v1/videos/' . $row['video_id'])->json());
+    }
+
+    // The spritesheet of a finished job, the id joined from the request: a still, not the clip.
+    public function spritesheet(Request $request)
+    {
+        return response(Http::get('https://api.openai.com/v1/videos/' . $request->input('id') . '/content?variant=spritesheet')->body());
+    }
+
+    // The thumbnail, more of the query after the variant.
+    public function thumbnailQuery(string $id)
+    {
+        return response(Http::get("https://api.openai.com/v1/videos/{$id}/content?variant=thumbnail&attempt=1")->body());
+    }
+
+    // The list with curl, a query on the address.
+    public function curlPage(string $after): void
+    {
+        $ch = curl_init("https://api.openai.com/v1/videos?limit=20&after={$after}");
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        echo curl_exec($ch);
+    }
 }
