@@ -71,6 +71,23 @@ rules:
           - metavariable-regex:
               metavariable: $ID
               regex: '(?i)^"[^"]*(titan-image|nova-canvas|stability\.|sd3|stable-diffusion|stable-image)[^"]*"$'
+      # The same model id held in a `const` declared before the call, in the file, an `impl`
+      # or the function. The use check sits outside the nested block (see the stream source).
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+aws_sdk_bedrockruntime\b).*'
+          - patterns:
+              - pattern-inside: |
+                  const $K: $KT = $ID;
+                  ...
+              - metavariable-regex:
+                  metavariable: $ID
+                  regex: '(?i)^"[^"]*(titan-image|nova-canvas|stability\.|sd3|stable-diffusion|stable-image)[^"]*"$'
+              - pattern-either:
+                  - pattern: $B.model_id($K)
+                  - pattern: $B.model_id(Self::$K)
+              - metavariable-pattern:
+                  metavariable: $B
+                  pattern: $C.invoke_model()
       # An image model called over HTTP (reqwest's post or get): OpenAI's Images API and Stability
       # AI's generation and edit endpoints. The call is the source, not the address.
       - patterns:
@@ -80,6 +97,20 @@ rules:
           - metavariable-regex:
               metavariable: $URL
               regex: '^&?(?:format!\(\s*)?"https://(?:api\.openai\.com/v1/images/(?:generations|edits|variations)|api\.stability\.ai/v1/generation/[^"?/]+/(?:text-to-image|image-to-image(?:/[\w-]+)?)|api\.stability\.ai/v2beta/stable-image/(?:generate|edit|control)/[\w-]+)[?"]'
+      # The same address held in a `const` declared before the call, in the file, an `impl`
+      # (`Self::URL`) or the function; one declared after its use is not read.
+      - patterns:
+          - pattern-inside: |
+              const $K: $KT = $URL;
+              ...
+          - metavariable-regex:
+              metavariable: $URL
+              regex: '^&?(?:format!\(\s*)?"https://(?:api\.openai\.com/v1/images/(?:generations|edits|variations)|api\.stability\.ai/v1/generation/[^"?/]+/(?:text-to-image|image-to-image(?:/[\w-]+)?)|api\.stability\.ai/v2beta/stable-image/(?:generate|edit|control)/[\w-]+)[?"]'
+          - pattern-either:
+              - pattern: $HTTP.post($K)
+              - pattern: $HTTP.post(Self::$K)
+              - pattern: $HTTP.get($K)
+              - pattern: $HTTP.get(Self::$K)
       # A stream from one of the calls above, read with `while let`: the engine does not carry
       # taint from a `while let` scrutinee into the names it binds (it does for `if let`), so
       # those names are a source of their own inside the loop, in a file whose use lines name one

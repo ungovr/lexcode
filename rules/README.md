@@ -1612,19 +1612,22 @@ The engine sets most of these limits, and the rules' comments point here.
   thousands of times in one file (about 3,000) does not finish, whatever its
   shape, so a file of that size loses that rule's matches.
 - **Taint and functions.** A fetch and its HTML parse in two functions, a send
-  called through the app's own function from a worker in another function, a
-  request built in one statement and sent in the next (`let req = c.get(url);
-  req.send()`), a handler that returns the model's output as its tail expression
-  with no response wrapper, a model id or address held in a `const`, and an
-  `mpsc` channel between a generating task and a stream are not joined. A send
-  from the `Err` arm of a `match` inside a timer, an alert to the operator, is
-  left out when the `match` has two arms or has three with `Err` last, since the
-  engine reads no ellipsis among a Rust `match`'s arms; in a `match` of four arms
-  or more, or with `Err` in the middle of three, it still matches. The client-address rule counts a write only when its
-  statement is an INSERT or UPDATE string literal, so a `const` SQL string or a
-  `query(&format!("INSERT ..."))` is missed, and a predicate other than `is_ok`,
-  `is_err`, `is_some` or `is_none` at the end of a write chain (`.is_empty()`,
-  `.is_some_and(...)`) hides the match.
+  made in the app's own function that a loop in another file calls (in one file,
+  `rs-send-in-called-function` joins the loop and the sender, among free
+  functions or among the methods of one `impl`), a request built in one
+  statement and sent in the next (`let req = c.get(url); req.send()`), a handler
+  that returns the model's output as its tail expression with no response
+  wrapper, a model id or address held in a `const` declared after its use, and
+  an `mpsc` channel between a generating task and a stream are not joined. A
+  send from the `Err` arm of a `match` inside a timer, an alert to the operator,
+  is left out when the `match` has two arms or has three with `Err` last, since
+  the engine reads no ellipsis among a Rust `match`'s arms; in a `match` of four
+  arms or more, or with `Err` in the middle of three, it still matches. The
+  client-address rule counts a write only when its statement is an INSERT or
+  UPDATE string literal, a `format!` whose format string is one, or a `const`
+  holding one declared before the query (in the file, an `impl` or the
+  function); a `const` declared after its use, or a statement assembled from
+  parts, is missed.
 - **Staff routes.** A route registered in a router built in another function
   and nested by name (`.nest("/admin", admin_routes())`), a route behind an
   authentication layer and a handler in a file under `admin/` are not read as

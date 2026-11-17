@@ -110,7 +110,7 @@ rules:
           - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+llama_cpp_2\b).*'
           - pattern: $CTX.sample_token_greedy(...)
       # AWS Bedrock Runtime: the Converse API, which answers in text, and InvokeModel with a text
-      # model's id as a literal (a model id held in a constant is missed).
+      # model's id, as a literal or a `const`.
       - patterns:
           - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+aws_sdk_bedrockruntime\b).*'
           - pattern-either:
@@ -126,6 +126,23 @@ rules:
           - metavariable-regex:
               metavariable: $ID
               regex: '(?i)^"[^"]*(claude|llama|titan-text|nova-(lite|micro|pro|premier)|mistral|command|jamba|deepseek|qwen)[^"]*"$'
+      # The same model id held in a `const` declared before the call, in the file, an `impl`
+      # or the function. The use check sits outside the nested block (see the stream source).
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+aws_sdk_bedrockruntime\b).*'
+          - patterns:
+              - pattern-inside: |
+                  const $K: $KT = $ID;
+                  ...
+              - metavariable-regex:
+                  metavariable: $ID
+                  regex: '(?i)^"[^"]*(claude|llama|titan-text|nova-(lite|micro|pro|premier)|mistral|command|jamba|deepseek|qwen)[^"]*"$'
+              - pattern-either:
+                  - pattern: $B.model_id($K)
+                  - pattern: $B.model_id(Self::$K)
+              - metavariable-pattern:
+                  metavariable: $B
+                  pattern: $C.invoke_model()
       # The same, streamed.
       - patterns:
           - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+aws_sdk_bedrockruntime\b).*'
@@ -136,6 +153,23 @@ rules:
           - metavariable-regex:
               metavariable: $ID
               regex: '(?i)^"[^"]*(claude|llama|titan-text|nova-(lite|micro|pro|premier)|mistral|command|jamba|deepseek|qwen)[^"]*"$'
+      # The same model id held in a `const` declared before the call, in the file, an `impl`
+      # or the function. The use check sits outside the nested block (see the stream source).
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+aws_sdk_bedrockruntime\b).*'
+          - patterns:
+              - pattern-inside: |
+                  const $K: $KT = $ID;
+                  ...
+              - metavariable-regex:
+                  metavariable: $ID
+                  regex: '(?i)^"[^"]*(claude|llama|titan-text|nova-(lite|micro|pro|premier)|mistral|command|jamba|deepseek|qwen)[^"]*"$'
+              - pattern-either:
+                  - pattern: $B.model_id($K)
+                  - pattern: $B.model_id(Self::$K)
+              - metavariable-pattern:
+                  metavariable: $B
+                  pattern: $C.invoke_model_with_response_stream()
       # A chat model called over HTTP (reqwest's post or get): OpenAI's chat, completions and
       # Responses endpoints, Anthropic's Messages API, and Mistral's, Groq's and DeepSeek's chat
       # endpoints. The call is the source, not the address, so no use check is needed.
@@ -146,6 +180,20 @@ rules:
           - metavariable-regex:
               metavariable: $URL
               regex: '^&?(?:format!\(\s*)?"https://(?:api\.openai\.com/v1/(?:chat/completions|completions|responses)|api\.anthropic\.com/v1/messages|api\.mistral\.ai/v1/chat/completions|api\.groq\.com/openai/v1/chat/completions|api\.deepseek\.com/(?:v1/)?chat/completions)[?"]'
+      # The same address held in a `const` declared before the call, in the file, an `impl`
+      # (`Self::URL`) or the function; one declared after its use is not read.
+      - patterns:
+          - pattern-inside: |
+              const $K: $KT = $URL;
+              ...
+          - metavariable-regex:
+              metavariable: $URL
+              regex: '^&?(?:format!\(\s*)?"https://(?:api\.openai\.com/v1/(?:chat/completions|completions|responses)|api\.anthropic\.com/v1/messages|api\.mistral\.ai/v1/chat/completions|api\.groq\.com/openai/v1/chat/completions|api\.deepseek\.com/(?:v1/)?chat/completions)[?"]'
+          - pattern-either:
+              - pattern: $HTTP.post($K)
+              - pattern: $HTTP.post(Self::$K)
+              - pattern: $HTTP.get($K)
+              - pattern: $HTTP.get(Self::$K)
       # A stream from one of the calls above, read with `while let`: the engine does not carry
       # taint from a `while let` scrutinee into the names it binds (it does for `if let`), so
       # those names are a source of their own inside the loop, in a file whose use lines name one

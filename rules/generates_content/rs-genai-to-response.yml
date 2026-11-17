@@ -36,6 +36,20 @@ rules:
           - metavariable-regex:
               metavariable: $URL
               regex: '^&?(?:format!\(\s*)?"https://(?:generativelanguage\.googleapis\.com/[^"]*:(?:stream)?[gG]enerateContent|[^"]*aiplatform\.googleapis\.com/[^"]*:(?:stream)?[gG]enerateContent)[?"]'
+      # The same address held in a `const` declared before the call, in the file, an `impl`
+      # (`Self::URL`) or the function; one declared after its use is not read.
+      - patterns:
+          - pattern-inside: |
+              const $K: $KT = $URL;
+              ...
+          - metavariable-regex:
+              metavariable: $URL
+              regex: '^&?(?:format!\(\s*)?"https://(?:generativelanguage\.googleapis\.com/[^"]*:(?:stream)?[gG]enerateContent|[^"]*aiplatform\.googleapis\.com/[^"]*:(?:stream)?[gG]enerateContent)[?"]'
+          - pattern-either:
+              - pattern: $HTTP.post($K)
+              - pattern: $HTTP.post(Self::$K)
+              - pattern: $HTTP.get($K)
+              - pattern: $HTTP.get(Self::$K)
     pattern-propagators:
       # Output gathered into a string, a buffer or a list is sent on with it.
       - pattern: $S.push_str($X)

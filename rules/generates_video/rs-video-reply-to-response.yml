@@ -63,6 +63,23 @@ rules:
           - metavariable-regex:
               metavariable: $ID
               regex: '(?i)^"[^"]*(nova-reel|luma\.)[^"]*"$'
+      # The same model id held in a `const` declared before the call, in the file, an `impl`
+      # or the function. The use check sits outside the nested block (see the stream source).
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+aws_sdk_bedrockruntime\b).*'
+          - patterns:
+              - pattern-inside: |
+                  const $K: $KT = $ID;
+                  ...
+              - metavariable-regex:
+                  metavariable: $ID
+                  regex: '(?i)^"[^"]*(nova-reel|luma\.)[^"]*"$'
+              - pattern-either:
+                  - pattern: $B.model_id($K)
+                  - pattern: $B.model_id(Self::$K)
+              - metavariable-pattern:
+                  metavariable: $B
+                  pattern: $C.start_async_invoke()
       # A video model called over HTTP (reqwest's post or get): OpenAI's Videos API, Google's Veo
       # (predictLongRunning on the Gemini API or Vertex AI), Runway's text_to_video and
       # image_to_video, and Luma's Dream Machine. The call is the source, not the address: a
@@ -74,6 +91,20 @@ rules:
           - metavariable-regex:
               metavariable: $URL
               regex: '^&?(?:format!\(\s*)?"https://(?:api\.openai\.com/v1/videos(?:/[^"?/]+/(?:content|remix))?|generativelanguage\.googleapis\.com/[^"]*:predictLongRunning|[^"]*aiplatform\.googleapis\.com/[^"]*veo[^"]*:predictLongRunning|api\.(?:dev\.)?runwayml\.com/v1/(?:text|image)_to_video|api\.lumalabs\.ai/dream-machine/v1/generations(?:/video)?)[?"]'
+      # The same address held in a `const` declared before the call, in the file, an `impl`
+      # (`Self::URL`) or the function; one declared after its use is not read.
+      - patterns:
+          - pattern-inside: |
+              const $K: $KT = $URL;
+              ...
+          - metavariable-regex:
+              metavariable: $URL
+              regex: '^&?(?:format!\(\s*)?"https://(?:api\.openai\.com/v1/videos(?:/[^"?/]+/(?:content|remix))?|generativelanguage\.googleapis\.com/[^"]*:predictLongRunning|[^"]*aiplatform\.googleapis\.com/[^"]*veo[^"]*:predictLongRunning|api\.(?:dev\.)?runwayml\.com/v1/(?:text|image)_to_video|api\.lumalabs\.ai/dream-machine/v1/generations(?:/video)?)[?"]'
+          - pattern-either:
+              - pattern: $HTTP.post($K)
+              - pattern: $HTTP.post(Self::$K)
+              - pattern: $HTTP.get($K)
+              - pattern: $HTTP.get(Self::$K)
     pattern-propagators:
       # Output gathered into a string, a buffer or a list is sent on with it.
       - pattern: $S.push_str($X)
