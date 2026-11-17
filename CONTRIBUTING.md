@@ -617,6 +617,10 @@ Measured on Opengrep 1.33.1:
   I { ... }` for the later places; a base reached through a primary
   constructor (`: Base(x), I`) matches only `$B1(...)` in its place
   (`cs-analytics-calls`). The base list cannot be a `$...B` metavariable.
+- `pattern-inside: '"..."'` beside a `pattern-regex` keeps the regex's matches
+  inside a string literal of any form (plain, verbatim, interpolated, raw, over
+  several lines) and drops those in a comment, which is how a rule reads script
+  text a C# string holds (`cs-tracking-script`).
 - A `catch` clause cannot be a pattern on its own, and `try { ... } catch ($T $E)
   { ... }` in a `pattern-not-inside` also drops the try body.
 - An interpolated string prints as `$"` followed by its text with the braces

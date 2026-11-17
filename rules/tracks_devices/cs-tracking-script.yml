@@ -1,0 +1,48 @@
+rules:
+  - id: lexcode.tracking.cs-tracking-script
+    languages: [csharp]
+    severity: INFO
+    message: Holds a third-party analytics or advertising tag in a C# string that the app writes into its pages (Google tag, Meta Pixel, TikTok, Pinterest, Snap, X, LinkedIn, Matomo, HubSpot, Klaviyo, Brevo, Omnisend, PostHog, Mixpanel, Amplitude, Heap, Hotjar or Segment), which is tracking devices (tracks_devices).
+    # A plugin or view component often keeps a tag's script as a C# string (a default setting, a
+    # verbatim or raw string, a string builder's pieces) and hands it to the page, where no
+    # JavaScript rule reads it. The tag's own loader address or tracking call is read in the string's
+    # text; `pattern-inside` a string keeps a comment that names the call from matching. The calls
+    # are the ones the JavaScript rule reads, with the quotes a C# string gives them (`'`, `\"` or a
+    # verbatim string's `""`). A host on its own (a Content-Security-Policy list) is not a loader.
+    patterns:
+      - pattern-regex: >-
+          (?x)
+          (?:
+            googletagmanager\.com/(?:gtag/js|gtm\.js)
+            | connect\.facebook\.net/[\w-]+/fbevents\.js
+            | analytics\.tiktok\.com/i18n/pixel/
+            | s\.pinimg\.com/ct/core\.js
+            | sc-static\.net/scevent\.min\.js
+            | static\.ads-twitter\.com/uwt\.js
+            | snap\.licdn\.com/li\.lms-analytics/
+            | js\.hs-scripts\.com/
+            | static\.klaviyo\.com/onsite/js/
+            | sibautomation\.com/sa\.js
+            | omnisnippet1\.com/inshop/
+            | static\.hotjar\.com/c/hotjar-
+            | cdn\.segment\.com/analytics\.js
+            | (?:(?<![\w.$])|(?<=window\.))gtag\(\s*(?:\\?["']|"")(?:config|event|set)\b
+            | (?:(?<![\w.$])|(?<=window\.))fbq\(\s*(?:\\?["']|"")(?:init|track|trackCustom|trackSingle|setUserProperties)\b
+            | (?:(?<![\w.$])|(?<=window\.))pintrk\(\s*(?:\\?["']|"")(?:load|track)\b
+            | (?:(?<![\w.$])|(?<=window\.))snaptr\(\s*(?:\\?["']|"")(?:init|track)\b
+            | (?:(?<![\w.$])|(?<=window\.))twq\(\s*(?:\\?["']|"")(?:init|config|track|event)\b
+            | (?:(?<![\w.$])|(?<=window\.))lintrk\(\s*(?:\\?["']|"")track\b
+            | (?:(?<![\w.$])|(?<=window\.))ttq\.(?:load|track|page|identify)\(
+            | (?:(?<![\w.$])|(?<=window\.))(?:_paq|_hsq|_learnq)\.push\(
+            | (?:(?<![\w.$])|(?<=window\.))omnisend\.(?:push|identifyContact)\(
+            | (?:(?<![\w.$])|(?<=window\.))sendinblue\.(?:track|identify|page)\(
+            | (?:(?<![\w.$])|(?<=window\.))(?:posthog|mixpanel|amplitude)\.(?:init|capture|track|identify)\(
+            | (?:(?<![\w.$])|(?<=window\.))heap\.(?:track|identify)\(
+          )
+      - pattern-inside: '"..."'
+    metadata:
+      activity: tracks_devices
+      mentioned: performs
+      definition: https://lexlint.io/activities/tracks-devices
+      provenance: ungovr-original
+      license: MIT
