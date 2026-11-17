@@ -24,7 +24,14 @@ rules:
     # store, collection, container or table given a record with List's synchronous Add or AddRange
     # (`_store.Add(new ChatMessage { ... })` on a Blazor app's own store class) is left out, and the
     # same receiver with an asynchronous add, an insert or a save counts; a data context, a
-    # repository or a DAO counts with either.
+    # repository or a DAO counts with either, and so does a store a data context holds
+    # (`_context.MessageStore.Add`). A repository, DAO or database object counts with a
+    # synchronous Add even when the app's own class keeps the records in memory, unlike the
+    # DbSet branch, which leaves those receivers out: there the Add is List's, called on a
+    # chat-named property the object exposes, while here the Add is the object's own method,
+    # the repository pattern's write, and whether that write reaches a database is in the class
+    # body, which a pattern on the call cannot see (an in-memory repository is most often a test
+    # double).
     # A receiver that begins with chat, conversation, prompt, session or history and ends in a bare
     # Context (`chatContext`, `conversationContext`) is taken for a holder object, and its synchronous
     # Add stays out as ambiguous; with a data-context suffix (`chatDb`, `chatDbContext`) it is a store.
@@ -84,9 +91,12 @@ rules:
               regex: ^(Add|AddAsync|Insert|InsertAsync|InsertOne|InsertOneAsync|Save|SaveAsync|Create|CreateAsync|CreateItemAsync|Upsert|UpsertAsync|UpsertItemAsync|Store|StoreAsync)$
           # A store given a record with List's synchronous Add is as often an in-memory list as a
           # database (a Blazor app's own ChatStore), so that call does not count; a repository's or
-          # DAO's does, and the store's asynchronous add, insert or save does (#13233). The range
-          # here is the role the anchor below finds, so a pattern-not-regex on the call would not
-          # reach it: the verb and the receiver are paired here instead.
+          # DAO's does, and the store's asynchronous add, insert or save does (#13233). The receiver
+          # is judged by its first part: a store, or a list held by one (`_store.Messages`), is left
+          # out, while a store held by a data context (`_context.MessageStore`, `db.ChatStore`) is
+          # the context's own and counts. The range here is the role the anchor below finds, so a
+          # pattern-not-regex on the call would not reach it: the verb and the receiver are paired
+          # here instead.
           - pattern-either:
               - patterns:
                   - pattern: $R.$W(...)
@@ -97,7 +107,7 @@ rules:
                   - pattern: $R.Add(...)
                   - metavariable-regex:
                       metavariable: $R
-                      regex: (?i)^(?!.*store(\.\w+)?$)
+                      regex: (?i)^(?!(this\.)?_?\w*store(\.|$))
           - pattern-regex: '\bRole\s*=\s*("(user|assistant|model|bot|ai)"|\w*Role\s*\.\s*(User|Assistant|Model|Bot)\b)'
       # A pattern-not beside a pattern-regex anchor is not applied on Opengrep 1.33.1;
       # pattern-not-inside is.

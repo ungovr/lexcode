@@ -1,10 +1,12 @@
-// lexcode-expect: 7
+// lexcode-expect: 9
 // The nearest lookalikes of an in-memory store that still write the chat: a repository and a DAO given a chat
 // message or a turn with a synchronous Add (the repository pattern's own write), and a store, a collection and a
-// container given one with an asynchronous add, an insert or a save, which a plain list does not have.
+// container given one with an asynchronous add, an insert or a save, which a plain list does not have; and a
+// store held by a data context (`_context.MessageStore`), given a turn with List's synchronous Add, which is the
+// context's own store and so a write.
 namespace App.Chat;
 
-public class ChatArchive(IChatRepository chatRepository, IMessageRepository messageRepository, MessageDao messageDao, ChatStore store, MessageCollection collection, IStateContainer container)
+public class ChatArchive(IChatRepository chatRepository, IMessageRepository messageRepository, MessageDao messageDao, ChatStore store, MessageCollection collection, IStateContainer container, AppDbContext _context, ChatDb db)
 {
     public async Task KeepAsync(string text, string reply)
     {
@@ -15,5 +17,7 @@ public class ChatArchive(IChatRepository chatRepository, IMessageRepository mess
         await collection.InsertOneAsync(new ChatMessage { Role = "user", Text = text });
         await container.SaveAsync(new ChatMessage { Text = reply });
         await store.SaveAsync(new Message { Role = "user", Content = text });
+        _context.MessageStore.Add(new ChatMessage { Role = "user", Text = text });
+        db.ChatStore.Add(new Message { Role = "assistant", Content = reply });
     }
 }
