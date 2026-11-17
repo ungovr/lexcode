@@ -748,7 +748,7 @@ prefixes included (`releaseImplementation`, `fdroidImplementation`,
 
 `$name` and `${name}` in a coordinate resolve from the same file (`val name =`,
 `def name =`, `ext.name =`, `ext { name = }`, `extra["name"] =`), then the root
-build file's `ext`, then `gradle.properties` beside the file and at the build
+build file's `ext`, then the scripts either applies (`apply from:`), then `gradle.properties` beside the file and at the build
 root. A version that stays unresolved is recorded without a version, and one
 notice counts those (`N Gradle dependencies have no version lexcode can read
 (a platform BOM, a plugin or a computed value); recorded without a version`).
@@ -775,12 +775,19 @@ counted. Their `.kt` and `.kts` sources are read for `findLibrary("alias")` and
 `findBundle("alias")` literals, recorded under the configuration named on the
 same line (`add("conf", ...)`, `"conf"(...)`), else `implementation`. A
 reference such as `Libs.OKHTTP` in a build file is read from the `object`
-constants those sources declare. A module a settings file moves with
+constants those sources declare. A bare map accessor, `implementation
+deps.okhttp` or `rootProject.ext.deps.sentry`, is read from a Groovy map
+(`ext.deps = [okhttp: 'g:a:v']`, nested maps such as `deps.support.v4`, and a
+map assigned to a key, `deps.kotlin = [...]`) in the same file, the root build
+file, or a script either applies with a literal path (`apply from:
+"$rootDir/dependencies.gradle"`, one level). A module a settings file moves with
 `project(':x').projectDir = ...` is followed to its new directory.
 
 Known gaps: Gradle lockfiles (`gradle.lockfile`) are not read, because a
 lockfile lists transitive dependencies with no way to tell the direct ones, and
-few apps commit one. `apply from:` scripts and `.groovy` sources under `buildSrc` are not read, and
+few apps commit one. An `apply from:` script is read only for the variables
+and maps it defines (its own `dependencies` blocks are not), and `.groovy`
+sources under `buildSrc` are not read, and
 neither are the dependency declarations of precompiled `*.gradle.kts` plugins
 (their `findLibrary` and `findBundle` literals are). A coordinate built by
 string concatenation is not recorded. A dependency whose version comes from a

@@ -344,7 +344,7 @@ function collectVars(toks: Tok[]): Vars {
       const name = typed ? (toks[i - 2] as Tok).v : t.v;
       const val = toks[i + 2];
       if (val?.k === 'str' && wholeValue(toks, i + 2)) addVar(vars, name, { line: t.line, raw: val.v, interp: val.interp === true });
-      else if (isP(val, '[')) collectMap(toks, i + 2, name, vars);
+      else if (isP(val, '[')) collectMap(toks, i + 2, typed ? name : mapTarget(toks, i), vars);
     } else if (t.k === 'id' && (t.v === 'ext' || t.v === 'extra') && isP(nx, '[') && toks[i + 2]?.k === 'str' && isP(toks[i + 3], ']') && isP(toks[i + 4], '=')) {
       const val = toks[i + 5];
       const key = toks[i + 2] as Tok;
@@ -361,8 +361,20 @@ function collectVars(toks: Tok[]): Vars {
   return vars;
 }
 
-/** `name = [key: 'v', other: "w"]`: each pair is the variable `name.key`. */
-function collectMap(toks: Tok[], open: number, name: string, vars: Vars): void {
+/**
+ * The name a map assigned at `toks[i] = [...]` is read under: the dotted path that ends at `toks[i]`, less the
+ * `ext.`, `project.` and `rootProject.` qualifiers `lookupVar` drops (`ext.deps` is `deps`, `deps.kotlin` is
+ * `deps.kotlin`).
+ */
+function mapTarget(toks: Tok[], i: number): string {
+  const segs = [(toks[i] as Tok).v];
+  for (let k = i - 1; k >= 1 && isP(toks[k], '.') && toks[k - 1]?.k === 'id'; k -= 2) segs.unshift((toks[k - 1] as Tok).v);
+  while (segs.length > 1 && ['project', 'rootProject', 'ext', 'extra', 'gradle'].includes(segs[0] as string)) segs.shift();
+  return segs.join('.');
+}
+
+/** `name = [key: 'v', other: "w", group: [k: 'x']]`: each pair is the variable `name.key`, and `name.group.k`. */
+function collectMap(toks: Tok[], open: number, name: string, vars: Vars, nest = 0): void {
   let depth = 0;
   for (let k = open; k < toks.length && k < open + MAX_LOOKAHEAD; k++) {
     const t = toks[k] as Tok;
@@ -372,9 +384,10 @@ function collectMap(toks: Tok[], open: number, name: string, vars: Vars): void {
         depth--;
         if (depth <= 0) return;
       }
-    } else if (depth === 1 && (t.k === 'id' || t.k === 'str') && isP(toks[k + 1], ':') && toks[k + 2]?.k === 'str') {
-      const val = toks[k + 2] as Tok;
-      addVar(vars, `${name}.${t.v}`, { line: t.line, raw: val.v, interp: val.interp === true });
+    } else if (depth === 1 && (t.k === 'id' || t.k === 'str') && isP(toks[k + 1], ':')) {
+      const val = toks[k + 2];
+      if (val?.k === 'str') addVar(vars, `${name}.${t.v}`, { line: t.line, raw: val.v, interp: val.interp === true });
+      else if (isP(val, '[') && nest < 4) collectMap(toks, k + 2, `${name}.${t.v}`, vars, nest + 1);
     }
   }
 }
@@ -680,6 +693,30 @@ export function readGradle(root: string, files: string[]): ReaderResult {
     return ctx;
   };
   const rootBuildFile = (buildRoot: string): FileCtx | undefined => ctxOf(joinRel(buildRoot, 'build.gradle')) ?? ctxOf(joinRel(buildRoot, 'build.gradle.kts'));
+  /**
+   * The scripts a build file applies with a literal path, `apply from: "$rootDir/dependencies.gradle"` or
+   * `apply from: 'versions.gradle'`, where pre-catalog builds kept their `ext` maps. One level, no URLs.
+   */
+  const appliedCache = new Map<string, FileCtx[]>();
+  const appliedScripts = (ctx: FileCtx): FileCtx[] => {
+    const hit = appliedCache.get(ctx.rel);
+    if (hit) return hit;
+    const out: FileCtx[] = [];
+    appliedCache.set(ctx.rel, out);
+    const { toks } = ctx;
+    for (let i = 0; i + 3 < toks.length; i++) {
+      if (toks[i]?.v !== 'apply' || toks[i]?.k !== 'id') continue;
+      const j = isP(toks[i + 1], '(') ? i + 2 : i + 1;
+      const target = toks[j + 2];
+      if (toks[j]?.v !== 'from' || !isP(toks[j + 1], ':') || target?.k !== 'str') continue;
+      const m = /^(?:\$\{?rootDir\}?\/|\$\{?rootProject\.projectDir\}?\/)?([^$:]+\.gradle)$/.exec(target.v);
+      if (!m) continue;
+      const rel = target.v.startsWith('$') ? joinRel(ctx.buildRoot, m[1] as string) : resolveInside(ctx.dir, m[1] as string);
+      const script = rel === undefined || rel === ctx.rel ? undefined : ctxOf(rel);
+      if (script) out.push(script);
+    }
+    return out;
+  };
   const propsCache = new Map<string, Map<string, string>>();
   const propsAt = (dir: string): Map<string, string> => {
     const hit = propsCache.get(dir);
@@ -708,7 +745,8 @@ export function readGradle(root: string, files: string[]): ReaderResult {
       name = name.slice(m[0].length);
     }
     const rootCtx = rootBuildFile(ctx.buildRoot);
-    for (const c of rootCtx && rootCtx.rel !== ctx.rel ? [ctx, rootCtx] : [ctx]) {
+    const own = rootCtx && rootCtx.rel !== ctx.rel ? [ctx, rootCtx] : [ctx];
+    for (const c of [...own, ...own.flatMap(appliedScripts)]) {
       const list = c.vars.get(name);
       if (!list) continue;
       // The latest definition at or before the use, else the first.
@@ -1005,6 +1043,16 @@ export function readGradle(root: string, files: string[]): ReaderResult {
           const entry = constsByRoot.get(r)?.get(path);
           if (!entry) continue;
           const c = coordinate({ k: 'str', v: entry.raw, line: first.line }, ctx, (part) => expandConst(part, r, entry.objPath, 0));
+          if (c.lib) record(conf, c.lib, rel, first.line, tooling, seen);
+          else if (c.shape && countable(conf)) nameUnresolved++;
+          return;
+        }
+      }
+      // `deps.okhttp`, `rootProject.ext.deps.sentry`: an entry of a Groovy map, `ext.deps = [okhttp: '...']`.
+      if (segs.length >= 2) {
+        const value = lookupVar(segs.join('.'), ctx, first.line, 0);
+        if (value !== undefined) {
+          const c = coordinate({ k: 'str', v: value, line: first.line }, ctx);
           if (c.lib) record(conf, c.lib, rel, first.line, tooling, seen);
           else if (c.shape && countable(conf)) nameUnresolved++;
           return;
