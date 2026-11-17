@@ -1,12 +1,13 @@
 // lexcode-expect: 0
 // Not a public sign-up flow: demo users seeded at start-up (a seed class and a seeder), the
-// administrator an initialiser creates, a test-data factory, a generic identity service that any
-// caller may use, staff creating accounts (in an admin area, under an admin attribute, behind an
-// admin policy given by position, an operator role or an employees-only policy), a second account
-// for a user who is already signed in, Identity configured for an API with no pages, an app's own
-// AddDefaultUI on another builder, and the app's own UserManager in another namespace, which shares
-// Identity's short name. Staff namespaces are in the .admin (file-scoped) and .staff (block)
-// negatives.
+// administrator an initialiser creates, a test-data factory, a console command that registers a
+// demo user, a CQRS handler that creates a user under no sign-up name, a generic identity service
+// that any caller may use, staff creating accounts (in an admin area, under an admin attribute,
+// behind an admin policy given by position, an operator role or an employees-only policy), a second
+// account for a user who is already signed in, Identity configured for an API with no pages, an
+// app's own AddDefaultUI on another builder, and the app's own UserManager in another namespace,
+// which shares Identity's short name. Staff namespaces are in the .admin (file-scoped) and .staff
+// (block) negatives.
 using System;
 using Demo.Accounts;
 using Microsoft.Extensions.DependencyInjection;
@@ -82,6 +83,18 @@ public class SeatsController(Microsoft.AspNetCore.Identity.UserManager<AppUser> 
 public class DemoUsersSeeder(Microsoft.AspNetCore.Identity.UserManager<AppUser> users)
 {
     public Task RegisterUserAsync(string email) => users.CreateAsync(new AppUser { Email = email });
+}
+
+public class RegisterDemoUserCommand(Microsoft.AspNetCore.Identity.UserManager<AppUser> users)
+{
+    public Task<int> RegisterAsync(string email) =>
+        users.CreateAsync(new AppUser { Email = email }).ContinueWith(_ => 0);
+}
+
+public class CreateUserCommandHandler(Microsoft.AspNetCore.Identity.UserManager<AppUser> users)
+{
+    public Task Handle(string email, System.Threading.CancellationToken cancellationToken) =>
+        users.CreateAsync(new AppUser { Email = email });
 }
 
 public class TestAccountFactory(Microsoft.AspNetCore.Identity.UserManager<AppUser> users)
