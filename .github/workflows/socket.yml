@@ -9,10 +9,11 @@
 # never runs in a job that builds what npm publishes.
 #
 # npm installs a platform's optional packages (native bindings) only on that
-# platform, so the firewall runs on every runner OS that ci.yml installs on.
-# A new OS in ci.yml's matrix needs a row here too.
+# platform, so a caller passes, in `runners`, every runner its own jobs install
+# on: ci.yml its test matrix's OSes, release.yml only the one its build runs on
+# (ungovr/ungovr#13493). A runner with no pinned build below fails the job.
 #
-# The binary is pinned by version and sha256 for each runner, the way lexcode
+# The binary is pinned by version and sha256 for each platform, the way lexcode
 # pins Opengrep. To move it, take each asset's digest from the release
 # (gh api repos/SocketDev/sfw-free/releases/tags/<tag>) and change the version
 # and every sha256 together. Socket drops support for old versions, so a red
@@ -21,6 +22,11 @@ name: socket
 
 on:
   workflow_call:
+    inputs:
+      runners:
+        description: JSON list of the runner labels the caller installs on
+        type: string
+        default: '["ubuntu-24.04", "macos-15"]'
 
 permissions:
   contents: read
@@ -30,19 +36,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: ubuntu-24.04
-            asset: sfw-free-linux-x86_64
-            sha256: 1f24d2628aeb3995f1f2651509e37641c7c41d07749ac68594ecb5bb2dd44d8a
-          - os: macos-15
-            asset: sfw-free-macos-arm64
-            sha256: 29df049df2ef705a8ce726c6c41fe73a6034f6b1cd0d87f3f15a780d074b6d83
+        os: ${{ fromJSON(inputs.runners) }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     env:
       SFW_VERSION: v1.16.0
-      SFW_ASSET: ${{ matrix.asset }}
-      SFW_SHA256: ${{ matrix.sha256 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -52,10 +50,21 @@ jobs:
           node-version: "22"
       - name: Socket Firewall Free, pinned
         run: |
+          case "$RUNNER_OS-$RUNNER_ARCH" in
+            Linux-X64)
+              asset=sfw-free-linux-x86_64
+              sha256=1f24d2628aeb3995f1f2651509e37641c7c41d07749ac68594ecb5bb2dd44d8a ;;
+            macOS-ARM64)
+              asset=sfw-free-macos-arm64
+              sha256=29df049df2ef705a8ce726c6c41fe73a6034f6b1cd0d87f3f15a780d074b6d83 ;;
+            *)
+              echo "no pinned Socket Firewall build for $RUNNER_OS-$RUNNER_ARCH; add one to socket.yml" >&2
+              exit 1 ;;
+          esac
           mkdir -p "$RUNNER_TEMP/sfw-bin"
           curl -fsSL --retry 3 -o "$RUNNER_TEMP/sfw-bin/sfw" \
-            "https://github.com/SocketDev/sfw-free/releases/download/$SFW_VERSION/$SFW_ASSET"
-          echo "$SFW_SHA256  $RUNNER_TEMP/sfw-bin/sfw" | shasum -a 256 -c -
+            "https://github.com/SocketDev/sfw-free/releases/download/$SFW_VERSION/$asset"
+          echo "$sha256  $RUNNER_TEMP/sfw-bin/sfw" | shasum -a 256 -c -
           chmod +x "$RUNNER_TEMP/sfw-bin/sfw"
       - name: Install through the firewall
         # Install scripts stay off: this job only proves every package passes.

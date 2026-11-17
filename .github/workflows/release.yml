@@ -19,8 +19,12 @@ permissions: {}
 
 jobs:
   socket:
-    # Socket Firewall Free over the lockfile; see socket.yml.
+    # Socket Firewall Free over the lockfile; see socket.yml. Only on the
+    # runner `build` installs on, so a release never waits on a macOS runner
+    # it does not use (ungovr/ungovr#13493). Change the two together.
     uses: ./.github/workflows/socket.yml
+    with:
+      runners: '["ubuntu-24.04"]'
     permissions:
       contents: read
 
