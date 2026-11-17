@@ -110,4 +110,11 @@ class VideoJobController extends Controller
         $list = $this->httpClient->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, 'https://api.openai.com/v1/videos');
         return response()->json($list->toArray());
     }
+
+    // A HEAD of the list, which carries no body.
+    public function head()
+    {
+        $res = $this->httpClient->request('HEAD', 'https://api.openai.com/v1/videos');
+        return response()->json($res->getHeaders());
+    }
 }

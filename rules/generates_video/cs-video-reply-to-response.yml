@@ -80,6 +80,10 @@ rules:
       # System.Net.Http is imported implicitly, so the short form is read as well.
       # A message for a creation address sent with GET lists videos, so a GET method in the
       # message drops it; a message for the /content address is the clip whatever its method.
+      # GET is HttpMethod.Get or new HttpMethod("GET"), found by a regex over the whole message
+      # expression, initializer included: a message that names HttpMethod.Get anywhere in it (a
+      # comment or a header value) drops too. A method held in a variable, or HEAD, still counts
+      # as generation (a known gap).
       - label: REQUEST
         patterns:
           - pattern-either: &request-message
@@ -94,7 +98,7 @@ rules:
           - metavariable-regex:
               metavariable: $URL
               regex: *openai-create
-          - pattern-not-regex: HttpMethod\.Get\b
+          - pattern-not-regex: HttpMethod\.Get\b|new\s+(?:System\.Net\.Http\.)?HttpMethod\s*\(\s*"GET"\s*\)
       - label: REQUEST
         patterns:
           - pattern-either: *request-message

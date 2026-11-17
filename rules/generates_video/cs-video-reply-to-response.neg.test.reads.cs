@@ -102,4 +102,12 @@ public class VideoJobsController : ControllerBase
         var r = await http.GetByteArrayAsync($"https://api.openai.com/v1/videos/{id}/content?variant=thumbnail&attempt=1");
         return File(r, "image/webp");
     }
+
+    // The list through a request message whose method is built from its name.
+    public async Task<IActionResult> ListMessageBuilt(HttpClient http)
+    {
+        var request = new HttpRequestMessage(new HttpMethod("GET"), "https://api.openai.com/v1/videos");
+        var r = await http.SendAsync(request);
+        return Ok(r);
+    }
 }
