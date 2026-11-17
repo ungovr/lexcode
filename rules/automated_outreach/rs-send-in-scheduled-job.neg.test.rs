@@ -67,6 +67,54 @@ pub async fn nightly_match(state: AppState, admin: String) {
     }
 }
 
+// The alert arm among any number of arms, in any position, and alone.
+pub async fn nightly_arms(state: AppState, admin: String) {
+    let mut interval = tokio::time::interval(Duration::from_secs(86400));
+    loop {
+        interval.tick().await;
+        match run_job(&state).await {
+            Ok(Some(_)) => {}
+            Err(_) => send_alert_email(&admin, "middle of three"),
+            Ok(None) => {}
+        }
+        match run_job(&state).await {
+            Err(_) => send_alert_email(&admin, "first of three"),
+            Ok(Some(_)) => {}
+            Ok(None) => {}
+        }
+        match run_job(&state).await {
+            Ok(Some(0)) => {}
+            Ok(Some(_)) => {}
+            Ok(None) => {}
+            Err(_) => send_alert_email(&admin, "last of four"),
+        }
+        match run_job(&state).await {
+            Ok(Some(0)) => {}
+            Err(_) => send_alert_email(&admin, "second of four"),
+            Ok(Some(_)) => {}
+            Ok(None) => {}
+        }
+        match run_job(&state).await {
+            Err(_) => send_alert_email(&admin, "first of four"),
+            Ok(Some(0)) => {}
+            Ok(Some(_)) => {}
+            Ok(None) => {}
+        }
+        match run_job(&state).await {
+            Ok(Some(0)) => {}
+            Ok(Some(1)) => {}
+            Err(_) => {
+                send_alert_email(&admin, "third of five");
+            }
+            Ok(Some(_)) => {}
+            Ok(None) => {}
+        }
+        match run_job(&state).await {
+            Err(_) => send_alert_email(&admin, "alone"),
+        }
+    }
+}
+
 // The lookalike Job running a send.
 pub fn lookalike() {
     let _job = Job::new_async("0 0 9 * * *", || {

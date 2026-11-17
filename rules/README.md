@@ -1621,11 +1621,13 @@ The engine sets most of these limits, and the rules' comments point here.
   statement and sent in the next (`let req = c.get(url); req.send()`), a handler
   that returns the model's output as its tail expression with no response
   wrapper, a model id or address held in a `const` declared after its use, and
-  an `mpsc` channel between a generating task and a stream are not joined. A
-  send from the `Err` arm of a `match` inside a timer, an alert to the operator,
-  is left out when the `match` has two arms or has three with `Err` last, since
-  the engine reads no ellipsis among a Rust `match`'s arms; in a `match` of four
-  arms or more, or with `Err` in the middle of three, it still matches. The
+  an `mpsc` channel between a generating task and a stream are not joined. Any
+  send in an `Err` branch inside a timer (an `if let Err` body or an `Err` arm,
+  in any position among any number of arms) is read as an alert to the
+  operator and left out, except in a `for` over the timer's recipients when a
+  call in the branch takes the loop's item as its first argument (a fallback to
+  each recipient); a fallback to a recipient that is not the loop's item, or in
+  a `while let` or an iterator's closure, is missed. The
   client-address rule counts a write only when its statement is an INSERT or
   UPDATE string literal, a `format!` whose format string is one, or a `const`
   holding one declared before the query (in the file, an `impl` or the

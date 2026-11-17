@@ -1,4 +1,4 @@
-// lexcode-expect: 13
+// lexcode-expect: 15
 use std::time::Duration;
 
 use clokwerk::{AsyncScheduler, TimeUnits};
@@ -98,4 +98,41 @@ pub fn clokwerk_jobs(scheduler: &mut AsyncScheduler) {
     scheduler.every(10.minutes()).run(|| async {
         send_push_notifications().await;
     });
+}
+
+// A fallback to each recipient when a push fails is outreach, not an alert: the failure branch's
+// send names the loop's item as its recipient.
+pub async fn fan_out(subs: Vec<Subscriber>) {
+    let mut interval = tokio::time::interval(Duration::from_secs(3600));
+    loop {
+        interval.tick().await;
+        for s in &subs {
+            match push_to(&s).await {
+                Ok(_) => {}
+                Err(_) => send_email(&s.email, "You have news"),
+            }
+            if let Err(_) = push_to(&s).await {
+                send_email(&s.email, "You have news");
+            }
+        }
+    }
+}
+
+// Not counted here: an alert per failed job in a loop over the jobs, whose recipient is the
+// operator, not the loop's item, though the message names the job. It sits in this file because
+// rs-send-in-loop reads any send in a `for`, so the negative fixture cannot hold it.
+pub async fn nightly_jobs(jobs: Vec<Job>, admin: String) {
+    let mut interval = tokio::time::interval(Duration::from_secs(86400));
+    loop {
+        interval.tick().await;
+        for job in &jobs {
+            match job.run().await {
+                Ok(_) => {}
+                Err(_) => send_alert_email(&admin, &job.name),
+            }
+            if let Err(_) = job.run().await {
+                send_alert_email(&admin, &job.name);
+            }
+        }
+    }
 }

@@ -8,10 +8,14 @@
 # which is an alert and not outreach; it is left out, as the Java and Kotlin rules leave out a send
 # in a catch block. Only the branch's body is left out, so a send that is the scrutinee itself
 # (`if let Err(e) = mailer.send(msg).await`: the timer sends and handles its failure), a send in the
-# `else` and a send in the `Ok` arm are kept. On Opengrep 1.33.1 a Rust `match` pattern cannot hold
-# an ellipsis among its arms, so the arms are spelled out: two arms with `Err` first or last, and
-# three with `Err` last. A `match` of four arms or more, or one whose `Err` arm sits in the middle
-# of three, is a known residual.
+# `else` and a send in the `Ok` arm are kept. On Opengrep 1.33.1 a `match` pattern of one arm
+# matches that arm among any number of arms in any position (measured: two to five arms, `Err`
+# first, middle or last), so one pattern covers every layout. Any send in an `Err` branch is left
+# out, except inside a `for` over the timer's recipients when a call in the branch takes the loop's
+# item as its first argument (`Err(_) => send_email(&s.email, ..)`): a fallback to each recipient
+# is outreach. An alert to the operator that names the item later (`send_alert_email(&admin,
+# &job.name)`) is still left out, and a fallback whose recipient is not the loop's item, or that
+# sits in a `while let` or an iterator's closure, is missed.
 #
 # The sends are rs-send-in-loop's. tokio-cron-scheduler's Job is written by its crate path, which
 # the engine resolves through `use tokio_cron_scheduler::{Job, JobScheduler}` and an alias; a
@@ -39,21 +43,42 @@ rules:
           - pattern-inside: $SCHED.every($EVERY).at($AT).run(...)
           - pattern-inside: $SCHED.every($EVERY).run(...)
       # The exclusions' ranges are the error branch's body only (focus-metavariable), never the
-      # scrutinee, an `else` or another arm.
+      # scrutinee, an `else` or another arm. A branch inside a `for` over the timer's recipients
+      # whose body makes a call whose first argument names the loop's item (`Err(_) =>
+      # send_email(&s.email, ..)`, a fallback to each subscriber) is outreach, not an alert, so it
+      # is not left out; an alert naming the item later (`send_alert_email(&admin, &job.name)`) is.
       - pattern-not-inside:
           patterns:
             - pattern: |
                 if let Err($ERR) = $RES { $...BODY }
+            - pattern-not-inside:
+                patterns:
+                  - pattern-inside: |
+                      for $ITEM in $ITEMS { ... }
+                  - pattern: |
+                      if let Err($ERR2) = $RES2 { $...BODY2 }
+                  - metavariable-pattern:
+                      metavariable: $...BODY2
+                      pattern-either:
+                        - pattern: $SF(<... $ITEM ...>, ...)
+                        - pattern: $SX.$SF(<... $ITEM ...>, ...)
             - focus-metavariable: $...BODY
+      # One arm in the pattern matches that arm among any number of arms, in any position.
       - pattern-not-inside:
           patterns:
-            - pattern-either:
-                - pattern: |
-                    match $RES { $P => $A, Err($ERR) => $BODY }
-                - pattern: |
-                    match $RES { Err($ERR) => $BODY, $P => $A }
-                - pattern: |
-                    match $RES { $P => $A, $Q => $C, Err($ERR) => $BODY }
+            - pattern: |
+                match $RES { Err($ERR) => $BODY }
+            - pattern-not-inside:
+                patterns:
+                  - pattern-inside: |
+                      for $ITEM in $ITEMS { ... }
+                  - pattern: |
+                      match $RES2 { Err($ERR2) => $BODY2 }
+                  - metavariable-pattern:
+                      metavariable: $BODY2
+                      pattern-either:
+                        - pattern: $SF(<... $ITEM ...>, ...)
+                        - pattern: $SX.$SF(<... $ITEM ...>, ...)
             - focus-metavariable: $BODY
       - pattern-either:
           - patterns:
