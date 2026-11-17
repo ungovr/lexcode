@@ -557,7 +557,13 @@ version when there is none. A gemspec states ranges by design, so a gem that has
 no locked version is recorded without one and without a flag. A gem named in
 both a Gemfile and a gemspec of the same directory is recorded once, at the
 Gemfile line. The gem a gemspec itself defines is not one of its own
-dependencies, even though the lockfile's `DEPENDENCIES` section lists it.
+dependencies, even though the lockfile's `DEPENDENCIES` section lists it, and
+that holds for a second Gemfile pointed at the same gemspec (a dummy app's):
+it records neither that gem nor the gemspec's development gems. The names in a
+gemspec may be plain strings or the `%q<name>.freeze` form generated gemspecs
+use, and a dependency call whose arguments start on the line after its `(` is
+read with them. A one-line block (`group :test do gem "rspec" end`) is read
+with its group, and `end.each do` closes one block and opens the next.
 
 ### Ruby files
 
@@ -1640,7 +1646,8 @@ what the code does, not whose library does it. So the rules read:
   purpose is encryption in the dependency tree (the component map).
 - In every component map, a library is listed only when its own description
   says its purpose is encryption: the RustCrypto ciphers, age, MinIO's sio,
-  Jasypt, aes-js, @noble/ciphers, @stablelib/chacha20poly1305, pyaes. A
+  Jasypt, aes-js, @noble/ciphers, @stablelib/chacha20poly1305, pyaes, and the
+  gems Lockbox, attr_encrypted, jwe, symmetric-encryption and encryptor. A
   general cryptography library that also hashes, MACs or signs has no entry,
   because an app can link one only for a hash or a signature, which holds no
   cipher it uses. Its cipher and key-agreement calls, encrypting or
@@ -1649,7 +1656,8 @@ what the code does, not whose library does it. So the rules read:
   `js-library-encryption`; cryptography, PyCryptodome, PyNaCl, libnacl, Tink,
   rsa and PGPy by `py-library-encryption`; Bouncy Castle and Tink by `java-` and
   `kt-library-encryption`; phpseclib by `php-library-encryption`; ProtonMail's
-  OpenPGP, Tink and CIRCL by `go-library-encryption`; swift-crypto,
+  OpenPGP, Tink and CIRCL by `go-library-encryption`; RbNaCl, Fernet, Gibberish
+  and json-jwt's JWE by `rb-library-encryption`; swift-crypto,
   CryptoSwift and swift-sodium by `swift-library-encryption`; orion,
   sodiumoxide, ring and aws-lc-rs by `rs-library-encryption`. Go's own
   `golang.org/x/crypto` is the first case: Go links only the subpackages a
