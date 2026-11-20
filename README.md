@@ -53,9 +53,8 @@ or later.
 
 On first run LexCode downloads the analysis engine it is pinned to (Opengrep,
 about 40 MB) from the Opengrep GitHub release, checks its sha256 against the
-value shipped in the package, and caches it. The package is `@ungovr/lexcode`
-while npm decides on the unscoped name `lexcode`; the command is `lexcode`
-either way.
+value shipped in the package, and caches it. The package is `@ungovr/lexcode`; the command it installs is
+`lexcode`.
 
 > **Scanning code you do not trust** (a stranger's clone, a pull request, an
 > unpacked archive)? Run LexCode from outside it:

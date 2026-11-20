@@ -1,8 +1,9 @@
 # Releasing lexcode
 
-The package is `@ungovr/lexcode` while npm Support decides on the unscoped
-name `lexcode`. If the name is granted, the package moves there and every
-`@ungovr/lexcode` version is deprecated with a pointer to it.
+The package is `@ungovr/lexcode`, and the command it installs is `lexcode`.
+npm refuses the unscoped name `lexcode` as too similar to existing packages,
+and npm Support confirmed in November 2026 that the check takes no manual
+exception, so the scoped name is permanent.
 
 Releases go to npm from `.github/workflows/release.yml` by npm trusted
 publishing, with provenance. No npm token is stored anywhere. Each release
