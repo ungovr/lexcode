@@ -111,15 +111,14 @@ rules:
       # Anthropic's Messages API, and Mistral's, Groq's and DeepSeek's chat endpoints. The call is
       # the source, not the address: a page that only shows the endpoint generates nothing. The
       # address is read to its end, so listing models, embeddings, a response read by id and
-      # Anthropic's token counter are not sources. It is read twice, as in cs-chat-model-address:
-      # as a literal's source text where it is written (plain, verbatim or interpolated), and as a
-      # value the engine carries from a const, a readonly field or a local in the same file. The
-      # value regex has no optional trailing slash, since the engine tests it against each literal
-      # part of an interpolated string, and "https://api.openai.com/v1/responses/" is the first
-      # part of a by-id address. An address held in another class or file is not followed; the
-      # signal rule cs-chat-model-address reads the declaration.
+      # Anthropic's token counter are not sources. It is read as cs-chat-model-address reads it:
+      # written as a literal, joined with + or formatted with string.Format, a value standing only
+      # for a query value; written at the call, held in a local before the send or in a member of
+      # the same class, or carried by the engine from a const, a readonly field or a local. An
+      # address held in another class or file is not followed; the signal rule reads the
+      # declaration there.
       - patterns:
-          - pattern-either:
+          - pattern-either: &text-posts
               - pattern: $HTTP.PostAsync($URL, ...)
               - pattern: $HTTP.PostAsJsonAsync($URL, ...)
               - pattern: $HTTP.PostAsJsonAsync<$T>($URL, ...)
@@ -128,7 +127,35 @@ rules:
               - pattern: '$HTTP.PostAsJsonAsync<$T>(..., requestUri: $URL, ...)'
           - metavariable-regex:
               metavariable: $URL
-              regex: &text-address ^(?:\$@?|@\$?)?"https://(?:api\.openai\.com/v1/(?:chat/completions|completions|responses)|api\.anthropic\.com/v1/messages|api\.mistral\.ai/v1/chat/completions|api\.groq\.com/openai/v1/chat/completions|api\.deepseek\.com/(?:v1/)?chat/completions)/?(?:\?[^"]*)?"?$
+              regex: &text-address '^(?:(?:System\.)?[Ss]tring\.Format\(\s*)?(?:\$@?|@\$?)?"https://(?:api\.openai\.com/v1/(?:chat/completions|completions|responses)|api\.anthropic\.com/v1/messages|api\.mistral\.ai/v1/chat/completions|api\.groq\.com/openai/v1/chat/completions|api\.deepseek\.com/(?:v1/)?chat/completions)/?(?:\?(?:[^"{]|\{(?:[^{}"]|"[^"]*")*\}|"\s*\+\s*(?:[^"]|"[^"]*")*?\s*\+\s*\$?@?")*(?:"\s*\+(?:[^"]|"[^"]*")*|\{(?:[^{}"]|"[^"]*")*)?)?(?:"\s*(?:,.*\))?)?$'
+      # The address held in a local (declared or assigned before the send in the same block) or
+      # in a member of the same class (a field, a const, an expression-bodied property or an
+      # auto-property), and sent by that name.
+      - patterns:
+          - pattern-either: &text-holders
+              - pattern-inside: |
+                  var $URL = $ADDR;
+                  ...
+              - pattern-inside: |
+                  $TYPE $URL = $ADDR;
+                  ...
+              - pattern-inside: |
+                  $URL = $ADDR;
+                  ...
+              - pattern-inside: |
+                  class $CLASS { ... $TYPE $URL = $ADDR; ... }
+              - pattern-inside: |
+                  class $CLASS { ... $TYPE $URL => $ADDR; ... }
+              - pattern-inside: |
+                  class $CLASS { ... $TYPE $URL { get; } = $ADDR; ... }
+              - pattern-inside: |
+                  class $CLASS { ... $TYPE $URL { get; set; } = $ADDR; ... }
+          - pattern-either: *text-posts
+          - metavariable-regex:
+              metavariable: $ADDR
+              regex: *text-address
+      # A value the engine carries from a const (joined from consts too), a readonly field or a
+      # local in the same file.
       - pattern: $HTTP.PostAsync("=~/^https:\/\/(?:api\.openai\.com\/v1\/(?:chat\/completions|completions|responses)|api\.anthropic\.com\/v1\/messages|api\.mistral\.ai\/v1\/chat\/completions|api\.groq\.com\/openai\/v1\/chat\/completions|api\.deepseek\.com\/(?:v1\/)?chat\/completions)(?:\?.*)?$/", ...)
       - pattern: $HTTP.PostAsJsonAsync("=~/^https:\/\/(?:api\.openai\.com\/v1\/(?:chat\/completions|completions|responses)|api\.anthropic\.com\/v1\/messages|api\.mistral\.ai\/v1\/chat\/completions|api\.groq\.com\/openai\/v1\/chat\/completions|api\.deepseek\.com\/(?:v1\/)?chat\/completions)(?:\?.*)?$/", ...)
       - pattern: $HTTP.PostAsJsonAsync<$T>("=~/^https:\/\/(?:api\.openai\.com\/v1\/(?:chat\/completions|completions|responses)|api\.anthropic\.com\/v1\/messages|api\.mistral\.ai\/v1\/chat\/completions|api\.groq\.com\/openai\/v1\/chat\/completions|api\.deepseek\.com\/(?:v1\/)?chat\/completions)(?:\?.*)?$/", ...)
@@ -141,7 +168,7 @@ rules:
       # cs-video-reply-to-response.
       - label: REQUEST
         patterns:
-          - pattern-either:
+          - pattern-either: &text-messages
               - pattern: new System.Net.Http.HttpRequestMessage($VERB, $URL) { ... }
               - pattern: new HttpRequestMessage($VERB, $URL) { ... }
               - pattern: 'new System.Net.Http.HttpRequestMessage(..., requestUri: $URL, ...) { ... }'
@@ -152,6 +179,14 @@ rules:
               - pattern: 'HttpRequestMessage $V = new(..., requestUri: $URL, ...) { ... };'
           - metavariable-regex:
               metavariable: $URL
+              regex: *text-address
+          - pattern-not-regex: HttpMethod\.Get\b|new\s+(?:System\.Net\.Http\.)?HttpMethod\s*\(\s*"GET"\s*\)
+      - label: REQUEST
+        patterns:
+          - pattern-either: *text-holders
+          - pattern-either: *text-messages
+          - metavariable-regex:
+              metavariable: $ADDR
               regex: *text-address
           - pattern-not-regex: HttpMethod\.Get\b|new\s+(?:System\.Net\.Http\.)?HttpMethod\s*\(\s*"GET"\s*\)
       - label: REQUEST

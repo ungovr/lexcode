@@ -26,16 +26,16 @@ rules:
       - pattern: (Mscc.GenerativeAI.GenerativeModel $C).GenerateContentStream(...)
       # The Gemini models called over HTTP with no SDK (#13205), keyed on the hosts
       # cs-genai-model-address names: generateContent and streamGenerateContent on the Gemini API
-      # or on Vertex AI (a regional aiplatform host, the region written or interpolated). The call
-      # is the source, not the address: a page that only shows the endpoint generates nothing. The
-      # address is read to its end, so the model list, a model's metadata, countTokens and
-      # embedContent are not sources. It is read twice, as in cs-genai-model-address: as a
-      # literal's source text where it is written (plain, verbatim or interpolated, so a model, a
-      # key or a region interpolated into it still counts), and as a value the engine carries from
-      # a const, a readonly field or a local in the same file. An address held in another class or
-      # file is not followed; the signal rule cs-genai-model-address reads the declaration.
+      # or on Vertex AI (a regional aiplatform host). The call is the source, not the address: a
+      # page that only shows the endpoint generates nothing. The address is read to its end, so the
+      # model list, a model's metadata, countTokens and embedContent are not sources. It is read as
+      # cs-genai-model-address reads it: written as a literal, joined with + or formatted with
+      # string.Format, a value standing for the model, the region, the project or a query value
+      # such as the key; written at the call, held in a local before the send or in a member of the
+      # same class, or carried by the engine from a const, a readonly field or a local. An address
+      # held in another class or file is not followed; the signal rule reads the declaration there.
       - patterns:
-          - pattern-either:
+          - pattern-either: &gemini-posts
               - pattern: $HTTP.PostAsync($URL, ...)
               - pattern: $HTTP.PostAsJsonAsync($URL, ...)
               - pattern: $HTTP.PostAsJsonAsync<$T>($URL, ...)
@@ -44,7 +44,35 @@ rules:
               - pattern: '$HTTP.PostAsJsonAsync<$T>(..., requestUri: $URL, ...)'
           - metavariable-regex:
               metavariable: $URL
-              regex: &gemini-address ^(?:\$@?|@\$?)?"https://(?:generativelanguage\.googleapis\.com|(?:[a-z0-9-]+-|\{[^{}"]*\}-)?aiplatform\.googleapis\.com)/[^"]*:(?:stream)?[gG]enerateContent(?:\?[^"]*)?"?$
+              regex: &gemini-address '^(?:(?:System\.)?[Ss]tring\.Format\(\s*)?(?:\$@?|@\$?)?"https://(?:generativelanguage\.googleapis\.com|(?:[a-z0-9-]+-|\{(?:[^{}"]|"[^"]*")*\}-|"\s*\+\s*(?:[^"]|"[^"]*")*?\s*\+\s*\$?@?"-)?aiplatform\.googleapis\.com)/(?:[^"?{]|\{(?:[^{}"]|"[^"]*")*\}|"\s*\+\s*(?:[^"]|"[^"]*")*?\s*\+\s*\$?@?")*:(?:stream)?[gG]enerateContent(?:\?(?:[^"{]|\{(?:[^{}"]|"[^"]*")*\}|"\s*\+\s*(?:[^"]|"[^"]*")*?\s*\+\s*\$?@?")*(?:"\s*\+(?:[^"]|"[^"]*")*|\{(?:[^{}"]|"[^"]*")*)?)?(?:"\s*(?:,.*\))?)?$'
+      # The address held in a local (declared or assigned before the send in the same block) or
+      # in a member of the same class (a field, a const, an expression-bodied property or an
+      # auto-property), and sent by that name.
+      - patterns:
+          - pattern-either: &gemini-holders
+              - pattern-inside: |
+                  var $URL = $ADDR;
+                  ...
+              - pattern-inside: |
+                  $TYPE $URL = $ADDR;
+                  ...
+              - pattern-inside: |
+                  $URL = $ADDR;
+                  ...
+              - pattern-inside: |
+                  class $CLASS { ... $TYPE $URL = $ADDR; ... }
+              - pattern-inside: |
+                  class $CLASS { ... $TYPE $URL => $ADDR; ... }
+              - pattern-inside: |
+                  class $CLASS { ... $TYPE $URL { get; } = $ADDR; ... }
+              - pattern-inside: |
+                  class $CLASS { ... $TYPE $URL { get; set; } = $ADDR; ... }
+          - pattern-either: *gemini-posts
+          - metavariable-regex:
+              metavariable: $ADDR
+              regex: *gemini-address
+      # A value the engine carries from a const (joined from consts too), a readonly field or a
+      # local in the same file.
       - pattern: $HTTP.PostAsync("=~/^https:\/\/(?:generativelanguage\.googleapis\.com|(?:[a-z0-9-]+-)?aiplatform\.googleapis\.com)\/\S*:(?:stream)?[gG]enerateContent(?:\?.*)?$/", ...)
       - pattern: $HTTP.PostAsJsonAsync("=~/^https:\/\/(?:generativelanguage\.googleapis\.com|(?:[a-z0-9-]+-)?aiplatform\.googleapis\.com)\/\S*:(?:stream)?[gG]enerateContent(?:\?.*)?$/", ...)
       - pattern: $HTTP.PostAsJsonAsync<$T>("=~/^https:\/\/(?:generativelanguage\.googleapis\.com|(?:[a-z0-9-]+-)?aiplatform\.googleapis\.com)\/\S*:(?:stream)?[gG]enerateContent(?:\?.*)?$/", ...)
@@ -56,7 +84,7 @@ rules:
       # cs-video-reply-to-response.
       - label: REQUEST
         patterns:
-          - pattern-either:
+          - pattern-either: &gemini-messages
               - pattern: new System.Net.Http.HttpRequestMessage($VERB, $URL) { ... }
               - pattern: new HttpRequestMessage($VERB, $URL) { ... }
               - pattern: 'new System.Net.Http.HttpRequestMessage(..., requestUri: $URL, ...) { ... }'
@@ -67,6 +95,14 @@ rules:
               - pattern: 'HttpRequestMessage $V = new(..., requestUri: $URL, ...) { ... };'
           - metavariable-regex:
               metavariable: $URL
+              regex: *gemini-address
+          - pattern-not-regex: HttpMethod\.Get\b|new\s+(?:System\.Net\.Http\.)?HttpMethod\s*\(\s*"GET"\s*\)
+      - label: REQUEST
+        patterns:
+          - pattern-either: *gemini-holders
+          - pattern-either: *gemini-messages
+          - metavariable-regex:
+              metavariable: $ADDR
               regex: *gemini-address
           - pattern-not-regex: HttpMethod\.Get\b|new\s+(?:System\.Net\.Http\.)?HttpMethod\s*\(\s*"GET"\s*\)
       - label: REQUEST

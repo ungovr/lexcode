@@ -20,19 +20,22 @@ rules:
     # model list, a model's metadata, countTokens and embedContent are other addresses. A lookalike
     # host (generativelanguage.googleapis.com.example.net) does not match, since the path must
     # follow the host's own name.
-    # Matched: a member that holds the address (a const, a static or instance field, an
-    # auto-property's initializer, an expression-bodied property or a getter that returns it), and
-    # a call that sends to it (PostAsync, PostAsJsonAsync, a request message that is not a GET, and
-    # a Uri built from it, which a client takes as its BaseAddress or a message as its RequestUri).
-    # A local declaration is not matched on its own: a local counts when it is sent, as a log
-    # message held in a local is not. A comment, a log line or an exception message that quotes the
-    # address is never a match.
-    # Two branches read the address. The first reads the source text of a literal (plain, verbatim
-    # or interpolated) where it is written, so a model, a key or a region interpolated into it
-    # still counts; the second reads a value the engine carries from a const, a readonly field or a
-    # local in the same file to the call. The engine tests that value against each literal part of
-    # an interpolated string, and the value regex needs the host and the method in one part, which
-    # an interpolated model name splits; the first branch reads those.
+    # How the address is built (B1 of the #13205 review): written as a literal (plain, verbatim or
+    # interpolated), joined with + from literals and values, or formatted with string.Format; a
+    # value may stand for the model, the region, the project or a
+    # query value such as the key (an interpolation hole, a joined value or a format
+    # hole), and only there, so the host and the method are always written out. Where it is held:
+    # written at the call (branch 1), in a local declared or assigned before the send in the same
+    # block (branch 2), in a member, matched where it is declared (branch 3), or carried by the
+    # engine (branch 4): a member joined from consts, and a plain or const-joined value sent from a
+    # const, a readonly field or a local. The engine tests a carried value against each literal
+    # part of an interpolated string, so branch 4's regex has no optional trailing slash and needs
+    # the host and the method in one part; branches 1 to 3 read the source text instead.
+    # Matched: a call that sends to the address (PostAsync, PostAsJsonAsync, a request message that
+    # is not a GET, and a Uri built from it, which a client takes as its BaseAddress or a message as
+    # its RequestUri), and a member that holds it. A local that is never sent is not matched, as a
+    # log message held in a local is not. A comment, a log line or an exception message that quotes
+    # the address is never a match.
     # A GET request message drops, as in cs-video-reply-to-response: GET is HttpMethod.Get or new
     # HttpMethod("GET"), found by a regex over the whole message expression. A member that holds a
     # generation address but is only read by a GET, or a Uri built for a GET message, still counts
@@ -40,8 +43,9 @@ rules:
     # No whole-file anchor: the member and call shapes give no literal to the engine's pre-filter,
     # and a C# lookahead would put C# in the large-file notice; the cost is measured instead.
     pattern-either:
+      # 1. The address written where it is sent.
       - patterns:
-          - pattern-either:
+          - pattern-either: &sends
               - pattern: $HTTP.PostAsync($URL, ...)
               - pattern: $HTTP.PostAsJsonAsync($URL, ...)
               - pattern: $HTTP.PostAsJsonAsync<$T>($URL, ...)
@@ -65,23 +69,55 @@ rules:
               # System is imported implicitly, so the short form is read as well.
               - pattern: new System.Uri($URL, ...)
               - pattern: new Uri($URL, ...)
-              # A const, a field or an auto-property's initializer. A local inside a method,
-              # constructor or accessor is left to the send branches.
+          - metavariable-regex:
+              metavariable: $URL
+              regex: &address '^(?:(?:System\.)?[Ss]tring\.Format\(\s*)?(?:\$@?|@\$?)?"https://(?:generativelanguage\.googleapis\.com|(?:[a-z0-9-]+-|\{(?:[^{}"]|"[^"]*")*\}-|"\s*\+\s*(?:[^"]|"[^"]*")*?\s*\+\s*\$?@?"-)?aiplatform\.googleapis\.com)/(?:[^"?{]|\{(?:[^{}"]|"[^"]*")*\}|"\s*\+\s*(?:[^"]|"[^"]*")*?\s*\+\s*\$?@?")*:(?:stream)?[gG]enerateContent(?:\?(?:[^"{]|\{(?:[^{}"]|"[^"]*")*\}|"\s*\+\s*(?:[^"]|"[^"]*")*?\s*\+\s*\$?@?")*(?:"\s*\+(?:[^"]|"[^"]*")*|\{(?:[^{}"]|"[^"]*")*)?)?(?:"\s*(?:,.*\))?)?$'
+      # 2. The address held in a local, declared or assigned, and sent after it in the same block.
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  var $URL = $ADDR;
+                  ...
+              - pattern-inside: |
+                  $TYPE $URL = $ADDR;
+                  ...
+              - pattern-inside: |
+                  $URL = $ADDR;
+                  ...
+          - pattern-either: *sends
+          - metavariable-regex:
+              metavariable: $ADDR
+              regex: *address
+      # 3. A member that holds the address, matched where it is declared: a const, a field or an
+      # auto-property's initializer (a local inside a method or an accessor is left to branch 2),
+      # an expression body (the engine reads one as an expression statement, which a bare string
+      # is nowhere else; a switch-expression arm and a lambda body are read the same way), and a
+      # return.
+      - patterns:
+          - pattern-either:
               - patterns:
                   - pattern: $TYPE $NAME = $URL;
                   - pattern-not-inside: $R $F(...) { ... }
-              # An expression-bodied property: the engine reads its body as an expression
-              # statement, which in C# only such a body can be when it is a bare literal.
               - pattern: $URL;
-              # A getter, or a method, that returns it.
               - pattern: return $URL;
           - metavariable-regex:
               metavariable: $URL
-              # The source text: an optional $ or @ prefix, and no closing quote on an
-              # interpolated string as the engine binds it.
-              regex: ^(?:\$@?|@\$?)?"https://(?:generativelanguage\.googleapis\.com|(?:[a-z0-9-]+-|\{[^{}"]*\}-)?aiplatform\.googleapis\.com)/[^"]*:(?:stream)?[gG]enerateContent(?:\?[^"]*)?"?$
-      # A const, a readonly field or a local sent from the same file. The value is written once
-      # here per shape: the engine's string-value pattern cannot take a metavariable.
+              regex: *address
+      # 4. A value the engine carries (#13205): a member joined from consts, matched where it is
+      # declared, and a const, a readonly field or a local sent from the same file. The value is
+      # written once per shape: the engine's string-value pattern cannot take a metavariable.
+      - patterns:
+          - pattern: $TYPE $NAME = "=~/^https:\/\/(?:generativelanguage\.googleapis\.com|(?:[a-z0-9-]+-)?aiplatform\.googleapis\.com)\/\S*:(?:stream)?[gG]enerateContent(?:\?.*)?$/";
+          - pattern-not-inside: $R $F(...) { ... }
+      - patterns:
+          # An expression body joined from consts: only names, dots, literals and plus signs.
+          - pattern: $X;
+          - metavariable-regex:
+              metavariable: $X
+              regex: '^[\w.]+(?:\s*\+\s*(?:[\w.]+|@?"[^"]*"))+$'
+          - metavariable-pattern:
+              metavariable: $X
+              pattern: '"=~/^https:\/\/(?:generativelanguage\.googleapis\.com|(?:[a-z0-9-]+-)?aiplatform\.googleapis\.com)\/\S*:(?:stream)?[gG]enerateContent(?:\?.*)?$/"'
       - patterns:
           - pattern-either:
               - pattern: $HTTP.PostAsync("=~/^https:\/\/(?:generativelanguage\.googleapis\.com|(?:[a-z0-9-]+-)?aiplatform\.googleapis\.com)\/\S*:(?:stream)?[gG]enerateContent(?:\?.*)?$/", ...)
