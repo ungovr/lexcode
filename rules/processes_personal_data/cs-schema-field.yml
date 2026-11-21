@@ -88,7 +88,27 @@ rules:
       # Table("EmailAccount") / Table(nameof(EmailAccount)) earlier in the chain.
       - pattern-not-inside:
           patterns:
-            - pattern-regex: '(?s)\A(?=.*(?i:(?<![a-z])(?:smtp_?)?(?:host(?:_?name)?|port)(?![a-z])|smtp_?(?:server|user(?:_?name)?|password|login|settings?)|enable_?ssl|use_?ssl|use_?tls|use_?default_?credentials))(?!.*(?i:(?<![a-z])(?:user|customer|owner|member|person|profile|app_?user|application_?user)_?id(?![a-z])|account_?holder)).*'
+            # The file maps a sending setting. One literal per whole-file look-ahead, joined by
+            # pattern-either: an alternation or a second look-ahead loses matches on a large file
+            # (test/release.test.ts).
+            - pattern-either:
+                - pattern-regex: '(?is)\A(?=.*(?<![a-z])host(?:_?name)?(?![a-z])).*'
+                - pattern-regex: '(?is)\A(?=.*(?<![a-z])port(?![a-z])).*'
+                - pattern-regex: '(?is)\A(?=.*smtp_?(?:host|port|server|user(?:_?name)?|password|login|settings?)).*'
+                - pattern-regex: '(?is)\A(?=.*enable_?ssl).*'
+                - pattern-regex: '(?is)\A(?=.*(?<![a-z])use_?(?:ssl|tls|default_?credentials)).*'
+            # The file names no owner.
+            - pattern-not-inside:
+                patterns:
+                  - pattern-either:
+                      - pattern-regex: '(?is)\A(?=.*(?<![a-z])user_?id(?![a-z])).*'
+                      - pattern-regex: '(?is)\A(?=.*(?<![a-z])customer_?id(?![a-z])).*'
+                      - pattern-regex: '(?is)\A(?=.*(?<![a-z])owner_?id(?![a-z])).*'
+                      - pattern-regex: '(?is)\A(?=.*(?<![a-z])member_?id(?![a-z])).*'
+                      - pattern-regex: '(?is)\A(?=.*(?<![a-z])person_?id(?![a-z])).*'
+                      - pattern-regex: '(?is)\A(?=.*(?<![a-z])profile_?id(?![a-z])).*'
+                      - pattern-regex: '(?is)\A(?=.*(?<![a-z])app(?:lication)?_?user_?id(?![a-z])).*'
+                      - pattern-regex: '(?is)\A(?=.*account_?holder).*'
             - pattern-either:
                 - pattern: '$ACMB.CreateTable(name: "=~/(?i)^(e_?mail|mail|smtp)_?accounts?$/", ...)'
                 - pattern: '$ACMB.CreateTable("=~/(?i)^(e_?mail|mail|smtp)_?accounts?$/", ...)'
