@@ -468,6 +468,53 @@ describe('readRuby', () => {
     expect(r.devSkipped).toBe(2);
   });
 
+  it('an `end` that is a method name, a symbol or a string word does not close an expression opener (#13511)', () => {
+    const root = tree({
+      Gemfile: [
+        'group :test do',
+        '  x = if (1..3).end > 2',
+        '    1',
+        '  end',
+        '  y = if ENV["end"]',
+        '    2',
+        '  end',
+        "  z = (case opts[:end] when 'end' then 3 end)",
+        '  w = if range.end',
+        '    4',
+        '  end',
+        '  gem "rspec"',
+        'end',
+        'gem "after"',
+        '',
+      ].join('\n'),
+      'Gemfile.lock': lock({ specs: ['rspec (3.13.0)', 'after (1.0.0)'], deps: ['after', 'rspec'] }),
+    });
+    const r = readRuby(root, ['Gemfile', 'Gemfile.lock']);
+    expect(r.deps.map((d) => d.name)).toEqual(['after']);
+    expect(r.devSkipped).toBe(1);
+  });
+
+  it('reads every gem of a plain line of `;`-separated calls, and a group block after one (#13511)', () => {
+    const root = tree({
+      Gemfile: [
+        'gem "a"; gem "b"',
+        'group :test do',
+        '  gem "c"; gem "d", require: false',
+        'end',
+        'gem "e"; group :test do gem "f"; gem "g" end',
+        'gem "h", "~> 1.0; beta"',
+        '',
+      ].join('\n'),
+      'Gemfile.lock': lock({
+        specs: ['a (1.0.0)', 'b (1.0.0)', 'c (1.0.0)', 'd (1.0.0)', 'e (1.0.0)', 'f (1.0.0)', 'g (1.0.0)', 'h (1.0.0)'],
+        deps: ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'],
+      }),
+    });
+    const r = readRuby(root, ['Gemfile', 'Gemfile.lock']);
+    expect(r.deps.map((d) => `${d.name}@${d.manifest}`)).toEqual(['a@Gemfile:1', 'b@Gemfile:1', 'e@Gemfile:5', 'h@Gemfile:6']);
+    expect(r.devSkipped).toBe(4);
+  });
+
   it('reads the `%q<name>.freeze` form generated gemspecs use, and a dependency call split after its `(` (#12880)', () => {
     const root = tree({
       'gen.gemspec': [

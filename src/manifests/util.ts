@@ -195,14 +195,77 @@ export function stripRubyComment(line: string): string {
   return line;
 }
 
+/** A line of Ruby with the text inside each `"..."` and `'...'` string blanked, quotes kept, so a word in a string is not a keyword. */
+export function blankRubyStrings(code: string): string {
+  let out = '';
+  let quote = '';
+  for (let i = 0; i < code.length; i++) {
+    const c = code[i] as string;
+    if (quote) {
+      if (c === '\\') {
+        out += i + 1 < code.length ? '  ' : ' ';
+        i++;
+      } else if (c === quote) {
+        quote = '';
+        out += c;
+      } else out += ' ';
+    } else {
+      if (c === '"' || c === "'") quote = c;
+      out += c;
+    }
+  }
+  return out;
+}
+
+/**
+ * The keyword `end`: a whole word that is not a method (`range.end`), a symbol (`:end`, `end:`), a variable
+ * (`@end`, `$end`) or a predicate name, in code whose strings are blanked.
+ */
+const KEYWORD_END = /(?:^|[\s;(])end(?![\w?!:])/;
+const EXPR_OPENER = /(?:[=(]|\|\||&&)\s*(?:if|unless|case|begin)\b/g;
+
 /** Does this logical line of Ruby open a block that a later `end` closes? One-line forms and modifiers do not. */
 export function opensRubyBlock(code: string): boolean {
-  if (/\bend$/.test(code)) return false;
+  const b = blankRubyStrings(code);
+  if (/(?:^|[\s;(])end$/.test(b)) return false;
   if (/\bdo(?:\s*\|[^|]*\|)?$/.test(code)) return true;
   if (/^def\s+[^\s(]+(?:\([^)]*\))?\s*=[^=~]/.test(code)) return false;
   if (/^(?:if|unless|case|begin|while|until|for|def|class|module)\b/.test(code)) return true;
-  // `x = if ...`, `(case ...`, `y || begin`: an opener in an expression, unless its `end` is on the same line.
-  return /(?:[=(]|\|\||&&)\s*(?:if|unless|case|begin)\b(?!.*\bend\b)/.test(code);
+  // `x = if ...`, `(case ...`, `y || begin`: an opener in an expression, unless the keyword `end` follows it on
+  // the same line. `(1..3).end`, `opts[:end]` and `ENV["end"]` are not that keyword (#13511).
+  for (const m of b.matchAll(EXPR_OPENER)) {
+    if (!KEYWORD_END.test(b.slice(m.index + m[0].length))) return true;
+  }
+  return false;
+}
+
+/**
+ * The statements of a logical line of Ruby, split at each `;` outside a string, a bracket and a `do ... end`
+ * block: `gem "a"; gem "b"` is two statements, `group :test do gem "a"; gem "b" end` is one (#13511).
+ */
+export function splitRubyStatements(code: string): string[] {
+  if (!code.includes(';')) return [code];
+  const b = blankRubyStrings(code);
+  const out: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let i = 0; i < b.length; i++) {
+    const c = b[i] as string;
+    if (c === '(' || c === '[' || c === '{') depth++;
+    else if (c === ')' || c === ']' || c === '}') depth = Math.max(0, depth - 1);
+    else if (c === ';' && depth === 0) {
+      out.push(code.slice(start, i).trim());
+      start = i + 1;
+    } else if ((c === 'd' || c === 'e') && !/[\w.:@$]/.test(b[i - 1] ?? ' ')) {
+      const w = /^(?:do|end)(?![\w?!:])/.exec(b.slice(i, i + 4));
+      if (w) {
+        depth = w[0] === 'do' ? depth + 1 : Math.max(0, depth - 1);
+        i += w[0].length - 1;
+      }
+    }
+  }
+  out.push(code.slice(start).trim());
+  return out.filter((s) => s !== '');
 }
 
 /**

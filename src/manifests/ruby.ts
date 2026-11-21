@@ -8,6 +8,7 @@ import {
   readText,
   resolveInside,
   rubyLines,
+  splitRubyStatements,
   stripRubyComment,
   type ReaderResult,
 } from './util.js';
@@ -72,45 +73,50 @@ function parseGemfile(rel: string, text: string): ParsedGemfile {
   const gemspecPaths: string[] = [];
   const stack: string[][] = [];
 
-  // A gem or group call that runs on over several lines is read as one.
-  for (const { code, line: lineNo } of rubyLines(text, /^(?:gem|group)\b/)) {
+  const statement = (code: string, lineNo: number): void => {
     const gem = gemRef(code, rel, lineNo, stack.flat());
     if (gem) {
       gems.push(gem);
-      continue;
+      return;
     }
     const ev = /^eval_gemfile\s*\(?\s*(["'])([^"']+)\1/.exec(code);
     if (ev) {
       evals.push(ev[2] as string);
-      continue;
+      return;
     }
     const gs = /^gemspec\b(.*)$/.exec(code);
     if (gs) {
       const p = /(?:\bpath\s*:|:path\s*=>)\s*(["'])([^"']+)\1/.exec(gs[1] as string);
       if (p) gemspecPaths.push(p[2] as string);
-      continue;
+      return;
     }
     if (/^end\b/.test(code)) {
       stack.pop();
       // `end.each do |x|` closes one block and opens the next.
       if (/\bdo(?:\s*\|[^|]*\|)?$/.test(code)) stack.push([]);
-      continue;
+      return;
     }
     // A one-line block, `group :test do gem "x" end` or `platforms :jruby do gem "y"; gem "z" end`: its gems
     // take the block's groups, and it leaves the stack as it found it.
     const one = /^(\S.*?)\s+do\b(?:\s*\|[^|]*\|)?\s*(.*?)\s*\bend$/.exec(code);
     if (one) {
       const outer = [...stack.flat(), ...blockGroups(one[1] as string)];
-      for (const piece of (one[2] as string).split(';')) {
-        const g = gemRef(piece.trim(), rel, lineNo, outer);
+      for (const piece of splitRubyStatements(one[2] as string)) {
+        const g = gemRef(piece, rel, lineNo, outer);
         if (g) gems.push(g);
       }
-      continue;
+      return;
     }
     if (opensRubyBlock(code)) {
       const g = /^(.*?)\bdo\b/.exec(code);
       stack.push(g ? blockGroups(g[1] as string) : []);
     }
+  };
+
+  // A gem or group call that runs on over several lines is read as one; a line of `;`-separated statements,
+  // `gem "a"; gem "b"`, is read statement by statement (#13511).
+  for (const { code, line: lineNo } of rubyLines(text, /^(?:gem|group)\b/)) {
+    for (const piece of splitRubyStatements(code)) statement(piece, lineNo);
   }
   return { gems, evals, gemspecPaths };
 }

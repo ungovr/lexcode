@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { rubyLines } from '../../src/manifests/util.js';
+import { opensRubyBlock, rubyLines, splitRubyStatements } from '../../src/manifests/util.js';
 
 const read = (text: string): { code: string; line: number }[] => [...rubyLines(text, /^(?:gem|pod)\b/)];
 
@@ -32,5 +32,37 @@ describe('rubyLines', () => {
     expect(Date.now() - t0).toBeLessThan(5000);
     expect(out.map((l) => l.line)).toEqual([1, 100003]);
     expect(out[0]?.code.endsWith(':a => 1, :b => 2')).toBe(true);
+  });
+});
+
+describe('opensRubyBlock (#13511)', () => {
+  it('an expression opener with the keyword end later on its line opens nothing', () => {
+    expect(opensRubyBlock('x = (if a then 1 else 2 end)')).toBe(false);
+    expect(opensRubyBlock("z = (case opts[:end] when 'end' then 3 end)")).toBe(false);
+    expect(opensRubyBlock('a = (if x then 1 end) || begin')).toBe(true);
+  });
+
+  it('an end that is a method, a symbol, a variable or a word in a string is not the keyword', () => {
+    expect(opensRubyBlock('x = if (1..3).end > 2')).toBe(true);
+    expect(opensRubyBlock('x = if ENV["end"]')).toBe(true);
+    expect(opensRubyBlock("x = if opts[:end] || 'end'")).toBe(true);
+    expect(opensRubyBlock('x = if range.end')).toBe(true);
+    expect(opensRubyBlock('x = if @end')).toBe(true);
+    expect(opensRubyBlock('x = if end?')).toBe(true);
+  });
+});
+
+describe('splitRubyStatements (#13511)', () => {
+  it('splits at a top-level ; and nowhere else', () => {
+    expect(splitRubyStatements('gem "a"; gem "b"')).toEqual(['gem "a"', 'gem "b"']);
+    expect(splitRubyStatements('gem "h", "~> 1.0; beta"')).toEqual(['gem "h", "~> 1.0; beta"']);
+    expect(splitRubyStatements('group :test do gem "f"; gem "g" end')).toEqual(['group :test do gem "f"; gem "g" end']);
+    expect(splitRubyStatements('gem "e"; group :test do gem "f"; gem "g" end; gem "i"')).toEqual([
+      'gem "e"',
+      'group :test do gem "f"; gem "g" end',
+      'gem "i"',
+    ]);
+    expect(splitRubyStatements('x = foo(a; b); gem "download"; end')).toEqual(['x = foo(a; b)', 'gem "download"', 'end']);
+    expect(splitRubyStatements('gem "a";')).toEqual(['gem "a"']);
   });
 });
