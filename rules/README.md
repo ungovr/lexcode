@@ -1626,10 +1626,12 @@ The engine sets most of these limits, and the rules' comments point here.
   an `mpsc` channel between a generating task and a stream are not joined. Any
   send in an `Err` branch inside a timer (an `if let Err` body or an `Err` arm,
   in any position among any number of arms) is read as an alert to the
-  operator and left out, except in a `for` over the timer's recipients when a
-  call in the branch takes the loop's item as its first argument (a fallback to
-  each recipient); a fallback to a recipient that is not the loop's item, or in
-  a `while let` or an iterator's closure, is missed. The
+  operator and left out, except in an iteration over the timer's recipients (a
+  `for`, a `while let Some(..)`, or the closure of `map`, `then`, `filter_map`,
+  `flat_map` or a `for_each` form) when a call in the branch takes the item as
+  its first argument (a fallback to each recipient); a fallback to a recipient
+  that is not the item itself (a field bound to a `let` first), or in a closure
+  that takes a tuple or a pattern, is missed. The
   client-address rule counts a write only when its statement is an INSERT or
   UPDATE string literal, a `format!` whose format string is one, or a `const`
   holding one declared before the query (in the file, an `impl` or the

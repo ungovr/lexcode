@@ -1,4 +1,4 @@
-// lexcode-expect: 15
+// lexcode-expect: 18
 use std::time::Duration;
 
 use clokwerk::{AsyncScheduler, TimeUnits};
@@ -134,5 +134,32 @@ pub async fn nightly_jobs(jobs: Vec<Job>, admin: String) {
                 send_alert_email(&admin, &job.name);
             }
         }
+    }
+}
+
+// The same fallback when the recipients are read from a stream in a `while let`, walked with
+// `for_each`, or mapped to futures handed to `join_all` (no other rule reads the `map` closure).
+pub async fn fan_out_forms(db: Db, subs: Vec<Subscriber>) {
+    let mut interval = tokio::time::interval(Duration::from_secs(3600));
+    loop {
+        interval.tick().await;
+        let mut rows = db.subscribers();
+        while let Some(s) = rows.next().await {
+            match push_to(&s).await {
+                Ok(_) => {}
+                Err(_) => send_email(&s.email, "You have news"),
+            }
+        }
+        subs.iter().for_each(|s| {
+            if let Err(_) = push_now(&s) {
+                send_email(&s.email, "You have news");
+            }
+        });
+        futures::future::join_all(subs.iter().map(|s| async move {
+            if let Err(_) = push_to(&s).await {
+                send_email(&s.email, "You have news").await;
+            }
+        }))
+        .await;
     }
 }

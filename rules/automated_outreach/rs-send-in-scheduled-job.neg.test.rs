@@ -115,6 +115,25 @@ pub async fn nightly_arms(state: AppState, admin: String) {
     }
 }
 
+// An alert per failed job, with the jobs mapped to futures: the recipient is the operator, and the
+// job is named only later in the call, so the branch stays an alert.
+pub async fn nightly_jobs_mapped(jobs: Vec<Job>, admin: String) {
+    let mut interval = tokio::time::interval(Duration::from_secs(86400));
+    loop {
+        interval.tick().await;
+        futures::future::join_all(jobs.iter().map(|job| async move {
+            if let Err(_) = job.run().await {
+                send_alert_email(&admin, &job.name).await;
+            }
+            match job.run().await {
+                Ok(_) => {}
+                Err(_) => send_alert_email(&admin, &job.name).await,
+            }
+        }))
+        .await;
+    }
+}
+
 // The lookalike Job running a send.
 pub fn lookalike() {
     let _job = Job::new_async("0 0 9 * * *", || {

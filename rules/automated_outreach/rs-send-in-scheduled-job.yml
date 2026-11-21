@@ -11,11 +11,17 @@
 # `else` and a send in the `Ok` arm are kept. On Opengrep 1.33.1 a `match` pattern of one arm
 # matches that arm among any number of arms in any position (measured: two to five arms, `Err`
 # first, middle or last), so one pattern covers every layout. Any send in an `Err` branch is left
-# out, except inside a `for` over the timer's recipients when a call in the branch takes the loop's
-# item as its first argument (`Err(_) => send_email(&s.email, ..)`): a fallback to each recipient
-# is outreach. An alert to the operator that names the item later (`send_alert_email(&admin,
-# &job.name)`) is still left out, and a fallback whose recipient is not the loop's item, or that
-# sits in a `while let` or an iterator's closure, is missed.
+# out, except inside an iteration over the timer's recipients (a `for`, a `while let Some(s)`, or
+# the one-parameter closure of `map`, `then`, `filter_map`, `flat_map` or a `for_each` form) when a
+# call in the branch takes the item as its first argument (`Err(_) => send_email(&s.email, ..)`): a
+# fallback to each recipient is outreach. rs-send-in-loop reads the `for`, `while let` and
+# `for_each` forms itself and has no error-branch exclusion; the `map` closure handed to
+# `join_all` is read by no other rule, so without this a per-recipient fallback there was lost
+# (#13301 review A3). An alert to the operator that names the item later (`send_alert_email(&admin,
+# &job.name)`) is still left out, and a fallback whose recipient is not the item itself (a field
+# bound to a `let` first), or whose closure takes a tuple or a pattern, is missed. A `for` inside
+# the `Err` branch (the batch failed, so mail every subscriber) is left out here and is
+# rs-send-in-loop's match.
 #
 # The sends are rs-send-in-loop's. tokio-cron-scheduler's Job is written by its crate path, which
 # the engine resolves through `use tokio_cron_scheduler::{Job, JobScheduler}` and an alias; a
@@ -43,18 +49,32 @@ rules:
           - pattern-inside: $SCHED.every($EVERY).at($AT).run(...)
           - pattern-inside: $SCHED.every($EVERY).run(...)
       # The exclusions' ranges are the error branch's body only (focus-metavariable), never the
-      # scrutinee, an `else` or another arm. A branch inside a `for` over the timer's recipients
-      # whose body makes a call whose first argument names the loop's item (`Err(_) =>
-      # send_email(&s.email, ..)`, a fallback to each subscriber) is outreach, not an alert, so it
-      # is not left out; an alert naming the item later (`send_alert_email(&admin, &job.name)`) is.
+      # scrutinee, an `else` or another arm. A branch inside an iteration over the timer's
+      # recipients (a `for`, a `while let Some(..)`, or the closure of an iterator or stream
+      # adapter such as `map` feeding a `join_all`) whose body makes a call whose first argument
+      # names the item (`Err(_) => send_email(&s.email, ..)`, a fallback to each subscriber) is
+      # outreach, not an alert, so it is not left out; an alert naming the item later
+      # (`send_alert_email(&admin, &job.name)`) is.
       - pattern-not-inside:
           patterns:
             - pattern: |
                 if let Err($ERR) = $RES { $...BODY }
             - pattern-not-inside:
                 patterns:
-                  - pattern-inside: |
-                      for $ITEM in $ITEMS { ... }
+                  - pattern-either:
+                      - pattern-inside: |
+                          for $ITEM in $ITEMS { ... }
+                      - pattern-inside: |
+                          while let Some($ITEM) = $ITEMS { ... }
+                      - patterns:
+                          - pattern-either:
+                              - pattern-inside: $ITEMS.$ADAPT(|$ITEM| $CB)
+                              - pattern-inside: $ITEMS.$ADAPT(move |$ITEM| $CB)
+                              - pattern-inside: $ITEMS.$ADAPT($LIMIT, |$ITEM| $CB)
+                              - pattern-inside: $ITEMS.$ADAPT($LIMIT, move |$ITEM| $CB)
+                          - metavariable-regex:
+                              metavariable: $ADAPT
+                              regex: ^(map|then|filter_map|flat_map|for_each|for_each_concurrent|try_for_each|try_for_each_concurrent)$
                   - pattern: |
                       if let Err($ERR2) = $RES2 { $...BODY2 }
                   - metavariable-pattern:
@@ -70,8 +90,20 @@ rules:
                 match $RES { Err($ERR) => $BODY }
             - pattern-not-inside:
                 patterns:
-                  - pattern-inside: |
-                      for $ITEM in $ITEMS { ... }
+                  - pattern-either:
+                      - pattern-inside: |
+                          for $ITEM in $ITEMS { ... }
+                      - pattern-inside: |
+                          while let Some($ITEM) = $ITEMS { ... }
+                      - patterns:
+                          - pattern-either:
+                              - pattern-inside: $ITEMS.$ADAPT(|$ITEM| $CB)
+                              - pattern-inside: $ITEMS.$ADAPT(move |$ITEM| $CB)
+                              - pattern-inside: $ITEMS.$ADAPT($LIMIT, |$ITEM| $CB)
+                              - pattern-inside: $ITEMS.$ADAPT($LIMIT, move |$ITEM| $CB)
+                          - metavariable-regex:
+                              metavariable: $ADAPT
+                              regex: ^(map|then|filter_map|flat_map|for_each|for_each_concurrent|try_for_each|try_for_each_concurrent)$
                   - pattern: |
                       match $RES2 { Err($ERR2) => $BODY2 }
                   - metavariable-pattern:
