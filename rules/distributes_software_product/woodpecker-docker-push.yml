@@ -2,15 +2,19 @@ rules:
   - id: lexcode.distribute.woodpecker-docker-push
     languages: [yaml]
     severity: INFO
-    message: A Woodpecker or Drone CI step builds a container image and pushes it to a registry, which may make a server available for others to run or may only feed the operator's own hosting (distributes_software_product).
-    # The Woodpecker and Drone counterpart of workflow-docker-push, and a signal for the same reason: a
-    # pushed image may be what people self-host (Lemmy's server, #13300) or only the operator's own
-    # deployment. A step counts when its image is a container-image plugin (Woodpecker's docker-buildx
-    # and kaniko plugins, Drone's docker, docker-buildx and kaniko plugins, any registry prefix or tag)
-    # and its settings name a `repo` to push to; dry-run on, in either spelling, pushes nothing. Steps
-    # as a map or a list, and settings before or after the image, all match. Settings merged in from a
-    # YAML anchor (`<<: *docker_settings`) that carry the `repo` key are not read.
+    message: A Woodpecker or Drone CI step builds a container image and pushes it to a private registry or one the file does not name, which may only feed the operator's own hosting rather than a server others run (distributes_software_product).
+    # The Woodpecker and Drone counterpart of workflow-docker-push. The product ruling of 2026-11-21 on
+    # #13300: a push to a public registry is evidence (lexcode.distribute.woodpecker-docker-push-public,
+    # which reads the same steps and documents the step and registry tests); a push to a private
+    # registry (ECR, GCR, Artifact Registry, ACR, an own host) or to a registry a variable hides
+    # stays this signal, since the image may only feed the operator's own deployment. The repo
+    # test below is the exact negation of the public rule's, so a step matches one rule or the
+    # other, never both.
     patterns:
+      - pattern-inside: |
+          image: $IMG
+          ...
+          settings: $SETTINGS
       - pattern: |
           image: $IMG
           ...
@@ -19,19 +23,13 @@ rules:
             repo: $REPO
       - metavariable-regex:
           metavariable: $IMG
-          regex: '^(?:[a-z0-9.-]+(?::[0-9]+)?/)?(?:woodpeckerci/plugin-(?:docker-buildx|kaniko)|plugins/(?:docker|docker-buildx|kaniko))(?::[A-Za-z0-9._-]+)?$'
-      - pattern-not: |
-          image: $IMG
-          ...
-          settings:
-            ...
-            dry-run: true
-      - pattern-not: |
-          image: $IMG
-          ...
-          settings:
-            ...
-            dry_run: true
+          regex: '^["'']?(?:[a-z0-9.-]+(?::[0-9]+)?/)?(?:woodpeckerci/plugin-(?:docker-buildx|kaniko)|plugins/(?:docker|docker-buildx|kaniko))(?::[A-Za-z0-9._-]+)?(?:@sha256:[0-9a-f]+)?["'']?$'
+      - metavariable-regex:
+          metavariable: $SETTINGS
+          regex: '^(?![\s\S]*?(?:^|\n|[{,])[ \t]*["'']?(?:dry[-_]run|no[-_]push)["'']?[ \t]*:[ \t]*["'']?(?:true|True|TRUE|1)["'']?[ \t]*(?:$|\n|[,}#]))'
+      - metavariable-regex:
+          metavariable: $REPO
+          regex: '^(?![\s\S]*?(?<![^,\[\s"''=])(?:(?:docker\.io|index\.docker\.io|registry-1\.docker\.io|ghcr\.io|quay\.io)/|(?!localhost/)[a-z0-9][a-z0-9_-]*/|\$\{?(?:\w*(?:USER|DOCKERHUB)\w*|CI_REPO_OWNER|DRONE_REPO_OWNER|DRONE_REPO_NAMESPACE)\}?/|\$\{?(?:CI_REPO|DRONE_REPO)\}?(?![\w/.-])))'
     paths:
       include:
         - ".woodpecker.yml"

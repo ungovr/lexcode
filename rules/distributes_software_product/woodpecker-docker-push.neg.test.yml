@@ -1,23 +1,71 @@
 # lexcode-expect: 0
-# A build that never pushes: dry-run on, no repository named, or a plugin that does not push images.
+# No private push: a public registry (the evidence rule reads those), a dry run in any spelling,
+# no repository, or an image that is not a container-image plugin.
 steps:
+  publish_docker_hub:
+    image: woodpeckerci/plugin-docker-buildx
+    settings:
+      repo: dessalines/lemmy
+
+  publish_ghcr:
+    image: plugins/docker
+    settings:
+      repo: ghcr.io/example/relay
+
+  publish_quay:
+    image: "plugins/kaniko"
+    settings:
+      repo: quay.io/example/relay
+
+  publish_mixed:
+    image: woodpeckerci/plugin-docker-buildx
+    settings:
+      repo: registry.example.com/team/relay,example/relay
+
   check_docker_build:
     image: woodpeckerci/plugin-docker-buildx
     settings:
-      repo: example/relay
-      dockerfile: docker/Dockerfile
+      repo: registry.example.com/relay
       dry-run: true
+
+  check_quoted_dry_run:
+    image: woodpeckerci/plugin-docker-buildx
+    settings:
+      repo: registry.example.com/relay
+      dry-run: "true"
 
   check_drone_build:
     image: plugins/docker
     settings:
-      repo: example/relay
-      dry_run: true
+      repo: gcr.io/example-project/relay
+      dry_run: 'true'
+
+  check_no_push:
+    image: plugins/kaniko
+    settings:
+      repo: gcr.io/example-project/relay
+      no_push: true
+
+  check_no_push_dash:
+    image: plugins/docker
+    settings:
+      repo: registry.example.com/relay
+      no-push: 1
 
   no_repo:
     image: woodpeckerci/plugin-docker-buildx
     settings:
       dockerfile: docker/Dockerfile
+
+  git_plugin_with_repo:
+    image: woodpeckerci/plugin-git
+    settings:
+      repo: registry.example.com/relay
+
+  docker_named_suffix:
+    image: plugins/docker-cleanup
+    settings:
+      repo: registry.example.com/relay
 
   deploy_docs:
     image: woodpeckerci/plugin-s3
@@ -29,4 +77,3 @@ steps:
     image: rust:1.92
     commands:
       - cargo test --workspace
-

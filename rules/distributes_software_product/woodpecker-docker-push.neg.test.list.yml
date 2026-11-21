@@ -4,5 +4,5 @@ steps:
   - name: check_list_form
     image: woodpeckerci/plugin-kaniko
     settings:
-      repo: example/relay
+      repo: registry.example.com/relay
       dry-run: true

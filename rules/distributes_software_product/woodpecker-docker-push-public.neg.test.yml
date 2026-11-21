@@ -1,0 +1,108 @@
+# lexcode-expect: 0
+# No public push: a private or unnamed registry (the signal rule reads those), a dry run in any
+# spelling, no repository, or an image that is not a container-image plugin.
+steps:
+  push_ecr:
+    image: woodpeckerci/plugin-docker-buildx
+    settings:
+      repo: 123456789012.dkr.ecr.eu-west-1.amazonaws.com/relay
+
+  push_gcr:
+    image: plugins/docker
+    settings:
+      repo: gcr.io/example-project/relay
+
+  push_artifact_registry:
+    image: plugins/kaniko
+    settings:
+      repo: europe-west1-docker.pkg.dev/example-project/images/relay
+
+  push_acr:
+    image: woodpeckerci/plugin-kaniko
+    settings:
+      repo: example.azurecr.io/relay
+
+  push_own_host:
+    image: plugins/docker
+    settings:
+      repo: registry.example.com/team/relay
+
+  push_own_host_port:
+    image: plugins/docker
+    settings:
+      repo: localhost:5000/relay
+
+  push_localhost:
+    image: plugins/docker
+    settings:
+      repo: localhost/relay
+
+  push_unknown_registry:
+    image: woodpeckerci/plugin-docker-buildx
+    settings:
+      repo: ${REGISTRY_HOST}/team/relay
+
+  push_bare_name:
+    image: woodpeckerci/plugin-docker-buildx
+    settings:
+      repo: relay
+
+  check_docker_build:
+    image: woodpeckerci/plugin-docker-buildx
+    settings:
+      repo: example/relay
+      dry-run: true
+
+  check_quoted_double:
+    image: woodpeckerci/plugin-docker-buildx
+    settings:
+      repo: example/relay
+      dry-run: "true"
+
+  check_quoted_single:
+    image: plugins/docker
+    settings:
+      repo: example/relay
+      dry_run: 'true'
+
+  check_drone_no_push:
+    image: plugins/docker
+    settings:
+      no_push: true
+      repo: example/relay
+
+  check_kaniko_no_push:
+    image: plugins/kaniko
+    settings:
+      repo: ghcr.io/example/relay
+      no-push: True
+
+  check_flow_dry_run:
+    image: plugins/docker
+    settings: {repo: example/relay, dry_run: true}
+
+  no_repo:
+    image: woodpeckerci/plugin-docker-buildx
+    settings:
+      dockerfile: docker/Dockerfile
+
+  git_plugin_with_repo:
+    image: woodpeckerci/plugin-git
+    settings:
+      repo: example/relay
+
+  docker_named_suffix:
+    image: plugins/docker-cleanup
+    settings:
+      repo: example/relay
+
+  quoted_other_image:
+    image: "plugins/dockerhub-readme"
+    settings:
+      repo: example/relay
+
+  deploy_docs:
+    image: woodpeckerci/plugin-s3
+    settings:
+      bucket: docs
+      source: site/**

@@ -2,17 +2,54 @@ rules:
   - id: lexcode.distribute.workflow-docker-push
     languages: [yaml]
     severity: INFO
-    message: Builds a container image and pushes it to a registry, which may make a server available for others to run or may only feed the operator's own hosting (distributes_software_product).
-    patterns:
-      - pattern: |
-          uses: $ACTION
-          ...
-          with:
-            ...
-            push: true
-      - metavariable-regex:
-          metavariable: $ACTION
-          regex: '^docker/build-push-action(@.*)?$'
+    message: A workflow builds a container image and pushes it to a private registry or one the file does not name, which may only feed the operator's own hosting rather than a server others run (distributes_software_product).
+    # The product ruling of 2026-11-21 on #13300: a push to a public registry is evidence
+    # (lexcode.distribute.workflow-docker-push-public, which reads the same steps and documents the
+    # step and registry tests); a push to a private registry (ECR, GCR, Artifact Registry, ACR, an
+    # own host) or to a registry an expression hides (the docker/metadata-action output, an env
+    # value) stays this signal, since the image may only feed the operator's own deployment. Each
+    # registry test below is the exact negation of the public rule's, so a step matches one rule
+    # or the other, never both. A build-push-action step with no tags input pushes to a name the
+    # file does not show, so it is a signal too.
+    pattern-either:
+      - patterns:
+          - pattern: |
+              uses: $ACTION
+              ...
+              with:
+                ...
+                push: true
+          - metavariable-regex:
+              metavariable: $ACTION
+              regex: '^docker/build-push-action(@.*)?$'
+          - pattern-not-inside: |
+              uses: $ACTION
+              ...
+              with:
+                ...
+                push: true
+                ...
+                tags: $TAGS
+      - patterns:
+          - pattern: |
+              uses: $ACTION
+              ...
+              with:
+                ...
+                push: true
+                ...
+                tags: $TAGS
+          - metavariable-regex:
+              metavariable: $ACTION
+              regex: '^docker/build-push-action(@.*)?$'
+          - metavariable-regex:
+              metavariable: $TAGS
+              regex: '^(?![\s\S]*?(?<![^,\[\s"''=])(?:(?:docker\.io|index\.docker\.io|registry-1\.docker\.io|ghcr\.io|quay\.io)/|(?!localhost/)[a-z0-9][a-z0-9_-]*/|\$\{\{\s*(?:(?:secrets|vars|env)\.\w*(?:USER|[Uu]ser|DOCKERHUB|[Dd]ocker[Hh]ub)\w*|github\.(?:repository_owner|actor))\s*\}\}/|\$\{\{\s*github\.repository\s*\}\}(?![\w/.-])|\$\{?\w*(?:USER|DOCKERHUB)\w*\}?/))'
+      - patterns:
+          - pattern: "run: $CMD"
+          - metavariable-regex:
+              metavariable: $CMD
+              regex: '^(?![\s\S]*?(?:\bdocker\s+(?:image\s+)?push\s+(?:(?:--platform[ =]\S+|-[-\w]+)\s+)*["'']?(?:(?:docker\.io|index\.docker\.io|registry-1\.docker\.io|ghcr\.io|quay\.io)/|(?!localhost/)[a-z0-9][a-z0-9_-]*/|\$\{\{\s*(?:(?:secrets|vars|env)\.\w*(?:USER|[Uu]ser|DOCKERHUB|[Dd]ocker[Hh]ub)\w*|github\.(?:repository_owner|actor))\s*\}\}/|\$\{\{\s*github\.repository\s*\}\}(?![\w/.-])|\$\{?\w*(?:USER|DOCKERHUB)\w*\}?/)|\bdocker\s+buildx\s+build\b(?=(?:[^\n]|\\\n|\n(?=[ \t]*-))*\s--push\b)(?:[^\n]|\\\n|\n(?=[ \t]*-))*?\s(?:-t|--tag)[ =]["'']?(?:(?:docker\.io|index\.docker\.io|registry-1\.docker\.io|ghcr\.io|quay\.io)/|(?!localhost/)[a-z0-9][a-z0-9_-]*/|\$\{\{\s*(?:(?:secrets|vars|env)\.\w*(?:USER|[Uu]ser|DOCKERHUB|[Dd]ocker[Hh]ub)\w*|github\.(?:repository_owner|actor))\s*\}\}/|\$\{\{\s*github\.repository\s*\}\}(?![\w/.-])|\$\{?\w*(?:USER|DOCKERHUB)\w*\}?/)))[\s\S]*?\bdocker\s+(?:(?:image\s+)?push\b|buildx\s+(?:build|bake)\b(?:[^\n]|\\\n|\n(?=[ \t]*-))*\s--push\b)'
     paths:
       include:
         - ".github/workflows/*.yml"

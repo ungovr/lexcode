@@ -1,0 +1,16 @@
+# lexcode-expect: 3
+# The list form of steps, settings written before the image, and a flow-mapping settings block.
+steps:
+  - name: publish_list_form
+    image: woodpeckerci/plugin-docker-buildx:5
+    settings:
+      repo: example/relay
+
+  - name: settings_first
+    settings:
+      repo: ghcr.io/example/relay
+    image: plugins/docker-buildx
+
+  - name: flow_settings
+    image: plugins/docker
+    settings: {repo: example/relay, tags: latest}

@@ -4,9 +4,9 @@ steps:
   - name: publish_list_form
     image: woodpeckerci/plugin-docker-buildx:5
     settings:
-      repo: example/relay
+      repo: gcr.io/example-project/relay
 
   - name: settings_first
     settings:
-      repo: ghcr.io/example/relay
+      repo: registry.example.com/relay
     image: plugins/docker-buildx

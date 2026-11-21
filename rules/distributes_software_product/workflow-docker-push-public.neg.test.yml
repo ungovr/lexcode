@@ -1,0 +1,57 @@
+# lexcode-expect: 0
+# No public push: a private registry or one an expression hides (the signal rule reads those), a
+# build that does not push, or a step that is not an image push.
+name: image
+on:
+  push:
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/build-push-action@v6
+        with:
+          push: true
+          tags: 123456789012.dkr.ecr.us-east-1.amazonaws.com/relay:latest
+      - uses: docker/build-push-action@v6
+        with:
+          push: true
+          tags: |
+            gcr.io/example-project/relay:latest
+            europe-west1-docker.pkg.dev/example-project/images/relay:latest
+            example.azurecr.io/relay:latest
+      - uses: docker/build-push-action@v6
+        with:
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+      - uses: docker/build-push-action@v6
+        with:
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+      - uses: docker/build-push-action@v6
+        with:
+          push: true
+          tags: localhost:5000/relay:latest
+      - uses: docker/build-push-action@v6
+        with:
+          push: true
+      - uses: docker/build-push-action@v6
+        with:
+          push: false
+          load: true
+          tags: example/relay:test
+      - uses: example/build-push-action@v1
+        with:
+          push: true
+          tags: example/relay:latest
+      - uses: docker/metadata-action@v5
+        with:
+          images: example/relay
+          tags: type=ref,event=branch
+      - run: docker push ${{ env.REGISTRY }}/relay:latest
+      - run: docker push "$IMAGE"
+      - run: docker push registry.example.com/team/relay:latest
+      - run: docker pull example/relay:latest
+      - run: docker build -t example/relay:test .
+      - run: docker buildx build -t example/relay:test --load .
+      - run: echo "pushed"

@@ -1,0 +1,63 @@
+rules:
+  - id: lexcode.distribute.woodpecker-docker-push-public
+    languages: [yaml]
+    severity: INFO
+    message: A Woodpecker or Drone CI step builds a container image and pushes it to a public registry (Docker Hub, GitHub Container Registry or Quay), where others can pull it and run it themselves (distributes_software_product).
+    # The product ruling of 2026-11-21 on #13300: an image pushed to a public registry is a server
+    # others self-host, so it is evidence; a push to a private registry or to one the file does
+    # not name stays the signal lexcode.distribute.woodpecker-docker-push, which reads the same
+    # steps with the opposite repo test.
+    #
+    # The step: a container-image plugin (Woodpecker's docker-buildx and kaniko plugins, Drone's
+    # docker, docker-buildx and kaniko plugins, any registry prefix, tag or digest, quoted or
+    # not) whose settings name a `repo`, with no dry run (`dry-run` or `dry_run`, and `no_push`
+    # or `no-push`, which Drone's docker and kaniko plugins read as the same switch, set to
+    # true, "true", True or 1; both CI systems fold `-` and `_` in setting names). Steps as a map
+    # or a list, and settings before or after the image, all match.
+    #
+    # The registry is the repo's first path part, as Docker reads an image name: a part with no
+    # dot or colon (other than localhost) is a Docker Hub namespace (`dessalines/lemmy`), and
+    # docker.io, index.docker.io, registry-1.docker.io, ghcr.io and quay.io are named. A repo
+    # list or comma list counts when any entry is public. A namespace that is a variable counts
+    # when it names a user or the repository owner (`${CI_REPO_OWNER}/x`, `${DOCKER_USERNAME}/x`,
+    # `${CI_REPO}`); any other variable leaves the registry unknown. The `registry` setting only
+    # chooses the login, so it is not read. Settings merged in from a YAML anchor are not read.
+    patterns:
+      - pattern-inside: |
+          image: $IMG
+          ...
+          settings: $SETTINGS
+      - pattern: |
+          image: $IMG
+          ...
+          settings:
+            ...
+            repo: $REPO
+      - metavariable-regex:
+          metavariable: $IMG
+          regex: '^["'']?(?:[a-z0-9.-]+(?::[0-9]+)?/)?(?:woodpeckerci/plugin-(?:docker-buildx|kaniko)|plugins/(?:docker|docker-buildx|kaniko))(?::[A-Za-z0-9._-]+)?(?:@sha256:[0-9a-f]+)?["'']?$'
+      - metavariable-regex:
+          metavariable: $SETTINGS
+          regex: '^(?![\s\S]*?(?:^|\n|[{,])[ \t]*["'']?(?:dry[-_]run|no[-_]push)["'']?[ \t]*:[ \t]*["'']?(?:true|True|TRUE|1)["'']?[ \t]*(?:$|\n|[,}#]))'
+      - metavariable-regex:
+          metavariable: $REPO
+          regex: '^[\s\S]*?(?<![^,\[\s"''=])(?:(?:docker\.io|index\.docker\.io|registry-1\.docker\.io|ghcr\.io|quay\.io)/|(?!localhost/)[a-z0-9][a-z0-9_-]*/|\$\{?(?:\w*(?:USER|DOCKERHUB)\w*|CI_REPO_OWNER|DRONE_REPO_OWNER|DRONE_REPO_NAMESPACE)\}?/|\$\{?(?:CI_REPO|DRONE_REPO)\}?(?![\w/.-]))'
+    paths:
+      include:
+        - ".woodpecker.yml"
+        - ".woodpecker.yaml"
+        - ".woodpecker/*.yml"
+        - ".woodpecker/*.yaml"
+        - "**/.woodpecker.yml"
+        - "**/.woodpecker.yaml"
+        - "**/.woodpecker/*.yml"
+        - "**/.woodpecker/*.yaml"
+        - ".drone.yml"
+        - "**/.drone.yml"
+        - "woodpecker-docker-push-public.*"
+    metadata:
+      activity: distributes_software_product
+      mentioned: performs
+      definition: https://lexlint.io/activities/distributes-software-product
+      provenance: ungovr-original
+      license: MIT

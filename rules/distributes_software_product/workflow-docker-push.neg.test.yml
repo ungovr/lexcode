@@ -1,4 +1,6 @@
 # lexcode-expect: 0
+# No private push: a public registry (the evidence rule reads those), a build that does not push,
+# or a step that is not an image push.
 name: image-check
 on:
   pull_request:
@@ -14,3 +16,25 @@ jobs:
           push: false
           load: true
           tags: relay:test
+      - uses: docker/build-push-action@v6
+        with:
+          push: true
+          tags: ghcr.io/example/relay:latest
+      - uses: docker/build-push-action@v6
+        with:
+          push: true
+          tags: |
+            registry.example.com/relay:latest
+            example/relay:latest
+      - uses: example/build-push-action@v1
+        with:
+          push: true
+          tags: registry.example.com/relay:latest
+      - uses: example/build-push-action@v1
+        with:
+          push: true
+      - run: docker push quay.io/example/relay:latest
+      - run: docker buildx build --push -t example/relay:latest .
+      - run: docker pull registry.example.com/relay:latest
+      - run: docker build -t registry.example.com/relay:test .
+      - run: docker buildx build -t registry.example.com/relay:test --load .
