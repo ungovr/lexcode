@@ -1231,7 +1231,10 @@ describe('PHP, Blade and Twig views', () => {
           const body = (n: number): string => wrap(unit.repeat(n / unit.length));
           const run = (t: string): unknown => blankOutsideScripts(t, opts);
           const what = `${name} in ${where}`;
-          const m = measureScaling({ small: 1_000, large: 10_000, setup: body, run });
+          // Both sizes past the budget's fixed 65,536 characters: at 1,000 the whole file fits in it, every opener is
+          // read to its bound, and at 10,000 most are read for 64 characters once it is spent (R3-A1), so that pair
+          // measured a change of regime (34x), not growth. The plain-view check is what sees a bounded rescan.
+          const m = measureScaling({ small: 20_000, large: 200_000, setup: body, run });
           expect(m.result, what).not.toBeNull();
           expectNearLinear(m, what);
           expectCostLike(wrap(plainUnit.repeat(200_000 / plainUnit.length)), body(200_000), run, what);
@@ -2232,7 +2235,10 @@ describe('every template blanker stays linear on long lines and unclosed constru
       for (const unit of units) {
         for (const [shape, make] of shapes) {
           const what = `${mode}: ${JSON.stringify(unit)} ${shape}`;
-          expectNearLinear(measureScaling({ small: 2_000, large: 20_000, setup: (n) => make(unit, n), run }), what);
+          // Both sizes past the blankers' fixed 65,536-character budget, so both measure the same regime: at 2,000 a
+          // file of unclosed openers fits inside it and one opener can swallow the rest, which made the pair read up
+          // to 34x for linear code. A bounded rescan is the plain-view check's to see.
+          expectNearLinear(measureScaling({ small: 20_000, large: 200_000, setup: (n) => make(unit, n), run }), what);
           expectCostLike(plain, make(unit, 200_000), run, what);
         }
       }
