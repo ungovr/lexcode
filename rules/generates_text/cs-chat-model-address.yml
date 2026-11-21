@@ -31,8 +31,8 @@ rules:
     # Matched: a call that sends to the address (PostAsync, PostAsJsonAsync, a request message that
     # is not a GET, and a Uri built from it, which a client takes as its BaseAddress or a message as
     # its RequestUri), and a member that holds it. A local in a method that is never sent is not
-    # matched, as a log message held in a local is not (a constructor's local is; see branch 3). A comment, a log line or an exception message that quotes
-    # the address is never a match.
+    # matched, as a log message held in a local is not (a constructor's local is; see branch 3). A
+    # comment, a log line or an exception message that quotes the address is never a match.
     # A GET request message drops: GET /v1/chat/completions lists stored completions. GET is
     # HttpMethod.Get or new HttpMethod("GET") (short or qualified), found by a regex over the whole
     # message expression, as in cs-video-reply-to-response, and each form is a negative.
