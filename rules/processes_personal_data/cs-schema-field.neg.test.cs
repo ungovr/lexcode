@@ -1,12 +1,9 @@
 // lexcode-expect: 0
 // Schema code that stores nothing about a person: columns that are not personal, personal columns
 // being dropped or left unmapped, an anonymous object built from an imported sheet's row, a blank
-// import template's header row (WithColumn outside FluentMigrator), the app's own
-// MigrationBuilder (a build-step script, not EF Core), which shares the library's short name, and
-// the columns of a sending mail account (EmailAccount, MailAccount, SmtpAccount): the mailbox and
-// SMTP login the app sends its own mail from, which are not a person's data (#13215).
-
-using Microsoft.EntityFrameworkCore.Metadata.Builders;
+// import template's header row (WithColumn outside FluentMigrator), and the app's own
+// MigrationBuilder (a build-step script, not EF Core), which shares the library's short name. A
+// store's sending mail account is in cs-schema-field.neg.test.sending.cs.
 
 namespace Demo.Build;
 
@@ -91,86 +88,5 @@ public class Product
 {
     public int Id { get; set; }
     public string Title { get; set; } = "";
-    public string Email { get; set; } = "";
-}
-
-// nopCommerce's shape: an entity builder given FluentMigrator's table builder maps the store's
-// sending mailbox by nameof.
-public class EmailAccountBuilder
-{
-    public void MapEntity(FluentMigrator.Builders.Create.Table.CreateTableExpressionBuilder table)
-    {
-        table
-            .WithColumn(nameof(EmailAccount.DisplayName)).AsString(255).Nullable()
-            .WithColumn(nameof(EmailAccount.Email)).AsString(255).NotNullable()
-            .WithColumn(nameof(Nop.Core.Domain.Messages.EmailAccount.Email)).AsString(255).NotNullable()
-            .WithColumn(nameof(EmailAccount.Username)).AsString(255).NotNullable();
-    }
-}
-
-public class AddSmtpAccounts : FluentMigrator.Migration
-{
-    public override void Up()
-    {
-        Create.Table("SmtpAccount")
-            .WithColumn("Id").AsInt32().PrimaryKey()
-            .WithColumn("Email").AsString(255).NotNullable()
-            .WithColumn("Username").AsString(255).NotNullable();
-        Alter.Table(nameof(EmailAccount)).AddColumn(nameof(EmailAccount.Email)).AsString(255).Nullable();
-        Alter.Table("mail_accounts").AddColumn("email_address").AsString(255).Nullable();
-    }
-
-    public override void Down()
-    {
-    }
-}
-
-public partial class AddEmailAccounts : Microsoft.EntityFrameworkCore.Migrations.Migration
-{
-    protected override void Up(Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder migrationBuilder)
-    {
-        migrationBuilder.CreateTable(
-            name: "EmailAccounts",
-            columns: table => new
-            {
-                Id = table.Column<int>(type: "integer", nullable: false),
-                Email = table.Column<string>(type: "text", nullable: false),
-                DisplayName = table.Column<string>(type: "text", nullable: true)
-            });
-        migrationBuilder.CreateTable("smtp_accounts", table => new { email = table.Column<string>(nullable: false) });
-        migrationBuilder.AddColumn<string>(name: "Email", table: "MailAccounts", nullable: true);
-        migrationBuilder.AddColumn<string>("Email", "EmailAccount");
-    }
-}
-
-public class EmailAccountConfiguration : Microsoft.EntityFrameworkCore.IEntityTypeConfiguration<EmailAccount>
-{
-    public void Configure(EntityTypeBuilder<EmailAccount> builder)
-    {
-        builder.Property(a => a.Email).HasMaxLength(255).IsRequired();
-        builder.HasIndex(a => a.Email).IsUnique();
-    }
-}
-
-public class MailDb : Microsoft.EntityFrameworkCore.DbContext
-{
-    protected override void OnModelCreating(Microsoft.EntityFrameworkCore.ModelBuilder modelBuilder)
-    {
-        modelBuilder.Entity<SmtpAccount>().Property(a => a.Email).HasMaxLength(255);
-        modelBuilder.Entity<EmailAccount>(entity => entity.HasIndex(a => a.Email).IsUnique());
-    }
-}
-
-public class EmailAccount
-{
-    public int Id { get; set; }
-    public string Email { get; set; } = "";
-    public string? DisplayName { get; set; }
-    public string Username { get; set; } = "";
-}
-
-public class SmtpAccount
-{
-    public int Id { get; set; }
     public string Email { get; set; } = "";
 }
