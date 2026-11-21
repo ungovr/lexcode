@@ -41,7 +41,9 @@ rules:
                   # `str($T) == str($C)` holds there and fails for a field, parameter or property
                   # declared with another type (a typed wrapper such as `ISecretsClient`, whose
                   # GetStringAsync reads a secret by name). The factory call itself has no typed
-                  # form, so it is written out.
+                  # form, so it is written out. (The CreateClient alternative in the name regex is the
+                  # receiver regex the four C# crawl and feed rules share, test/unit/cs-crawl-shared-blocks;
+                  # a typed metavariable never binds a call, so here only the arm below reads it.)
                   - patterns:
                       - pattern: ($T $C).$GET($URL, ...)
                       - metavariable-regex:
@@ -50,6 +52,32 @@ rules:
                       - metavariable-comparison:
                           comparison: str($T) == str($C)
                   - pattern: $F.CreateClient(...).$GET($URL, ...)
+                  # A declared type the engine reads but that is not written `HttpClient`: a nullable
+                  # `HttpClient?` and a subclass named for one (PriceHttpClient). A subclass named
+                  # otherwise is not read: the engine does not know a type's base class.
+                  - patterns:
+                      - pattern: ($T $C).$GET($URL, ...)
+                      - metavariable-regex:
+                          metavariable: $T
+                          regex: &httpclient_type ^(System\.Net\.Http\.)?\w*HttpClient\??$
+                  # A nullable field or property read through `this.`, whose type the engine binds as
+                  # `this`: the member's declaration in the class says what it is.
+                  - patterns:
+                      - pattern-either:
+                          - pattern-inside: |
+                              class $CL { ... $TY $MEM; ... }
+                          - pattern-inside: |
+                              class $CL { ... $TY $MEM { get; set; } ... }
+                          - pattern-inside: |
+                              class $CL { ... $TY $MEM { get; } ... }
+                          - pattern-inside: |
+                              class $CL { ... $TY $MEM { get; init; } ... }
+                          - pattern-inside: |
+                              class $CL { ... $TY $MEM => $INIT; ... }
+                      - metavariable-regex:
+                          metavariable: $TY
+                          regex: *httpclient_type
+                      - pattern: this.$MEM.$GET($URL, ...)
               - metavariable-regex:
                   metavariable: $GET
                   regex: ^Get(String|Stream|ByteArray)?Async$
