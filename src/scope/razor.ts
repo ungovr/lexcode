@@ -616,7 +616,7 @@ function scriptTagWithin(tags: [number, number][]): (start: number, end: number)
  * comments, matched string-aware as `csBracketEnd` matches brackets. That markup is read as markup to its closing tag
  * (`markupElementEnd`), so a `//`, `/*` or quote in its text is not taken for C#, and the Razor code inside it is read
  * as code again. Every length and line break holds. A block or expression that never closes runs to the end of the
- * text, and the walk stops there.
+ * text, and the walk stops there; a Razor comment that never closes is hidden to the end of its line.
  */
 export function blankRazorScriptHiders(text: string): string {
   const hidden: [number, number][] = [];
@@ -631,8 +631,9 @@ export function blankRazorScriptHiders(text: string): string {
     if (m[0] === '@@') {
       end = open + 2;
     } else if (m[0] === '@*') {
-      const close = text.indexOf('*@', open + 2);
-      end = close === -1 ? text.length : close + 2;
+      // A comment that never closes is hidden to the end of its line, never the file's, so it hides no later script.
+      const close = closerAt(text, '*@', open + 2, markup);
+      end = close === -1 ? lineEnd(text, open) : close + 2;
       hidden.push([open, end]);
     } else if (m[0] === '@(' || m[0] === '@{') {
       end = csBracketEnd(text, open + 1, m[0] === '@{', undefined, texts, markup);

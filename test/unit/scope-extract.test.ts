@@ -2033,6 +2033,62 @@ describe('a script inside template code or a template comment is not markup (#12
     }
   });
 
+  // A tag, comment or expression that never closes is a template error; in the search for script blocks it is
+  // blanked to the end of its line, never to the end of the file, so the scripts after it are still read. One that
+  // closes on a later line is still blanked to its closer (#12882).
+  const unterminated: [string, string][] = [
+    ...['a.twig', 'a.html.tera', 'a.jinja', 'a.j2', 'a.njk'].flatMap((f) =>
+      ['{{ x', '{%- if x', '{# note', '{{ "abc', "{% set a = 'b", '{{ [1, 2', '{{ {a: 1'].map((o): [string, string] => [f, o]),
+    ),
+    ...['<% x', '<%= x', '<%# x', '<%- x'].map((o): [string, string] => ['a.html.erb', o]),
+    ...['<% x', '<%-- x', '<%= x', '${x', '#{x', '${"abc', "#{'a"].map((o): [string, string] => ['a.jsp', o]),
+    ...['{{ x', '{!! x', '{{-- x', '@php', '@{{ x'].map((o): [string, string] => ['a.blade.php', o]),
+    ['a.cshtml', '@* x'],
+    ['a.razor', '@* x'],
+  ];
+  for (const [file, opener] of unterminated) {
+    it(`${file}: an unterminated ${opener} hides no script after its line`, () => {
+      const view = [`<p>${opener}</p>`, '<script>', "  gtag('config', 'x');", '</script>', ''].join('\n');
+      const copies = extract(file, view);
+      expect(copies, view).toHaveLength(1);
+      sameShape(view, copies[0]!);
+      expect(lines(copies[0]!)[2]).toBe("  gtag('config', 'x');");
+      // A script on the opener's own line is inside it, as far as the template can tell; Blade prints an escaped
+      // echo (`@{{`) as written, so a script after one is live.
+      if (opener !== '@{{ x') expect(extract(file, `${opener} <script>old();</script>\n`), opener).toEqual([]);
+    });
+  }
+
+  it('a tag that closes on a later line is still blanked to its closer', () => {
+    hiddenThenLive('a.twig', ['{% set s = {', "  a: '<script>old();</script>'", '} %}'].join('\n'));
+    hiddenThenLive('a.html.erb', ['<%', "  s = '<script>old();</script>'", '%>'].join('\n'));
+    hiddenThenLive('a.jsp', ['${ x ? ', "  '<script>old();</script>' : y }"].join('\n'));
+    hiddenThenLive('a.blade.php', ['{{ $x', "  ?? '<script>old();</script>' }}"].join('\n'));
+  });
+
+  it('the script search grows near-linearly over a line each of unterminated openers', () => {
+    for (const [name, opts, opener] of [
+      ['Twig tags', { twig: true }, '{{ x'],
+      ['Twig tags with an open bracket', { twig: true }, '{{ [1'],
+      ['Twig tags with an open quote', { twig: true }, '{% set a = "b'],
+      ['Twig comments', { twig: true }, '{# x'],
+      ['ERB tags', { erb: true }, '<% x'],
+      ['JSP tags', { jsp: true }, '<% x'],
+      ['JSP comments', { jsp: true }, '<%-- x'],
+      ['JSP EL with an open brace', { jsp: true }, '${ {a'],
+      ['JSP EL with an open quote', { jsp: true }, '${ "a'],
+      ['Blade echoes', { blade: true }, '{{ $x'],
+      ['Blade @php', { blade: true }, '@php'],
+      ['Razor comments', { razor: true }, '@* x'],
+    ] as const) {
+      const body = (n: number): string => `<p>${opener}</p>\n`.repeat(n / (opener.length + 8)) + '<script>a();</script>';
+      const m = measureScaling({ small: 20_000, large: 200_000, setup: body, run: (t) => blankOutsideScripts(t, opts) });
+      expect(m.result, name).not.toBeNull();
+      expect(m.result!.text, name).toContain('a();');
+      expectNearLinear(m, `the script search over ${name}`);
+    }
+  });
+
   it('the Razor search grows near-linearly over nested interpolated strings, and over strings that hold a script tag', () => {
     // Each nested `$"{` is a string literal that holds every one inside it, so the literals' spans add up to the
     // square of the nesting; asking each span whether it holds a `<script` must not read it again (#13208).

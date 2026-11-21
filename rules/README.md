@@ -583,7 +583,8 @@ blanked to the end of the block. The Ruby inside an ERB tag is never scanned,
 and an ERB file with no `<script>` block gives the scan nothing. Blocks are
 looked for with the file's ERB tags blanked, so a `<script>` inside a comment
 tag (`<%# <script> %>`) or a Ruby string is not read as live, and a
-`</script>` inside a tag does not end a block.
+`</script>` inside a tag does not end a block. For that search, a tag, comment or expression that never ends is blanked
+only to the end of its line, so it hides no script after it.
 
 ### Model output a view, a partial or a broadcast shows
 
@@ -852,7 +853,8 @@ tag with no closing `>` are left alone. Blocks are looked for with the file's
 JSP syntax blanked the same way, so a `<script>` inside a JSP comment
 (`<%-- --%>`), a scriptlet or expression string, an EL expression or a
 namespaced tag's attribute is not read as live, and a `</script>` inside one
-does not end a block.
+does not end a block. For that search, a JSP tag, comment or EL expression that
+never ends is blanked only to the end of its line.
 Thymeleaf templates are `.html` and already read; FreeMarker and Velocity
 templates are not read.
 
@@ -915,7 +917,9 @@ preceded by a word character or `@`. An `@php ... @endphp` span becomes spaces
 too. An `@` inside a word, such as an email address in a JavaScript string, is
 left alone. Blocks are looked for with the PHP regions and then the Blade syntax
 blanked, so a `<script>` inside a Blade comment (`{{-- --}}`), an echo or an
-`@php` span is not read as live.
+`@php` span is not read as live. For that search, an echo, comment or `@php`
+span that never ends is blanked only to the end of its line; a PHP region with
+no `?>` still runs to the end of the file, as PHP runs it.
 
 A `.twig` file (so `.html.twig`) is read the same way. Inside a block, `{{ ... }}`
 becomes `_` padded, and `{% ... %}` and `{# ... #}` become spaces, including the
@@ -923,7 +927,8 @@ forms with a `-` for white-space control. Tera (`.tera`), Jinja (`.jinja`,
 `.jinja2`, `.j2`) and Nunjucks (`.njk`) files get the same blanking. Blocks are
 looked for with these tags blanked, so a `<script>` inside a comment
 (`{# #}`), a `{% set %}` string or an output tag is not read as live, and a
-`</script>` inside a tag does not end a block. Mustache is not read: its
+`</script>` inside a tag does not end a block; for that search, a tag or comment
+that never ends is blanked only to the end of its line. Mustache is not read: its
 sections are a convention of one app, and that app's JavaScript lives in plain
 `.js` files that lexcode already reads.
 
@@ -1071,7 +1076,7 @@ JavaScript, a known gap.
 
 `.cshtml` and `.razor` files join the `<script>` block extraction used for Vue,
 Svelte, HTML and the other template languages. Blocks are looked for with the
-file's `@* *@` comments blanked, and the C# strings and comments that hold a
+file's `@* *@` comments blanked (one that never ends, to the end of its line), and the C# strings and comments that hold a
 `<script` inside a code block, control block or expression, so a script in a
 comment or a C# string (`@{ var s = "<script>..."; }`, `@Html.Raw("<script>...")`)
 is not read as live. A code or control block is not blanked whole for the

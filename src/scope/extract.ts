@@ -224,12 +224,78 @@ function isTypeScript(block: ScriptBlock): boolean {
 }
 
 /**
+ * Where a template blanker ends a tag, comment or expression that never closes, a template error. Inside a script
+ * body it runs to the end of the body. In the search of a whole file for script blocks (`searchedText`) it runs to
+ * the end of its line, so it hides no script on a later line (#12882); one that closes on a later line still runs
+ * to its closer. `closer` is `indexOf` that knows each closer's last offset, so once the text holds no more of one,
+ * asking again costs nothing: a file of unclosed openers is not searched to its end once per opener. A tag whose
+ * end is found past quotes and brackets (Twig, EL) spends `budget` when it never closes, and is read no further
+ * than what is left of it; once it is spent, such a tag ends at its first closer, quotes and brackets aside.
+ */
+class Unclosed {
+  private readonly last = new Map<string, number>();
+  budget: number;
+
+  constructor(
+    private readonly text: string,
+    private readonly toLine: boolean,
+  ) {
+    this.budget = 2 * text.length + 65_536;
+  }
+
+  /** Offset of the first `closer` at or after `from`, or -1. */
+  closer(closer: string, from: number): number {
+    let last = this.last.get(closer);
+    if (last === undefined) {
+      last = this.text.lastIndexOf(closer);
+      this.last.set(closer, last);
+    }
+    return from > last ? -1 : this.text.indexOf(closer, from);
+  }
+
+  /** Where the unclosed tag at `open` ends. */
+  end(open: number): number {
+    if (!this.toLine) return this.text.length;
+    let i = open;
+    while (i < this.text.length && this.text[i] !== '\n' && this.text[i] !== '\r') i++;
+    return i;
+  }
+
+  /** Just past the `closer` at or after `from`, or where the unclosed tag at `open` ends. */
+  past(closer: string, open: number, from: number): number {
+    const close = this.closer(closer, from);
+    return close === -1 ? this.end(open) : close + closer.length;
+  }
+
+  /**
+   * Where the tag at `open` ends when `scan(limit)` finds its end past quotes and brackets (-1 when it does not
+   * before `limit`): inside a body, there or at the end of the body; in a file search, there, or within the budget's
+   * reach, or else at its first `closer`, or at the end of its line.
+   */
+  bracketed(open: number, closer: string, from: number, scan: (limit: number) => number): number {
+    if (!this.toLine) {
+      const end = scan(this.text.length);
+      return end === -1 ? this.text.length : end;
+    }
+    if (this.budget > 0) {
+      const end = scan(Math.min(this.text.length, from + this.budget));
+      if (end !== -1) return end;
+      this.budget -= this.text.length - open;
+      return this.end(open);
+    }
+    return this.past(closer, open, from);
+  }
+}
+
+/**
  * Blanks the ERB tags of a script body so the JavaScript parser can read it: an output tag (`<%=`, `<%==`)
  * becomes `_` padded with spaces to its length, every other tag (`<%`, `<%-`, `<%#`) becomes spaces, and line
  * breaks stay, so line and column numbers hold. `<%%` is a literal and is left. A tag ends at the first `%>`,
- * as ERB itself ends it, quotes or not; one that never ends is blanked to the end of the body.
+ * as ERB itself ends it, quotes or not; one that never ends is blanked to the end of the body, or with `inFile` (the
+ * search of a whole view for script blocks) to the end of its line (`Unclosed`).
  */
-export function blankErbTags(body: string): string {
+export function blankErbTags(body: string, inFile = false): string {
+  const unclosed = new Unclosed(body, inFile);
   let out = '';
   let cursor = 0;
   let i = 0;
@@ -240,8 +306,7 @@ export function blankErbTags(body: string): string {
       i = open + 3;
       continue;
     }
-    const close = body.indexOf('%>', open + 2);
-    const end = close === -1 ? body.length : close + 2;
+    const end = unclosed.past('%>', open, open + 2);
     const tag = blank(body.slice(open, end));
     const output = body[open + 2] === '=';
     out += body.slice(cursor, open) + (output && tag.length > 0 ? '_' + tag.slice(1) : tag);
@@ -251,15 +316,15 @@ export function blankErbTags(body: string): string {
   return out + body.slice(cursor);
 }
 
-/** Offset just past the `}` that closes the EL expression whose `{` is at `open`; `text.length` when it never closes. Quoted strings and nested braces are stepped over. */
-function elEnd(text: string, open: number): number {
+/** Offset just past the `}` that closes the EL expression whose `{` is at `open`; -1 when it does not close before `limit`. Quoted strings and nested braces are stepped over. */
+function elEnd(text: string, open: number, limit: number): number {
   let depth = 0;
   let i = open;
-  while (i < text.length) {
+  while (i < limit) {
     const ch = text[i] as string;
     if (ch === '"' || ch === "'") {
       i++;
-      while (i < text.length && text[i] !== ch) i += text[i] === '\\' ? 2 : 1;
+      while (i < limit && text[i] !== ch) i += text[i] === '\\' ? 2 : 1;
       i++; // past the closing quote
       continue;
     }
@@ -270,7 +335,7 @@ function elEnd(text: string, open: number): number {
     }
     i++;
   }
-  return text.length;
+  return -1;
 }
 
 /** The longest namespaced tag lexcode will blank; a `<` that has no `>` within this is just a less-than sign. */
@@ -310,14 +375,15 @@ function tagEnd(text: string, from: number): number {
  * and the `<![CDATA[` and `]]>` markers of a CDATA section become spaces. Line breaks stay, so line and column
  * numbers hold. A `<%--` comment runs to `--%>`, any other tag to the first `%>`, an EL expression to its
  * closing brace, past nested braces and quoted strings, and a namespaced tag to its `>`, past quoted values.
- * A `\${` or `\#{` is a literal and is left. A JSP tag that never ends is blanked to the end of the body; a
- * namespaced tag that never ends is not a tag and is left, as is `a < b:c` (a tag name follows the `<`
+ * A `\${` or `\#{` is a literal and is left. A JSP tag or EL expression that never ends is blanked to the end of the
+ * body, or with `inFile` to the end of its line (`Unclosed`); a namespaced tag that never ends is not a tag and is left, as is `a < b:c` (a tag name follows the `<`
  * directly), an unspaced ternary `c?a<b:d;` (the name must end at whitespace, `/` or `>`) and an HTML tag
  * without a prefix. A `]]>` is blanked only after a `<![CDATA[` opened in the body,
  * so `a[b[0]]>c` is left.
  */
-export function blankJspTags(body: string): string {
+export function blankJspTags(body: string, inFile = false): string {
   const opener = /<%|[$#]\{|<\/?\w+:[A-Za-z_][\w.-]*(?=[\s/>])|<!\[CDATA\[|\]\]>/g;
+  const unclosed = new Unclosed(body, inFile);
   let out = '';
   let cursor = 0;
   let inCdata = false;
@@ -329,16 +395,14 @@ export function blankJspTags(body: string): string {
     let output: boolean;
     if (m[0] === '<%') {
       if (body.startsWith('<%--', open)) {
-        const close = body.indexOf('--%>', open + 4);
-        end = close === -1 ? body.length : close + 4;
+        end = unclosed.past('--%>', open, open + 4);
         output = false;
       } else {
-        const close = body.indexOf('%>', open + 2);
-        end = close === -1 ? body.length : close + 2;
+        end = unclosed.past('%>', open, open + 2);
         output = body[open + 2] === '=';
       }
     } else if (m[0] === '${' || m[0] === '#{') {
-      end = elEnd(body, open + 1);
+      end = unclosed.bracketed(open, '}', open + 2, (limit) => elEnd(body, open + 1, limit));
       output = true;
     } else if (m[0] === '<![CDATA[') {
       end = open + m[0].length;
@@ -527,9 +591,10 @@ const BLADE_OPENER = /\{\{--|\{!!|@?\{\{|(?<![\p{L}\p{N}_@])@[A-Za-z_]\w*/gu;
  * list, as Blade's argument group is optional, so only the directive's name is blanked.
  * An echo ends at the first `}}` (`!!}`, `--}}`), as Blade ends it. `@{{ ... }}` is Blade's escaped echo,
  * printed as `{{ ... }}`: its `@` becomes a space and the rest is left. Line breaks stay. An echo, comment or
- * `@php` span that never ends is blanked to the end of the body.
+ * `@php` span that never ends is blanked to the end of the body, or with `inFile` to the end of its line (`Unclosed`).
  */
-export function blankBladeTags(body: string): string {
+export function blankBladeTags(body: string, inFile = false): string {
+  const unclosed = new Unclosed(body, inFile);
   let out = '';
   let cursor = 0;
   BLADE_OPENER.lastIndex = 0;
@@ -539,23 +604,19 @@ export function blankBladeTags(body: string): string {
     let end: number;
     let output = false;
     if (tok === '@{{') {
-      const close = body.indexOf('}}', open + 3);
-      end = close === -1 ? body.length : close + 2;
+      end = unclosed.past('}}', open, open + 3);
       out += body.slice(cursor, open) + ' ' + body.slice(open + 1, end);
       cursor = end;
       BLADE_OPENER.lastIndex = end;
       continue;
     }
     if (tok === '{{--') {
-      const close = body.indexOf('--}}', open + 4);
-      end = close === -1 ? body.length : close + 4;
+      end = unclosed.past('--}}', open, open + 4);
     } else if (tok === '{!!') {
-      const close = body.indexOf('!!}', open + 3);
-      end = close === -1 ? body.length : close + 3;
+      end = unclosed.past('!!}', open, open + 3);
       output = true;
     } else if (tok === '{{') {
-      const close = body.indexOf('}}', open + 2);
-      end = close === -1 ? body.length : close + 2;
+      end = unclosed.past('}}', open, open + 2);
       output = true;
     } else {
       const name = tok.slice(1).toLowerCase();
@@ -567,8 +628,7 @@ export function blankBladeTags(body: string): string {
         end = close;
         output = name === 'json' || name === 'js';
       } else if (name === 'php') {
-        const close = body.indexOf('@endphp', end);
-        end = close === -1 ? body.length : close + '@endphp'.length;
+        end = unclosed.past('@endphp', open, end);
       }
     }
     const tag = blank(body.slice(open, end));
@@ -582,23 +642,23 @@ export function blankBladeTags(body: string): string {
 /**
  * Offset just past the `closer` (`}}` or `%}`) that ends the Twig tag whose contents start at `from`, past
  * quoted strings (single and double quotes, backslash escapes) and nested brackets, as Twig's lexer reads an
- * expression: `{{ {'a': {'b': 1}} }}` ends at its last `}}`. `text.length` when it never ends.
+ * expression: `{{ {'a': {'b': 1}} }}` ends at its last `}}`. -1 when it does not end before `limit`.
  */
-function twigTagEnd(text: string, from: number, closer: string): number {
+function twigTagEnd(text: string, from: number, closer: string, limit: number): number {
   let depth = 0;
   let i = from;
-  while (i < text.length) {
+  while (i < limit) {
     const ch = text[i] as string;
     if (depth === 0 && text.startsWith(closer, i)) return i + closer.length;
     if (ch === '"' || ch === "'") {
-      i = quotedEnd(text, i);
+      i = quotedEnd(text, i, limit);
       continue;
     }
     if (ch === '(' || ch === '[' || ch === '{') depth++;
     else if ((ch === ')' || ch === ']' || ch === '}') && depth > 0) depth--;
     i++;
   }
-  return text.length;
+  return -1;
 }
 
 /**
@@ -606,20 +666,22 @@ function twigTagEnd(text: string, from: number, closer: string): number {
  * with spaces to its length, and `{% ... %}` and `{# ... #}` become spaces, the `-` and `~` whitespace-control
  * forms included. Line breaks stay. A comment ends at the first `#}`; an output or statement tag ends at its
  * closer past quoted strings and nested brackets (`twigTagEnd`). Anything that never ends is blanked to the end
- * of the body. It is applied to Twig, Tera, Jinja and Nunjucks templates (`TWIG_EXTENSIONS`).
+ * of the body, or with `inFile` to the end of its line (`Unclosed`). It is applied to Twig, Tera, Jinja and
+ * Nunjucks templates (`TWIG_EXTENSIONS`).
  */
-export function blankTwigTags(body: string): string {
+export function blankTwigTags(body: string, inFile = false): string {
   const opener = /\{[{%#]/g;
+  const unclosed = new Unclosed(body, inFile);
   let out = '';
   let cursor = 0;
   for (let m = opener.exec(body); m !== null; m = opener.exec(body)) {
     const open = m.index;
     let end: number;
     if (m[0] === '{#') {
-      const close = body.indexOf('#}', open + 2);
-      end = close === -1 ? body.length : close + 2;
+      end = unclosed.past('#}', open, open + 2);
     } else {
-      end = twigTagEnd(body, open + 2, m[0] === '{{' ? '}}' : '%}');
+      const closer = m[0] === '{{' ? '}}' : '%}';
+      end = unclosed.bracketed(open, closer, open + 2, (limit) => twigTagEnd(body, open + 2, closer, limit));
     }
     const tag = blank(body.slice(open, end));
     out += body.slice(cursor, open) + (m[0] === '{{' && tag.length > 0 ? '_' + tag.slice(1) : tag);
@@ -680,15 +742,17 @@ export function blankOutsideScripts(text: string, opts: TemplateOptions = {}): {
  * script bodies are (#12882): PHP regions, then Blade syntax; Twig, Tera, Jinja and Nunjucks tags; ERB tags; JSP
  * tags, EL expressions and namespaced tags. A Razor code block can hold live markup, so only its comments and the C#
  * strings and comments that hold a `<script` are blanked (`blankRazorScriptHiders`). Blanking keeps every length,
- * so the blocks' offsets are the text's, and a `</script>` inside a tag no longer ends a block.
+ * so the blocks' offsets are the text's, and a `</script>` inside a tag no longer ends a block. A tag, comment or
+ * expression that never closes is blanked here to the end of its line, not of the file, so it hides no script after
+ * it (`Unclosed`); a PHP region with no `?>` still runs to the end, as PHP runs it.
  */
 function searchedText(text: string, opts: TemplateOptions): string {
   if (opts.razor === true) return blankRazorScriptHiders(text);
-  if (opts.blade === true) return blankBladeTags(blankPhpRegions(text));
+  if (opts.blade === true) return blankBladeTags(blankPhpRegions(text), true);
   if (opts.php === true) return blankPhpRegions(text);
-  if (opts.twig === true) return blankTwigTags(text);
-  if (opts.erb === true) return blankErbTags(text);
-  if (opts.jsp === true) return blankJspTags(text);
+  if (opts.twig === true) return blankTwigTags(text, true);
+  if (opts.erb === true) return blankErbTags(text, true);
+  if (opts.jsp === true) return blankJspTags(text, true);
   return text;
 }
 
