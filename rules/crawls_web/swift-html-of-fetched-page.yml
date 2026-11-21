@@ -100,6 +100,10 @@ rules:
               - pattern-not-inside: |
                   <... $DEC.decode($TY.self, ...) ...>
                   ...
+              # a generic type (`Envelope<Story>.self`) does not bind `$TY`
+              - pattern-not-inside: |
+                  <... $DEC.decode($TY<$A>.self, ...) ...>
+                  ...
               - pattern-either:
                   - pattern-inside: |
                       <... $S.data(from: $URL, ...) ...>
