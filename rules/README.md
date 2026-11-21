@@ -990,6 +990,10 @@ ruled before it is added.
 - Inside a `@verbatim` span in Blade, a `{{ }}` is still blanked as a tag, and
   so is a `{{ }}` or `{# #}` inside a `{% raw %}` or `{% verbatim %}` span in
   Twig, Tera, Jinja and Nunjucks, though the template prints each as written.
+- In a Blade view the PHP regions are blanked before the Blade syntax, so a
+  `<?php` with no `?>` inside a Blade comment (`{{-- <?php --}}`) runs to the
+  end of the file, as it would in PHP, and hides every script after it, though
+  Blade drops the comment before PHP reads it.
 - An Artisan command that extends an app's own base command class is not
   excluded from the signature rule, because the engine cannot follow
   inheritance.
