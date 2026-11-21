@@ -4,6 +4,14 @@ rules:
     severity: INFO
     message: Declares a stored column for an email, phone number, date of birth, government identifier or IP address in schema code (an EF Core migration or model configuration, or a FluentMigrator migration), which is processing personal data (processes_personal_data).
     pattern-either:
+      # Not a person's data: the columns of a sending mail account (EmailAccount, MailAccount,
+      # SmtpAccount and their plural tables), the mailbox and SMTP login an app sends its own
+      # mail from (nopCommerce's EmailAccount.Email, DisplayName and Username), are the operator's
+      # own, not a person's it processes (decided on #13215). Only a class or
+      # table named for the sending account itself is set aside, never every name holding
+      # "Account" (a CustomerAccount or UserAccount stays in), by its table name in a migration,
+      # its entity type in model configuration, and its nameof or table name in FluentMigrator.
+      #
       # EF Core migrations: a column of a table being created (the anonymous object's member
       # names the column), or a column added to a table. The migration builder is the
       # parameter of a generated Up or Down method, typed through its `using` (which a generated
@@ -11,6 +19,8 @@ rules:
       # anonymous object read from another library's row (row.Column<string>("email")) does not.
       - patterns:
           - pattern-inside: (Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder $MB).CreateTable(...)
+          - pattern-not-inside: '$MB.CreateTable(name: "=~/(?i)^(e_?mail|mail|smtp)_?accounts?$/", ...)'
+          - pattern-not-inside: '$MB.CreateTable("=~/(?i)^(e_?mail|mail|smtp)_?accounts?$/", ...)'
           - pattern: 'new { ..., $N = $TB.Column<$T>(...), ... }'
           - metavariable-regex:
               metavariable: $N
@@ -20,6 +30,8 @@ rules:
           - pattern-either:
               - pattern: '(Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder $MB).AddColumn<$T>(name: $N, ...)'
               - pattern: (Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder $MB).AddColumn<$T>($N, ...)
+          - pattern-not: '$MB.AddColumn<$T>(..., table: "=~/(?i)^(e_?mail|mail|smtp)_?accounts?$/", ...)'
+          - pattern-not: '$MB.AddColumn<$T>($N, "=~/(?i)^(e_?mail|mail|smtp)_?accounts?$/", ...)'
           - metavariable-regex:
               metavariable: $N
               regex: (?i)^@?"(e_?mail|email_?(address|addr)?|(user|contact|work|primary|customer|billing|normalized|unconfirmed)_?e_?mail(_?address)?|phone(_?(number|no|num))?|mobile(_?(number|phone|no))?|telephone|date_?of_?birth|dob|birth_?(date|day)|birthday|ssn|social_?security(_?(number|no))?|national_?(id|insurance)(_?number)?|passport(_?(number|no))?|tax_?(id|number)|drivers?_?licen[sc]e(_?(number|no))?|ip_?(address|addr)?|last_?(login_?)?ip(_?address)?|(client|customer|user)_?ip(_?address)?|remote_?(addr|ip|address))"$
@@ -30,21 +42,34 @@ rules:
       - patterns:
           - pattern-either:
               # A configuration class's EntityTypeBuilder<T> (typed through its parameter), and
-              # the owned-type builders nested in its calls.
+              # the owned-type builders nested in its calls; a sending account's T is set aside.
+              # The engine matches the namespaced non-generic type to a generic one written short
+              # under its `using`, but binds T only from a short generic pattern, so the namespaced
+              # pattern gates and the short one reads T. (The non-generic builder takes a property's
+              # name as a string, never a lambda, so no arm reads it.)
               - patterns:
                   - pattern-inside: (Microsoft.EntityFrameworkCore.Metadata.Builders.EntityTypeBuilder $EB).$CALL(...)
+                  - pattern-inside: (EntityTypeBuilder<$A> $EB).$CALL(...)
+                  - metavariable-regex:
+                      metavariable: $A
+                      regex: ^(?!(\w+\.)*(?i:(e_?mail|mail|smtp)_?accounts?)$)
                   - pattern-either:
                       - pattern: $B.Property($X => $X.$F)
                       - pattern: $B.HasIndex($X => $X.$F)
               # A DbContext's ModelBuilder: modelBuilder.Entity<T>().Property(...), and the
-              # builder lambda of modelBuilder.Entity<T>(e => ...).
-              - pattern: (Microsoft.EntityFrameworkCore.ModelBuilder $MB).Entity<$T>().Property($X => $X.$F)
-              - pattern: (Microsoft.EntityFrameworkCore.ModelBuilder $MB).Entity<$T>().HasIndex($X => $X.$F)
+              # builder lambda of modelBuilder.Entity<T>(e => ...); a sending account's T is set aside.
               - patterns:
-                  - pattern-inside: (Microsoft.EntityFrameworkCore.ModelBuilder $MB).Entity<$T>(...)
                   - pattern-either:
-                      - pattern: $B.Property($X => $X.$F)
-                      - pattern: $B.HasIndex($X => $X.$F)
+                      - pattern: (Microsoft.EntityFrameworkCore.ModelBuilder $MB).Entity<$T>().Property($X => $X.$F)
+                      - pattern: (Microsoft.EntityFrameworkCore.ModelBuilder $MB).Entity<$T>().HasIndex($X => $X.$F)
+                      - patterns:
+                          - pattern-inside: (Microsoft.EntityFrameworkCore.ModelBuilder $MB).Entity<$T>(...)
+                          - pattern-either:
+                              - pattern: $B.Property($X => $X.$F)
+                              - pattern: $B.HasIndex($X => $X.$F)
+                  - metavariable-regex:
+                      metavariable: $T
+                      regex: ^(?!(\w+\.)*(?i:(e_?mail|mail|smtp)_?accounts?)$)
           - metavariable-regex:
               metavariable: $F
               regex: (?i)^(e_?mail|email_?(address|addr)?|(user|contact|work|primary|customer|billing|normalized|unconfirmed)_?e_?mail(_?address)?|phone(_?(number|no|num))?|mobile(_?(number|phone|no))?|telephone|date_?of_?birth|dob|birth_?(date|day)|birthday|ssn|social_?security(_?(number|no))?|national_?(id|insurance)(_?number)?|passport(_?(number|no))?|tax_?(id|number)|drivers?_?licen[sc]e(_?(number|no))?|ip_?(address|addr)?|last_?(login_?)?ip(_?address)?|(client|customer|user)_?ip(_?address)?|remote_?(addr|ip|address))$
@@ -66,6 +91,14 @@ rules:
           - pattern-either:
               - pattern: $T.WithColumn($N)
               - pattern: $T.AddColumn($N)
+          # A sending account's table (Create.Table("EmailAccount"), Alter.Table(nameof(EmailAccount)))
+          # earlier in the chain, or its property named by nameof (nameof(EmailAccount.Email)).
+          - metavariable-regex:
+              metavariable: $T
+              regex: ^(?![\s\S]*\bTable\(\s*(@?"|nameof\((\w+\.)*)(?i:(e_?mail|mail|smtp)_?accounts?)("|\))\s*\))
+          - metavariable-regex:
+              metavariable: $N
+              regex: ^(?!nameof\((\w+\.)*(?i:(e_?mail|mail|smtp)_?accounts?)\.)
           - metavariable-regex:
               metavariable: $N
               regex: (?i)^(@?"|nameof\((\w+\.)*)(e_?mail|email_?(address|addr)?|(user|contact|work|primary|customer|billing|normalized|unconfirmed)_?e_?mail(_?address)?|phone(_?(number|no|num))?|mobile(_?(number|phone|no))?|telephone|date_?of_?birth|dob|birth_?(date|day)|birthday|ssn|social_?security(_?(number|no))?|national_?(id|insurance)(_?number)?|passport(_?(number|no))?|tax_?(id|number)|drivers?_?licen[sc]e(_?(number|no))?|ip_?(address|addr)?|last_?(login_?)?ip(_?address)?|(client|customer|user)_?ip(_?address)?|remote_?(addr|ip|address))("|\))$
