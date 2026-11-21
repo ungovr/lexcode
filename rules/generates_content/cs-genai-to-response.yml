@@ -34,6 +34,10 @@ rules:
       # such as the key; written at the call, held in a local before the send or in a member of the
       # same class, or carried by the engine from a const, a readonly field or a local. An address
       # held in another class or file is not followed; the signal rule reads the declaration there.
+      # The reply reaches a sink wrapped in a typed object, an interpolated string, a deserialized
+      # type or a JSON read, on a page model's property and in a hub message (fixtures
+      # *.test.wrapped.cs); in an anonymous object (`Ok(new { text })`) the engine drops it, for
+      # these sources as for the SDK ones (rules/README.md, Known C# gaps).
       - patterns:
           - pattern-either: &gemini-posts
               - pattern: $HTTP.PostAsync($URL, ...)
