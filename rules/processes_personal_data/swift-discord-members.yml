@@ -1,0 +1,51 @@
+# A Discord bot that asks for a server's members receives each member's account: user ID, user name,
+# display name, avatar, roles and join date, and with presences their status and activity. That is
+# information about identifiable people (an account). DiscordBM asks for it in two ways (DiscordBM,
+# Sources/DiscordGateway/DiscordCache.swift and Gateway.Intent, read 2026-11-21):
+#
+# - a cache that requests every member of each guild (`requestAllMembers: .enabled` or
+#   `.enabledWithPresences`, with or without a guild list); `.disabled` asks for none;
+# - a gateway or cache that subscribes to the member or presence intent (`.guildMembers`,
+#   `.guildPresences`), which Discord itself treats as privileged because it carries member data.
+#
+# A bot that only answers commands or reads messages without asking for the member list is not
+# matched, though each message names its author. `DiscordCache` and `BotGatewayManager` are
+# DiscordBM's types; the cache carries the product's name and is matched with or without the import,
+# the gateway only in a file that imports DiscordBM or DiscordGateway.
+rules:
+  - id: lexcode.personal.swift-discord-members
+    languages: [swift]
+    severity: INFO
+    message: Asks Discord for a server's members (every member's account, or the member or presence events), which is processing personal data (processes_personal_data).
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: 'DiscordCache(..., requestAllMembers: $R, ...)'
+              - pattern: 'DiscordBM.DiscordCache(..., requestAllMembers: $R, ...)'
+              - pattern: 'DiscordGateway.DiscordCache(..., requestAllMembers: $R, ...)'
+          - metavariable-regex:
+              metavariable: $R
+              regex: ^(?:(?:DiscordCache\.)?RequestMembers)?\.enabled
+          - focus-metavariable: $R
+      - patterns:
+          - pattern-either:
+              - pattern: 'DiscordCache(..., intents: $I, ...)'
+              - pattern: 'DiscordBM.DiscordCache(..., intents: $I, ...)'
+              - pattern: 'DiscordGateway.DiscordCache(..., intents: $I, ...)'
+              - patterns:
+                  - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?(?:DiscordBM|DiscordGateway)\b).*'
+                  - pattern: 'BotGatewayManager(..., intents: $I, ...)'
+          - metavariable-pattern:
+              metavariable: $I
+              pattern-either:
+                - pattern: '[..., .guildMembers, ...]'
+                - pattern: '[..., .guildPresences, ...]'
+                - pattern: '[..., Gateway.Intent.guildMembers, ...]'
+                - pattern: '[..., Gateway.Intent.guildPresences, ...]'
+          - focus-metavariable: $I
+    metadata:
+      activity: processes_personal_data
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-personal-data
+      provenance: ungovr-original
+      license: MIT

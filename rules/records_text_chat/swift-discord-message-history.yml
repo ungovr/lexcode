@@ -1,0 +1,30 @@
+# A Discord bot that keeps the messages members type, with every edit's earlier text or the copy of a
+# deleted message, keeps a chat's transcript (Vapor's Penny bot posts the saved history of a deleted
+# message to its moderators). DiscordBM's cache does this when its message policy is one of the three
+# that save: `saveDeleted`, `saveEditHistory` or `saveEditHistoryAndDeleted`, with or without the
+# guild and channel lists they take (DiscordBM, Sources/DiscordGateway/DiscordCache.swift,
+# `MessageCachingPolicy`, read 2026-11-21). The `normal` policy, the default, replaces an edited
+# message and drops a deleted one, so it keeps only what is on screen and is not matched.
+#
+# `DiscordCache` carries the product's name, so it is matched with or without the file's import.
+# A cache made by another Discord library is not read (rules/README.md, "Known Swift gaps").
+rules:
+  - id: lexcode.chat.swift-discord-message-history
+    languages: [swift]
+    severity: INFO
+    message: Keeps the messages members type in a Discord server, with the earlier text of an edited message or a deleted message's copy (DiscordBM's cache set to save them), which is recording text chat (records_text_chat).
+    patterns:
+      - pattern-either:
+          - pattern: 'DiscordCache(..., messageCachingPolicy: $P, ...)'
+          - pattern: 'DiscordBM.DiscordCache(..., messageCachingPolicy: $P, ...)'
+          - pattern: 'DiscordGateway.DiscordCache(..., messageCachingPolicy: $P, ...)'
+      - metavariable-regex:
+          metavariable: $P
+          regex: ^(?:(?:DiscordCache\.)?MessageCachingPolicy)?\.save(?:Deleted|EditHistory|EditHistoryAndDeleted)\b
+      - focus-metavariable: $P
+    metadata:
+      activity: records_text_chat
+      mentioned: performs
+      definition: https://lexlint.io/activities/records-text-chat
+      provenance: ungovr-original
+      license: MIT

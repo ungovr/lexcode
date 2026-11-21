@@ -1517,8 +1517,13 @@ The engine sets most of these limits, and the rules' comments point here.
   file brings a module to a whole target, and the engine does not follow it, so
   an import-guarded or module-qualified pattern misses a file that gets the
   vendor only that way, except where the short name carries the vendor's own
-  name. Three files in the Vapor app use it (for an OpenAPI client, a Discord
-  model type and LeafKit), none for a vendor a rule reads. The same holds for an
+  name. lexcode cannot read the import per target instead: the engine reads one
+  file at a time, a rule's import guard reads only that file's text, and the only
+  way to carry an import to the rest of a target would be to change the files
+  lexcode hands the engine, which it does not do. Three files in the Vapor app
+  use it (`OpenAPIAsyncHTTPClient`, the `UserSnowflake` type alias from
+  `DiscordModels`, and `LeafKit`), and no rule guards on any of those modules,
+  so no row changes there (measured 2026-11-21). The same holds for an
   umbrella: a file that imports only `AVKit` (which brings AVFoundation), or only
   `MapKit`, `SpriteKit`, `WebKit`, `StoreKit` or `PhotosUI` (which bring UIKit),
   is not read by a rule that guards on AVFoundation or UIKit. A file that builds
@@ -1540,7 +1545,10 @@ The engine sets most of these limits, and the rules' comments point here.
   SwiftUI `App` with no UIKit delegate (the Xcode project rule finds the app
   instead), a Mac app with no Sparkle (no Swift evidence of distribution), and
   Leaf templates (above).
-- **Generation and chat.** Discord posts through DiscordBM, Anthropic's Swift
+- **Generation and chat.** DiscordBM is read for a cache that keeps edited and
+  deleted messages (`swift-discord-message-history`) and for a bot that asks for
+  a server's members (`swift-discord-members`); a cache or member list kept by
+  another Discord library, and Discord posts through DiscordBM, are not. Anthropic's Swift
   clients, Slack bot messages, Firebase Cloud Messaging from a Swift server,
   Hummingbird jobs, `BGTaskScheduler` tasks and a Lambda event handler as a job
   shape, Soto's `SNS.PublishInput` type and a model reached through the app's own
@@ -1571,7 +1579,10 @@ The engine sets most of these limits, and the rules' comments point here.
   what it encrypts, so one that holds only a sign-in token still counts and is
   for a person to confirm.
 - **Data and tracking.** No rule reads a Vapor server's client address or a
-  device fingerprint. An install ID the app mints for itself (a random UUID kept
+  device fingerprint. A DynamoDB record is read only when Soto writes it through
+  a codable input and the value's name says it is a person or an account
+  (`swift-dynamodb-user-record`); the AWS SDK for Swift's attribute dictionaries
+  (`PutItemInput(item: [...])`) and a value with any other name are not. An install ID the app mints for itself (a random UUID kept
   in its own store and sent with every request) is read by its names only: a
   header named for an install or device ID (and two names that hold only a
   vendor or the app and a UUID, Wikipedia's `X-WMF-UUID` and `X-App-UUID`) or

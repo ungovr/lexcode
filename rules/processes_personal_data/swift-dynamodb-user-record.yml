@@ -1,0 +1,32 @@
+# A record for a person or an account written to a DynamoDB table stores information about an
+# identifiable person (an account, the definition's own example). Soto's DynamoDB client writes a
+# Swift value through its codable inputs, `DynamoDB.PutItemCodableInput(item:tableName:)` and
+# `DynamoDB.UpdateItemCodableInput(key:tableName:updateItem:)` (soto-project/soto,
+# Sources/Soto/Extensions/DynamoDB/DynamoDB+Codable.swift, read 2026-11-21). The type is usually
+# declared in another file, which a rule cannot read, so the value is read by its name: `user`,
+# `member`, `customer`, `account`, `profile`, `person`, `subscriber`, `contact`, `patient`,
+# `student` or `employee`, alone or at the end of a longer name (`newUser`, `self.member`).
+#
+# A write of any other item (`item`, `order`, `cache`), a read, and a table only created are not
+# matched. The AWS SDK for Swift's `PutItemInput` takes an attribute dictionary, not a value, and is
+# not read (rules/README.md, "Known Swift gaps").
+rules:
+  - id: lexcode.personal.swift-dynamodb-user-record
+    languages: [swift]
+    severity: INFO
+    message: Writes a record named for a person or an account (a user, member, customer, profile or the like) to a DynamoDB table through Soto, which is processing personal data (processes_personal_data).
+    patterns:
+      - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?SotoDynamoDB\b).*'
+      - pattern-either:
+          - pattern: 'DynamoDB.PutItemCodableInput(..., item: $I, ...)'
+          - pattern: 'DynamoDB.UpdateItemCodableInput(..., updateItem: $I, ...)'
+      - metavariable-regex:
+          metavariable: $I
+          regex: (?i)^(?:self\.)?\w*(?:user|member|customer|account|profile|person|subscriber|contact|patient|student|employee)s?$
+      - focus-metavariable: $I
+    metadata:
+      activity: processes_personal_data
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-personal-data
+      provenance: ungovr-original
+      license: MIT
