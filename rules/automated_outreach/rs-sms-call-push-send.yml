@@ -20,6 +20,19 @@ rules:
               metavariable: $BODY
               regex: (?is)^(?!.*(code|otp|verif|passcode|password|\bpin\b)).*$
       - pattern: twilio::OutboundCall::new(...)
+      # Twilio's OpenAPI-generated client (the `openapi` crate Twilio's guide builds from its
+      # specification, under any crate name): `create_message` and `create_call` in the generated
+      # api20100401 message and call modules, by path or imported, in a file that names the module.
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*\bapi20100401_message_api\b).*'
+          - pattern-either:
+              - pattern: create_message($TWCFG, $TWP)
+              - pattern: $TWM::create_message($TWCFG, $TWP)
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*\bapi20100401_call_api\b).*'
+          - pattern-either:
+              - pattern: create_call($TWCFG, $TWP)
+              - pattern: $TWM::create_call($TWCFG, $TWP)
       # SNS: the phone number and the message are set in either order, with other builder calls
       # (`subject`) between them, and as setters (`set_phone_number`, `set_message`). The match is
       # the later of the two calls, read with the chain before it; the code exclusion applies to the

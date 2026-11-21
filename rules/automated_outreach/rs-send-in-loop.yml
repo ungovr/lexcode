@@ -79,6 +79,19 @@ rules:
                       regex: ^send_(\w+_)?(email|mail|sms|text_message|push|push_notification|notification|reminder|digest|newsletter|alert)s?$
               - pattern: twilio::OutboundMessage::new(...)
               - pattern: twilio::OutboundCall::new(...)
+              # Twilio's OpenAPI-generated client (the `openapi` crate Twilio's guide builds from its
+              # specification, under any crate name): `create_message` and `create_call` in the generated
+              # api20100401 message and call modules, by path or imported, in a file that names the module.
+              - patterns:
+                  - pattern-regex: '(?ms)\A(?=.*\bapi20100401_message_api\b).*'
+                  - pattern-either:
+                      - pattern: create_message($TWCFG, $TWP)
+                      - pattern: $TWM::create_message($TWCFG, $TWP)
+              - patterns:
+                  - pattern-regex: '(?ms)\A(?=.*\bapi20100401_call_api\b).*'
+                  - pattern-either:
+                      - pattern: create_call($TWCFG, $TWP)
+                      - pattern: $TWM::create_call($TWCFG, $TWP)
               - pattern: web_push::WebPushMessageBuilder::new(...)
               - pattern: a2::DefaultNotificationBuilder::new()
               - pattern: fcm::MessageBuilder::new(...)

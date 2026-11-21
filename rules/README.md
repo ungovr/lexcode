@@ -1675,9 +1675,14 @@ The engine sets most of these limits, and the rules' comments point here.
 - **Not read.** No Rust rule reads Woodpecker CI (`.woodpecker.yml`), `tauri.conf.json`, `cargo-apk` metadata, a
   `publish.workspace = true` that the workspace turns on, a Dioxus `launch` with
   the `mobile` feature, SIP stacks, or a TLS stack chosen only by the `rustls-tls`
-  feature with no call. Twilio calls placed through an OpenAPI-generated client,
-  and voice, face and meeting vendors with no maintained Rust crate (matched by
-  address only, so an address assembled from parts is missed) are not read. A
+  feature with no call. Voice, face and meeting vendors with no maintained Rust
+  crate (matched by address only, so an address assembled from parts is missed)
+  are not read. Twilio's OpenAPI-generated client is read by its generated
+  modules' names (`api20100401_message_api::create_message`,
+  `api20100401_call_api::create_call`), so a client generated under other
+  module names is missed, and the message body sits in a params struct built
+  apart from the call, so the one-time-code exclusion of the single-send signal
+  does not see it. A
   crate's item paths come from its documentation, since nothing is fetched, so a
   crate that moves an item is missed, never misread.
 - **Not extracted.** Handlebars templates (above).
