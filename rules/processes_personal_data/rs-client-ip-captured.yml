@@ -92,7 +92,12 @@ rules:
               # A query on a statement held in a `const` declared before it whose text is not an
               # INSERT or UPDATE (a ban-list SELECT) is a check, like the literal above. A
               # `const` declared after its use, or in another file, is not read, so the test
-              # stays tainted.
+              # stays tainted. The const's name is bound in the call pattern itself, so the
+              # engine joins a const only with the queries that name it: matching any method
+              # call first and naming the const afterwards (in a metavariable-pattern) paired
+              # every const of the file with every method call, and a file of 1,200 consts lost
+              # the rule to the 30 s limit. A chain on a SELECT const is not also tested for
+              # INSERT text or a Diesel or SeaORM write, as the branch above is.
               - patterns:
                   - pattern-inside: |
                       const $K: $KT = $KSQL;
@@ -100,21 +105,15 @@ rules:
                   - metavariable-regex:
                       metavariable: $KSQL
                       regex: (?is)^(?!(?:r#*)?"\s*(?:insert|update)\b)
-                  - pattern: $C.$F(...)
-                  - metavariable-regex:
-                      metavariable: $C
-                      regex: (?s)^(?!.*(?:(?i:"\s*(?:insert|update)\b)|(?<![.\w])insert_into\s*\(.*\.values\s*\(|(?<![.\w])update\s*\(.*\.set\s*\(|\bSet\s*\())
-                  - metavariable-pattern:
-                      metavariable: $C
-                      pattern-either:
-                        - pattern: sqlx::query($K)
-                        - pattern: sqlx::query_as($K)
-                        - pattern: sqlx::query_scalar($K)
-                        - pattern: diesel::sql_query($K)
-                        - pattern: sqlx::query(Self::$K)
-                        - pattern: sqlx::query_as(Self::$K)
-                        - pattern: sqlx::query_scalar(Self::$K)
-                        - pattern: diesel::sql_query(Self::$K)
+                  - pattern-either:
+                      - pattern: <... sqlx::query($K) ...>.$F(...)
+                      - pattern: <... sqlx::query_as($K) ...>.$F(...)
+                      - pattern: <... sqlx::query_scalar($K) ...>.$F(...)
+                      - pattern: <... diesel::sql_query($K) ...>.$F(...)
+                      - pattern: <... sqlx::query(Self::$K) ...>.$F(...)
+                      - pattern: <... sqlx::query_as(Self::$K) ...>.$F(...)
+                      - pattern: <... sqlx::query_scalar(Self::$K) ...>.$F(...)
+                      - pattern: <... diesel::sql_query(Self::$K) ...>.$F(...)
           # A Result or Option test (is_ok, is_some) is never a check on the address.
           - metavariable-regex:
               metavariable: $F

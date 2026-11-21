@@ -1632,7 +1632,10 @@ The engine sets most of these limits, and the rules' comments point here.
   IntoResponse`, `-> Result<String, E>`, `-> Vec<u8>`) is read, since the engine
   reads a tail expression as a `return`, when the function takes one of the
   framework's extractors (`State<..>`, `Json<..>`, `web::Data<..>`) or carries a
-  route attribute (`#[post(..)]`, `#[handler]`, `#[oai(..)]`); a handler
+  route attribute (`#[post(..)]`, `#[handler]`, `#[oai(..)]`), and its body
+  names one of the rule's model calls (a handler with none cannot return a
+  model's output, since taint does not cross a function, and reading every
+  handler's returns lost a file of 3,000 handlers to the 30 s limit); a handler
   registered by name with neither is missed. Any
   send in an `Err` branch inside a timer (an `if let Err` body or an `Err` arm,
   in any position among any number of arms) is read as an alert to the

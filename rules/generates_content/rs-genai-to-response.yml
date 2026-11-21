@@ -208,20 +208,25 @@ rules:
               pattern: Response::builder()
           - focus-metavariable: $X
       # A handler's result returned with no response wrapper (`-> String`, `-> impl IntoResponse`,
-      # `-> Result<String, E>`, `-> Vec<u8>`), which the framework turns into the response: the engine reads a
-      # function's tail expression as a `return`, so the sink is a return in a handler. A handler
-      # is a function, in a file whose use lines name axum, actix-web, Rocket or Poem, that takes
-      # one of the framework's extractors (`State<..>`, `Json<..>`, `web::Data<..>`, `Path<..>`)
-      # or carries a route attribute (`#[post("/ask")]`, Poem's `#[handler]`, poem-openapi's
-      # `#[oai(..)]`); a helper that returns the model's text to its caller takes neither, so it
-      # is not a sink. A handler registered by name that takes no extractor and has no attribute
-      # is missed.
+      # `-> Result<String, E>`, `-> Vec<u8>`), which the framework turns into the response: the
+      # engine reads a function's tail expression as a `return`, so the sink is a return in a
+      # handler. A handler is a function, in a file whose use lines name axum, actix-web, Rocket or
+      # Poem, that takes one of the framework's extractors (`State<..>`, `Json<..>`,
+      # `web::Data<..>`, `Path<..>`) or carries a route attribute (`#[post("/ask")]`, Poem's
+      # `#[handler]`, poem-openapi's `#[oai(..)]`); a helper that returns the model's text to its
+      # caller takes neither, so it is not a sink. A handler registered by name that takes no
+      # extractor and has no attribute is missed.
+      # Only a handler whose body names one of this rule's model calls is read (the regex on
+      # $...HB, the one line of this sink that differs between the five rules): taint does not
+      # cross a function, so a handler with no model call cannot return a model's output, and
+      # without the scope every return of every handler was a sink candidate (3,000 handlers in
+      # 900 KB passed the 30 s limit, test/unit/rust-cost-large-file.test.ts).
       - patterns:
           - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+(?:axum|actix_web|rocket|poem|poem_openapi)\b).*'
           - pattern-either:
               - patterns:
                   - pattern-inside: |
-                      fn $HF(..., $HP: $HTY, ...) -> $HRT { ... }
+                      fn $HF(..., $HP: $HTY, ...) -> $HRT { $...HB }
                   - metavariable-regex:
                       metavariable: $HTY
                       regex: '^&?((axum::extract|actix_web::web|web|poem::web|rocket)::)?(State|Json|Path|Query|Extension|Form|Multipart|Data)\s*<'
@@ -229,22 +234,23 @@ rules:
                   - pattern-either:
                       - pattern-inside: |
                           #[$HA(...)]
-                          fn $HF(...) -> $HRT { ... }
+                          fn $HF(...) -> $HRT { $...HB }
                       - pattern-inside: |
                           #[$HA]
-                          fn $HF(...) -> $HRT { ... }
+                          fn $HF(...) -> $HRT { $...HB }
                   - metavariable-regex:
                       metavariable: $HA
                       regex: ^((rocket|actix_web|poem|poem_openapi)::)?(get|post|put|patch|delete|head|options|route|handler|oai)$
+          - metavariable-regex:
+              metavariable: $...HB
+              regex: '(?s).*?(?:\.generate_content\s*\(|\.(?:post|get)\s*\(\s*(?:&\s*)?(?:format!\s*\(\s*)?(?:\"https://|(?:Self::)?[A-Z][A-Z0-9_]*\b))'
           # Only a result with no wrapper of its own: text, bytes, `impl IntoResponse` or `impl
           # Responder`, bare or in a Result. A wrapped result (`Json<..>`, `Response`) is read by
-          # its wrapper's own sink above, and so is `x.into_response()`. The engine binds `impl
-          # IntoResponse` as `IntoResponse`.
+          # its wrapper's own sink above. The engine binds `impl IntoResponse` as `IntoResponse`.
           - metavariable-regex:
               metavariable: $HRT
               regex: '^(String|&\s*(''static\s+)?str|Cow<.*>|Vec<u8>|(bytes::)?Bytes|(impl\s+)?(\w+::)*(IntoResponse|Responder)\b.*|(\w+::)*Result<\s*(String|&\s*(''static\s+)?str|Cow<.*>|Vec<u8>|(bytes::)?Bytes|(impl\s+)?(\w+::)*(IntoResponse|Responder)\b.*)(,.*)?>)$'
           - pattern: return $X
-          - pattern-not: return $Y.into_response()
           - focus-metavariable: $X
       # Tauri: a command's value is handed to the app's own window, and an event's payload goes
       # to the front end listening for it (Tauri's Emitter; socketioxide's emit reaches a
