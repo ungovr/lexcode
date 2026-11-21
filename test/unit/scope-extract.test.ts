@@ -2155,6 +2155,29 @@ describe('a script inside template code or a template comment is not markup (#12
     }
   });
 
+  // Once a file of broken constructs has spent a blanker's budget, the constructs after it are still read the way
+  // they are read before it, only bounded: a Razor element ends with its line, a Blade argument list or a JSP tag is
+  // read for 64 characters. Read as C# again, or not read at all, they lost a live script or kept a hidden one
+  // (re-review 3, R3-A1).
+  describe('after the budget is spent', () => {
+    const razorPrefix = '@{ <p>' + '<a\n'.repeat(17) + 'x'.repeat(4000) + ' }\n';
+    for (const [name, file, body] of [
+      ['Razor after 17 start tags with no ">", a URL in markup', 'a.cshtml', razorPrefix + '@if (x) { <p>see http://example.com</p> <script>live()</script> }\n'],
+      ['Razor after 17 start tags with no ">", a lone quote in markup', 'a.cshtml', razorPrefix + '@if (x) { <br> <p>5" wide</p> <script>live()</script> }\n'],
+      ['Razor after 17 start tags with no ">", a /* in markup', 'a.razor', razorPrefix + '@if (x)\n{\n  <p>a /* b</p>\n}\n<script>live()</script>\n@if (y) { <p>*/</p> }\n'],
+      ['Razor after 10 unclosed <div> blocks', 'a.cshtml', '@if (a) { <div>\n}\n'.repeat(10) + '@if (x) { <p>see http://example.com</p> <script>live()</script> }\n'],
+      ['Blade after 200 unclosed @x( lines, @php(...) then @php ... @endphp', 'a.blade.php', '@x(\n'.repeat(200) + '@php($x = 1)\n<script>live()</script>\n@php\n$y = 2;\n@endphp\n'],
+      ['Blade after 9 unclosed @x( lines and 10 KB, a script string in arguments', 'a.blade.php', '@x(\n'.repeat(9) + 'text '.repeat(2000) + '\n@foo("<script>old()</script>")\n<script>live()</script>\n)\n'],
+      ['JSP after 20 unclosed <a:b x=" lines, a script in an attribute', 'a.jsp', '<a:b x="\n'.repeat(20) + 'text '.repeat(1000) + '\n<c:out value="<script>old()</script>"/>\n<script>live()</script>\n>\n'],
+    ] as const) {
+      it(name, () => {
+        const copies = extract(file, body);
+        expect(copies.filter((c) => c.includes('live()')), name).toHaveLength(1);
+        expect(copies.some((c) => c.includes('old()')), name).toBe(false);
+      });
+    }
+  });
+
   it('the Razor search grows near-linearly over nested interpolated strings, and over strings that hold a script tag', () => {
     // Each nested `$"{` is a string literal that holds every one inside it, so the literals' spans add up to the
     // square of the nesting; asking each span whether it holds a `<script` must not read it again (#13208).

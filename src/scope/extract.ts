@@ -232,6 +232,13 @@ function isTypeScript(block: ScriptBlock): boolean {
  * end is found past quotes and brackets (Twig, EL) spends `budget` when it never closes, and is read no further
  * than what is left of it; once it is spent, such a tag ends at its first closer, quotes and brackets aside.
  */
+/**
+ * How far a bounded scan (`Unclosed.capped`) reads once the budget is spent: enough for a short argument list or
+ * tag, and small enough that a file of unclosed ones stays near a plain view's cost (256 broke that bound in a
+ * script body on one line). Looking for the closer first, as a scan within the budget does, is quadratic there.
+ */
+const AFTER_BUDGET_CHARS = 64;
+
 class Unclosed {
   private readonly last = new Map<string, number>();
   budget: number;
@@ -270,13 +277,16 @@ class Unclosed {
   /**
    * For a scan with a fixed bound (`bound` characters from `from`) that gives -1 when it finds no end, a Blade
    * argument list or a JSP namespaced tag, in a body or a file alike: -1 at once when the text holds no `closer` at
-   * or after `from`, or once the budget is spent; else what the scan gives, its failure charged to the budget. A
-   * file of such openers then costs about what it holds, not the bound for each (Blade's 10,000 characters were
-   * 7.7 s per MB).
+   * or after `from`; else what the scan gives, its failure charged to the budget. Once the budget is spent the scan
+   * still runs, bounded at AFTER_BUDGET_CHARS and charged nothing, so a short argument list or tag after a file's
+   * broken ones is read as before (re-review 3, R3-A1: read not at all, `@php($x = 1)` became a bare `@php` that hid
+   * the script after it, and a `<script>` in an argument or an attribute was read as live). A file of such openers
+   * then costs about what it holds, not the bound for each (Blade's 10,000 characters were 7.7 s per MB).
    */
-  capped(closer: string, from: number, bound: number, scan: () => number): number {
-    if (this.budget <= 0 || this.closer(closer, from) === -1) return -1;
-    const end = scan();
+  capped(closer: string, from: number, bound: number, scan: (bound: number) => number): number {
+    if (this.budget <= 0) return scan(AFTER_BUDGET_CHARS);
+    if (this.closer(closer, from) === -1) return -1;
+    const end = scan(bound);
     if (end === -1) this.budget -= Math.min(bound, this.text.length - from);
     return end;
   }
@@ -358,10 +368,10 @@ const MAX_TAG_CHARS = 4000;
 /**
  * Offset just past the `>` that closes the namespaced tag (`<h:outputText ...>`, `</f:view>`, `<c:out ... />`) whose
  * name starts at `from`, stepping over quoted attribute values (a `>` or a `<script>` inside quotes is part of the
- * value; an escaped quote is not a quote). -1 when it does not close within MAX_TAG_CHARS.
+ * value; an escaped quote is not a quote). -1 when it does not close within `bound` characters.
  */
-function tagEnd(text: string, from: number): number {
-  const limit = Math.min(text.length, from + MAX_TAG_CHARS);
+function tagEnd(text: string, from: number, bound: number): number {
+  const limit = Math.min(text.length, from + bound);
   let i = from;
   while (i < limit) {
     const ch = text[i] as string;
@@ -427,7 +437,7 @@ export function blankJspTags(body: string, inFile = false): string {
       output = false;
       inCdata = false;
     } else {
-      end = unclosed.capped('>', open, MAX_TAG_CHARS, () => tagEnd(body, open + m[0].length));
+      end = unclosed.capped('>', open, MAX_TAG_CHARS, (bound) => tagEnd(body, open + m[0].length, bound));
       if (end === -1) continue; // no closing `>`: a less-than sign, not a tag
       output = true;
     }
@@ -569,11 +579,11 @@ const MAX_ARGUMENT_CHARS = 10_000;
 
 /**
  * Offset just past the `)` that closes the argument list whose `(` is at `open`, past nested parentheses and
- * quoted strings (single and double quotes, backslash escapes); -1 when it does not close within
- * MAX_ARGUMENT_CHARS.
+ * quoted strings (single and double quotes, backslash escapes); -1 when it does not close within `bound`
+ * characters.
  */
-function argumentsEnd(text: string, open: number): number {
-  const limit = Math.min(text.length, open + MAX_ARGUMENT_CHARS);
+function argumentsEnd(text: string, open: number, bound: number): number {
+  const limit = Math.min(text.length, open + bound);
   let depth = 0;
   let i = open;
   while (i < limit) {
@@ -637,7 +647,7 @@ export function blankBladeTags(body: string, inFile = false): string {
       end = open + tok.length;
       let paren = end;
       while (body[paren] === ' ' || body[paren] === '\t') paren++;
-      const close = body[paren] === '(' ? unclosed.capped(')', paren, MAX_ARGUMENT_CHARS, () => argumentsEnd(body, paren)) : -1;
+      const close = body[paren] === '(' ? unclosed.capped(')', paren, MAX_ARGUMENT_CHARS, (bound) => argumentsEnd(body, paren, bound)) : -1;
       if (close !== -1) {
         end = close;
         output = name === 'json' || name === 'js';

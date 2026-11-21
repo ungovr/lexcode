@@ -366,8 +366,9 @@ const MAX_START_TAG_CHARS = 4000;
 /**
  * Offset just past the `>` of the start tag whose name ends at `from`, past quoted attribute values, and whether it
  * closes itself (`/>`); null when no `>` comes within MAX_START_TAG_CHARS. A tag that never ends is charged to the
- * walk's budget for what it read, and once that is spent a tag is not read at all, so a file of `<tag`s with no `>`
- * does not cost MAX_START_TAG_CHARS each; with no `>` left in the text, none is read.
+ * walk's budget for what it read, and once that is spent a tag is not read at all (`markupElementEnd` then ends the
+ * element with its line), so a file of `<tag`s with no `>` does not cost MAX_START_TAG_CHARS each; with no `>` left
+ * in the text, none is read.
  */
 function startTagEnd(text: string, from: number, markup: MarkupScan): { next: number; selfClosing: boolean } | null {
   if (markup.budget.left <= 0 || closerAt(text, '>', from, markup) === -1) return null;
@@ -428,6 +429,9 @@ function markupElementEnd(text: string, lt: number, markup: MarkupScan, texts?: 
   TAG_NAME.lastIndex = lt + 1;
   const name = TAG_NAME.exec(text)?.[0];
   if (name === undefined) return -1;
+  // Once the budget is spent the element still ends with its line, unread, as the comment above says; were it let
+  // go as not markup, its text would be read as C# again and could hide a live script (re-review 3, R3-A1).
+  if (markup.budget.left <= 0) return lineEnd(text, lt);
   const tag = startTagEnd(text, lt + 1 + name.length, markup);
   if (tag === null) return -1;
   const lower = name.toLowerCase();
