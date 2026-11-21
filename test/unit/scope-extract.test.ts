@@ -14,7 +14,7 @@ import {
 } from '../../src/scope/extract.js';
 import { blankRazorTags, razorCSharp } from '../../src/scope/razor.js';
 import { hasLongLine } from '../../src/scope/longlines.js';
-import { expectNearLinear, measureScaling } from '../helpers/scaling.js';
+import { MAX_RATIO_FOR_10X, expectNearLinear, measureScaling } from '../helpers/scaling.js';
 
 const made: string[] = [];
 function tmp(): string {
@@ -28,6 +28,19 @@ afterEach(() => {
 
 function lines(s: string): string[] {
   return s.split('\n');
+}
+
+/**
+ * Asserts `hostile` costs at most MAX_RATIO_FOR_10X times what `plain`, a well-formed file of about its size, costs.
+ * A scaling ratio cannot see a rescan with a fixed bound (each opener reading the next few thousand characters
+ * again), which is linear past its bound; a cost per character set against a plain file's can.
+ */
+function expectCostLike(plain: string, hostile: string, run: (t: string) => unknown, what: string): void {
+  const m = measureScaling({ small: 0, large: 1, setup: (n) => (n === 0 ? plain : hostile), run });
+  expect(
+    m.ratio,
+    `${what}: ${hostile.length} characters cost ${m.ratio.toFixed(1)}x what a plain file of ${plain.length} does (${m.smallMs.toFixed(3)} ms, then ${m.largeMs.toFixed(3)} ms)`,
+  ).toBeLessThan(MAX_RATIO_FOR_10X);
 }
 
 /** Every character of `out` is either the same as in `src` (inside a kept block) or a space (or a line break kept). */
@@ -1987,6 +2000,26 @@ describe('a script inside template code or a template comment is not markup (#12
       hiddenThenLive(file, '@{ var b = a <b; var s = "<script>old();</script>"; }');
     });
   }
+
+  it('the Razor search grows near-linearly over start tags that never end, and costs what a plain view does', () => {
+    // A `<tag` with no `>` is read for up to 4,000 characters before it is let go. Unbudgeted, a file of them cost
+    // that much each (7-11 s at 5 MB): the cost grew with the square of the file up to that bound, and past it
+    // stayed thousands of times what a well-formed view of its size costs.
+    const plain = (n: number): string => '<script>a();</script>\n' + '@if (a) { <p>x</p> }\n'.repeat(n / 21);
+    for (const [name, body] of [
+      ['tags without a ">" on lines of their own', (n: number) => '<script>a();</script>\n@{\n<p>\n' + '<a\n'.repeat(n / 3) + '}\n'],
+      ['tags with an open quote on one line', (n: number) => '<script>a();</script>\n@{ <p>' + '<a "'.repeat(n / 4) + '\n}\n'],
+      ['tags with an open attribute value', (n: number) => '<script>a();</script>\n@{ <p>\n' + '<a x="\n'.repeat(n / 7) + '}\n'],
+      ['tags at the start of statements', (n: number) => '<script>a();</script>\n@{ ' + '<a;'.repeat(n / 3) + ' }\n'],
+      ['tags before a ">" out of their reach', (n: number) => '<script>a();</script>\n@{\n<p>\n' + '<a\n'.repeat(n / 3) + ' '.repeat(5_000) + '>\n}\n'],
+    ] as const) {
+      const run = (t: string): unknown => blankOutsideScripts(t, { razor: true });
+      const m = measureScaling({ small: 1_000, large: 10_000, setup: body, run });
+      expect(m.result, name).not.toBeNull();
+      expectNearLinear(m, `the Razor script search over ${name}`);
+      expectCostLike(plain(200_000), body(200_000), run, `the Razor script search over ${name}`);
+    }
+  });
 
   it('the Razor search grows near-linearly over markup inside code blocks, on long lines and where it never closes', () => {
     for (const [name, body] of [
