@@ -1623,7 +1623,11 @@ The engine sets most of these limits, and the rules' comments point here.
   hashes or more is read as code), a request built in one
   statement and sent in the next (`let req = c.get(url); req.send()`), a model
   id or address held in a `const` declared after its use, and an `mpsc` channel
-  between a generating task and a stream are not joined. A handler that returns
+  between a generating task and a stream are not joined. The channel stays a
+  gap: the generating task is an `async` block handed to
+  `tokio::spawn`, whose body a Rust taint rule does not follow (below), or a
+  function of its own, which taint does not cross, and the sender and the
+  receiver the stream wraps are two values no rule links. A handler that returns
   the model's output with no response wrapper (`-> String`, `-> impl
   IntoResponse`, `-> Result<String, E>`, `-> Vec<u8>`) is read, since the engine
   reads a tail expression as a `return`, when the function takes one of the
