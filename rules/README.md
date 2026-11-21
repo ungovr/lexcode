@@ -1621,8 +1621,10 @@ The engine sets most of these limits, and the rules' comments point here.
   (`X-Lock-Device-Id`) is left out. The vendor identifier kept in a stored
   property is followed into the members declared after it
   (`swift-device-id-sent`), not into one declared before it; a name that
-  shadows it there (a local, a parameter, an optional binding, a loop variable
-  or a closure parameter) is not read as it.
+  shadows it there with something else (a local, a parameter, an optional
+  binding, a loop variable or a closure parameter) is not read as it, while an
+  unwrap of the property to its own name (`if let id = id`, `guard let id`,
+  `if let id = self.id`) and `self.id` beside a same-named parameter are.
 - **Shipping.** A tvOS-only or visionOS-only app whose delegate file carries no
   platform cue is matched as a mobile app, an SDK's non-open delegate forwarder
   is matched, a delegate that conforms in fourth place or later is missed, and a
