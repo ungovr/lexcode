@@ -81,22 +81,24 @@ rules:
                                     regex: '^(?:self\.)?(?![\w.]*(?:(?<![a-z])[dD]b|DB|[dD]atabase|[sS]ql|SQL|[pP]ool|[rR]edis|[cC]ache|[qQ]ueue|[sS]tore|[sS]torage|[kK]eychain))[\w.]*(?:[hH]ttp|HTTP|[cC]lient)[\w.]*$'
                             - pattern: '$R.client.get($URL, ...)'
           # Top-level code (a main.swift script, or a closure in one): a parser call outside any
-          # function or initializer, after a statement that downloads a page. The function form
+          # function, after a statement that downloads a page. The function form
           # above needs a function's body, which a script has none of (#13294). Only URLSession and
           # the Foundation readers are read here; AsyncHTTPClient, Alamofire and Vapor's client at top
           # level are not.
           - patterns:
               - pattern-either: *parsers
+              # inside a function (an init included: the engine reads `func $F` for one) the form above
+              # decides, with its JSON check over the whole body
               - pattern-not-inside: |
                   func $F(...) { ... }
-              - pattern-not-inside: |
-                  init(...) { ... }
-              # a script that decoded JSON before it parses is left out, as a function that does is
-              - pattern-not-inside: |
-                  <... JSONDecoder() ...>
-                  ...
+              # a script that decoded JSON before it parses is left out, as a function that does is:
+              # JSONSerialization, or a `.decode(T.self, ...)` on any decoder (a JSONDecoder made here
+              # or one made in another file)
               - pattern-not-inside: |
                   <... JSONSerialization.jsonObject(...) ...>
+                  ...
+              - pattern-not-inside: |
+                  <... $DEC.decode($TY.self, ...) ...>
                   ...
               - pattern-either:
                   - pattern-inside: |

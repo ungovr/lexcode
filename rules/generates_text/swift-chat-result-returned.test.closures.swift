@@ -1,6 +1,7 @@
-// lexcode-expect: 4
+// lexcode-expect: 5
 // A closure's or a Task's own return of the model's text, under a method with no return type and
-// under an init. The two route closures are the evidence rule's response and are not counted here.
+// under an init, and a trailing closure in a Vapor file that is not a route (a job pool's `run`). The
+// three route closures (get, post, on) are the evidence rule's response and are not counted here.
 import OpenAI
 import Vapor
 
@@ -31,6 +32,13 @@ final class Drafts {
         }
     }
 
+    func pooled(_ pool: JobPool, query: ChatQuery) {
+        pool.run { job in
+            let result = try await self.openAI.chats(query: query)
+            return result.choices.first?.message.content ?? job
+        }
+    }
+
     func makeLoader(_ query: ChatQuery) {
         loader = {
             let result = try await self.openAI.chats(query: query)
@@ -48,4 +56,12 @@ func routes(_ app: Application, openAI: OpenAI) throws {
         let result = try await openAI.chats(query: ChatQuery(messages: [], model: .gpt4_o))
         return result.choices.first?.message.content ?? ""
     }
+    app.on(.GET, "summary") { req in
+        let result = try await openAI.chats(query: ChatQuery(messages: [], model: .gpt4_o))
+        return result.choices.first?.message.content ?? ""
+    }
+}
+
+final class JobPool {
+    func run(_ body: @escaping (String) async throws -> String) {}
 }

@@ -388,9 +388,9 @@ CLOSURE_HEADS = ["{", "{ $CP in", "{ $CP, $CQ in", "{ [$CAP] in", "{ [$CAP] $CP 
 def closure_locals() -> str:
     out = []
     for h in CLOSURE_HEADS:
-        for decl in ("var $S = $E", "var $S: $U = $E"):
-            out += ["          - pattern-not-inside: |", f"              {h}", "                ...",
-                    f"                {decl}", "                ...", "              }"]
+        # `var $S = $E` also matches a typed `var answer: String = ""` (probed), so there is no typed form
+        out += ["          - pattern-not-inside: |", f"              {h}", "                ...",
+                "                var $S = $E", "                ...", "              }"]
     return "\n".join(out)
 
 
@@ -541,8 +541,9 @@ def return_sink(groups) -> str:
                   }}
               # a closure's or a Task's own return, under a function with no return type or an init
               # (#13294). The engine also reads a closure's last statement as `return $X` when it has no
-              # `return` (`print(output)` at the end of a Task), so the value must follow the keyword on
-              # its line: a returned expression split over lines is not read.
+              # `return` (`print(output)` at the end of a Task), so the value must follow the keyword and
+              # a space on its line: `return(x)` and a returned chain that goes on to the next line are
+              # not read.
               - patterns:
                   - patterns:
                       - pattern-either:
@@ -573,17 +574,14 @@ def return_sink(groups) -> str:
                         func $G(..., $REQ: HBRequest, ...) -> $U {{
                           ...
                         }}
-                    # a route closure, which the evidence rule reads as the response
+                    # a route closure, which the evidence rule reads as the response (the closure sink
+                    # above takes no closure of two parameters, so a Hummingbird `{{ req, ctx in` route
+                    # needs no form here)
                     - patterns:
-                        - pattern-either:
-                            - pattern: |
-                                $APP.$M(...) {{ $REQ in
-                                  ...
-                                }}
-                            - pattern: |
-                                $APP.$M(...) {{ $REQ, $CTX in
-                                  ...
-                                }}
+                        - pattern: |
+                            $APP.$M(...) {{ $REQ in
+                              ...
+                            }}
                         - metavariable-regex:
                             metavariable: $M
                             regex: ^(get|post|put|patch|delete|on)$

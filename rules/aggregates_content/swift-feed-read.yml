@@ -102,15 +102,13 @@ rules:
                                     metavariable: $C
                                     regex: '^(?:self\.)?(?![\w.]*(?:(?<![a-z])[dD]b|DB|[dD]atabase|[sS]ql|SQL|[pP]ool|[rR]edis|[cC]ache|[qQ]ueue|[sS]tore|[sS]torage|[kK]eychain))[\w.]*(?:[hH]ttp|HTTP|[cC]lient)[\w.]*$'
                             - pattern: '$R.client.get($URL, ...)'
-          # Top-level code (a main.swift script, or a closure in one): a feed parser over bytes outside
-          # any function or initializer, after a statement that downloads them (#13294). Only
+          # Top-level code (a main.swift script, or a closure in one): a feed parser over bytes after a
+          # statement that downloads them (#13294). Only
           # URLSession and the Foundation readers are read here.
           - patterns:
               - pattern-either: *feed_parsers
-              - pattern-not-inside: |
-                  func $F(...) { ... }
-              - pattern-not-inside: |
-                  init(...) { ... }
+              # no function check: inside a function the same sequence is a case of the form above,
+              # which reads the whole body, so it adds no match there
               - pattern-either:
                   - pattern-inside: |
                       <... $S.data(from: $URL, ...) ...>

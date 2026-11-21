@@ -1537,7 +1537,10 @@ The engine sets most of these limits, and the rules' comments point here.
   the app's own function from a loop in another function are not joined; no
   rule shape can join them. The result-returned rules read a return from a
   nested function, a closure or a `Task` body under any function or init that
-  names the call. Top-level code (a `main.swift` script) is read by the HTML and
+  names the call; a closure's return is read only when the value follows
+  `return` and a space on the same line, since the engine also reads a
+  closure's last statement as its return, so `return(x)` and a returned chain
+  that goes on to the next line are not read. Top-level code (a `main.swift` script) is read by the HTML and
   feed rules when a statement before the parser downloads with URLSession or a
   Foundation reader (not AsyncHTTPClient, Alamofire or Vapor's client), a script
   held in a variable is not read by the web view rule, and a source inside a
@@ -1561,8 +1564,11 @@ The engine sets most of these limits, and the rules' comments point here.
   Leaf templates (above).
 - **Generation and chat.** DiscordBM is read for a cache that keeps edited and
   deleted messages (`swift-discord-message-history`) and for a bot that asks for
-  a server's members (`swift-discord-members`); a cache or member list kept by
-  another Discord library, and Discord posts through DiscordBM, are not. Anthropic's Swift
+  a server's members (`swift-discord-members`), made as `DiscordCache(...)`,
+  `DiscordCache.init(...)` or `.init(gatewayManager: ...)` (the DDBKit
+  starters' shape); a cache or member list kept by another Discord library,
+  DiscordBM's `ShardingGatewayManager`, and Discord posts through DiscordBM are
+  not. Anthropic's Swift
   clients, Slack bot messages, Firebase Cloud Messaging from a Swift server,
   Hummingbird jobs, `BGTaskScheduler` tasks and a Lambda event handler as a job
   shape, Soto's `SNS.PublishInput` type and a model reached through the app's own
@@ -1614,7 +1620,9 @@ The engine sets most of these limits, and the rules' comments point here.
   is read. A device header whose name says it is another device
   (`X-Lock-Device-Id`) is left out. The vendor identifier kept in a stored
   property is followed into the members declared after it
-  (`swift-device-id-sent`), not into one declared before it.
+  (`swift-device-id-sent`), not into one declared before it; a name that
+  shadows it there (a local, a parameter, an optional binding, a loop variable
+  or a closure parameter) is not read as it.
 - **Shipping.** A tvOS-only or visionOS-only app whose delegate file carries no
   platform cue is matched as a mobile app, an SDK's non-open delegate forwarder
   is matched, a delegate that conforms in fourth place or later is missed, and a
