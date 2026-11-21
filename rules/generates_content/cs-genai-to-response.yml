@@ -79,9 +79,10 @@ rules:
       # A request message for the same addresses, with or without an initializer, positional or
       # named, or declared with target-typed new(), is a request object: it carries REQUEST, and
       # the result of the Send it goes through is the source. System.Net.Http is imported
-      # implicitly, so the short form is read as well. A GET message drops: GET is HttpMethod.Get
-      # or new HttpMethod("GET"), found by a regex over the whole message expression, as in
-      # cs-video-reply-to-response.
+      # implicitly, so the short form is read as well. A GET message drops: GET is HttpMethod.Get or new
+      # HttpMethod("GET"), short or qualified, found by a regex over the whole message expression,
+      # as in cs-video-reply-to-response, each pinned by a negative. Any other method counts, HEAD
+      # and OPTIONS included.
       - label: REQUEST
         patterns:
           - pattern-either: &gemini-messages

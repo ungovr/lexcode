@@ -32,9 +32,11 @@ rules:
     # log message held in a local is not. A comment, a log line or an exception message that quotes
     # the address is never a match.
     # A GET request message drops: GET /v1/chat/completions lists stored completions. GET is
-    # HttpMethod.Get or new HttpMethod("GET"), found by a regex over the whole message expression,
-    # as in cs-video-reply-to-response. A member that holds a generation address but is only read
-    # by a GET, or a Uri built for a GET message, still counts (a known gap).
+    # HttpMethod.Get or new HttpMethod("GET") (short or qualified), found by a regex over the whole
+    # message expression, as in cs-video-reply-to-response, and each form is a negative.
+    # Any other method counts, HEAD and OPTIONS included, so a health or preflight probe of the
+    # address matches. A member that holds a generation address but is only read by a GET, or a
+    # Uri built for a GET message, still counts (a known gap).
     # No whole-file anchor: the member and call shapes give no literal to the engine's pre-filter,
     # and a C# lookahead would put C# in the large-file notice; the cost is measured instead.
     pattern-either:
