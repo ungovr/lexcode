@@ -20,24 +20,34 @@ rules:
       # not follow a property's initializer into a method (#13294). A local of the same name in a
       # function shadows it and is not read.
       - patterns:
+          # each declaration names the identifier itself, so only a declaration that holds it is
+          # a candidate (a `$E` checked after pairing made every `let` in the file one: 74 s on
+          # rule-cost's 900 KB file)
           - pattern-either:
               - pattern-inside: |
-                  let $P = $E
+                  let $P = <... UIDevice.current.identifierForVendor ...>
                   ...
               - pattern-inside: |
-                  var $P = $E
+                  let $P = <... UIKit.UIDevice.current.identifierForVendor ...>
                   ...
               - pattern-inside: |
-                  let $P: $T = $E
+                  let $P: $T = <... UIDevice.current.identifierForVendor ...>
                   ...
               - pattern-inside: |
-                  var $P: $T = $E
+                  let $P: $T = <... UIKit.UIDevice.current.identifierForVendor ...>
                   ...
-          - metavariable-pattern:
-              metavariable: $E
-              pattern-either:
-                - pattern: UIKit.UIDevice.current.identifierForVendor
-                - pattern: UIDevice.current.identifierForVendor
+              - pattern-inside: |
+                  var $P = <... UIDevice.current.identifierForVendor ...>
+                  ...
+              - pattern-inside: |
+                  var $P = <... UIKit.UIDevice.current.identifierForVendor ...>
+                  ...
+              - pattern-inside: |
+                  var $P: $T = <... UIDevice.current.identifierForVendor ...>
+                  ...
+              - pattern-inside: |
+                  var $P: $T = <... UIKit.UIDevice.current.identifierForVendor ...>
+                  ...
           - pattern-either:
               - pattern: $P
               - pattern: self.$P
