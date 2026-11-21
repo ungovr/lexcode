@@ -497,8 +497,9 @@ an HTTP API with no screen of its own, the screens being a separate repository.
 The reading is right by the activity's own wording, which leaves out an API with
 no screen of its own. The rule reads a sign-up path on a router and cannot tell a
 server that renders a page from one that answers in JSON, which is why it speaks
-at signal strength; whether a sign-up route with no front end in the tree should
-be shown at all is a question for the rule, not the key.
+at signal strength. A sign-up route with no front end in the tree is still
+shown, as a signal, and the rule's message says the screen may live in another
+repository (ruled 2026-11-21, #13301).
 
 **Files the engine could not read (known gap).** 18 files, all Rust: 15 use async
 closures (`async |x| { ... }` or `async move || { ... }`, Rust 2024), 1 has an

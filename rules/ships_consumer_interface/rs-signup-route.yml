@@ -6,11 +6,16 @@
 # an admin path are not read. A route registered in a staff scope, an admin router nested under
 # /admin, or an admin prefix is excluded. A staff router built in another function and nested by
 # name is not seen, a known gap.
+#
+# The rule cannot tell a server that renders a sign-up page from a JSON API that answers one (Lemmy's
+# `/register`, whose screens live in a separate repository). The match stays a signal there and
+# the message says the screen may live in another repository, so a reader checks the front end
+# before answering (ruled 2026-11-21, #13301).
 rules:
   - id: lexcode.consumer.rs-signup-route
     languages: [rust]
     severity: INFO
-    message: Routes a public sign-up page or endpoint (an axum, actix-web, Poem or Loco route, an actix-web, Rocket or poem-openapi route attribute, a warp filter, or a Leptos, Yew or Dioxus front-end route), a screen that members of the public use to reach a service (ships_consumer_interface).
+    message: Routes a public sign-up page or endpoint (an axum, actix-web, Poem or Loco route, an actix-web, Rocket or poem-openapi route attribute, a warp filter, or a Leptos, Yew or Dioxus front-end route), a screen that members of the public use to reach a service (ships_consumer_interface). On a JSON API with no front end in this repository, the sign-up screen may live in another repository.
     patterns:
       - pattern-either:
           # Route calls: axum's and actix-web's route, Poem's at and Loco's add.
