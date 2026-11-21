@@ -1155,6 +1155,14 @@ The engine sets most of these limits, and the rules' comments point here.
   hosted model's address in a plain `HttpClient` helper are not read, nor are
   Bedrock `ModelId` as a statement or non-literal, Vertex `PredictAsync` and
   `PredictLongRunning`, or a Vertex client from `builder.Build()`.
+- Generation evidence through a model's HTTP response: the reply body is the
+  source wherever it goes, so an error path that hands the vendor's error text
+  back (`return StatusCode((int)r.StatusCode, error)`, `BadRequest(errorText)`,
+  `ViewBag.Recipe = "Error: " + r.StatusCode`) counts as generation, now at
+  evidence strength since the HTTP sources of #13205. The response's status
+  (`StatusCode`, `IsSuccessStatusCode`, `ReasonPhrase`) does not count, and an
+  action whose body is one `try`, `using`, `if` or loop statement is no longer
+  its own value (only a `return` inside it is).
 - Text chat: a history held in memory and sent to a model vendor is not
   `records_text_chat`, because the rules read a store. A receiver named for a
   store, collection, container or table that is given a chat record with a

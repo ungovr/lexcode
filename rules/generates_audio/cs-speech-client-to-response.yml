@@ -135,9 +135,12 @@ rules:
               - patterns:
                   - pattern: public $R $ACTION(...) => $X;
                   # The expression-body pattern also binds a block body; only an expression counts.
+                  # A block of one compound statement binds as that statement (a whole try, using,
+                  # if or loop), which is no value, so a statement keyword drops too (#13205 A5); a
+                  # return inside it is read by the return branch above.
                   - metavariable-regex:
                       metavariable: $X
-                      regex: ^[^{]
+                      regex: ^(?![{]|(?:try|if|using|foreach|for|while|do|switch|lock|checked|unchecked|unsafe|fixed)\b|await\s+(?:foreach|using)\b)
                   # It binds a one-statement block too ({ Log(x); } as => Log(x)), so the action
                   # must return a value.
                   - metavariable-regex:
