@@ -1529,16 +1529,30 @@ The engine sets most of these limits, and the rules' comments point here.
   is not read by a rule that guards on AVFoundation or UIKit. A file that builds
   an `HTTPClientRequest` through Vapor without `import AsyncHTTPClient` is not
   read by the rule that guards on that import.
-- **Taint and functions.** Taint does not cross a function: a model result
-  returned from a function that calls a helper (`return try await helper.ask(p)`),
-  a result held at file scope and returned from a function that names no call, a
-  page downloaded in one function and parsed in another, and a send called
-  through the app's own function from a loop in another function are not joined.
-  Top-level code (a `main.swift` script) is not seen by the HTML and feed rules,
-  a script held in a variable is not read by the web view rule, and a source
-  inside a `map` closure does not reach its result. Taint passes an optional
-  binding only in part: `guard let a = r.x, let b = f(a)` binds only the first
-  name, and a value derived two steps before the binding is lost.
+- **Taint and functions.** The engine's taint does not cross a call, so a model
+  result returned from a function that calls a helper (`return try await
+  helper.ask(p)`, the helper's own return is read in its own function), a result
+  held at file scope and returned from a function that names no call, a page
+  downloaded in one function and parsed in another, and a send called through
+  the app's own function from a loop in another function are not joined; no
+  rule shape can join them. The result-returned rules read a return from a
+  nested function, a closure or a `Task` body under any function or init that
+  names the call. Top-level code (a `main.swift` script) is read by the HTML and
+  feed rules when a statement before the parser downloads with URLSession or a
+  Foundation reader (not AsyncHTTPClient, Alamofire or Vapor's client), a script
+  held in a variable is not read by the web view rule, and a source inside a
+  `map` closure does not reach its result. The engine's taint does not pass an
+  optional binding, so the generation rules read the bound name as a source of
+  its own when it is bound from the call or from a value that holds it. A later
+  name in the same list (`guard let a = r.x, let b = f(a)`) and a binding from a
+  value derived in turn (`let choices = r.choices`, then `guard let t =
+  choices.first`) are not read: each source shape that reads them was written and
+  matched, and each one alone cost the rule the engine's pre-filter, so the rule
+  read every Swift file whatever it imports (a 900 KB file that names no vendor:
+  14 s against 3 s, measured 2026-11-21). A local `var`
+  that collects the output inside a closure (in top-level code or a stored
+  closure) is not a screen; a closure whose head has three parameters, or a
+  capture list of two, is not read as one.
 - **Not read at all.** Objective-C and C and C++ files (125 and 155 in Wikipedia
   for iOS, named in the scan's notice), Core Data entities that Xcode generates
   from a `.xcdatamodeld`, a Sparkle updater created in a nib or storyboard, a
@@ -1598,7 +1612,9 @@ The engine sets most of these limits, and the rules' comments point here.
   (`allHTTPHeaderFields = [...]`, Alamofire's `HTTPHeaders`), is missed. A URL
   loaded in a web view through a request (`webView.load(URLRequest(url: ...))`)
   is read. A device header whose name says it is another device
-  (`X-Lock-Device-Id`) is left out.
+  (`X-Lock-Device-Id`) is left out. The vendor identifier kept in a stored
+  property is followed into the members declared after it
+  (`swift-device-id-sent`), not into one declared before it.
 - **Shipping.** A tvOS-only or visionOS-only app whose delegate file carries no
   platform cue is matched as a mobile app, an SDK's non-open delegate forwarder
   is matched, a delegate that conforms in fourth place or later is missed, and a

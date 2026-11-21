@@ -149,7 +149,7 @@ rules:
                   - pattern: '$S.append(contentsOf: $X)'
               - metavariable-regex:
                   metavariable: $S
-                  regex: (?i)^(self[?!]?\.)?_?\w*(audio|speech|sound|voice|narration|recordings|clips)\w*$
+                  regex: (?i)^(self[?!]?\.)?_?\w*(audio|speech|sound|voice|narration|recordings|clips|results|outputs)\w*$
           - pattern-not-inside: let $S = $E
           - pattern-not-inside: |
               func $F(...) {
@@ -171,6 +171,66 @@ rules:
               }
           - pattern-not-inside: |
               var $P: $PT {
+                ...
+                var $S: $U = $E
+                ...
+              }
+          - pattern-not-inside: |
+              {
+                ...
+                var $S = $E
+                ...
+              }
+          - pattern-not-inside: |
+              {
+                ...
+                var $S: $U = $E
+                ...
+              }
+          - pattern-not-inside: |
+              { $CP in
+                ...
+                var $S = $E
+                ...
+              }
+          - pattern-not-inside: |
+              { $CP in
+                ...
+                var $S: $U = $E
+                ...
+              }
+          - pattern-not-inside: |
+              { $CP, $CQ in
+                ...
+                var $S = $E
+                ...
+              }
+          - pattern-not-inside: |
+              { $CP, $CQ in
+                ...
+                var $S: $U = $E
+                ...
+              }
+          - pattern-not-inside: |
+              { [$CAP] in
+                ...
+                var $S = $E
+                ...
+              }
+          - pattern-not-inside: |
+              { [$CAP] in
+                ...
+                var $S: $U = $E
+                ...
+              }
+          - pattern-not-inside: |
+              { [$CAP] $CP in
+                ...
+                var $S = $E
+                ...
+              }
+          - pattern-not-inside: |
+              { [$CAP] $CP in
                 ...
                 var $S: $U = $E
                 ...

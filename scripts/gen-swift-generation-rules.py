@@ -318,9 +318,11 @@ IMAGE_NAMES = r"image|photo|picture|artwork|avatar|illustration|drawing|sticker"
 VIDEO_NAMES = r"video|clip|movie|footage"
 AUDIO_NAMES = r"audio|speech|sound|voice|narration"
 TEXT_LISTS = r"messages|replies|responses|answers|results|outputs|suggestions|transcript"
-IMAGE_LISTS = r"images|photos|pictures"
-VIDEO_LISTS = r"clips|videos"
-AUDIO_LISTS = r"recordings|clips"
+# `results` and `outputs` name a list of whatever the call made, so each kind's list takes them; the
+# rule's own sources keep a text model's results out of the image rule (#13294).
+IMAGE_LISTS = r"images|photos|pictures|results|outputs"
+VIDEO_LISTS = r"clips|videos|results|outputs"
+AUDIO_LISTS = r"recordings|clips|results|outputs"
 
 
 def state_sink(names: str, lists: str) -> str:
@@ -369,7 +371,27 @@ def state_sink(names: str, lists: str) -> str:
                 var $S: $U = $E
                 ...
               }}
+{closure_locals()}
           - focus-metavariable: $X""".strip("\n")
+
+
+# A closure whose own local `var` takes the output is no screen either: a closure outside any function
+# (top-level code in main.swift, a stored closure) or inside an init is not covered by the function
+# exclusion above (#13294). An init's own local was not matched before (probed), so it needs no form. A
+# capture list takes no ellipsis and a closure's parameters are part of its head, so each head is a pattern (probed on Opengrep 1.33.1: no parameter, one, two, and a capture
+# of one item with none or one; `{ ... }` alone does not match a closure that names a parameter). A
+# sequence exclusion (`var $S = $E` then `...`) is not one: it also covers a class's stored property and
+# every method after it.
+CLOSURE_HEADS = ["{", "{ $CP in", "{ $CP, $CQ in", "{ [$CAP] in", "{ [$CAP] $CP in"]
+
+
+def closure_locals() -> str:
+    out = []
+    for h in CLOSURE_HEADS:
+        for decl in ("var $S = $E", "var $S: $U = $E"):
+            out += ["          - pattern-not-inside: |", f"              {h}", "                ...",
+                    f"                {decl}", "                ...", "              }"]
+    return "\n".join(out)
 
 
 TEXT_UI = r"""
@@ -496,7 +518,9 @@ def return_sink(groups) -> str:
     into a nested function that captures a tainted local, so the scope is any enclosing function that names
     the call, not only the returning one. One scope pattern with no return type matches a function with or
     without one, and an init; a pattern-either of it and the `-> T` form cost about 60 s on the same file
-    (probed), so keep it one pattern. A model result held at file scope (a script or main.swift) and
+    (probed), so keep it one pattern. The return itself is a function's with a return type, or a closure's
+    (a `Task { ... return x }` or a stored closure under a method with no return type or an init, #13294),
+    which the `-> T` form does not reach. A model result held at file scope (a script or main.swift) and
     returned from a function that names no call is not a sink: a known gap."""
     return """
       - patterns:
@@ -509,11 +533,31 @@ def return_sink(groups) -> str:
                 - metavariable-regex:
                     metavariable: $...BODY
                     regex: (?s).*\\b(?:{names})\\b
-          - pattern: |
-              func $F(...) -> $T {{
-                ...
-                return $X
-              }}
+          - pattern-either:
+              - pattern: |
+                  func $F(...) -> $T {{
+                    ...
+                    return $X
+                  }}
+              # a closure's or a Task's own return, under a function with no return type or an init
+              # (#13294). The engine also reads a closure's last statement as `return $X` when it has no
+              # `return` (`print(output)` at the end of a Task), so the value must follow the keyword on
+              # its line: a returned expression split over lines is not read.
+              - patterns:
+                  - patterns:
+                      - pattern-either:
+                          - pattern: |
+                              {{
+                                ...
+                                return $X
+                              }}
+                          - pattern: |
+                              {{ $CP in
+                                ...
+                                return $X
+                              }}
+                      - focus-metavariable: $X
+                  - pattern-regex: '(?<=\\breturn )[^\\n]+'
           - focus-metavariable: $X
           - pattern-not-inside:
               patterns:
@@ -529,6 +573,20 @@ def return_sink(groups) -> str:
                         func $G(..., $REQ: HBRequest, ...) -> $U {{
                           ...
                         }}
+                    # a route closure, which the evidence rule reads as the response
+                    - patterns:
+                        - pattern-either:
+                            - pattern: |
+                                $APP.$M(...) {{ $REQ in
+                                  ...
+                                }}
+                            - pattern: |
+                                $APP.$M(...) {{ $REQ, $CTX in
+                                  ...
+                                }}
+                        - metavariable-regex:
+                            metavariable: $M
+                            regex: ^(get|post|put|patch|delete|on)$
 """.format(names=call_names(groups), v=q(SERVER[0]), h=q(SERVER[1])).strip("\n")
 
 

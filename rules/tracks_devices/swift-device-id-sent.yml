@@ -16,6 +16,43 @@ rules:
       - pattern-either:
           - pattern: UIKit.UIDevice.current.identifierForVendor
           - pattern: UIDevice.current.identifierForVendor
+      # A stored property set from the identifier, read by name in the members after it: taint does
+      # not follow a property's initializer into a method (#13294). A local of the same name in a
+      # function shadows it and is not read.
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  let $P = $E
+                  ...
+              - pattern-inside: |
+                  var $P = $E
+                  ...
+              - pattern-inside: |
+                  let $P: $T = $E
+                  ...
+              - pattern-inside: |
+                  var $P: $T = $E
+                  ...
+          - metavariable-pattern:
+              metavariable: $E
+              pattern-either:
+                - pattern: UIKit.UIDevice.current.identifierForVendor
+                - pattern: UIDevice.current.identifierForVendor
+          - pattern-either:
+              - pattern: $P
+              - pattern: self.$P
+          - pattern-not-inside: |
+              func $F(...) {
+                ...
+                let $P = $X
+                ...
+              }
+          - pattern-not-inside: |
+              func $F(...) {
+                ...
+                var $P = $X
+                ...
+              }
     # A query item puts the identifier into the components' URL (`components.queryItems = [...]`
     # or an append), so the components carry it to the request built from their `url`.
     pattern-propagators:
