@@ -1953,7 +1953,54 @@ describe('a script inside template code or a template comment is not markup (#12
         expect(copies.filter((c) => c.includes("gtag('config', 'x');")), view).toHaveLength(1);
       }
     });
+
+    // Markup inside a code or control block is markup to its closing tag, as Razor reads it, never C#: a `//` in a
+    // URL, a `/*`, a lone quote or apostrophe in its text is not a C# comment or string, so it hides no live
+    // script after it, on its line or on a later one (#12882).
+    it(`${file}: the text of markup inside a code block is not read as C#`, () => {
+      for (const view of [
+        '@if (x) { <p>see http://example.com</p> <script>live();</script> }',
+        '@if (x) { <p>see <a href="http://example.com/">it</a></p> <script>live();</script> }',
+        ['@if (x)', '{', '  <p>a /* b</p>', '}', '<script>live();</script>', '@if (y) { <p>*/</p> }'].join('\n'),
+        '@if (x) { <p>5" wide</p> <script>live();</script> }',
+        '@if (x) { <p>5" wide</p> <p>"</p> <script>live();</script> <p>"</p> }',
+        "@if (x) { <p>Don't</p> <script>live();</script> }",
+        '@{ <!-- see http://example.com --> <script>live();</script> }',
+        '@foreach (var i in Model) { <div><div>// a</div></div> <script>live();</script> }',
+        '@{ var n = 1; <p>// n</p> <script>live();</script> }',
+        '@switch (x) { case 1: <p>// one</p> <script>live();</script> break; }',
+        '@{ Func<object, object> t = @<p>// x</p>; } <script>live();</script>',
+        '@if (x) { <p>@Model.Name // x</p><script>live();</script> }',
+      ]) {
+        const copies = extract(file, view);
+        expect(copies.filter((c) => c.includes('live();')), view).toHaveLength(1);
+      }
+    });
+
+    it(`${file}: C# in the code a block's markup holds still hides a script in its strings and comments`, () => {
+      hiddenThenLive(file, '@if (x) { <p>@Html.Raw("<script>old();</script>")</p> }');
+      hiddenThenLive(file, '@if (x) { <div>@{ var s = "<script>old();</script>"; }</div> }');
+      hiddenThenLive(file, '@if (x) { <ul>@foreach (var i in l) { <li>@i</li> var s = "<script>old();</script>"; }</ul> }');
+      // A `<` that is not at the start of a statement is C#: a comparison or a type argument, never markup.
+      hiddenThenLive(file, '@{ for (var i = 0; i <n; i++) { var s = "<script>old();</script>"; } }');
+      hiddenThenLive(file, '@{ List<int> xs = new(); var s = "<script>old();</script>"; }');
+      hiddenThenLive(file, '@{ var b = a <b; var s = "<script>old();</script>"; }');
+    });
   }
+
+  it('the Razor search grows near-linearly over markup that never closes inside code blocks', () => {
+    for (const [name, body] of [
+      ['unclosed elements', (n: number) => '@if (a) { <div> }\n'.repeat(n / 18) + '<script>a();</script>'],
+      ['elements around unclosed code', (n: number) => '@if (a) { <p>@( </p> }\n'.repeat(n / 23) + '<script>a();</script>'],
+      ['nested elements', (n: number) => '@{ ' + '<b>'.repeat(n / 7) + '</b>'.repeat(n / 7) + ' }\n<script>a();</script>'],
+      ['elements and blocks nested in turn', (n: number) => '@{ ' + '<b>@{ '.repeat(n / 13) + '} </b>'.repeat(n / 13) + ' }\n<script>a();</script>'],
+    ] as const) {
+      const m = measureScaling({ small: 20_000, large: 200_000, setup: body, run: (t) => blankOutsideScripts(t, { razor: true }) });
+      expect(m.result, name).not.toBeNull();
+      expect(m.result!.text, name).toContain('a();');
+      expectNearLinear(m, `the Razor script search over ${name}`);
+    }
+  });
 
   it('Blade: a Blade comment, an echo, a raw echo and a @php span', () => {
     hiddenThenLive('a.blade.php', '{{-- <script>old();</script> --}}');

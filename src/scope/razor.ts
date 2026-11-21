@@ -24,6 +24,20 @@ interface StringFrame {
   start: number;
 }
 
+/**
+ * What a walk that reads the markup inside Razor code carries (`blankRazorScriptHiders`): how many markup-and-code
+ * levels it has gone down, the characters it may still spend on markup that turns out never to close, and the last
+ * offset of each closer the text holds, so a search for one that is not there costs nothing the second time.
+ */
+interface MarkupScan {
+  depth: number;
+  budget: { left: number };
+  lastCloser: Map<string, number>;
+}
+
+/** A code character after which a `<` starts a statement, so it opens markup in a Razor code block. */
+const STATEMENT_END = '{};:';
+
 /** Offset of the line break that ends the line holding `from`, or `text.length`. */
 function lineEnd(text: string, from: number): number {
   let i = from;
@@ -101,12 +115,24 @@ function textElementClose(text: string, from: number): number {
  * block: at its own level a `@* ... *@` comment is stepped over, and the content of each `<text> ... </text>`
  * element (to its own closing tag, past nested ones) and `@:` line is stepped over and pushed to `keeps` as
  * `[start, end)`. Each string literal and comment it steps over (a Razor comment too) is pushed to `texts` as
- * `[start, end)`, an unclosed string's to the end of its line.
+ * `[start, end)`, an unclosed string's to the end of its line. With `markup` as well, a tag at the start of a
+ * statement at the block's own level (after `{`, `}`, `;` or `:`, outside any `(` or `[`) and an `@<` template
+ * are markup, stepped over by `markupElementEnd`; a `<` anywhere else is C# (a comparison, a type argument).
  */
-function csBracketEnd(text: string, open: number, razor: boolean, keeps?: [number, number][], texts?: [number, number][]): number {
+function csBracketEnd(
+  text: string,
+  open: number,
+  razor: boolean,
+  keeps?: [number, number][],
+  texts?: [number, number][],
+  markup?: MarkupScan,
+): number {
   const first = text[open] as string;
   const stack: (CodeFrame | StringFrame)[] = [{ kind: 'code', open: first, close: BRACKET_CLOSE[first] as string, depth: 0 }];
   let i = open;
+  /** The last character of code read at the block's own level, white space and comments aside, and how many `(` and `[` are open there. */
+  let prev = '';
+  let parens = 0;
   while (i < text.length) {
     const top = stack[stack.length - 1] as CodeFrame | StringFrame;
     const ch = text[i] as string;
@@ -117,6 +143,7 @@ function csBracketEnd(text: string, open: number, razor: boolean, keeps?: [numbe
         stack.pop();
         i = close + top.raw;
         texts?.push([top.start, i]);
+        prev = '"';
       } else if (ch === '"') {
         if (top.verbatim && text[i + 1] === '"') {
           i += 2;
@@ -124,12 +151,14 @@ function csBracketEnd(text: string, open: number, razor: boolean, keeps?: [numbe
           stack.pop();
           i++;
           texts?.push([top.start, i]);
+          prev = '"';
         }
       } else if (!top.verbatim && ch === '\\') {
         i += 2;
       } else if (!top.verbatim && (ch === '\n' || ch === '\r')) {
         stack.pop(); // an unclosed string ends at its line, as the compiler reports it
         texts?.push([top.start, i]);
+        prev = '"';
       } else if (top.interpolated && ch === '{') {
         if (text[i + 1] === '{') {
           i += 2;
@@ -167,6 +196,7 @@ function csBracketEnd(text: string, open: number, razor: boolean, keeps?: [numbe
         const end = lineEnd(text, i);
         keeps?.push([i + 2, end]);
         i = end;
+        prev = ';';
         continue;
       }
       if (ch === '<' && text.startsWith('<text>', i)) {
@@ -174,12 +204,24 @@ function csBracketEnd(text: string, open: number, razor: boolean, keeps?: [numbe
         if (close === -1) return -1;
         keeps?.push([i + 6, close]);
         i = close + 7;
+        prev = ';';
         continue;
+      }
+      // Markup: a tag at the start of a statement, or a template (`@<p>...</p>`) anywhere. Razor reads it as markup
+      // to its closing tag, so its text is not C#.
+      if (markup !== undefined && ((ch === '<' && parens === 0 && STATEMENT_END.includes(prev)) || (ch === '@' && text[i + 1] === '<'))) {
+        const end = markupElementEnd(text, ch === '@' ? i + 1 : i, markup, texts);
+        if (end !== -1) {
+          i = end;
+          prev = ';';
+          continue;
+        }
       }
     }
     if (ch === "'") {
       const end = charLiteralEnd(text, i);
       i = end === -1 ? i + 1 : end;
+      prev = "'";
       continue;
     }
     if (ch === '"' || ch === '@' || ch === '$') {
@@ -193,8 +235,14 @@ function csBracketEnd(text: string, open: number, razor: boolean, keeps?: [numbe
       // again (quadratic over a long one).
       if (ch === '$') {
         while (text[i] === '$') i++;
+        prev = '$';
         continue;
       }
+    }
+    if (stack.length === 1 && ch !== ' ' && ch !== '\t' && ch !== '\n' && ch !== '\r') {
+      prev = ch;
+      if (ch === '(' || ch === '[') parens++;
+      else if ((ch === ')' || ch === ']') && parens > 0) parens--;
     }
     if (ch === top.open) {
       top.depth++;
@@ -240,7 +288,14 @@ const RAZOR_HEADED = new Set(['if', 'foreach', 'for', 'while', 'switch', 'using'
  * and `@:` content goes to `keeps`. -1 when a header or a block never closes; the offset after the keyword and
  * header when no `{` follows them. The string literals and comments stepped over go to `texts` (`csBracketEnd`).
  */
-function razorControlEnd(text: string, keyword: string, from: number, keeps: [number, number][], texts?: [number, number][]): number {
+function razorControlEnd(
+  text: string,
+  keyword: string,
+  from: number,
+  keeps: [number, number][],
+  texts?: [number, number][],
+  markup?: MarkupScan,
+): number {
   let kw = keyword;
   let i = from;
   for (;;) {
@@ -261,7 +316,7 @@ function razorControlEnd(text: string, keyword: string, from: number, keeps: [nu
     }
     const brace = skipSpace(text, i);
     if (text[brace] !== '{') return i;
-    const end = csBracketEnd(text, brace, true, keeps, texts);
+    const end = csBracketEnd(text, brace, true, keeps, texts, markup);
     if (end === -1) return -1;
     i = end;
     const next = skipSpace(text, i);
@@ -300,6 +355,151 @@ function razorImplicitEnd(text: string, from: number, texts?: [number, number][]
       return i;
     }
   }
+}
+
+/** HTML elements that have no closing tag. */
+const VOID_ELEMENTS = new Set(['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr']);
+const TAG_NAME = /[A-Za-z][\w:.-]*/y;
+/** The longest start tag read as one; a `<` with no `>` within this is not markup. */
+const MAX_START_TAG_CHARS = 4000;
+
+/**
+ * Offset just past the `>` of the start tag whose name ends at `from`, past quoted attribute values, and whether it
+ * closes itself (`/>`); null when no `>` comes within MAX_START_TAG_CHARS.
+ */
+function startTagEnd(text: string, from: number): { next: number; selfClosing: boolean } | null {
+  const limit = Math.min(text.length, from + MAX_START_TAG_CHARS);
+  let i = from;
+  while (i < limit) {
+    const ch = text[i] as string;
+    if (ch === '"' || ch === "'") {
+      i++;
+      while (i < limit && text[i] !== ch) i++;
+      i++;
+      continue;
+    }
+    if (ch === '>') return { next: i + 1, selfClosing: text[i - 1] === '/' };
+    i++;
+  }
+  return null;
+}
+
+/** Offset of the first `closer` at or after `from`, or -1; once the text holds none past an offset, asking costs nothing. */
+function closerAt(text: string, closer: string, from: number, markup: MarkupScan): number {
+  let last = markup.lastCloser.get(closer);
+  if (last === undefined) {
+    last = text.lastIndexOf(closer);
+    markup.lastCloser.set(closer, last);
+  }
+  return from > last ? -1 : text.indexOf(closer, from);
+}
+
+/** Offset of the first `</name` (any case) at or after `from`, or -1. */
+function closingTagAt(text: string, name: string, from: number): number {
+  const close = new RegExp(`</${name}(?![\\w:.-])`, 'gi');
+  close.lastIndex = from;
+  return close.exec(text)?.index ?? -1;
+}
+
+/** The scan one level further down, or undefined past MAX_RAZOR_NESTING, where markup inside code is read as code. */
+function deeper(markup: MarkupScan): MarkupScan | undefined {
+  return markup.depth >= MAX_RAZOR_NESTING ? undefined : { ...markup, depth: markup.depth + 1 };
+}
+
+/**
+ * Offset just past the markup that opens with the `<` at `lt` inside Razor code, as Razor reads it: an HTML comment
+ * to its `-->`, a void or self-closing element to its `>`, a `<script>` or `<style>` element to its closing tag, and
+ * any other element to the closing tag that matches it, past nested elements of its name. Its text is markup, not C#;
+ * its Razor code (`@{ }`, `@if`, `@( )`, `@Model.X`, `@* *@`) is read as code, and each C# string or comment in it
+ * goes to `texts`. An element that never closes, or whose code never does, ends with its start tag's line. Each such
+ * element's reading is charged to the walk's budget, and an element is read no further than what is left of it, so
+ * the walk stays linear over a file of them; once it is spent, every element ends with its line, unread. -1 when no
+ * tag opens at `lt`.
+ */
+function markupElementEnd(text: string, lt: number, markup: MarkupScan, texts?: [number, number][]): number {
+  if (text.startsWith('<!--', lt)) {
+    const close = markup.budget.left > 0 ? closerAt(text, '-->', lt + 4, markup) : -1;
+    return close === -1 ? lineEnd(text, lt) : close + 3;
+  }
+  TAG_NAME.lastIndex = lt + 1;
+  const name = TAG_NAME.exec(text)?.[0];
+  if (name === undefined) return -1;
+  const tag = startTagEnd(text, lt + 1 + name.length);
+  if (tag === null) return -1;
+  const lower = name.toLowerCase();
+  if (tag.selfClosing || VOID_ELEMENTS.has(lower)) return tag.next;
+  const unclosed = lineEnd(text, tag.next - 1);
+  if (markup.budget.left <= 0) return unclosed;
+  const fail = (): number => {
+    markup.budget.left -= text.length - lt;
+    return unclosed;
+  };
+  const pastClosingTag = (at: number): number => {
+    const gt = text.indexOf('>', at);
+    return gt === -1 ? fail() : gt + 1;
+  };
+  if (lower === 'script' || lower === 'style') {
+    const close = closingTagAt(text, lower, tag.next);
+    return close === -1 ? fail() : pastClosingTag(close);
+  }
+  const inner = deeper(markup);
+  let depth = 1;
+  const stop = /[<@]/g;
+  stop.lastIndex = tag.next;
+  for (let m = stop.exec(text); m !== null; m = stop.exec(text)) {
+    const at = m.index;
+    // Past what is left of the budget, the element is taken as one that never closes, as it most likely is.
+    if (at - lt > markup.budget.left) return fail();
+    let next = at + 1;
+    if (text[at] === '<') {
+      if (text.startsWith('<!--', at)) {
+        const close = closerAt(text, '-->', at + 4, markup);
+        if (close !== -1) next = close + 3;
+      } else {
+        const closing = text[at + 1] === '/';
+        TAG_NAME.lastIndex = at + (closing ? 2 : 1);
+        const other = TAG_NAME.exec(text)?.[0]?.toLowerCase();
+        if (other !== undefined && closing && other === lower) {
+          depth--;
+          if (depth === 0) return pastClosingTag(at);
+        } else if (other !== undefined && !closing) {
+          const t = startTagEnd(text, at + 1 + other.length);
+          if (t !== null) {
+            next = t.next;
+            if (other === lower && !t.selfClosing) depth++;
+            else if ((other === 'script' || other === 'style') && !t.selfClosing) {
+              const close = closingTagAt(text, other, t.next);
+              if (close === -1) return fail();
+              next = close;
+            }
+          }
+        }
+      }
+    } else {
+      const c = text[at + 1] ?? '';
+      if (c === '@') {
+        next = at + 2;
+      } else if (c === '*') {
+        // A Razor comment; one that never closes ends with its line.
+        const close = closerAt(text, '*@', at + 2, markup);
+        next = close === -1 ? lineEnd(text, at) : close + 2;
+        texts?.push([at, next]);
+      } else if (c === '{' || c === '(') {
+        const end = csBracketEnd(text, at + 1, c === '{', undefined, texts, inner);
+        if (end === -1) return fail();
+        next = end;
+      } else if (!/[\p{L}\p{N}]/u.test(text[at - 1] ?? '') && identifierAt(text, at + 1) !== '') {
+        const word = identifierAt(text, at + 1);
+        const end = RAZOR_CONTROL.has(word)
+          ? razorControlEnd(text, word, at + 1 + word.length, [], texts, inner)
+          : razorImplicitEnd(text, at + 1, texts);
+        if (end === -1 || end >= text.length) return fail();
+        next = end;
+      }
+    }
+    stop.lastIndex = next;
+  }
+  return fail();
 }
 
 /** `@@`, `@*`, `@(`, `@{`, or an `@` before an identifier that follows no letter or digit (Razor's email rule). */
@@ -413,12 +613,16 @@ function scriptTagWithin(tags: [number, number][]): (start: number, end: number)
  * (`@if (...) { ... }` and the rest of `RAZOR_CONTROL`), an explicit expression (`@( ... )`) or an implicit one
  * (`@Html.Raw("...")`). Markup inside a code or control block (a `<script>` element written as a tag, Razor's
  * transition back to markup) is left, so it is still found: a block is not blanked whole, only those strings and
- * comments, matched string-aware as `csBracketEnd` matches brackets. Every length and line break holds. A block or
- * expression that never closes runs to the end of the text, and the walk stops there.
+ * comments, matched string-aware as `csBracketEnd` matches brackets. That markup is read as markup to its closing tag
+ * (`markupElementEnd`), so a `//`, `/*` or quote in its text is not taken for C#, and the Razor code inside it is read
+ * as code again. Every length and line break holds. A block or expression that never closes runs to the end of the
+ * text, and the walk stops there.
  */
 export function blankRazorScriptHiders(text: string): string {
   const hidden: [number, number][] = [];
   const holdsScriptTag = scriptTagWithin([...text.matchAll(SCRIPT_TAG)].map((m) => [m.index, m.index + m[0].length]));
+  // Markup that never closes is read to the end of the text at most this often in all, then to its line unread.
+  const markup: MarkupScan = { depth: 0, budget: { left: 2 * text.length + 65_536 }, lastCloser: new Map() };
   const opener = new RegExp(RAZOR_OPENER.source, RAZOR_OPENER.flags);
   for (let m = opener.exec(text); m !== null; m = opener.exec(text)) {
     const open = m.index;
@@ -431,15 +635,15 @@ export function blankRazorScriptHiders(text: string): string {
       end = close === -1 ? text.length : close + 2;
       hidden.push([open, end]);
     } else if (m[0] === '@(' || m[0] === '@{') {
-      end = csBracketEnd(text, open + 1, m[0] === '@{', undefined, texts);
+      end = csBracketEnd(text, open + 1, m[0] === '@{', undefined, texts, markup);
     } else {
       const word = identifierAt(text, open + 1);
       const after = open + 1 + word.length;
       if (word === 'code' || word === 'functions') {
         const brace = skipSpace(text, after);
-        end = text[brace] === '{' ? csBracketEnd(text, brace, true, undefined, texts) : after;
+        end = text[brace] === '{' ? csBracketEnd(text, brace, true, undefined, texts, markup) : after;
       } else if (RAZOR_CONTROL.has(word)) {
-        end = razorControlEnd(text, word, after, [], texts);
+        end = razorControlEnd(text, word, after, [], texts, markup);
       } else {
         end = razorImplicitEnd(text, open + 1, texts);
       }

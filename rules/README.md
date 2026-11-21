@@ -1076,7 +1076,10 @@ file's `@* *@` comments blanked, and the C# strings and comments that hold a
 comment or a C# string (`@{ var s = "<script>..."; }`, `@Html.Raw("<script>...")`)
 is not read as live. A code or control block is not blanked whole for the
 search, because markup inside one (a `<script>` element written in `@if { }` or
-`@{ }`) is live. Inside a block the Razor syntax is blanked so the JavaScript
+`@{ }`) is live. That markup is read as Razor reads it, from a tag at the start
+of a statement (or an `@<p>` template) to its matching closing tag, so a `//`, a
+`/*` or a lone quote in its text is not taken for C#; the Razor code inside it
+is C# again. An element that never closes ends with its line. Inside a block the Razor syntax is blanked so the JavaScript
 around it still parses and line numbers hold. Comments, `@{ }` code blocks and
 control blocks (`@if`, `@foreach`, `@using` and the rest, header and braces
 included) become spaces, except the content of `<text>` elements and `@:` lines
@@ -1109,9 +1112,6 @@ Known Razor gaps:
   beside it, in another file, so a library type there is found only by a
   short-form pattern. A `@{ ... }` statement block is not read as C#; only
   `@code` and `@functions` are.
-- The block search reads markup inside a code or control block as C# when it
-  looks for strings and comments, so a `//` in that markup's text (a written-out
-  `http://` address) hides a `<script>` later on the same line.
 - Markup inside an `@functions` method lands in the C# copy, which the engine
   reads as partly parsed, so a match inside the dropped part is missing (the
   scan counts the file in its unread-files notice), and `@@code {` (an escaped
