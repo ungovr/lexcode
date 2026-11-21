@@ -40,6 +40,29 @@ rules:
             | (?:(?<![\w.$])|(?<=window\.))heap\.(?:track|identify)\(
           )
       - pattern-inside: '"..."'
+      # A loader address or call held only to look for it or to block it, never written into a
+      # page: an argument of a string test or a regular expression, the first argument of Replace
+      # (a tag stripped out; the second argument is what is written, so it still counts), and an
+      # element of a collection built with an initializer or a collection expression (an ad
+      # blocker's list). A collection's elements are bare string literals, which an object
+      # initializer's `Name = "..."` is not, so a settings object holding a tag still counts.
+      - pattern-not-inside:
+          patterns:
+            - pattern: $RCV.$TEST(...)
+            - metavariable-regex:
+                metavariable: $TEST
+                regex: ^(Contains|IndexOf|IndexOfAny|LastIndexOf|StartsWith|EndsWith|Equals|Compare|CompareOrdinal|IsMatch|Match|Matches)$
+      - pattern-not-inside:
+          patterns:
+            - pattern: $RCV.Replace($FIRST, ...)
+            - focus-metavariable: $FIRST
+      - pattern-not-inside: new System.Text.RegularExpressions.Regex(...)
+      - pattern-not-inside: new $ARR[] { ..., "...", ... }
+      - pattern-not-inside: new[] { ..., "...", ... }
+      - pattern-not-inside: new $COLL<$EL> { ..., "...", ... }
+      - pattern-not-inside: new() { ..., "...", ... }
+      - pattern-not-inside: '$ARR[] $FIELD = { ..., "...", ... };'
+      - pattern-not-inside: '[..., "...", ...]'
     metadata:
       activity: tracks_devices
       mentioned: performs
