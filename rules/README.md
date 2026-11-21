@@ -1621,10 +1621,15 @@ The engine sets most of these limits, and the rules' comments point here.
   read as one, a loop whose call sits in a macro body such as `tokio::select!`
   is not read, and a block comment nested in another or a raw string with three
   hashes or more is read as code), a request built in one
-  statement and sent in the next (`let req = c.get(url); req.send()`), a handler
-  that returns the model's output as its tail expression with no response
-  wrapper, a model id or address held in a `const` declared after its use, and
-  an `mpsc` channel between a generating task and a stream are not joined. Any
+  statement and sent in the next (`let req = c.get(url); req.send()`), a model
+  id or address held in a `const` declared after its use, and an `mpsc` channel
+  between a generating task and a stream are not joined. A handler that returns
+  the model's output with no response wrapper (`-> String`, `-> impl
+  IntoResponse`, `-> Result<String, E>`, `-> Vec<u8>`) is read, since the engine
+  reads a tail expression as a `return`, when the function takes one of the
+  framework's extractors (`State<..>`, `Json<..>`, `web::Data<..>`) or carries a
+  route attribute (`#[post(..)]`, `#[handler]`, `#[oai(..)]`); a handler
+  registered by name with neither is missed. Any
   send in an `Err` branch inside a timer (an `if let Err` body or an `Err` arm,
   in any position among any number of arms) is read as an alert to the
   operator and left out, except in an iteration over the timer's recipients (a
