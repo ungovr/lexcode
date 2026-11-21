@@ -23,8 +23,9 @@
 #   phone's own ID, while a query item names the resource the request is about, which in an app
 #   that drives cameras, locks or other hardware is that device. For the same reason a device
 #   header whose name says it is another device (`X-Lock-Device-Id`, `X-Camera-Device-Id`,
-#   `X-Target-Device-Id`, `X-Peer-Device-Id`, and remote, paired, linked, child, parent, sensor,
-#   gateway, hub, printer and beacon) is left out.
+#   `X-Target-Device-Id`, `X-Peer-Device-Id`, `X-Remote-` and `X-Paired-`) is left out, each word
+#   from its start (`X-Block-Device-Id` and `X-Unlock-Device-Id` still read). Words that can name
+#   either the phone or another device (gateway, hub, parent) are not on the list.
 # - A value named as an install ID (`installID`, `appInstallId`, `installID.uuidString`) put into
 #   a header, whatever the header's name.
 #
@@ -49,7 +50,7 @@ rules:
               - pattern: 'addValue($V, forHTTPHeaderField: $H)'
           - metavariable-regex:
               metavariable: $H
-              regex: '^"(?i:x-(?![\w-]*(?:request|trace|correlation|transaction|idempotency|message|session|nonce))(?![\w-]*(?<![a-z])(?:target|peer|remote|paired|linked|child|parent|lock|camera|sensor|gateway|hub|printer|beacon)-)(?:[a-z0-9]+-)*(?:install|device|app-?instance)-?(?:id|uuid)|x-(?:wmf|app)-uuid)"$'
+              regex: '^"(?i:x-(?![\w-]*(?:request|trace|correlation|transaction|idempotency|message|session|nonce))(?![\w-]*(?<![a-z])(?:target|peer|remote|paired|lock|camera)-)(?:[a-z0-9]+-)*(?:install|device|app-?instance)-?(?:id|uuid)|x-(?:wmf|app)-uuid)"$'
       # any header filled from a value named as an install ID
       - patterns:
           - pattern-either:

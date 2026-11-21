@@ -69,7 +69,6 @@ final class RequestDecorator {
         request.setValue(id, forHTTPHeaderField: "X-Peer-Device-Id")
         request.setValue(id, forHTTPHeaderField: "X-Remote-Device-UUID")
         request.setValue(id, forHTTPHeaderField: "X-Paired-Device-Id")
-        request.setValue(id, forHTTPHeaderField: "X-Hub-Device-Id")
     }
 
     func github(_ request: inout URLRequest, githubInstallationID: Int, installationID: String) {

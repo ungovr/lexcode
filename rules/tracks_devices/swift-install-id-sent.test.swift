@@ -1,4 +1,4 @@
-// lexcode-expect: 15
+// lexcode-expect: 17
 import Foundation
 
 final class APIClient {
@@ -35,6 +35,9 @@ final class APIClient {
         request.setValue(token, forHTTPHeaderField: "X-User-Device-Id")
         request.setValue(token, forHTTPHeaderField: "X-App-UUID")
         request.setValue(token, forHTTPHeaderField: "X-Install-UUID")
+        // An other-device word read from its start only, so these are the phone's.
+        request.setValue(token, forHTTPHeaderField: "X-Block-Device-Id")
+        request.setValue(token, forHTTPHeaderField: "X-Unlock-Device-Id")
         return request
     }
 }
