@@ -1,12 +1,13 @@
-// lexcode-expect: 12
+// lexcode-expect: 13
 // A Gemini address built by interpolation, concatenation or string.Format, with the model, the
 // key, the region or the project in it, and held in a const, a field, a property or a local
 // (#13205 B1). Members count where they are declared: a const joined from another const, a
 // static field joined with the model, an expression-bodied property formatted with the model and
-// the key, and an auto-property for Vertex AI with the region and the project interpolated. A
-// local counts where it is sent: interpolated and posted (the shape most Gemini helpers use),
-// joined with the model and the key into a request message, formatted and posted as JSON, and
-// Vertex AI's address with the region and the project handed to a Uri. An address built at the
+// the key, an expression-bodied property joined from a base const, and an auto-property for
+// Vertex AI with the region and the project interpolated. A local counts where it is sent:
+// interpolated and posted (the shape most Gemini helpers use), joined with the model and the key
+// into a request message, formatted and posted as JSON, and Vertex AI's address with the region
+// and the project handed to a Uri. An address built at the
 // call counts there: joined with the model, formatted with the model and the key, and Vertex AI's
 // address joined with the region, the project and the model; and the joined const sent.
 using System.Net.Http;
@@ -18,6 +19,7 @@ public class GeminiBuilt(HttpClient http)
 {
     private const string ModelsBase = "https://generativelanguage.googleapis.com/v1beta/models/";
     private const string FlashUrl = ModelsBase + "gemini-2.5-flash:generateContent";
+    public static string ProUrl => ModelsBase + "gemini-2.5-pro:generateContent";
     public static string Model = "gemini-2.5-flash";
     public static string Key = "";
     private static readonly string JoinedUrl = "https://generativelanguage.googleapis.com/v1beta/models/" + Model + ":generateContent";

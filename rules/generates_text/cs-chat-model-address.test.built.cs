@@ -1,8 +1,8 @@
-// lexcode-expect: 10
+// lexcode-expect: 11
 // A hosted text model's address built by interpolation, concatenation or string.Format, and held
 // in a const, a field, a property or a local (#13205 B1). Members count where they are declared: a
-// const joined from a base const, a static field joined with an API version in its query, and an
-// expression-bodied property formatted with a query value. A local counts where it is sent: an
+// const joined from a base const, a static field joined with an API version in its query, an
+// expression-bodied property formatted with a query value, and one joined from a base const. A local counts where it is sent: an
 // interpolated address with a query value posted, an address joined from a base const and a path
 // handed to a request message, and a formatted one posted as JSON. An address built at the call
 // counts there: two literals joined, a query value joined, and a formatted query; and the joined
@@ -19,6 +19,7 @@ public class TextBuilt(HttpClient http)
     public static string ApiVersion = "2024-10-01";
     private static readonly string VersionedUrl = "https://api.deepseek.com/chat/completions?api-version=" + ApiVersion;
     public static string FormattedUrl => string.Format("https://api.anthropic.com/v1/messages?beta={0}", ApiVersion);
+    public static string JoinedProp => ApiBase + "/responses";
 
     public async Task<string> Interpolated(HttpContent content, string trace)
     {
