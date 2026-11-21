@@ -563,7 +563,11 @@ it records neither that gem nor the gemspec's development gems. The names in a
 gemspec may be plain strings or the `%q<name>.freeze` form generated gemspecs
 use, and a dependency call whose arguments start on the line after its `(` is
 read with them. A one-line block (`group :test do gem "rspec" end`) is read
-with its group, and `end.each do` closes one block and opens the next.
+with its group, and `end.each do` closes one block and opens the next. A line
+of `;`-separated statements (`gem "a"; gem "b"`) is read statement by statement.
+An expression such as `x = if ...` opens a block unless the keyword `end`
+follows on its line; `range.end`, `:end` and an `end` inside a string do not
+count.
 
 ### Ruby files
 
@@ -778,9 +782,12 @@ reference such as `Libs.OKHTTP` in a build file is read from the `object`
 constants those sources declare. A bare map accessor, `implementation
 deps.okhttp` or `rootProject.ext.deps.sentry`, is read from a Groovy map
 (`ext.deps = [okhttp: 'g:a:v']`, nested maps such as `deps.support.v4`, and a
-map assigned to a key, `deps.kotlin = [...]`) in the same file, the root build
-file, or a script either applies with a literal path (`apply from:
-"$rootDir/dependencies.gradle"`, one level). A module a settings file moves with
+map assigned to a key, `deps.kotlin = [...]`, or a string assigned to a key,
+`deps.okhttp = 'g:a:v'`) in the same file, the root build file, or a script
+either applies with a literal path (`apply from:
+"$rootDir/dependencies.gradle"` or Kotlin DSL `apply(from = "...")`, one level).
+A map named `libs` is read as a map when the build has no version catalog file;
+where one exists, `libs.x` is the catalog. A module a settings file moves with
 `project(':x').projectDir = ...` is followed to its new directory.
 
 Known gaps: Gradle lockfiles (`gradle.lockfile`) are not read, because a
