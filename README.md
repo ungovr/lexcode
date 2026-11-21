@@ -68,7 +68,7 @@ value shipped in the package, and caches it. The package is `@ungovr/lexcode`; t
 | Kind | What LexCode reads |
 |---|---|
 | **Languages** | TypeScript, JavaScript, Python, Go, Ruby, Java, Kotlin, PHP, C#, Swift, Rust |
-| **Views** | The `<script>` blocks of Vue, Svelte, HTML, Jinja, ERB, JSP, Twig, Tera and Razor files; PHP and Blade views in full |
+| **Views** | The `<script>` blocks of Vue, Svelte, HTML, Jinja, Nunjucks, ERB, JSP, Twig, Tera and Razor files; PHP and Blade views in full |
 | **Package manifests** | npm, PyPI, Go, RubyGems, Maven and Gradle, Composer, NuGet, Cargo, Swift packages, CocoaPods |
 | **Apple app configuration** | `Info.plist`, `PrivacyInfo.xcprivacy`, `*.entitlements`, `project.pbxproj` |
 | **Which files** | What git tracks or could track, honoring `.gitignore` |

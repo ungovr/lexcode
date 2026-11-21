@@ -190,15 +190,17 @@ const XCODE_TEST_TARGET = /Tests$/;
 const BUNDLED_NAME =
   /(?:\.min\.(?:js|mjs|cjs)|\.bundle\.js|\.vendor\.js|\.g(?:\.i)?\.cs|\.generated\.swift|\+Generated\.swift|\.pb\.swift|\.grpc\.swift)$|^vendor\.[^/]+\.js$/;
 /**
- * Directories of generated code, at any depth, skipped by a git listing and a walk alike and counted with the
- * bundled files above. swift-openapi-generator writes `Sources/<Target>/GeneratedSources/*.swift` (penny-bot's
- * `Lambdas/GitHubAPI/GeneratedSources/Types.swift` cost about 80 s of engine time under the Swift rules). The name is
- * matched case-sensitively, as the generator writes it.
+ * Directories of generated Swift, at any depth: their `.swift` files are skipped by a git listing and a walk alike
+ * and counted with the bundled files above. swift-openapi-generator writes `Sources/<Target>/GeneratedSources/*.swift`
+ * (penny-bot's `Lambdas/GitHubAPI/GeneratedSources/Types.swift` cost about 80 s of engine time under the Swift rules).
+ * The name is matched case-sensitively, as the generator writes it. Any other file there is the project's own and is
+ * read (#13303).
  */
 const GENERATED_DIRS = new Set(['GeneratedSources']);
 
-/** True when a directory segment of `rel` (never the file name) is a generated-code directory. */
-function underGeneratedDir(rel: string): boolean {
+/** True when `rel` is a Swift file and a directory segment of it (never the file name) is a generated-code directory. */
+function generatedSwift(rel: string): boolean {
+  if (!rel.endsWith('.swift')) return false;
   const parts = rel.split('/');
   for (let i = 0; i < parts.length - 1; i++) {
     if (GENERATED_DIRS.has(parts[i] as string)) return true;
@@ -218,6 +220,20 @@ function testDir(name: string): boolean {
 
 function skippedDir(name: string, includeTests: boolean): boolean {
   return ALWAYS_SKIPPED.has(name) || (!includeTests && testDir(name));
+}
+
+/** True for a bundled or minified file name, or a generated Swift file (`generatedSwift`). */
+function bundledOrGenerated(rel: string): boolean {
+  return BUNDLED_NAME.test(rel.slice(rel.lastIndexOf('/') + 1)) || generatedSwift(rel);
+}
+
+/** Why the listing skips `rel` by its path, for an include's error, or undefined when it does not. */
+function skipReason(rel: string, includeTests: boolean, underRestoreDir: (rel: string) => boolean): string | undefined {
+  const dirs = rel.split('/').slice(0, -1);
+  if (dirs.some((d) => ALWAYS_SKIPPED.has(d)) || underRestoreDir(rel)) return 'a dependency or build directory, which lexcode never reads';
+  if (!includeTests && dirs.some(testDir)) return 'a test directory; pass --include-tests to read it';
+  if (bundledOrGenerated(rel)) return 'generated, bundled or minified code, which lexcode never reads';
+  return undefined;
 }
 
 /** True when a directory segment of `rel` (never the file name) is on the skip list. */
@@ -395,7 +411,7 @@ export function listFiles(root: string, spec: ScopeSpec): ListFilesResult {
   for (const rel of listed) {
     if (underSkippedDir(rel, spec.includeTests)) continue;
     if (viaGit !== null && underRestoreDir(rel)) continue;
-    if (BUNDLED_NAME.test(rel.slice(rel.lastIndexOf('/') + 1)) || underGeneratedDir(rel)) {
+    if (bundledOrGenerated(rel)) {
       skippedBundled++;
       continue;
     }
@@ -428,9 +444,20 @@ export function listFiles(root: string, spec: ScopeSpec): ListFilesResult {
   const unmatched = spec.include.filter((inc) => !candidates.some((rel) => matchesScopePath(rel, inc)));
   if (unmatched.length > 0) {
     const names = unmatched.map((u) => `"${u}"`).join(', ');
+    // Each include that matches files the listing skipped says why, so a generated directory never gets the
+    // test-directory hint (#13303).
+    const why = unmatched.flatMap((inc) => {
+      const reasons = new Set<string>();
+      for (const rel of listed) {
+        if (!matchesScopePath(rel, inc)) continue;
+        const r = skipReason(rel, spec.includeTests, viaGit !== null ? underRestoreDir : () => false);
+        if (r !== undefined) reasons.add(r);
+      }
+      return reasons.size === 0 ? [] : [` "${inc}" matches only files lexcode skips: ${[...reasons].sort().join('; ')}.`];
+    });
     throw new ToolError(
       `scope include ${names} matched no file. Nothing was scanned: an include that matches nothing is an error, never a fallback to the whole repository. ` +
-        `A trailing "/" names a directory; anything else is a glob. Directories named like tests are skipped unless --include-tests is given.`,
+        `A trailing "/" names a directory; anything else is a glob.${why.join('')}`,
     );
   }
 

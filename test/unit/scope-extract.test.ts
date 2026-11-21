@@ -9,13 +9,12 @@ import {
   blankOutsideScripts,
   blankPhpRegions,
   blankPhpTags,
-  blankRazorTags,
   blankTwigTags,
   extractScripts,
-  razorCSharp,
 } from '../../src/scope/extract.js';
+import { blankRazorTags, razorCSharp } from '../../src/scope/razor.js';
 import { hasLongLine } from '../../src/scope/longlines.js';
-import { expectNearLinear, measureScaling } from '../helpers/scaling.js';
+import { MAX_RATIO_FOR_10X, expectNearLinear, measureScaling } from '../helpers/scaling.js';
 
 const made: string[] = [];
 function tmp(): string {
@@ -29,6 +28,19 @@ afterEach(() => {
 
 function lines(s: string): string[] {
   return s.split('\n');
+}
+
+/**
+ * Asserts `hostile` costs at most MAX_RATIO_FOR_10X times what `plain`, a well-formed file of about its size, costs.
+ * A scaling ratio cannot see a rescan with a fixed bound (each opener reading the next few thousand characters
+ * again), which is linear past its bound; a cost per character set against a plain file's can.
+ */
+function expectCostLike(plain: string, hostile: string, run: (t: string) => unknown, what: string): void {
+  const m = measureScaling({ small: 0, large: 1, setup: (n) => (n === 0 ? plain : hostile), run });
+  expect(
+    m.ratio,
+    `${what}: ${hostile.length} characters cost ${m.ratio.toFixed(1)}x what a plain file of ${plain.length} does (${m.smallMs.toFixed(3)} ms, then ${m.largeMs.toFixed(3)} ms)`,
+  ).toBeLessThan(MAX_RATIO_FOR_10X);
 }
 
 /** Every character of `out` is either the same as in `src` (inside a kept block) or a space (or a line break kept). */
@@ -340,6 +352,54 @@ describe('ERB views', () => {
     const byOriginal = new Map(pairs.map((p) => [p.originalPath, readFileSync(p.tempPath, 'utf8')]));
     expect(byOriginal.get('a.html')).toContain('<%= x %>');
     expect(byOriginal.get('b.erb')).not.toContain('<%');
+  });
+
+  describe('a script inside an ERB tag is Ruby text, not markup (#12882)', () => {
+    function extractErb(body: string): string[] {
+      const root = tmp();
+      const out = tmp();
+      write(root, 'app/views/a.html.erb', body);
+      return extractScripts(root, ['app/views/a.html.erb'], out).map((p) => readFileSync(p.tempPath, 'utf8'));
+    }
+
+    it('a script inside an ERB comment tag gives no copy, on one line or over several', () => {
+      expect(extractErb("<%# <script>gtag('config', 'x');</script> %>\n")).toEqual([]);
+      expect(extractErb(['<%#', '  <script>', "    gtag('config', 'x');", '  </script>', '%>', ''].join('\n'))).toEqual([]);
+      expect(blankOutsideScripts("<%# <script>gtag('config', 'x');</script> %>", { erb: true })).toBeNull();
+    });
+
+    it('a script inside a Ruby string of a code or output tag gives no copy', () => {
+      expect(extractErb('<%= "<script>track();</script>".html_safe %>\n')).toEqual([]);
+      expect(extractErb("<% html = '<script>track();</script>' %>\n")).toEqual([]);
+    });
+
+    it('a live script after a commented-out one is still read, on its own line', () => {
+      const view = ["<%# <script>old();</script> %>", '<script>', "  gtag('config', 'x');", '</script>', ''].join('\n');
+      const copies = extractErb(view);
+      expect(copies).toHaveLength(1);
+      sameShape(view, copies[0]!);
+      expect(lines(copies[0]!)[0]!.trim()).toBe('');
+      expect(lines(copies[0]!)[2]).toBe("  gtag('config', 'x');");
+    });
+
+    it('a </script> inside an ERB tag in a block does not end the block', () => {
+      const view = `<script>var s = "<%= '</script>' %>"; track();</script>`;
+      const copies = extractErb(view);
+      expect(copies).toHaveLength(1);
+      expect(copies[0]).toContain(' track();');
+      expect(copies[0]).not.toContain('<');
+    });
+
+    it('a <%% literal is not a tag, so a script after it is read', () => {
+      expect(extractErb('<p><%% x %></p><script>track();</script>')).toHaveLength(1);
+    });
+
+    it('an .html file keeps reading a script that sits inside ERB-like text', () => {
+      const root = tmp();
+      const out = tmp();
+      write(root, 'a.html', "<%# <script>gtag('config', 'x');</script> %>");
+      expect(extractScripts(root, ['a.html'], out)).toHaveLength(1);
+    });
   });
 });
 
@@ -992,12 +1052,26 @@ describe('PHP, Blade and Twig views', () => {
     expect(lines(t.text)[6]).toBe('  track("after");');
   });
 
-  it('Jinja handling is unchanged: a .jinja, .j2 or .njk copy keeps its tags, and no Twig blanking reaches it', () => {
-    const src = '<script>gtag("config", "{{ gid }}"); {% if x %}a();{% endif %} {# c #}</script>';
-    for (const rel of ['t/a.jinja', 't/b.jinja2', 't/c.j2', 't/d.njk']) {
-      expect(extractOne(rel, src)[0]!.text, rel).toBe(sp('<script>') + 'gtag("config", "{{ gid }}"); {% if x %}a();{% endif %} {# c #}' + sp('</script>'));
+  it('a Jinja or Nunjucks template gets Twig\'s blanking, whitespace control included (#12993)', () => {
+    const src = '<script>gtag("config", "{{ gid }}"); {%- if x %}a();{% endif -%} {# c #} v = {{- u|tojson -}};</script>';
+    const want =
+      sp('<script>') +
+      `gtag("config", "${pad('{{ gid }}')}"); ${sp('{%- if x %}')}a();${sp('{% endif -%}')} ${sp('{# c #}')} v = ${pad('{{- u|tojson -}}')};` +
+      sp('</script>');
+    for (const rel of ['t/a.jinja', 't/b.jinja2', 't/c.j2', 't/d.njk', 't/E.HTML.J2']) {
+      expect(extractOne(rel, src)[0]!.text, rel).toBe(want);
     }
-    expect(extractOne('t/e.twig', src)[0]!.text).not.toContain('{{');
+    expect(extractOne('t/e.twig', src)[0]!.text).toBe(want);
+  });
+
+  it('a Jinja raw block keeps its body as script text, and its tags are blanked (#12993)', () => {
+    const src = '<script>{% raw %}const t = `${a}`;{% endraw %} b();</script>';
+    expect(extractOne('t/a.jinja', src)[0]!.text).toBe(sp('<script>') + `${sp('{% raw %}')}const t = \`\${a}\`;${sp('{% endraw %}')} b();` + sp('</script>'));
+  });
+
+  it('a plain .html page keeps its braces: only a Jinja or Twig extension says the tags are template syntax (#12993)', () => {
+    const src = '<script>const o = {{a: 1}}.a; b();</script>';
+    expect(extractOne('t/page.html', src)[0]!.text).toBe(sp('<script>') + 'const o = {{a: 1}}.a; b();' + sp('</script>'));
   });
 
   describe('characters outside the Basic Multilingual Plane (an emoji is two UTF-16 units)', () => {
@@ -1135,6 +1209,37 @@ describe('PHP, Blade and Twig views', () => {
         run: (text) => blankBladeTags(text),
       });
       expectNearLinear(m, 'blankBladeTags');
+    });
+
+    it('Blade argument lists and JSP tags that never close cost what a plain view does, in a body and in a file', () => {
+      // A directive's `(` is read for up to 10,000 characters and a namespaced tag for up to 4,000 before each is let
+      // go. Unbudgeted, a file of them cost that much each (Blade 7.7 s per MB, JSP 1.6 s): the cost grew with the
+      // square of the file up to that bound, and past it stayed far above a plain view's.
+      for (const [name, opts, plainUnit, unit] of [
+        ['Blade directives whose "(" never closes', { blade: true }, '@if($a) {{ $x }} @endif\n', '@x(\n'],
+        ['Blade directives with an open quote', { blade: true }, '@if($a) {{ $x }} @endif\n', '@x("\n'],
+        ['Blade @json whose "(" never closes', { blade: true }, '@if($a) {{ $x }} @endif\n', '@json(\n'],
+        ['Blade directives on one line', { blade: true }, '@if($a) {{ $x }} @endif ', '@x( '],
+        ['JSP tags with an open attribute value', { jsp: true }, '<c:out value="${x}"/>\n', '<a:b x="\n'],
+        ['JSP tags with no ">"', { jsp: true }, '<c:out value="${x}"/>\n', '<a:b \n'],
+      ] as const) {
+        for (const [where, wrap] of [
+          // A `)` and a `>` after the openers, so each is read to its bound, not let go because none is left.
+          ['a file', (t: string) => '<script>a();</script>\n' + t + '<p>(a)</p>\n'],
+          ['a script body', (t: string) => '<script>\n' + t + 'a();</script>'],
+        ] as const) {
+          const body = (n: number): string => wrap(unit.repeat(n / unit.length));
+          const run = (t: string): unknown => blankOutsideScripts(t, opts);
+          const what = `${name} in ${where}`;
+          // Both sizes past the budget's fixed 65,536 characters: at 1,000 the whole file fits in it, every opener is
+          // read to its bound, and at 10,000 most are read for 64 characters once it is spent (R3-A1), so that pair
+          // measured a change of regime (34x), not growth. The plain-view check is what sees a bounded rescan.
+          const m = measureScaling({ small: 20_000, large: 200_000, setup: body, run });
+          expect(m.result, what).not.toBeNull();
+          expectNearLinear(m, what);
+          expectCostLike(wrap(plainUnit.repeat(200_000 / plainUnit.length)), body(200_000), run, what);
+        }
+      }
     });
 
     it('blankBladeTags grows near-linearly over unterminated echoes and @php', () => {
@@ -1815,4 +1920,328 @@ describe('a copy with a line over 100,000 characters (#13251)', () => {
       });
     }
   });
+});
+
+// A <script> inside a template's own comment or code (a string in a tag or code block) is template text, not
+// markup: each view is searched for script blocks with that syntax blanked, as ERB's and PHP's are (#12882).
+describe('a script inside template code or a template comment is not markup (#12882)', () => {
+  function extract(file: string, body: string): string[] {
+    const root = tmp();
+    const out = tmp();
+    writeFileSync(path.join(root, file), body);
+    // Script copies only: a Razor `@code` block also gives a `.lexcode.cs` copy, which is not markup.
+    return extractScripts(root, [file], out)
+      .filter((p) => /\.lexcode\.[jt]s$/.test(p.tempPath))
+      .map((p) => readFileSync(p.tempPath, 'utf8'));
+  }
+  const live = ['<script>', "  gtag('config', 'x');", '</script>', ''].join('\n');
+  /** The hidden script gives no copy, and a live one after it is read on its own lines with nothing else kept. */
+  function hiddenThenLive(file: string, hidden: string): void {
+    expect(extract(file, hidden + '\n'), `${file}: ${hidden}`).toEqual([]);
+    const view = hidden + '\n' + live;
+    const copies = extract(file, view);
+    expect(copies, `${file}: ${hidden}`).toHaveLength(1);
+    sameShape(view, copies[0]!);
+    expect(copies[0]!.includes('old()'), `${file}: ${hidden}`).toBe(false);
+    expect(copies[0]).toContain("  gtag('config', 'x');");
+  }
+
+  for (const file of ['a.twig', 'a.html.tera', 'a.jinja', 'a.jinja2', 'a.j2', 'a.njk']) {
+    it(`${file}: a comment, a set tag and an output tag`, () => {
+      hiddenThenLive(file, '{# <script>old();</script> #}');
+      hiddenThenLive(file, ['{#', '  <script>', '    old();', '  </script>', '#}'].join('\n'));
+      hiddenThenLive(file, '{% set s = "<script>old();</script>" %}');
+      hiddenThenLive(file, `{{ "<script>old();</script>" }}`);
+      hiddenThenLive(file, `{{- '<script>old();</script>' -}}`);
+    });
+  }
+
+  it('Twig: a </script> inside a tag in a block does not end the block', () => {
+    const view = `<script>var s = "{{ '</script>' }}"; track();</script>`;
+    const copies = extract('a.twig', view);
+    expect(copies).toHaveLength(1);
+    expect(copies[0]).toContain(' track();');
+  });
+
+  for (const file of ['a.jsp', 'a.jspf', 'a.tag']) {
+    it(`${file}: a JSP comment, a scriptlet string, an expression and an EL string`, () => {
+      hiddenThenLive(file, '<%-- <script>old();</script> --%>');
+      hiddenThenLive(file, ['<%--', '  <script>', '    old();', '  </script>', '--%>'].join('\n'));
+      hiddenThenLive(file, '<% String s = "<script>old();</script>"; %>');
+      hiddenThenLive(file, '<%= "<script>old();</script>" %>');
+      hiddenThenLive(file, '${"<script>old();</script>"}');
+      hiddenThenLive(file, '<c:out value="<script>old();</script>" escapeXml="false"/>');
+    });
+  }
+
+  for (const file of ['a.cshtml', 'a.razor']) {
+    it(`${file}: a Razor comment, and a C# string or comment in code`, () => {
+      hiddenThenLive(file, '@* <script>old();</script> *@');
+      hiddenThenLive(file, ['@*', '  <script>', '    old();', '  </script>', '*@'].join('\n'));
+      hiddenThenLive(file, '@{ var s = "<script>old();</script>"; }');
+      hiddenThenLive(file, ['@{', '    // <script>old();</script>', '    var n = 1;', '}'].join('\n'));
+      hiddenThenLive(file, '@("<script>old();</script>")');
+      hiddenThenLive(file, '@Html.Raw("<script>old();</script>")');
+      hiddenThenLive(file, '@if (x) { var s = @"<script>old();</script>"; }');
+      hiddenThenLive(file, '@code { string s = $"<script>old({n});</script>"; }');
+    });
+
+    it(`${file}: a script that is markup inside a code or control block is still read`, () => {
+      for (const view of [
+        ['@{', '    <script>', "        gtag('config', 'x');", '    </script>', '}', ''].join('\n'),
+        ['@if (Model.Track)', '{', '    <script>', "        gtag('config', 'x');", '    </script>', '}', ''].join('\n'),
+        ['@section Scripts {', '    <script>', "        gtag('config', 'x');", '    </script>', '}', ''].join('\n'),
+        ['@{ var title = "Home"; }', '<script>', "    gtag('config', 'x');", '</script>', ''].join('\n'),
+      ]) {
+        const copies = extract(file, view);
+        expect(copies.filter((c) => c.includes("gtag('config', 'x');")), view).toHaveLength(1);
+      }
+    });
+
+    // Markup inside a code or control block is markup to its closing tag, as Razor reads it, never C#: a `//` in a
+    // URL, a `/*`, a lone quote or apostrophe in its text is not a C# comment or string, so it hides no live
+    // script after it, on its line or on a later one (#12882).
+    it(`${file}: the text of markup inside a code block is not read as C#`, () => {
+      for (const view of [
+        '@if (x) { <p>see http://example.com</p> <script>live();</script> }',
+        '@if (x) { <p>see <a href="http://example.com/">it</a></p> <script>live();</script> }',
+        ['@if (x)', '{', '  <p>a /* b</p>', '}', '<script>live();</script>', '@if (y) { <p>*/</p> }'].join('\n'),
+        '@if (x) { <p>5" wide</p> <script>live();</script> }',
+        '@if (x) { <p>5" wide</p> <p>"</p> <script>live();</script> <p>"</p> }',
+        "@if (x) { <p>Don't</p> <script>live();</script> }",
+        '@{ <!-- see http://example.com --> <script>live();</script> }',
+        '@foreach (var i in Model) { <div><div>// a</div></div> <script>live();</script> }',
+        '@{ var n = 1; <p>// n</p> <script>live();</script> }',
+        '@switch (x) { case 1: <p>// one</p> <script>live();</script> break; }',
+        '@{ Func<object, object> t = @<p>// x</p>; } <script>live();</script>',
+        '@if (x) { <p>@Model.Name // x</p><script>live();</script> }',
+      ]) {
+        const copies = extract(file, view);
+        expect(copies.filter((c) => c.includes('live();')), view).toHaveLength(1);
+      }
+    });
+
+    it(`${file}: C# in the code a block's markup holds still hides a script in its strings and comments`, () => {
+      hiddenThenLive(file, '@if (x) { <p>@Html.Raw("<script>old();</script>")</p> }');
+      hiddenThenLive(file, '@if (x) { <div>@{ var s = "<script>old();</script>"; }</div> }');
+      hiddenThenLive(file, '@if (x) { <ul>@foreach (var i in l) { <li>@i</li> var s = "<script>old();</script>"; }</ul> }');
+      // A `<` that is not at the start of a statement is C#: a comparison or a type argument, never markup.
+      hiddenThenLive(file, '@{ for (var i = 0; i <n; i++) { var s = "<script>old();</script>"; } }');
+      hiddenThenLive(file, '@{ List<int> xs = new(); var s = "<script>old();</script>"; }');
+      hiddenThenLive(file, '@{ var b = a <b; var s = "<script>old();</script>"; }');
+    });
+  }
+
+  it('the Razor search grows near-linearly over start tags that never end, and costs what a plain view does', () => {
+    // A `<tag` with no `>` is read for up to 4,000 characters before it is let go. Unbudgeted, a file of them cost
+    // that much each (7-11 s at 5 MB): the cost grew with the square of the file up to that bound, and past it
+    // stayed thousands of times what a well-formed view of its size costs.
+    const plain = (n: number): string => '<script>a();</script>\n' + '@if (a) { <p>x</p> }\n'.repeat(n / 21);
+    for (const [name, body] of [
+      ['tags without a ">" on lines of their own', (n: number) => '<script>a();</script>\n@{\n<p>\n' + '<a\n'.repeat(n / 3) + '}\n'],
+      ['tags with an open quote on one line', (n: number) => '<script>a();</script>\n@{ <p>' + '<a "'.repeat(n / 4) + '\n}\n'],
+      ['tags with an open attribute value', (n: number) => '<script>a();</script>\n@{ <p>\n' + '<a x="\n'.repeat(n / 7) + '}\n'],
+      ['tags at the start of statements', (n: number) => '<script>a();</script>\n@{ ' + '<a;'.repeat(n / 3) + ' }\n'],
+      ['tags before a ">" out of their reach', (n: number) => '<script>a();</script>\n@{\n<p>\n' + '<a\n'.repeat(n / 3) + ' '.repeat(5_000) + '>\n}\n'],
+    ] as const) {
+      const run = (t: string): unknown => blankOutsideScripts(t, { razor: true });
+      const m = measureScaling({ small: 1_000, large: 10_000, setup: body, run });
+      expect(m.result, name).not.toBeNull();
+      expectNearLinear(m, `the Razor script search over ${name}`);
+      expectCostLike(plain(200_000), body(200_000), run, `the Razor script search over ${name}`);
+    }
+  });
+
+  it('the Razor search grows near-linearly over markup inside code blocks, on long lines and where it never closes', () => {
+    for (const [name, body] of [
+      // Where an element would end if it never closed (its line's end) is found only when it does not close: found
+      // for every element, it cost each one the rest of its line, so a long line was quadratic (#12882, #13208).
+      ['closed elements on one line', (n: number) => '@if (a) { <p>x</p> }'.repeat(n / 20) + '\n<script>a();</script>'],
+      ['20 long lines of closed elements', (n: number) => '@if (a) {\n' + ('<p>x</p>'.repeat(n / 160) + '\n').repeat(20) + '}\n<script>a();</script>'],
+      ['elements with Razor code on one line', (n: number) => '@{ ' + '<p>@Model.X</p>'.repeat(n / 15) + ' }\n<script>a();</script>'],
+      ['unclosed elements', (n: number) => '@if (a) { <div> }\n'.repeat(n / 18) + '<script>a();</script>'],
+      ['elements around unclosed code', (n: number) => '@if (a) { <p>@( </p> }\n'.repeat(n / 23) + '<script>a();</script>'],
+      ['nested elements', (n: number) => '@{ ' + '<b>'.repeat(n / 7) + '</b>'.repeat(n / 7) + ' }\n<script>a();</script>'],
+      ['elements and blocks nested in turn', (n: number) => '@{ ' + '<b>@{ '.repeat(n / 13) + '} </b>'.repeat(n / 13) + ' }\n<script>a();</script>'],
+    ] as const) {
+      const m = measureScaling({ small: 20_000, large: 200_000, setup: body, run: (t) => blankOutsideScripts(t, { razor: true }) });
+      expect(m.result, name).not.toBeNull();
+      expect(m.result!.text, name).toContain('a();');
+      expectNearLinear(m, `the Razor script search over ${name}`);
+    }
+  });
+
+  it('Blade: a Blade comment, an echo, a raw echo and a @php span', () => {
+    hiddenThenLive('a.blade.php', '{{-- <script>old();</script> --}}');
+    hiddenThenLive('a.blade.php', ['{{--', '  <script>', '    old();', '  </script>', '--}}'].join('\n'));
+    hiddenThenLive('a.blade.php', `{{ "<script>old();</script>" }}`);
+    hiddenThenLive('a.blade.php', `{!! '<script>old();</script>' !!}`);
+    hiddenThenLive('a.blade.php', ['@php', '  $s = "<script>old();</script>";', '@endphp'].join('\n'));
+  });
+
+  it('Blade: a live script inside a directive block is still read', () => {
+    const view = ["@push('scripts')", '<script>', "  gtag('config', 'x');", '</script>', '@endpush', ''].join('\n');
+    expect(extract('a.blade.php', view)).toHaveLength(1);
+    const cond = ['@if ($track)', '<script>', "  gtag('config', 'x');", '</script>', '@endif', ''].join('\n');
+    expect(extract('a.blade.php', cond)).toHaveLength(1);
+  });
+
+  it('the search for script blocks grows near-linearly over each view\'s worst-case shapes', () => {
+    for (const [name, opts, body] of [
+      ['Razor code blocks with script strings', { razor: true }, (n: number) => '@{ var s = "<script>"; }\n'.repeat(n / 25) + '<script>a();</script>'],
+      ['Razor implicit calls', { razor: true }, (n: number) => '@x("<script>")'.repeat(n / 14) + '<script>a();</script>'],
+      ['Razor control blocks', { razor: true }, (n: number) => '@if (a) { <b>"</b> }\n'.repeat(n / 20) + '<script>a();</script>'],
+      ['Razor unclosed openers', { razor: true }, (n: number) => '<script>a();</script>' + '@{ @( @x( '.repeat(n / 10)],
+      ['Twig comments', { twig: true }, (n: number) => '{# <script> #}'.repeat(n / 14) + '<script>a();</script>'],
+      ['JSP comments and EL', { jsp: true }, (n: number) => '<%-- <script> --%>${a}'.repeat(n / 22) + '<script>a();</script>'],
+      ['Blade comments and directives', { blade: true }, (n: number) => '{{-- <script> --}}@if($a)'.repeat(n / 25) + '<script>a();</script>'],
+    ] as const) {
+      const m = measureScaling({ small: 2_000, large: 20_000, setup: body, run: (t) => blankOutsideScripts(t, opts) });
+      expect(m.result, name).not.toBeNull();
+      expectNearLinear(m, `the script search over ${name}`);
+    }
+  });
+
+  // A tag, comment or expression that never closes is a template error; in the search for script blocks it is
+  // blanked to the end of its line, never to the end of the file, so the scripts after it are still read. One that
+  // closes on a later line is still blanked to its closer (#12882).
+  const unterminated: [string, string][] = [
+    ...['a.twig', 'a.html.tera', 'a.jinja', 'a.j2', 'a.njk'].flatMap((f) =>
+      ['{{ x', '{%- if x', '{# note', '{{ "abc', "{% set a = 'b", '{{ [1, 2', '{{ {a: 1'].map((o): [string, string] => [f, o]),
+    ),
+    ...['<% x', '<%= x', '<%# x', '<%- x'].map((o): [string, string] => ['a.html.erb', o]),
+    ...['<% x', '<%-- x', '<%= x', '${x', '#{x', '${"abc', "#{'a"].map((o): [string, string] => ['a.jsp', o]),
+    ...['{{ x', '{!! x', '{{-- x', '@php', '@{{ x'].map((o): [string, string] => ['a.blade.php', o]),
+    ['a.cshtml', '@* x'],
+    ['a.razor', '@* x'],
+  ];
+  for (const [file, opener] of unterminated) {
+    it(`${file}: an unterminated ${opener} hides no script after its line`, () => {
+      const view = [`<p>${opener}</p>`, '<script>', "  gtag('config', 'x');", '</script>', ''].join('\n');
+      const copies = extract(file, view);
+      expect(copies, view).toHaveLength(1);
+      sameShape(view, copies[0]!);
+      expect(lines(copies[0]!)[2]).toBe("  gtag('config', 'x');");
+      // A script on the opener's own line is inside it, as far as the template can tell; Blade prints an escaped
+      // echo (`@{{`) as written, so a script after one is live.
+      if (opener !== '@{{ x') expect(extract(file, `${opener} <script>old();</script>\n`), opener).toEqual([]);
+    });
+  }
+
+  it('a tag that closes on a later line is still blanked to its closer', () => {
+    hiddenThenLive('a.twig', ['{% set s = {', "  a: '<script>old();</script>'", '} %}'].join('\n'));
+    hiddenThenLive('a.html.erb', ['<%', "  s = '<script>old();</script>'", '%>'].join('\n'));
+    hiddenThenLive('a.jsp', ['${ x ? ', "  '<script>old();</script>' : y }"].join('\n'));
+    hiddenThenLive('a.blade.php', ['{{ $x', "  ?? '<script>old();</script>' }}"].join('\n'));
+  });
+
+  it('the script search grows near-linearly over a line each of unterminated openers', () => {
+    for (const [name, opts, opener] of [
+      ['Twig tags', { twig: true }, '{{ x'],
+      ['Twig tags with an open bracket', { twig: true }, '{{ [1'],
+      ['Twig tags with an open quote', { twig: true }, '{% set a = "b'],
+      ['Twig comments', { twig: true }, '{# x'],
+      ['ERB tags', { erb: true }, '<% x'],
+      ['JSP tags', { jsp: true }, '<% x'],
+      ['JSP comments', { jsp: true }, '<%-- x'],
+      ['JSP EL with an open brace', { jsp: true }, '${ {a'],
+      ['JSP EL with an open quote', { jsp: true }, '${ "a'],
+      ['Blade echoes', { blade: true }, '{{ $x'],
+      ['Blade @php', { blade: true }, '@php'],
+      ['Razor comments', { razor: true }, '@* x'],
+    ] as const) {
+      const body = (n: number): string => `<p>${opener}</p>\n`.repeat(n / (opener.length + 8)) + '<script>a();</script>';
+      const m = measureScaling({ small: 20_000, large: 200_000, setup: body, run: (t) => blankOutsideScripts(t, opts) });
+      expect(m.result, name).not.toBeNull();
+      expect(m.result!.text, name).toContain('a();');
+      expectNearLinear(m, `the script search over ${name}`);
+    }
+  });
+
+  // Once a file of broken constructs has spent a blanker's budget, the constructs after it are still read the way
+  // they are read before it, only bounded: a Razor element ends with its line, a Blade argument list or a JSP tag is
+  // read for 64 characters. Read as C# again, or not read at all, they lost a live script or kept a hidden one
+  // (re-review 3, R3-A1).
+  describe('after the budget is spent', () => {
+    const razorPrefix = '@{ <p>' + '<a\n'.repeat(17) + 'x'.repeat(4000) + ' }\n';
+    for (const [name, file, body] of [
+      ['Razor after 17 start tags with no ">", a URL in markup', 'a.cshtml', razorPrefix + '@if (x) { <p>see http://example.com</p> <script>live()</script> }\n'],
+      ['Razor after 17 start tags with no ">", a lone quote in markup', 'a.cshtml', razorPrefix + '@if (x) { <br> <p>5" wide</p> <script>live()</script> }\n'],
+      ['Razor after 17 start tags with no ">", a /* in markup', 'a.razor', razorPrefix + '@if (x)\n{\n  <p>a /* b</p>\n}\n<script>live()</script>\n@if (y) { <p>*/</p> }\n'],
+      ['Razor after 10 unclosed <div> blocks', 'a.cshtml', '@if (a) { <div>\n}\n'.repeat(10) + '@if (x) { <p>see http://example.com</p> <script>live()</script> }\n'],
+      ['Blade after 200 unclosed @x( lines, @php(...) then @php ... @endphp', 'a.blade.php', '@x(\n'.repeat(200) + '@php($x = 1)\n<script>live()</script>\n@php\n$y = 2;\n@endphp\n'],
+      ['Blade after 9 unclosed @x( lines and 10 KB, a script string in arguments', 'a.blade.php', '@x(\n'.repeat(9) + 'text '.repeat(2000) + '\n@foo("<script>old()</script>")\n<script>live()</script>\n)\n'],
+      ['JSP after 20 unclosed <a:b x=" lines, a script in an attribute', 'a.jsp', '<a:b x="\n'.repeat(20) + 'text '.repeat(1000) + '\n<c:out value="<script>old()</script>"/>\n<script>live()</script>\n>\n'],
+    ] as const) {
+      it(name, () => {
+        const copies = extract(file, body);
+        expect(copies.filter((c) => c.includes('live()')), name).toHaveLength(1);
+        expect(copies.some((c) => c.includes('old()')), name).toBe(false);
+      });
+    }
+  });
+
+  it('the Razor search grows near-linearly over nested interpolated strings, and over strings that hold a script tag', () => {
+    // Each nested `$"{` is a string literal that holds every one inside it, so the literals' spans add up to the
+    // square of the nesting; asking each span whether it holds a `<script` must not read it again (#13208).
+    for (const [name, body] of [
+      ['nested interpolated strings', (n: number) => '@{ ' + '$"{'.repeat(n / 5) + 'x' + '}"'.repeat(n / 5) + ' }\n<script>a();</script>'],
+      ['nested interpolated strings around a script tag', (n: number) => '@{ ' + '$"{'.repeat(n / 5) + '"<script>"' + '}"'.repeat(n / 5) + ' }\n<script>a();</script>'],
+    ] as const) {
+      const m = measureScaling({ small: 20_000, large: 200_000, setup: body, run: (t) => blankOutsideScripts(t, { razor: true }) });
+      expect(m.result, name).not.toBeNull();
+      expect(m.result!.text, name).toContain('a();');
+      expectNearLinear(m, `the Razor script search over ${name}`);
+    }
+  });
+
+  it('an .html file keeps reading a script that sits inside template-like text', () => {
+    for (const body of ['{# <script>gtag();</script> #}', '<%-- <script>gtag();</script> --%>', '@* <script>gtag();</script> *@', '{{-- <script>gtag();</script> --}}']) {
+      expect(extract('a.html', body), body).toHaveLength(1);
+    }
+  });
+});
+
+// Every template blanker, on one long line and on constructs that never close, in the file search for script blocks
+// and in a script body (and, for Razor, in the C# copy): the cost grows near-linearly with the file, and is about a
+// plain view's of the same size. A blanker change that reads the rest of a line, or a bounded stretch, once per
+// opener fails here (#12882, #13208: a Razor element read its whole line each, a Blade `(` 10,000 characters each).
+describe('every template blanker stays linear on long lines and unclosed constructs', () => {
+  const modes = [
+    ['Razor', { razor: true }, '@if (a) { <p>x</p> }\n', ['@if (a) { <p>x</p> }', '@{ <p>@Model.X</p> }', '@{ <a', '@{ <p><a "', '@* x', '@(', '@{', '@x(', '@if (a) { <div> }', '@: x', '$"{', '@{ <!--']],
+    ['Blade', { blade: true }, '@if($a) {{ $x }} @endif\n', ['{{ x }}', '{{ x', '{!! x', '{{-- x', '@x(', '@x("', '@php', '<?php x']],
+    ['PHP', { php: true }, '<p><?= $x ?></p>\n', ['<?php x ?>', '<?php x', '<? "', '<? /*', '<? <<<A\n']],
+    ['Twig, Jinja, Nunjucks and Tera', { twig: true }, '<p>{{ x }}</p>\n', ['{{ x }}', '{{ x', '{% x', '{# x', '{{ [', '{{ "']],
+    ['ERB', { erb: true }, '<p><%= x %></p>\n', ['<%= x %>', '<% x', '<%# x']],
+    ['JSP', { jsp: true }, '<c:out value="${x}"/>\n', ['<%= x %>', '<% x', '<%-- x', '${x', '${"', '<a:b x="', '<a:b ']],
+    ['HTML', {}, '<p>x</p>\n', ['<!--', '<p>', '<a "']],
+  ] as const;
+  const fill = (unit: string, n: number, sep = ''): string => (unit + sep).repeat(Math.max(1, Math.floor(n / (unit.length + sep.length))));
+  const shapes = [
+    ['on one line', (u: string, n: number) => '<script>a();</script>\n' + fill(u, n) + '\n<p>(a)</p>\n'],
+    ['a line each', (u: string, n: number) => '<script>a();</script>\n' + fill(u, n, '\n') + '<p>(a)</p>\n'],
+    ['on 20 long lines', (u: string, n: number) => '<script>a();</script>\n' + Array.from({ length: 20 }, () => fill(u, n / 20)).join('\n') + '\n<p>(a)</p>\n'],
+    ['in a script body on one line', (u: string, n: number) => '<script>\n' + fill(u, n) + '\na();</script>\n'],
+  ] as const;
+  for (const [mode, opts, plainUnit, units] of modes) {
+    it(`${mode}`, () => {
+      const run = (t: string): unknown => {
+        const r = blankOutsideScripts(t, opts);
+        if (mode === 'Razor') razorCSharp('@code {\n' + t + '\n}');
+        return r;
+      };
+      // A plain view holds a script too, so it is searched the same way and does not stop at the first look.
+      const plain = '<script>a();</script>\n' + fill(plainUnit, 200_000) + '<script>\n' + fill(plainUnit, 20_000) + 'a();</script>\n';
+      for (const unit of units) {
+        for (const [shape, make] of shapes) {
+          const what = `${mode}: ${JSON.stringify(unit)} ${shape}`;
+          // Both sizes past the blankers' fixed 65,536-character budget, so both measure the same regime: at 2,000 a
+          // file of unclosed openers fits inside it and one opener can swallow the rest, which made the pair read up
+          // to 34x for linear code. A bounded rescan is the plain-view check's to see.
+          expectNearLinear(measureScaling({ small: 20_000, large: 200_000, setup: (n) => make(unit, n), run }), what);
+          expectCostLike(plain, make(unit, 200_000), run, what);
+        }
+      }
+    });
+  }
 });

@@ -122,8 +122,24 @@ export interface EngineMatch {
   ruleId: string;
   path: string;
   line: number;
+  /** Each metavariable as the engine prints it (`abstract_content`). */
   metavars: Record<string, string>;
   lines: string;
+  /**
+   * Each metavariable as the file holds it, sliced from `lines` by the engine's position for it; absent for
+   * one bound outside the match's lines. The printed text drops most interpolations' braces (#12882).
+   */
+  source?: Record<string, string>;
+}
+
+/**
+ * One engine error about one file: the file was not parsed in full (`parse`), a rule ran past the engine's
+ * per-rule, per-file time limit on it (`timeout`), it was past the engine's size, memory or match limits
+ * (`limit`), or another per-file error (`other`).
+ */
+export interface UnreadFile {
+  path: string;
+  reason: 'parse' | 'timeout' | 'limit' | 'other';
 }
 
 export interface ScopeSpec { include: string[]; exclude: string[]; includeTests: boolean }

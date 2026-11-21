@@ -30,10 +30,16 @@ language and manifest is read, rule by rule, is in
 | Dependencies and build output | `node_modules`, `vendor`, `dist`, `build`, `.git`, `Pods`, `Carthage`, and a legacy NuGet restore folder (a `packages` directory whose subdirectories hold a `.nupkg`; a `packages/` of your own code is read) |
 | Minified or bundled files | Including any named `*.min.js`, `*.bundle.js`, `vendor.*.js` or `*.vendor.js` |
 | C# the compiler generated | `*.g.cs` and `*.g.i.cs` (a `*.Designer.cs` is read) |
-| Generated Swift | `*.generated.swift`, `*+Generated.swift`, `*.pb.swift`, `*.grpc.swift`, and anything under a directory named `GeneratedSources`, where swift-openapi-generator writes its output (the name is case-sensitive) |
+| Generated Swift | `*.generated.swift`, `*+Generated.swift`, `*.pb.swift`, `*.grpc.swift`, and any `.swift` file under a directory named `GeneratedSources`, where swift-openapi-generator writes its output (the name is case-sensitive, and other files there are read) |
 | Other generated code | A file with a line over 100,000 characters (counted in a notice) |
 | Links and large files | Symbolic links, and files over 5 MB |
 | Files you cannot open | Counted in a notice |
+
+A file the engine could not read in full is named in a notice, with the
+reason: it did not parse in full, a rule ran past the engine's 30-second
+limit on it, or it was past the engine's size, memory or match limits. The
+time limit is wall-clock time, so on a loaded machine two scans of the same
+code can name different files.
 
 ### Tests, unless you pass `--include-tests`
 
@@ -73,7 +79,8 @@ missing activity there reads as "not checked", never as "not there".
 
 | View | Files | What is read |
 |---|---|---|
-| Vue, Svelte, HTML, Jinja | `.vue`, `.svelte`, `.html`, `.htm`, `.jinja`, `.jinja2`, `.j2`, `.njk` | The `<script>` blocks, as JavaScript |
+| Vue, Svelte, HTML | `.vue`, `.svelte`, `.html`, `.htm` | The `<script>` blocks, as JavaScript |
+| Jinja and Nunjucks | `.jinja`, `.jinja2`, `.j2`, `.njk` | Only the `<script>` blocks, as JavaScript |
 | ERB | `.erb`, so `.html.erb` | Only the `<script>` blocks, as JavaScript |
 | JSP | `.jsp`, `.jspf`, `.tag` | Only the `<script>` blocks, as JavaScript |
 | Twig | `.twig`, so `.html.twig` | Only the `<script>` blocks, as JavaScript |
@@ -81,8 +88,9 @@ missing activity there reads as "not checked", never as "not there".
 | Razor | `.cshtml`, `.razor` | The `<script>` blocks as JavaScript, and the `@code` and `@functions` blocks as C# |
 | PHP and Blade | `.php`, `.phtml`, `.blade.php` | The whole file as PHP, and its `<script>` blocks as JavaScript as well |
 
-In an ERB, JSP, Twig, Tera or Razor view, the Ruby, Java, C# or template code
-inside the tags is not read. The tags are blanked, so line numbers hold.
+In a Jinja, Nunjucks, ERB, JSP, Twig, Tera or Razor view, the Ruby, Java, C#
+or template code inside the tags is not read. The tags are blanked, so line
+numbers hold.
 
 ### Apple app configuration
 

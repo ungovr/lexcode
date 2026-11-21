@@ -12,7 +12,7 @@ import {
   unreadLanguages,
 } from '../../src/record/build.js';
 import { loadRuleSet } from '../../src/rules/load.js';
-import type { RuleMeta, Sidecar } from '../../src/types.js';
+import type { RuleMeta, Sidecar, UnreadFile } from '../../src/types.js';
 import { NOW, SCOPE, match, ruleSetWith } from '../helpers/record.js';
 import { expectNearLinear, measureScaling } from '../helpers/scaling.js';
 
@@ -205,6 +205,43 @@ describe('buildRecord', () => {
       expect(r.activities).toEqual([]);
       expect(r.signals[0]?.evidence[0]?.host).toBe('www.gov.example');
     });
+
+    // An interpolated URL is read from the text the file holds (`source`), where its holes are; the printed
+    // text has lost them, so without a source it stays a signal (#12882).
+    describe('an interpolated URL read from its source text (#12882)', () => {
+      const withSource = (printed: string, written: string, own: string[] = []) =>
+        buildRecord({
+          ...base,
+          rs,
+          sidecar: { ignore: [], fail_on_enables: false, own_hosts: own, include: [], exclude: [] },
+          matches: [{ ...match('lexcode.crawl.fetch', 'c.rb', 8, { $URL: printed }), source: { $URL: written } }],
+        });
+
+      it('a third-party host before the hole is evidence with that host', () => {
+        const r = withSource('"""https://www.gov.example/p/#{id}"', '"https://www.gov.example/p/#{id}"');
+        expect(r.activities[0]?.evidence[0]?.host).toBe('www.gov.example');
+        expect(r.signals).toEqual([]);
+      });
+
+      it('an own host before the hole is dropped', () => {
+        expect(withSource('"""https://api.example.org/v1/#{id}"', '"https://api.example.org/v1/#{id}"', ['example.org']).activities).toEqual([]);
+        expect(withSource('``/api/${id}`', '`/api/${id}`').signals).toEqual([]);
+      });
+
+      it('a hole in the host stays a signal, never dropped', () => {
+        for (const [printed, written] of [['"""#{base}/x"', '"#{base}/x"'], ['f"https://host/x"', 'f"https://{host}/x"']] as const) {
+          const r = withSource(printed, written);
+          expect(r.activities, written).toEqual([]);
+          expect(r.signals, written).toHaveLength(1);
+        }
+      });
+
+      it('without a source the printed interpolation stays a signal', () => {
+        const r = run('"""https://www.gov.example/p/#{id}"');
+        expect(r.activities).toEqual([]);
+        expect(r.signals).toHaveLength(1);
+      });
+    });
   });
 
   describe('sidecar ignores', () => {
@@ -257,11 +294,62 @@ describe('buildRecord', () => {
 
   it('notes files the engine could not read', () => {
     const r = buildRecord({ ...base, rs: ruleSetWith(), fileErrors: 3 });
-    expect(r.notices).toContain('the engine could not read 3 files; their evidence is missing from this record');
+    expect(r.notices).toContain('the engine could not read 3 files in full; evidence in them may be missing from this record');
     expect(buildRecord({ ...base, rs: ruleSetWith(), fileErrors: 1 }).notices).toContain(
-      'the engine could not read 1 file; its evidence is missing from this record',
+      'the engine could not read 1 file in full; evidence in it may be missing from this record',
     );
     expect(buildRecord({ ...base, rs: ruleSetWith() }).notices).toEqual([]);
+  });
+
+  // A reader cannot tell whether a key file is among the unread ones unless the record names them (#13209,
+  // #13303, #12745 item 4). A rule's time limit is wall-clock, so that count moves with load (#12882).
+  describe('names the files the engine could not read in full', () => {
+    const notice = (unreadFiles: UnreadFile[], fileErrors = unreadFiles.length) =>
+      buildRecord({ ...base, rs: ruleSetWith(), fileErrors, unreadFiles }).notices.filter((n) => n.startsWith('the engine'));
+
+    it('by reason, each file once, sorted, and the count is of files, not errors', () => {
+      expect(
+        notice(
+          [
+            { path: 'src/b.rb', reason: 'parse' },
+            { path: 'src/a.rb', reason: 'parse' },
+            { path: 'src/a.rb', reason: 'parse' },
+            { path: 'web/c.js', reason: 'timeout' },
+            { path: 'web/c.js', reason: 'timeout' },
+            { path: 'gen/d.js', reason: 'limit' },
+            { path: 'x/e.py', reason: 'other' },
+          ],
+          7,
+        ),
+      ).toEqual([
+        'the engine could not read 5 files in full; evidence in them may be missing from this record. ' +
+          'Not parsed in full: src/a.rb, src/b.rb. ' +
+          "A rule ran past the engine's 30-second limit on: web/c.js (the limit is wall-clock time, so this list can change with machine load between runs of the same code). " +
+          "Past the engine's size, memory or match limits: gen/d.js. " +
+          'Other engine errors: x/e.py.',
+      ]);
+    });
+
+    it('one file with two reasons is counted once and named under both', () => {
+      expect(notice([{ path: 'a.rb', reason: 'parse' }, { path: 'a.rb', reason: 'timeout' }])[0]).toMatch(
+        /^the engine could not read 1 file in full; evidence in it may be missing from this record\. Not parsed in full: a\.rb\. A rule ran past .* on: a\.rb \(/,
+      );
+    });
+
+    it('names the first 10 of a reason and counts the rest', () => {
+      const many = Array.from({ length: 13 }, (_, i) => ({ path: `f${String(i).padStart(2, '0')}.rb`, reason: 'parse' as const }));
+      expect(notice(many)[0]).toBe(
+        'the engine could not read 13 files in full; evidence in them may be missing from this record. ' +
+          'Not parsed in full: f00.rb, f01.rb, f02.rb, f03.rb, f04.rb, f05.rb, f06.rb, f07.rb, f08.rb, f09.rb and 3 more.',
+      );
+    });
+
+    it('counts an error the engine gave no path for, without naming it', () => {
+      expect(notice([{ path: 'a.rb', reason: 'parse' }], 2)[0]).toBe(
+        'the engine could not read 2 files in full; evidence in them may be missing from this record. Not parsed in full: a.rb. ' +
+          'The engine named no file for 1 more error.',
+      );
+    });
   });
 
   it('carries extra notices from the scan before its own', () => {
@@ -788,6 +876,24 @@ describe('the notice for files past a whole-file pre-filter\'s reach', () => {
     // A rule over every file (generic) reads the original as text, so it still counts there.
     const every = ruleSetWith([{ id: 'lexcode.a.g', languages: ['generic'], wholeFilePrefilter: true }]);
     expect(largePrefilteredFiles(only(every), ['pascal/huge.inc'], () => big)).toEqual([{ language: 'PHP', files: 1 }]);
+  });
+
+  // A generic rule reads every file only when it has no `paths.include`: one limited to plists (the Apple
+  // config rules' shape) counts only large plists, not every file over 1 MB in the repository (#13303).
+  it("follows a rule's paths.include, a generic rule's included", () => {
+    const plist = ruleSetWith([{ id: 'lexcode.a.plist', languages: ['generic'], wholeFilePrefilter: true, include: ['*.plist'] }]);
+    const targets = ['App/Info.plist', 'big.rb', 'big.py', 'data/huge.json', 'small.plist'];
+    const size = (f: string): number => (f === 'small.plist' ? 10 : big);
+    expect(largePrefilteredFiles(only(plist), targets, size)).toEqual([{ language: 'XML', files: 1 }]);
+    const asked: string[] = [];
+    largePrefilteredFiles(only(plist), targets, (f) => (asked.push(f), size(f)));
+    expect(asked.sort()).toEqual(['App/Info.plist', 'small.plist']);
+    // A language rule's include narrows it the same way.
+    const gradle = ruleSetWith([{ id: 'lexcode.a.kts', languages: ['kotlin'], wholeFilePrefilter: true, include: ['build.gradle.kts'] }]);
+    expect(largePrefilteredFiles(only(gradle), ['build.gradle.kts', 'src/Big.kt'], () => big)).toEqual([{ language: 'Kotlin', files: 1 }]);
+    // Unchanged on a repository of big files the rules read by language.
+    const java = ruleSetWith([{ id: 'lexcode.a.java', languages: ['java'], wholeFilePrefilter: true }]);
+    expect(largePrefilteredFiles(only(java), ['A.java', 'B.java', 'c.py'], () => big)).toEqual([{ language: 'Java', files: 2 }]);
   });
 
   it('asks the size only of files in a pre-filtered language', () => {

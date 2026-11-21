@@ -1,6 +1,6 @@
 import { posix } from 'node:path';
 import { classOf } from '../rules/load.js';
-import { ROOT_LINK } from '../engine/run.js';
+import { ENGINE_TIMEOUT_SECONDS, ROOT_LINK } from '../engine/run.js';
 import { COPIED_WHOLE_EXTENSIONS } from '../scope/extract.js';
 import type {
   ActivityRow,
@@ -15,6 +15,7 @@ import type {
   ScopeInfo,
   Sidecar,
   SignalRow,
+  UnreadFile,
 } from '../types.js';
 import { isOwnHost, urlLiteral } from './hosts.js';
 
@@ -30,7 +31,10 @@ export interface BuildInput {
   engineVersion: string;
   snippets: boolean;
   now: Date;
+  /** How many per-file errors the engine reported, with a path or without. */
   fileErrors: number;
+  /** One entry per per-file error that names its file, with the original's path for an extracted copy. */
+  unreadFiles?: UnreadFile[];
   /** Notices the scan collected before the record was built; they come first. */
   notices?: string[];
 }
@@ -241,21 +245,15 @@ export interface EnginePlan {
   targets: string[];
 }
 
+/** Which of `files` a rule reads, by index (`'all'` for every one), and whether that makes it run. */
+type RuleReach = (rule: RuleMeta) => { runs: boolean; reads: number[] | 'all' };
+
 /**
- * The rules worth running and the files worth reading. A rule reads the files with one of its languages'
- * extensions (every file, for `generic` and `regex`) that its `paths.include`, when it has one, can match; a
- * rule with no such file is left out of the engine's config, and a file no rule reads is not handed over.
- *
- * Both matter for speed (#12997). The engine parses the whole config again for every run of targets, and
- * parsing the 60 PHP rules alone cost about 2.6 s a run on a repository with no PHP. And a `generic` rule
- * limited to `pyproject.toml` once put every file in the target list, 53,444 photographs included, so the
- * UnGovr monorepo took eight engine runs where its 9,488 readable files fit in one.
- *
- * A language rule's file counts as read only when it is not an original the engine reads through a whole-file
- * copy (`COPIED_WHOLE_EXTENSIONS`): such an original alone does not make the rule run. When the rule runs, the
- * original is still handed over, as before.
+ * The files of `files` each rule reads: one of its languages' extensions (every file, for `generic` and `regex`)
+ * that its `paths.include`, when it has one, can match. Results are shared between rules with the same
+ * extensions and include, so asking for every rule of a set costs one pass per distinct pair.
  */
-export function enginePlan(rules: RuleMeta[], files: string[]): EnginePlan {
+function ruleReach(files: string[]): RuleReach {
   const exts = files.map(engineExtension);
   const byExt = new Map<string, number[]>();
   exts.forEach((e, i) => {
@@ -276,7 +274,7 @@ export function enginePlan(rules: RuleMeta[], files: string[]): EnginePlan {
 
   /** Per distinct (extensions, include) pair: whether a rule with it runs, and which files it reads. */
   const seen = new Map<string, { runs: boolean; reads: number[] | 'all' }>();
-  const reach = (rule: RuleMeta): { runs: boolean; reads: number[] | 'all' } => {
+  return (rule) => {
     const ruleExts = extensionsOf(rule);
     const key = `${ruleExts === 'all' ? '*' : [...new Set(ruleExts)].sort().join(',')}\0${(rule.include ?? []).join('\0')}`;
     const known = seen.get(key);
@@ -312,7 +310,24 @@ export function enginePlan(rules: RuleMeta[], files: string[]): EnginePlan {
     seen.set(key, result);
     return result;
   };
+}
 
+/**
+ * The rules worth running and the files worth reading. A rule reads the files with one of its languages'
+ * extensions (every file, for `generic` and `regex`) that its `paths.include`, when it has one, can match; a
+ * rule with no such file is left out of the engine's config, and a file no rule reads is not handed over.
+ *
+ * Both matter for speed (#12997). The engine parses the whole config again for every run of targets, and
+ * parsing the 60 PHP rules alone cost about 2.6 s a run on a repository with no PHP. And a `generic` rule
+ * limited to `pyproject.toml` once put every file in the target list, 53,444 photographs included, so the
+ * UnGovr monorepo took eight engine runs where its 9,488 readable files fit in one.
+ *
+ * A language rule's file counts as read only when it is not an original the engine reads through a whole-file
+ * copy (`COPIED_WHOLE_EXTENSIONS`): such an original alone does not make the rule run. When the rule runs, the
+ * original is still handed over, as before.
+ */
+export function enginePlan(rules: RuleMeta[], files: string[]): EnginePlan {
+  const reach = ruleReach(files);
   const sent: RuleMeta[] = [];
   const take = new Uint8Array(files.length);
   let takeAll = false;
@@ -348,34 +363,42 @@ function languageName(ext: string): string {
 }
 
 /**
- * Per language, how many of the files handed to the engine are over PREFILTER_REACH_BYTES and in a language
- * that at least one loaded rule pre-filters with a whole-file lookahead: most first, then by name. The
- * languages come from the loaded rules (`wholeFilePrefilter`), so a rule added for another language, or
- * one from `--rules`, moves the set with it; `bytesOf` is asked only about files in those languages.
+ * Per language, how many of the files handed to the engine are over PREFILTER_REACH_BYTES and read by at least
+ * one loaded rule that pre-filters with a whole-file lookahead: most first, then by name. The files come from
+ * the loaded rules (`wholeFilePrefilter`, their languages and `paths.include`), so a rule added for another
+ * language, or one from `--rules`, moves the set with it; `bytesOf` is asked only about files such a rule reads.
  */
 export function largePrefilteredFiles(
   rules: RuleMeta[],
   targets: string[],
   bytesOf: (file: string) => number,
 ): { language: string; files: number }[] {
-  const exts = new Set<string>();
+  const prefiltered = rules.filter((r) => r.wholeFilePrefilter);
+  if (prefiltered.length === 0) return [];
+  // The files a pre-filtered rule reads, as `enginePlan` hands them over: by language and `paths.include`, so a
+  // generic rule limited to plists counts only plists (#13303). A language rule reads an `.inc` or `.rake`
+  // original only through its copy, which is a target of its own; a generic rule reads the original as text.
+  const reach = ruleReach(targets);
+  const read = new Uint8Array(targets.length);
   let all = false;
-  for (const r of rules) {
-    if (!r.wholeFilePrefilter) continue;
-    const e = extensionsOf(r);
-    if (e === 'all') all = true;
-    else for (const x of e) exts.add(x);
+  for (const r of prefiltered) {
+    const { reads } = reach(r);
+    if (reads === 'all') {
+      all = true;
+      break;
+    }
+    const generic = extensionsOf(r) === 'all';
+    for (const i of reads) {
+      if (generic || !COPIED_WHOLE_EXTENSIONS.has(posix.extname(targets[i] as string).toLowerCase())) read[i] = 1;
+    }
   }
-  if (!all && exts.size === 0) return [];
   const counts = new Map<string, number>();
-  for (const f of targets) {
-    const ext = posix.extname(f).toLowerCase();
-    // A language rule reads an `.inc` or `.rake` original only through its copy, which is a target of its own.
-    if (!all && (!exts.has(ext) || COPIED_WHOLE_EXTENSIONS.has(ext))) continue;
-    if (bytesOf(f) <= PREFILTER_REACH_BYTES) continue;
-    const name = languageName(ext);
+  targets.forEach((f, i) => {
+    if (!all && read[i] !== 1) return;
+    if (bytesOf(f) <= PREFILTER_REACH_BYTES) return;
+    const name = languageName(posix.extname(f).toLowerCase());
     counts.set(name, (counts.get(name) ?? 0) + 1);
-  }
+  });
   return [...counts.entries()]
     .map(([language, n]) => ({ language, files: n }))
     .sort((a, b) => b.files - a.files || (a.language < b.language ? -1 : a.language > b.language ? 1 : 0));
@@ -394,6 +417,46 @@ export function prefilterReachNotice(large: { language: string; files: number }[
     `${PREFILTER_REACH_BYTES.toLocaleString('en-US')} bytes (${langs}); rules that first check a whole file for a name can miss ` +
     `matches in a file that large, so evidence in ${plural(n, 'it', 'them')} may be missing from this record`
   );
+}
+
+/** How many files a notice names per reason before it counts the rest. */
+const UNREAD_NAMED = 10;
+
+/**
+ * The notice for the files the engine could not read in full, or undefined when there are none. It names them,
+ * up to UNREAD_NAMED per reason, so a reader can tell whether a key file is among them (#13209, #13303): each
+ * file once per reason, sorted. A file counts once however many errors it had; an error with no path counts as
+ * one more file. A rule's time limit is wall-clock time, so the timed-out files can differ between two runs of
+ * the same code on a loaded machine (#12882: 17 and 29 on one Canvas commit).
+ */
+export function unreadNotice(fileErrors: number, unreadFiles: UnreadFile[]): string | undefined {
+  const unnamed = Math.max(0, fileErrors - unreadFiles.length);
+  const files = new Set(unreadFiles.map((u) => u.path));
+  const n = files.size + unnamed;
+  if (n === 0) return undefined;
+  const parts = [
+    `the engine could not read ${n.toLocaleString('en-US')} ${plural(n, 'file', 'files')} in full; evidence in ${plural(n, 'it', 'them')} may be missing from this record`,
+  ];
+  const named = (reason: UnreadFile['reason']): string | undefined => {
+    const paths = [...new Set(unreadFiles.filter((u) => u.reason === reason).map((u) => u.path))].sort();
+    if (paths.length === 0) return undefined;
+    const shown = paths.slice(0, UNREAD_NAMED).join(', ');
+    return paths.length > UNREAD_NAMED ? `${shown} and ${(paths.length - UNREAD_NAMED).toLocaleString('en-US')} more` : shown;
+  };
+  const parse = named('parse');
+  if (parse !== undefined) parts.push(`Not parsed in full: ${parse}`);
+  const timeout = named('timeout');
+  if (timeout !== undefined) {
+    parts.push(
+      `A rule ran past the engine's ${ENGINE_TIMEOUT_SECONDS}-second limit on: ${timeout} (the limit is wall-clock time, so this list can change with machine load between runs of the same code)`,
+    );
+  }
+  const limit = named('limit');
+  if (limit !== undefined) parts.push(`Past the engine's size, memory or match limits: ${limit}`);
+  const other = named('other');
+  if (other !== undefined) parts.push(`Other engine errors: ${other}`);
+  if (unnamed > 0 && unreadFiles.length > 0) parts.push(`The engine named no file for ${unnamed.toLocaleString('en-US')} more ${plural(unnamed, 'error', 'errors')}`);
+  return parts.length === 1 ? parts[0] : `${parts.join('. ')}.`;
 }
 
 /** The per-activity counts, plus how many code rules (not map entries, not rules for json, yaml or xml settings files) had a file to read. */
@@ -482,8 +545,11 @@ export function buildRecord(i: BuildInput): EvidenceRecord {
     let strength: Item['strength'] = cls === 'signal' ? 'signal' : rule.strength;
     const ev: Evidence = { rule: rule.id, where: `${m.path}:${m.line}` };
     if (rule.hostMetavar !== undefined) {
+      // The text as the file holds it when the engine placed it, so an interpolated URL's host is read (#12882).
+      const written = m.source?.[rule.hostMetavar];
       const value = m.metavars[rule.hostMetavar];
-      const url = value === undefined ? ({ literal: false } as const) : urlLiteral(value);
+      const url =
+        written !== undefined ? urlLiteral(written, { source: true }) : value === undefined ? ({ literal: false } as const) : urlLiteral(value);
       if (url.literal) {
         if (url.host === null || isOwnHost(url.host, ownHosts)) {
           droppedByHost += 1;
@@ -585,13 +651,8 @@ export function buildRecord(i: BuildInput): EvidenceRecord {
         'If your source is in one of those languages, check that the include and exclude lists in .lexcode.yml and lexlint.yml have not left it out; otherwise read this result as "not checked", not as "clean".',
     );
   }
-  if (i.fileErrors > 0) {
-    notices.push(
-      i.fileErrors === 1
-        ? 'the engine could not read 1 file; its evidence is missing from this record'
-        : `the engine could not read ${i.fileErrors} files; their evidence is missing from this record`,
-    );
-  }
+  const unread = unreadNotice(i.fileErrors, i.unreadFiles ?? []);
+  if (unread !== undefined) notices.push(unread);
 
   return {
     schema: 'https://lexlint.io/lexcode/v1',

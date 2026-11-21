@@ -20,6 +20,7 @@ import {
   MAX_LANES,
   memoryBytes,
   memoryLanes,
+  metavarSource,
   runEngine,
   type RunEngineOptions,
 } from '../../src/engine/run.js';
@@ -260,6 +261,102 @@ describe.skipIf(skipStub)('runEngine with the fake engine', () => {
     expect(r.matches).toEqual([
       { ruleId: 'lexcode.other', path: 'b.ts', line: 1, metavars: {}, lines: 'x' },
       { ruleId: 'lexcode.crawl.http', path: 'src/deep/a.py', line: 12, metavars: { $URL: '"https://example.com"', $F: 'get' }, lines: '    requests.get(url)' },
+    ]);
+  });
+
+  // The engine's printed text drops most holes' braces (`${host}` comes back as `host`), so each metavariable's
+  // text as the file holds it is sliced from the match's lines by the position the engine gives (#12882).
+  // Columns are 1-based UTF-8 bytes and `end` is exclusive, as the engine reports them.
+  it('slices each metavariable as the file writes it from the match lines, by byte column', async () => {
+    const line2 = '  fetchit(`https://api.example.com/ü/${id}`, 1);';
+    const at = Buffer.byteLength('  fetchit(') + 1;
+    const len = Buffer.byteLength('`https://api.example.com/ü/${id}`');
+    setEnv(
+      'FAKE_OPENGREP_RESULTS',
+      JSON.stringify([
+        {
+          check_id: 'r.one',
+          path: 'a.js',
+          start: { line: 2, col: 3 },
+          end: { line: 2, col: 40 },
+          extra: {
+            metavars: {
+              $URL: { abstract_content: '``https://api.example.com/ü/id`', start: { line: 2, col: at }, end: { line: 2, col: at + len } },
+              $F: { abstract_content: 'fetchit', start: {}, end: {} },
+            },
+            lines: line2,
+          },
+        },
+        {
+          check_id: 'r.multi',
+          path: 'b.rb',
+          start: { line: 10, col: 1 },
+          end: { line: 12, col: 2 },
+          extra: {
+            metavars: { $URL: { abstract_content: '"""https://x.example.com/#{id}"', start: { line: 11, col: 3 }, end: { line: 12, col: 9 } } },
+            lines: 'get(\n  "https://x\n.example.com/#{id}")',
+          },
+        },
+        {
+          check_id: 'r.outside',
+          path: 'c.py',
+          start: { line: 5, col: 1 },
+          end: { line: 5, col: 9 },
+          extra: { metavars: { $X: { abstract_content: 'y', start: { line: 3, col: 1 }, end: { line: 3, col: 2 } } }, lines: 'call(x)' },
+        },
+      ]),
+    );
+    const r = await run({ engine: STUB, configFile: 'c.yml', targets: ['x'], root: dir });
+    const by = new Map(r.matches.map((m) => [m.ruleId, m]));
+    expect(by.get('r.one')!.source).toEqual({ $URL: '`https://api.example.com/ü/${id}`' });
+    expect(by.get('r.one')!.metavars.$URL).toBe('``https://api.example.com/ü/id`');
+    expect(by.get('r.multi')!.source).toEqual({ $URL: '"https://x\n.example' });
+    // A metavariable outside the match's lines (a `pattern-inside` binding) has no source; nor does a match
+    // with none.
+    expect(by.get('r.outside')!.source).toBeUndefined();
+  });
+
+  it('gives no source for a column past the end of its line', () => {
+    expect(metavarSource('ab', 1, { line: 1, col: 1 }, { line: 1, col: 9 })).toBeUndefined();
+    expect(metavarSource('ab', 1, { line: 1, col: 0 }, { line: 1, col: 2 })).toBeUndefined();
+    expect(metavarSource('ab', 1, { line: 1, col: 2 }, { line: 1, col: 1 })).toBeUndefined();
+    expect(metavarSource('ab', 1, { line: 1, col: 1 }, { line: 1, col: 3 })).toBe('ab');
+    expect(metavarSource('a\r\nb', 1, { line: 1, col: 1 }, { line: 2, col: 2 })).toBe('a\r\nb');
+  });
+
+  // A file that is not UTF-8 (Latin-1 `caf\xe9`) comes back in `lines` with U+FFFD, three bytes, for a one-byte
+  // character, while the engine's columns count the file's own bytes: the slice would land two bytes early
+  // (`t(f"https://p.example.com/{id`). No source then; the printed text decides (#12882).
+  it('gives no source when the sliced lines hold U+FFFD, since the byte columns no longer line up', () => {
+    const latin1 = 'x = "caf\uFFFD"; fetchit(f"https://p.example.com/{id}")';
+    expect(metavarSource(latin1, 1, { line: 1, col: 24 }, { line: 1, col: 52 })).toBeUndefined();
+    expect(metavarSource(`ok\n${latin1}`, 1, { line: 1, col: 1 }, { line: 2, col: 3 })).toBeUndefined();
+    // A U+FFFD on a line outside the slice leaves it alone.
+    expect(metavarSource(`${latin1}\nfetchit("https://q.example.com/x")`, 1, { line: 2, col: 9 }, { line: 2, col: 34 })).toBe('"https://q.example.com/x"');
+  });
+
+  it('lists each per-file error that names its file, with why, in the paths it gave (#13209)', async () => {
+    setEnv(
+      'FAKE_OPENGREP_ERRORS',
+      JSON.stringify([
+        { code: 3, level: 'warn', type: 'PartialParsing', path: 'scan-root/a.py', message: 'partial parse' },
+        { code: 3, level: 'error', type: ['Syntax error', []], path: 'b.py', message: 'syntax error' },
+        { code: 3, level: 'warn', type: 'Timeout', rule_id: 'lexcode.x', path: 'scan-root/c.rb', message: 'timeout' },
+        { code: 3, level: 'warn', type: 'OutOfMemory', path: 'd.js', message: 'oom' },
+        { code: 3, level: 'warn', type: 'Too many matches', path: 'e.js', message: 'too many' },
+        { code: 2, level: 'error', type: 'Fatal error', path: 'f.go', message: 'boom' },
+        { code: 3, level: 'warn', type: 'Lexical error', message: 'no path' },
+      ]),
+    );
+    const r = await run({ engine: STUB, configFile: 'c.yml', targets: ['a.py'], root: dir });
+    expect(r.fileErrors).toBe(7);
+    expect(r.unreadFiles).toEqual([
+      { path: 'a.py', reason: 'parse' },
+      { path: 'b.py', reason: 'parse' },
+      { path: 'c.rb', reason: 'timeout' },
+      { path: 'd.js', reason: 'limit' },
+      { path: 'e.js', reason: 'limit' },
+      { path: 'f.go', reason: 'other' },
     ]);
   });
 

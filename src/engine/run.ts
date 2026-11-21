@@ -6,7 +6,7 @@ import { isAbsolute, join } from 'node:path';
 import { terminateGroup, trackChild, trackTempDir } from '../cleanup.js';
 import { ToolError } from '../errors.js';
 import { childEnv } from '../proc.js';
-import type { EngineMatch } from '../types.js';
+import type { EngineMatch, UnreadFile } from '../types.js';
 import { cacheDir } from './cache.js';
 import { checkEngineDir } from './dirs.js';
 
@@ -279,9 +279,19 @@ export interface RunEngineOptions {
   dirs?: EngineDirs;
 }
 
+/**
+ * The engine's limit, in seconds of wall-clock time, for one rule on one file (`--timeout`). Past it the rule's
+ * matches in that file are lost and the engine records a per-file error, so on a loaded machine the count of
+ * such files moves between runs of the same code (#12882).
+ */
+export const ENGINE_TIMEOUT_SECONDS = 30;
+
 export interface RunEngineResult {
   matches: EngineMatch[];
+  /** Per-file errors, with a path or without. */
   fileErrors: number;
+  /** One entry per per-file error that names its file, in the engine's paths (a copy's, for an extracted copy). */
+  unreadFiles: UnreadFile[];
   version: string;
 }
 
@@ -299,7 +309,11 @@ interface RawResult {
   path?: unknown;
   start?: { line?: unknown; col?: unknown };
   end?: { line?: unknown; col?: unknown };
-  extra?: { metavars?: Record<string, { abstract_content?: unknown }>; lines?: unknown };
+  extra?: { metavars?: Record<string, { abstract_content?: unknown; start?: RawPos; end?: RawPos }>; lines?: unknown };
+}
+interface RawPos {
+  line?: unknown;
+  col?: unknown;
 }
 
 function errorType(e: RawError): string {
@@ -366,10 +380,26 @@ function onlyProcessingInstructionsDropped(raw: RawError, root: string): boolean
   return true;
 }
 
-/** Per-file trouble counts in fileErrors; an error that names a rule or the config is fatal. */
-function classifyErrors(errors: unknown, root: string): { fileErrors: number; fatal?: string } {
+/** Why an engine error type leaves a file unread in full (UnreadFile['reason']). */
+function unreadReason(t: string): UnreadFile['reason'] {
+  if (/timeout/.test(t)) return 'timeout';
+  if (/too ?big|too ?many|memory|oom|size/.test(t)) return 'limit';
+  if (/pars|syntax|lexical|encoding/.test(t)) return 'parse';
+  return 'other';
+}
+
+/**
+ * Per-file trouble counts in fileErrors, and each such error that names a file is listed in `unread` (#13209);
+ * an error that names a rule or the config is fatal.
+ */
+function classifyErrors(errors: unknown, root: string): { fileErrors: number; unread: UnreadFile[]; fatal?: string } {
   let fileErrors = 0;
-  if (!Array.isArray(errors)) return { fileErrors };
+  const unread: UnreadFile[] = [];
+  if (!Array.isArray(errors)) return { fileErrors, unread };
+  const count = (raw: RawError, t: string): void => {
+    fileErrors += 1;
+    if (typeof raw.path === 'string' && raw.path !== '') unread.push({ path: fromEngine(raw.path), reason: unreadReason(t) });
+  };
   for (const raw of errors as RawError[]) {
     const type = errorType(raw);
     if (type === 'PartialParsing' && onlyProcessingInstructionsDropped(raw, root)) continue;
@@ -378,14 +408,14 @@ function classifyErrors(errors: unknown, root: string): { fileErrors: number; fa
     const ruleish = /rule|pattern|config|yaml|schema|metavar/.test(t);
     const perFile = !ruleish && /pars|syntax|lexical|timeout|too ?big|too ?many|memory|oom|skipped|encoding|size/.test(t);
     if (perFile) {
-      fileErrors += 1;
+      count(raw, t);
     } else if (level === 'error' && (ruleish || typeof raw.rule_id === 'string')) {
-      return { fileErrors, fatal: errorText(raw) };
+      return { fileErrors, unread, fatal: errorText(raw) };
     } else if (level === 'error' && typeof raw.path === 'string') {
-      fileErrors += 1;
+      count(raw, t);
     }
   }
-  return { fileErrors };
+  return { fileErrors, unread };
 }
 
 function toPosix(p: string): string {
@@ -411,14 +441,44 @@ interface Placed {
 
 const num = (v: unknown): number => (typeof v === 'number' ? v : 0);
 
+/**
+ * A metavariable's text as the file holds it, sliced from the match's `lines` (which start at line `firstLine`)
+ * by the engine's position for it: 1-based lines, 1-based UTF-8 byte columns, `end` exclusive. Undefined when
+ * the position is missing or falls outside the lines, as a binding from a `pattern-inside` can, or when a sliced
+ * line holds U+FFFD (a file that is not UTF-8, whose byte columns no longer line up). The engine's
+ * printed text (`abstract_content`) drops most interpolations' braces, so only this says where a hole is (#12882).
+ */
+export function metavarSource(lines: string, firstLine: number, start: RawPos | undefined, end: RawPos | undefined): string | undefined {
+  const [sl, sc, el, ec] = [start?.line, start?.col, end?.line, end?.col];
+  if (typeof sl !== 'number' || typeof sc !== 'number' || typeof el !== 'number' || typeof ec !== 'number') return undefined;
+  const all = lines.split('\n');
+  const from = sl - firstLine;
+  const to = el - firstLine;
+  if (from < 0 || to >= all.length || to < from || sc < 1 || ec < 1) return undefined;
+  const span = all.slice(from, to + 1);
+  // A file that is not UTF-8 comes back with U+FFFD (three bytes) for each byte it could not decode, while the
+  // positions count the file's own bytes, so every column past one is shifted: no source, the printed text decides.
+  if (span.some((l) => l.includes('\uFFFD'))) return undefined;
+  const bytes = span.map((l) => Buffer.from(l, 'utf8'));
+  const first = bytes[0] as Buffer;
+  const last = bytes[bytes.length - 1] as Buffer;
+  if (sc - 1 > first.length || ec - 1 > last.length || (from === to && ec < sc)) return undefined;
+  if (from === to) return first.subarray(sc - 1, ec - 1).toString('utf8');
+  return [first.subarray(sc - 1), ...bytes.slice(1, -1), last.subarray(0, ec - 1)].map((b) => b.toString('utf8')).join('\n');
+}
+
 function mapResults(results: unknown): Placed[] {
   if (!Array.isArray(results)) return [];
   const out: Placed[] = [];
   for (const r of results as RawResult[]) {
     if (typeof r.check_id !== 'string' || typeof r.path !== 'string') continue;
     const metavars: Record<string, string> = {};
+    const source: Record<string, string> = {};
+    const lines = typeof r.extra?.lines === 'string' ? r.extra.lines : '';
     for (const [name, v] of Object.entries(r.extra?.metavars ?? {})) {
       if (typeof v?.abstract_content === 'string') metavars[name] = v.abstract_content;
+      const text = metavarSource(lines, num(r.start?.line), v?.start, v?.end);
+      if (text !== undefined) source[name] = text;
     }
     out.push({
       m: {
@@ -426,7 +486,8 @@ function mapResults(results: unknown): Placed[] {
         path: fromEngine(r.path),
         line: num(r.start?.line),
         metavars,
-        lines: typeof r.extra?.lines === 'string' ? r.extra.lines : '',
+        lines,
+        ...(Object.keys(source).length > 0 ? { source } : {}),
       },
       col: num(r.start?.col),
       endLine: num(r.end?.line),
@@ -574,6 +635,7 @@ interface Lane {
 interface LaneResult {
   placed: Placed[];
   fileErrors: number;
+  unread: UnreadFile[];
   version?: string;
 }
 
@@ -588,7 +650,7 @@ interface LaneResult {
 export async function runEngine(o: RunEngineOptions): Promise<RunEngineResult> {
   const dirs = o.dirs ?? {};
   const cliVersion = await engineVersion(o.engine, dirs);
-  if (o.targets.length === 0) return { matches: [], fileErrors: 0, version: cliVersion };
+  if (o.targets.length === 0) return { matches: [], fileErrors: 0, unreadFiles: [], version: cliVersion };
 
   const maxJobs = Math.min(availableParallelism(), MAX_JOBS);
   const bytesOf = o.bytesOf ?? ((): number => 0);
@@ -634,15 +696,17 @@ export async function runEngine(o: RunEngineOptions): Promise<RunEngineResult> {
     if (failed) throw failed.e;
     const placed: Placed[] = [];
     let fileErrors = 0;
+    const unreadFiles: UnreadFile[] = [];
     let version = cliVersion;
     for (const s of settled) {
       if (!('r' in s)) continue;
       placed.push(...s.r.placed);
       fileErrors += s.r.fileErrors;
+      unreadFiles.push(...s.r.unread);
       if (s.r.version) version = s.r.version;
     }
     placed.sort(compareMatches);
-    return { matches: placed.map((p) => p.m), fileErrors, version };
+    return { matches: placed.map((p) => p.m), fileErrors, unreadFiles, version };
   } finally {
     await release();
   }
@@ -650,7 +714,7 @@ export async function runEngine(o: RunEngineOptions): Promise<RunEngineResult> {
 
 /** Run one lane's chunks one after another. Throws the ToolError today's single run would, or LaneStopped. */
 async function runLane(o: RunEngineOptions, lane: Lane, jobs: number, deadlineMs: number, deadlineAt: number, group: LaneGroup): Promise<LaneResult> {
-  const out: LaneResult = { placed: [], fileErrors: 0 };
+  const out: LaneResult = { placed: [], fileErrors: 0, unread: [] };
   for (const [i, chunk] of lane.chunks.entries()) {
     if (group.stopped) throw new LaneStopped();
     const outFile = join(lane.dir, `out-${i}.json`);
@@ -665,7 +729,7 @@ async function runLane(o: RunEngineOptions, lane: Lane, jobs: number, deadlineMs
       '--exclude-minified-files',
       '--quiet',
       '--timeout',
-      '30',
+      String(ENGINE_TIMEOUT_SECONDS),
       '--jobs',
       String(jobs),
       '--',
@@ -715,6 +779,7 @@ async function runLane(o: RunEngineOptions, lane: Lane, jobs: number, deadlineMs
       throw new ToolError(`the engine rejected the rule set: ${classified.fatal}\nRun \`lexcode rules\` to list the rules, or pass a corrected --rules <dir>.`);
     }
     out.fileErrors += classified.fileErrors;
+    out.unread.push(...classified.unread);
     out.placed.push(...mapResults(doc.results));
     if (typeof doc.version === 'string' && doc.version) out.version = doc.version;
   }

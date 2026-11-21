@@ -616,7 +616,11 @@ Measured on Opengrep 1.33.1:
 - An interpolated string prints as `$"` followed by its text with the braces
   dropped and no closing quote (`$"{appUrl}/login"` reads `$"appUrl/login`), but a
   `metavariable-regex` sees the source text. `metavariable-regex` is anchored at
-  the start, so write `.*gpt-` to find a model name inside a string.
+  the start, so write `.*gpt-` to find a model name inside a string. The
+  metavariable's position range stops before the closing quote too (and before
+  the last hole's `}`), in every form (`$@`, `@$`, `$"""`, `$$"""`), so a host
+  rule's source slice is `$"https://a.example/{id`; `src/record/hosts.ts` reads
+  that unclosed shape. A Swift `\( )` string's range is whole.
 - `pattern-not-regex` removes a match only when its regex covers the whole match,
   and a `pattern-not` beside a `pattern-regex` in the same `patterns` block is
   ignored (`pattern-not-inside` works). A branch of a `pattern-either` with no

@@ -301,16 +301,18 @@ describe.skipIf(!engineAvailable)('lexcode scan over Razor files, with the real 
 });
 
 describe.skipIf(!engineAvailable)('lexcode scan over a C# crawl, with the real engine', () => {
-  // The engine prints an interpolated string without its closing quote and with its braces dropped,
-  // so even a hole-free one names no host: it stays a signal with no host, while a plain literal keeps
-  // its host as evidence (#13012).
-  it('keeps the host of a plain C# literal and names none for an interpolated one', async () => {
+  // The engine prints an interpolated string with its braces dropped, so its host is read from the file's
+  // own text (#12882). Its range stops before the closing quote, so the slice is unclosed; the host written
+  // before the first hole decides: an own host drops, another is evidence, a hole in the host stays a signal
+  // with no host (#13012).
+  it('reads the host of a C# literal and of an interpolated one, and drops the operator\'s own', async () => {
     rmSync(join(repo, 'app.py'));
     rmSync(join(repo, 'src'), { recursive: true });
     rmSync(join(repo, 'web'), { recursive: true });
     const bundled = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'rules', 'crawls_web', 'cs-html-of-fetched-page.yml');
     mkdirSync(join(repo, '.rules', 'crawls_web'), { recursive: true });
     cpSync(bundled, join(repo, '.rules', 'crawls_web', 'cs-html-of-fetched-page.yml'));
+    writeFileSync(join(repo, '.lexcode.yml'), 'schema: https://lexlint.io/lexcode/config/v1\nown_hosts: [myapp.com]\n');
     writeFileSync(
       join(repo, 'Scraper.cs'),
       [
@@ -318,11 +320,14 @@ describe.skipIf(!engineAvailable)('lexcode scan over a C# crawl, with the real e
         '',
         'public class Scraper',
         '{',
-        '    public void Run()',
+        '    public void Run(string id, string host)',
         '    {',
         '        var web = new HtmlWeb();',
         '        web.Load($"https://interp.example.com/deals");',
         '        web.Load("https://plain.example.com/deals");',
+        '        web.Load($"https://api.myapp.com/v1/{id}");',
+        '        web.Load($"https://www.gov.example/p/{id}");',
+        '        web.Load($"https://{host}/p");',
         '    }',
         '}',
         '',
@@ -332,10 +337,15 @@ describe.skipIf(!engineAvailable)('lexcode scan over a C# crawl, with the real e
     expect(code).toBe(0);
     const rec = JSON.parse(out.join('')) as EvidenceRecord;
     const crawl = rec.activities.find((a) => a.id === 'crawls_web' && a.mentioned === 'performs');
-    expect(crawl?.evidence).toEqual([{ rule: 'lexcode.crawl.cs-html-of-fetched-page', where: 'Scraper.cs:9', host: 'plain.example.com' }]);
+    const rule = 'lexcode.crawl.cs-html-of-fetched-page';
+    expect(crawl?.evidence).toEqual([
+      { rule, where: 'Scraper.cs:8', host: 'interp.example.com' },
+      { rule, where: 'Scraper.cs:9', host: 'plain.example.com' },
+      { rule, where: 'Scraper.cs:11', host: 'www.gov.example' },
+    ]);
     const signal = rec.signals.find((s) => s.id === 'crawls_web');
-    expect(signal?.evidence).toEqual([{ rule: 'lexcode.crawl.cs-html-of-fetched-page', where: 'Scraper.cs:8' }]);
-    expect(JSON.stringify(rec)).not.toContain('interp.example.com');
+    expect(signal?.evidence).toEqual([{ rule, where: 'Scraper.cs:12' }]);
+    expect(JSON.stringify(rec)).not.toContain('myapp.com');
   });
 });
 

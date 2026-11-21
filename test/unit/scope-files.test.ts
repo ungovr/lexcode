@@ -301,7 +301,9 @@ describe('the skip list', () => {
     expect(listFiles(root, { ...plain, includeTests: true }).files).toEqual([...files].sort());
   });
 
-  it('a .NET test project directory is skipped', () => {
+  // A git listing and a walk find the files by two code paths (git ls-files, a directory walk) that both pass
+  // through the one test-directory check (underSkippedDir), so the skip is asserted on each listing (#13222).
+  it.each([true, false])('a .NET test project directory is skipped (git listing: %s)', (viaGit) => {
     // The .NET convention keeps a test project beside the app's own, outside any tests/ directory (#13012).
     const files = [
       'src/MyApp.Tests/FooTests.cs',
@@ -317,7 +319,7 @@ describe('the skip list', () => {
       'src/MyApp.Tests.Shared.txt',
       'src/MyApp/Program.cs',
     ];
-    const root = repo(files);
+    const root = repo(files, { git: viaGit });
     expect(listFiles(root, plain).files).toEqual(['src/Contests/X.cs', 'src/MyApp.Testing/Clock.cs', 'src/MyApp.Tests.Shared.txt', 'src/MyApp/Program.cs']);
     expect(listFiles(root, { ...plain, includeTests: true }).files).toEqual([...files].sort());
   });
@@ -417,6 +419,44 @@ describe('the skip list', () => {
       'Sources/App/main.swift',
     ]);
     expect(r.skippedBundled).toBe(3);
+  });
+
+  // swift-openapi-generator writes Swift there; anything else under a GeneratedSources directory is the
+  // project's own and is read, never counted as skipped generated code (#13303).
+  it.each([true, false])('only the Swift files under a GeneratedSources directory are skipped (git listing: %s)', (viaGit) => {
+    const root = repo(
+      ['Sources/API/GeneratedSources/Types.swift', 'Sources/API/GeneratedSources/openapi.yaml', 'Sources/API/GeneratedSources/README.md', 'Sources/API/main.swift'],
+      { git: viaGit },
+    );
+    const r = listFiles(root, plain);
+    expect(r.files).toEqual(['Sources/API/GeneratedSources/README.md', 'Sources/API/GeneratedSources/openapi.yaml', 'Sources/API/main.swift']);
+    expect(r.skippedBundled).toBe(1);
+  });
+
+  // An include that matches only skipped files says why they were skipped, not the test-directory hint (#13303).
+  it('an include that matches only skipped files names the reason they were skipped', () => {
+    const root = repo([
+      'Sources/API/GeneratedSources/Types.swift',
+      'web/app.min.js',
+      'src/MyApp.Tests/A.cs',
+      'node_modules/x/index.js',
+      'src/main.swift',
+    ]);
+    const err = (include: string): string => {
+      try {
+        listFiles(root, { ...plain, include: [include] });
+      } catch (e) {
+        return (e as Error).message;
+      }
+      return '';
+    };
+    expect(err('Sources/API/GeneratedSources/')).toMatch(/"Sources\/API\/GeneratedSources\/" matched no file\..* generated, bundled or minified code, which lexcode never reads/);
+    expect(err('Sources/API/GeneratedSources/')).not.toMatch(/include-tests/);
+    expect(err('web/app.min.js')).toMatch(/generated, bundled or minified code/);
+    expect(err('src/MyApp.Tests/')).toMatch(/a test directory; pass --include-tests to read it/);
+    expect(err('node_modules/')).toMatch(/a dependency or build directory, which lexcode never reads/);
+    expect(err('nothing/here/')).toMatch(/A trailing "\/" names a directory; anything else is a glob\.$/);
+    expect(err('nothing/here/')).not.toMatch(/include-tests|never reads/);
   });
 
   it('generated .g.cs files are skipped and counted as bundled ones are, and .Designer.cs files are read', () => {
