@@ -94,7 +94,10 @@ rules:
           # DAO's does, and the store's asynchronous add, insert or save does (#13233). The receiver
           # is judged by its first part: a store, or a list held by one (`_store.Messages`), is left
           # out, while a store held by a data context (`_context.MessageStore`, `db.ChatStore`) is
-          # the context's own and counts. The range here is the role the anchor below finds, so a
+          # the context's own and counts, as does an app-state holder's store
+          # (`_appContext.ChatStore.Add(...)` with a role, left out before #13233's receiver rule).
+          # The first part is read without case, after an optional `this.`, and must end at store:
+          # `_storeDb` and `storeContext` are no store. The range here is the role the anchor below finds, so a
           # pattern-not-regex on the call would not reach it: the verb and the receiver are paired
           # here instead.
           - pattern-either:
@@ -107,7 +110,7 @@ rules:
                   - pattern: $R.Add(...)
                   - metavariable-regex:
                       metavariable: $R
-                      regex: (?i)^(?!(this\.)?_?\w*store(\.|$))
+                      regex: (?i)^(?!(this\.)?\w*store(\.|$))
           - pattern-regex: '\bRole\s*=\s*("(user|assistant|model|bot|ai)"|\w*Role\s*\.\s*(User|Assistant|Model|Bot)\b)'
       # A pattern-not beside a pattern-regex anchor is not applied on Opengrep 1.33.1;
       # pattern-not-inside is.
