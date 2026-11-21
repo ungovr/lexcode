@@ -31,6 +31,7 @@ public class AddSmtpAccounts : FluentMigrator.Migration
             .WithColumn("Email").AsString(255).NotNullable()
             .WithColumn("SmtpServer").AsString(255).NotNullable();
         Alter.Table(nameof(EmailAccount)).AddColumn(nameof(EmailAccount.Email)).AsString(255).Nullable();
+        Alter.Table(nameof(EmailAccount)).AddColumn("Email").AsString(255).Nullable();
         Alter.Table("mail_accounts").AddColumn("email_address").AsString(255).Nullable();
     }
 

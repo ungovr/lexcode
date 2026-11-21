@@ -35,6 +35,17 @@ public class Login(SignInManager<IdentityUser> signIn, PaymentIntentService paym
         var intents = stripe.V1.PaymentIntents;
         await intents.CreateAsync(new PaymentIntentCreateOptions { Amount = 500, Currency = "eur" });
     }
+
+    // An identity service held in a local beside a payments one: only a call on the identity
+    // local is a verification, and this block makes none.
+    public async Task ChargeAsync(StripeClient stripe)
+    {
+        var sessions = stripe.V1.Identity.VerificationSessions;
+        var reports = stripe.V1.Identity.VerificationReports;
+        var intents = stripe.V1.PaymentIntents;
+        await intents.CreateAsync(new PaymentIntentCreateOptions { Amount = 500, Currency = "eur" });
+        await intents.GetAsync("pi_1");
+    }
 }
 
 public class VerificationSessionService

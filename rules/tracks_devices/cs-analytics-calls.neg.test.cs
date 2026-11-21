@@ -89,6 +89,28 @@ public class OrderEnvelopeInitializer : EnvelopeBase, IOrderInitializer, IMessag
     }
 }
 
+// The app's own initializer and processor interfaces after a base reached through a primary
+// constructor, listed second and third: the message carries the customer to a worker.
+public class OrderStampInitializer(Settings settings) : EnvelopeBase(settings), IOrderInitializer
+{
+    public void Initialize(object envelope)
+    {
+        var message = envelope as OrderMessage;
+        if (message != null) message.Context.User.Id = "customer";
+    }
+}
+
+public class OrderStampProcessor(Settings settings) : EnvelopeBase(settings), IDisposable, IOrderProcessor
+{
+    public void Process(object envelope)
+    {
+        var message = envelope as OrderMessage;
+        if (message != null) message.Context.User.Id = "customer";
+    }
+
+    public void Dispose() { }
+}
+
 // The app's own class of the same short name: builds the monthly sales report.
 public static class Analytics
 {
