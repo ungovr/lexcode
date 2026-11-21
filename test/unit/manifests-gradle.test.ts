@@ -439,6 +439,69 @@ describe('readGradle: variables and properties', () => {
     expect(r.notices).toEqual([]);
   });
 
+  it('reads a Groovy map named libs when the build has no version catalog (#13511)', () => {
+    const files = {
+      'settings.gradle': "include ':app'\n",
+      'build.gradle': "ext.libs = [okhttp: 'com.squareup.okhttp3:okhttp:4.12.0', sentry: [android: 'io.sentry:sentry-android:7.1.0']]\n",
+      'app/build.gradle': ['dependencies {', '    implementation libs.okhttp', '    implementation rootProject.ext.libs.sentry.android', '}', ''].join('\n'),
+    };
+    const r = read(files);
+    expect(r.deps.map((d) => `${d.name}@${d.version} ${d.manifest}`)).toEqual([
+      'com.squareup.okhttp3:okhttp@4.12.0 app/build.gradle:2',
+      'io.sentry:sentry-android@7.1.0 app/build.gradle:3',
+    ]);
+    expect(r.notices).toEqual([]);
+  });
+
+  it('a libs reference still reads the version catalog when one exists, and a libs miss with no map is a catalog notice (#13511)', () => {
+    const withCatalog = read({
+      'settings.gradle': "include ':app'\n",
+      'gradle/libs.versions.toml': '[libraries]\nokhttp = "com.squareup.okhttp3:okhttp:4.12.0"\n',
+      'build.gradle': "ext.libs = [okhttp: 'com.example:not-this:1']\n",
+      'app/build.gradle': ['dependencies {', '    implementation libs.okhttp', '}', ''].join('\n'),
+    });
+    expect(withCatalog.deps.map((d) => `${d.name}@${d.version}`)).toEqual(['com.squareup.okhttp3:okhttp@4.12.0']);
+    const noMap = read({ 'build.gradle': ['dependencies {', '    implementation libs.okhttp', '}', ''].join('\n') });
+    expect(noMap.deps).toEqual([]);
+    expect(noMap.notices.join('\n')).toMatch(/catalog reference/);
+  });
+
+  it('reads a string assigned to a map key, `deps.okhttp = "g:a:v"`, and keeps the bare name readable (#13511)', () => {
+    const files = {
+      'build.gradle': [
+        'ext.deps = [:]',
+        "deps.okhttp = 'com.squareup.okhttp3:okhttp:4.12.0'",
+        "ext.retrofitVersion = '2.9.0'",
+        'dependencies {',
+        '    implementation deps.okhttp',
+        '    implementation "com.squareup.retrofit2:retrofit:$retrofitVersion"',
+        '}',
+        '',
+      ].join('\n'),
+    };
+    const r = read(files);
+    expect(r.deps.map((d) => `${d.name}@${d.version} ${d.manifest}`)).toEqual([
+      'com.squareup.okhttp3:okhttp@4.12.0 build.gradle:5',
+      'com.squareup.retrofit2:retrofit@2.9.0 build.gradle:6',
+    ]);
+  });
+
+  it('reads the maps of a script a Kotlin DSL build applies, `apply(from = "x.gradle")` (#13511)', () => {
+    const files = {
+      'settings.gradle.kts': 'include(":app")\n',
+      'build.gradle.kts': 'apply(from = "$rootDir/dependencies.gradle")\n',
+      'dependencies.gradle': "ext.deps = [timber: 'com.jakewharton.timber:timber:4.5.1']\n",
+      'app/build.gradle.kts': ['apply(from = "../more.gradle")', 'dependencies {', '    implementation(more.okio)', '    implementation(deps.timber)', '}', ''].join('\n'),
+      'more.gradle': "ext.more = [okio: 'com.squareup.okio:okio:3.9.0']\n",
+    };
+    const r = read(files);
+    expect(r.deps.map((d) => `${d.name}@${d.version} ${d.manifest}`)).toEqual([
+      'com.squareup.okio:okio@3.9.0 app/build.gradle.kts:3',
+      'com.jakewharton.timber:timber@4.5.1 app/build.gradle.kts:4',
+    ]);
+    expect(r.notices).toEqual([]);
+  });
+
   it('bounds a variable that names itself or fans out', () => {
     const lines = ['def a = "$b"', 'def b = "$a"', "def x0 = 'v'"];
     for (let i = 1; i <= 40; i++) lines.push(`def x${i} = "$x${i - 1}$x${i - 1}"`);

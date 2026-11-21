@@ -343,8 +343,13 @@ function collectVars(toks: Tok[]): Vars {
       const typed = isP(prev, ':') && toks[i - 2]?.k === 'id';
       const name = typed ? (toks[i - 2] as Tok).v : t.v;
       const val = toks[i + 2];
-      if (val?.k === 'str' && wholeValue(toks, i + 2)) addVar(vars, name, { line: t.line, raw: val.v, interp: val.interp === true });
-      else if (isP(val, '[')) collectMap(toks, i + 2, typed ? name : mapTarget(toks, i), vars);
+      if (val?.k === 'str' && wholeValue(toks, i + 2)) {
+        const entry = { line: t.line, raw: val.v, interp: val.interp === true };
+        addVar(vars, name, entry);
+        // `deps.okhttp = 'g:a:v'` is also the map entry `deps.okhttp` (#13511); the bare name stays as it was.
+        const target = typed ? name : mapTarget(toks, i);
+        if (target !== name) addVar(vars, target, entry);
+      } else if (isP(val, '[')) collectMap(toks, i + 2, typed ? name : mapTarget(toks, i), vars);
     } else if (t.k === 'id' && (t.v === 'ext' || t.v === 'extra') && isP(nx, '[') && toks[i + 2]?.k === 'str' && isP(toks[i + 3], ']') && isP(toks[i + 4], '=')) {
       const val = toks[i + 5];
       const key = toks[i + 2] as Tok;
@@ -694,8 +699,9 @@ export function readGradle(root: string, files: string[]): ReaderResult {
   };
   const rootBuildFile = (buildRoot: string): FileCtx | undefined => ctxOf(joinRel(buildRoot, 'build.gradle')) ?? ctxOf(joinRel(buildRoot, 'build.gradle.kts'));
   /**
-   * The scripts a build file applies with a literal path, `apply from: "$rootDir/dependencies.gradle"` or
-   * `apply from: 'versions.gradle'`, where pre-catalog builds kept their `ext` maps. One level, no URLs.
+   * The scripts a build file applies with a literal path, `apply from: "$rootDir/dependencies.gradle"`,
+   * `apply from: 'versions.gradle'` or Kotlin DSL `apply(from = "versions.gradle")`, where pre-catalog builds
+   * kept their `ext` maps. One level, no URLs.
    */
   const appliedCache = new Map<string, FileCtx[]>();
   const appliedScripts = (ctx: FileCtx): FileCtx[] => {
@@ -708,7 +714,9 @@ export function readGradle(root: string, files: string[]): ReaderResult {
       if (toks[i]?.v !== 'apply' || toks[i]?.k !== 'id') continue;
       const j = isP(toks[i + 1], '(') ? i + 2 : i + 1;
       const target = toks[j + 2];
-      if (toks[j]?.v !== 'from' || !isP(toks[j + 1], ':') || target?.k !== 'str') continue;
+      // Groovy `apply from: 'x.gradle'`; Kotlin DSL `apply(from = "x.gradle")` (#13511).
+      const sep = isP(toks[j + 1], ':') || (j === i + 2 && isP(toks[j + 1], '='));
+      if (toks[j]?.v !== 'from' || !sep || target?.k !== 'str') continue;
       const m = /^(?:\$\{?rootDir\}?\/|\$\{?rootProject\.projectDir\}?\/)?([^$:]+\.gradle)$/.exec(target.v);
       if (!m) continue;
       const rel = target.v.startsWith('$') ? joinRel(ctx.buildRoot, m[1] as string) : resolveInside(ctx.dir, m[1] as string);
@@ -1031,8 +1039,21 @@ export function readGradle(root: string, files: string[]): ReaderResult {
       }
       // `projects.core.model` is a type-safe accessor for a module of this same build.
       if (segs[0] === 'projects' && !catalogsFor(ctx.dir).some((c) => c.name === 'projects')) return;
-      const known = segs[0] === 'libs' || catalogsFor(ctx.dir).some((c) => c.name === segs[0]);
-      if (known && segs.length >= 2) {
+      // `deps.okhttp`, `rootProject.ext.deps.sentry`: an entry of a Groovy map, `ext.deps = [okhttp: '...']`.
+      const fromMap = (): boolean => {
+        if (segs.length < 2) return false;
+        const value = lookupVar(segs.join('.'), ctx, first.line, 0);
+        if (value === undefined) return false;
+        const c = coordinate({ k: 'str', v: value, line: first.line }, ctx);
+        if (c.lib) record(conf, c.lib, rel, first.line, tooling, seen);
+        else if (c.shape && countable(conf)) nameUnresolved++;
+        return true;
+      };
+      const catalogFile = catalogsFor(ctx.dir).some((c) => c.name === segs[0]);
+      // `libs` is the default catalog's name, but a build with no catalog file may keep a Groovy map under it
+      // (`ext.libs = [okhttp: '...']`, #13511): that map is read before the reference is called a catalog miss.
+      if (segs[0] === 'libs' && !catalogFile && fromMap()) return;
+      if ((segs[0] === 'libs' || catalogFile) && segs.length >= 2) {
         handleLookup(conf, 'path', segs, first.line);
         return;
       }
@@ -1048,16 +1069,7 @@ export function readGradle(root: string, files: string[]): ReaderResult {
           return;
         }
       }
-      // `deps.okhttp`, `rootProject.ext.deps.sentry`: an entry of a Groovy map, `ext.deps = [okhttp: '...']`.
-      if (segs.length >= 2) {
-        const value = lookupVar(segs.join('.'), ctx, first.line, 0);
-        if (value !== undefined) {
-          const c = coordinate({ k: 'str', v: value, line: first.line }, ctx);
-          if (c.lib) record(conf, c.lib, rel, first.line, tooling, seen);
-          else if (c.shape && countable(conf)) nameUnresolved++;
-          return;
-        }
-      }
+      if (fromMap()) return;
       if (countable(conf) && !['true', 'false', 'null'].includes(first.v)) {
         constants++;
       }
