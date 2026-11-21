@@ -95,11 +95,11 @@ rules:
           # is judged by its first part: a store, or a list held by one (`_store.Messages`), is left
           # out, while a store held by a data context (`_context.MessageStore`, `db.ChatStore`) is
           # the context's own and counts, as does an app-state holder's store
-          # (`_appContext.ChatStore.Add(...)` with a role, left out before #13233's receiver rule).
-          # The first part is read without case, after an optional `this.`, and must end at store:
-          # `_storeDb` and `storeContext` are no store. The range here is the role the anchor below finds, so a
-          # pattern-not-regex on the call would not reach it: the verb and the receiver are paired
-          # here instead.
+          # (`_appContext.ChatStore.Add(...)` with a role, which the earlier test of the whole
+          # receiver left out). The first part is read without case, after an optional `this.`, and
+          # must end at store: `_storeDb` and `storeContext` are no store. The range here is the role
+          # the anchor below finds, so a pattern-not-regex on the call would not reach it: the verb
+          # and the receiver are paired here instead.
           - pattern-either:
               - patterns:
                   - pattern: $R.$W(...)
