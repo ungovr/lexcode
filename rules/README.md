@@ -1650,8 +1650,24 @@ The engine sets most of these limits, and the rules' comments point here.
   strings, raw strings with up to two hashes, character literals and comments, so
   a brace inside one does not end it, but a block comment nested in another or a
   raw string with three hashes or more is read as code.
-- **Not read.** A serenity (Discord) or teloxide (Telegram) bot is not read as
-  a chatbot, and no Rust rule reads Woodpecker CI (`.woodpecker.yml`), `tauri.conf.json`, `cargo-apk` metadata, a
+- **Bots.** A serenity, poise or twilight (Discord) or teloxide (Telegram) bot
+  is read as a chatbot only when the reply it sends comes from a model call in
+  the same function, or in the same `async` block (`rs-bot-model-reply`,
+  `rs-bot-model-reply-async`; ruled 2026-11-21, #13301); a command or
+  trigger-word bot whose reply is fixed or looked up is not, which is the
+  penny-bot key's reading. A model call in another function or file
+  (`ai::ask(&msg.content)`), a reply that names the answer only inside a format
+  string (`format!("{answer}")`), and, in an `async` block, an answer carried
+  through two `let`s or more or gathered from a stream are not followed. A
+  model's output posted to a channel other than the member's (a moderators' log)
+  is read as a reply.
+- **Taint in `async` blocks.** On Opengrep 1.33.1 a Rust taint rule does not
+  follow a value through the body of an `async` block (`async move { .. }`,
+  `tokio::spawn(async move { .. })`); it does through an `async fn` and a plain
+  closure. A model's output answered from a spawned task is missed by the taint
+  rules in generation and chat, except the bot reply, which has a search rule of
+  its own for that block.
+- **Not read.** No Rust rule reads Woodpecker CI (`.woodpecker.yml`), `tauri.conf.json`, `cargo-apk` metadata, a
   `publish.workspace = true` that the workspace turns on, a Dioxus `launch` with
   the `mobile` feature, SIP stacks, or a TLS stack chosen only by the `rustls-tls`
   feature with no call. Twilio calls placed through an OpenAPI-generated client,

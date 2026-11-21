@@ -1,0 +1,315 @@
+# A Discord or Telegram bot is a chatbot when the reply it sends a person is text a language model
+# wrote (ruled 2026-11-21, #13301): the member writes, the model answers through the bot. A bot that
+# answers a command or a trigger word with a fixed text, a canned answer or a value looked up in
+# the app's own store is not one, however much it reads like an assistant (the penny-bot key's
+# reading of deploys_chatbot), and a bot that calls a model but sends the member a fixed reply is
+# not one either. So the rule is a taint rule from a model call to a bot's reply.
+#
+# The sources are rs-chat-reply-to-response's (generates_text), copied word for word: async-openai,
+# rig, ollama-rs, genai, mistral.rs, llama.cpp, AWS Bedrock, and a chat model's HTTP address,
+# literal or held in a `const` declared before the call, and a stream from one of them read with
+# `while let`. A change to that list goes into both rules.
+#
+# The sinks are a bot's reply, each in a file whose `use` lines name the bot's crate, since the
+# method names (`reply`, `say`, `send_message`, `content`) are names other crates use:
+# serenity's `reply`, `reply_ping` and `reply_mention` on a message, `say` on a channel, and the
+# content, embed description or field of a message, interaction-response, follow-up or edit
+# builder (`CreateMessage::new().content(..)`), and in serenity 0.11 a builder closure's `content`
+# or `description` inside the call that sends it; poise's `ctx.say(..)`, `ctx.reply(..)` and
+# `CreateReply`; twilight's `create_message(..).content(..)`; and teloxide's `send_message` and
+# `edit_message_text` on a bot. A model call made in another
+# function or file (`let answer = ai::ask(&msg.content).await`) is not followed, so a bot whose
+# model call sits in a module of its own is missed (rules/README.md), and neither is a name used
+# only inside a format string (`format!("{answer}")`; `format!("{}", answer)` is read). On
+# Opengrep 1.33.1 a Rust taint rule does not follow a value through an `async` block, so a reply
+# from a teloxide `repl` closure or a `tokio::spawn(async move { .. })` is
+# rs-bot-model-reply-async's. A model's output posted to a channel other than the one the member
+# wrote in (a moderators' log) is read as a reply too.
+rules:
+  - id: lexcode.chatbot.rs-bot-model-reply
+    languages: [rust]
+    severity: INFO
+    message: Replies to people on Discord or Telegram (a serenity, poise, twilight or teloxide bot) with text a language model wrote, which is deploying a chatbot (deploys_chatbot).
+    mode: taint
+    pattern-sources:
+      # async-openai: chat completions, legacy completions and the Responses API, each plain,
+      # streamed, or with the caller's own types (byot).
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+async_openai\b).*'
+          - pattern-either:
+              - pattern: $C.chat().create(...)
+              - pattern: $C.chat().create_stream(...)
+              - pattern: $C.chat().create_byot(...)
+              - pattern: $C.chat().create_stream_byot(...)
+              - pattern: $C.completions().create(...)
+              - pattern: $C.completions().create_stream(...)
+              - pattern: $C.responses().create(...)
+              - pattern: $C.responses().create_stream(...)
+      # rig: an agent built from a provider client (`client.agent(model)...build()`) and then
+      # prompted or chatted, and a completion model's request sent. `prompt` and `chat` are names
+      # apps use too, so only a call on the labelled agent is a source. An agent held in
+      # application state and prompted in another function is missed.
+      - label: RIG_AGENT
+        patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+(?:rig|rig_core)\b).*'
+          - pattern: $C.agent(...)
+      - requires: RIG_AGENT
+        patterns:
+          - pattern-either:
+              - pattern: $A.prompt(...)
+              - pattern: $A.chat(...)
+              - pattern: $A.stream_prompt(...)
+              - pattern: $A.stream_chat(...)
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+(?:rig|rig_core)\b).*'
+          - pattern: $M.completion_request(...)
+      # ollama-rs: a chat request, and a generation request. `generate` is a name apps use too,
+      # so only a call sent with ollama-rs's GenerationRequest is a source; the request itself
+      # carries the label OLLAMA_REQUEST, which no sink accepts, so echoing it generates nothing.
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+ollama_rs\b).*'
+          - pattern-either:
+              - pattern: $O.send_chat_messages(...)
+              - pattern: $O.send_chat_messages_stream(...)
+              - pattern: $O.send_chat_messages_with_history(...)
+              - pattern: $O.send_chat_messages_with_history_stream(...)
+      - label: OLLAMA_REQUEST
+        pattern-either:
+          - pattern: ollama_rs::generation::completion::request::GenerationRequest::new(...)
+          - pattern: ollama_rs::generation::completion::GenerationRequest::new(...)
+          - patterns:
+              - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+ollama_rs\b[^;]*\bGenerationRequest\b).*'
+              - pattern: GenerationRequest::new(...)
+      - requires: OLLAMA_REQUEST
+        patterns:
+          - pattern-either:
+              - pattern: $O.generate(...)
+              - pattern: $O.generate_stream(...)
+      # genai: one client over many providers' chat models.
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+genai\b).*'
+          - pattern-either:
+              - pattern: $G.exec_chat(...)
+              - pattern: $G.exec_chat_stream(...)
+      # mistral.rs: a local text model (it runs on Candle).
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+mistralrs\b).*'
+          - pattern-either:
+              - pattern: $M.send_chat_request(...)
+              - pattern: $M.stream_chat_request(...)
+      # llama.cpp: the llama_cpp crate's completion session, and llama-cpp-2's sampler, whose
+      # sampled tokens the app turns into text (`token_to_str`, `token_to_piece`). The sampler
+      # carries the label LLAMA_SAMPLER, set by its own constructor; `sample` is a name apps use.
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+llama_cpp\b).*'
+          - pattern-either:
+              - pattern: $S.start_completing_with(...)
+              - pattern: $S.start_completing()
+      - label: LLAMA_SAMPLER
+        pattern-either:
+          - pattern: llama_cpp_2::sampling::LlamaSampler::$K(...)
+          - patterns:
+              - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+llama_cpp_2\b[^;]*\bLlamaSampler\b).*'
+              - pattern: LlamaSampler::$K(...)
+      - requires: LLAMA_SAMPLER
+        pattern: $SAMPLER.sample(...)
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+llama_cpp_2\b).*'
+          - pattern: $CTX.sample_token_greedy(...)
+      # AWS Bedrock Runtime: the Converse API, which answers in text, and InvokeModel with a text
+      # model's id, as a literal or a `const`.
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+aws_sdk_bedrockruntime\b).*'
+          - pattern-either:
+              - pattern: $C.converse()
+              - pattern: $C.converse_stream()
+      # InvokeModel with a text model's id.
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+aws_sdk_bedrockruntime\b).*'
+          - pattern: $B.model_id($ID)
+          - metavariable-pattern:
+              metavariable: $B
+              pattern: $C.invoke_model()
+          - metavariable-regex:
+              metavariable: $ID
+              regex: '(?i)^"[^"]*(claude|llama|titan-text|nova-(lite|micro|pro|premier)|mistral|command|jamba|deepseek|qwen)[^"]*"$'
+      # The same model id held in a `const` declared before the call, in the file, an `impl`
+      # or the function. The use check sits outside the nested block (see the stream source).
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+aws_sdk_bedrockruntime\b).*'
+          - patterns:
+              - pattern-inside: |
+                  const $K: $KT = $ID;
+                  ...
+              - metavariable-regex:
+                  metavariable: $ID
+                  regex: '(?i)^"[^"]*(claude|llama|titan-text|nova-(lite|micro|pro|premier)|mistral|command|jamba|deepseek|qwen)[^"]*"$'
+              - pattern-either:
+                  - pattern: $B.model_id($K)
+                  - pattern: $B.model_id(Self::$K)
+              - metavariable-pattern:
+                  metavariable: $B
+                  pattern: $C.invoke_model()
+      # The same, streamed.
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+aws_sdk_bedrockruntime\b).*'
+          - pattern: $B.model_id($ID)
+          - metavariable-pattern:
+              metavariable: $B
+              pattern: $C.invoke_model_with_response_stream()
+          - metavariable-regex:
+              metavariable: $ID
+              regex: '(?i)^"[^"]*(claude|llama|titan-text|nova-(lite|micro|pro|premier)|mistral|command|jamba|deepseek|qwen)[^"]*"$'
+      # The same model id held in a `const` declared before the call, in the file, an `impl`
+      # or the function. The use check sits outside the nested block (see the stream source).
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+aws_sdk_bedrockruntime\b).*'
+          - patterns:
+              - pattern-inside: |
+                  const $K: $KT = $ID;
+                  ...
+              - metavariable-regex:
+                  metavariable: $ID
+                  regex: '(?i)^"[^"]*(claude|llama|titan-text|nova-(lite|micro|pro|premier)|mistral|command|jamba|deepseek|qwen)[^"]*"$'
+              - pattern-either:
+                  - pattern: $B.model_id($K)
+                  - pattern: $B.model_id(Self::$K)
+              - metavariable-pattern:
+                  metavariable: $B
+                  pattern: $C.invoke_model_with_response_stream()
+      # A chat model called over HTTP (reqwest's post or get): OpenAI's chat, completions and
+      # Responses endpoints, Anthropic's Messages API, and Mistral's, Groq's and DeepSeek's chat
+      # endpoints. The call is the source, not the address, so no use check is needed.
+      - patterns:
+          - pattern-either:
+              - pattern: $HTTP.post($URL)
+              - pattern: $HTTP.get($URL)
+          - metavariable-regex:
+              metavariable: $URL
+              regex: '^&?(?:format!\(\s*)?"https://(?:api\.openai\.com/v1/(?:chat/completions|completions|responses)|api\.anthropic\.com/v1/messages|api\.mistral\.ai/v1/chat/completions|api\.groq\.com/openai/v1/chat/completions|api\.deepseek\.com/(?:v1/)?chat/completions)[?"]'
+      # The same address held in a `const` declared before the call, in the file, an `impl`
+      # (`Self::URL`) or the function; one declared after its use is not read.
+      - patterns:
+          - pattern-inside: |
+              const $K: $KT = $URL;
+              ...
+          - metavariable-regex:
+              metavariable: $URL
+              regex: '^&?(?:format!\(\s*)?"https://(?:api\.openai\.com/v1/(?:chat/completions|completions|responses)|api\.anthropic\.com/v1/messages|api\.mistral\.ai/v1/chat/completions|api\.groq\.com/openai/v1/chat/completions|api\.deepseek\.com/(?:v1/)?chat/completions)[?"]'
+          - pattern-either:
+              - pattern: $HTTP.post($K)
+              - pattern: $HTTP.post(Self::$K)
+              - pattern: $HTTP.get($K)
+              - pattern: $HTTP.get(Self::$K)
+      # A stream from one of the calls above, read with `while let`: the engine does not carry
+      # taint from a `while let` scrutinee into the names it binds (it does for `if let`), so
+      # those names are a source of their own inside the loop, in a file whose use lines name one
+      # of the crates. The use check sits outside a nested block: beside the pattern-inside terms
+      # at one level it removed every match.
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+(?:async_openai|rig|rig_core|ollama_rs|genai|mistralrs|aws_sdk_bedrockruntime|llama_cpp)\b).*'
+          - patterns:
+              - pattern-inside: |
+                  let $STREAM = $OPEN;
+                  ...
+              - metavariable-pattern:
+                  metavariable: $OPEN
+                  pattern-either:
+                    - pattern: $C.chat().create_stream(...)
+                    - pattern: $C.chat().create_stream_byot(...)
+                    - pattern: $C.completions().create_stream(...)
+                    - pattern: $C.responses().create_stream(...)
+                    - pattern: $A.stream_prompt(...)
+                    - pattern: $A.stream_chat(...)
+                    - pattern: $O.send_chat_messages_stream(...)
+                    - pattern: $O.send_chat_messages_with_history_stream(...)
+                    - pattern: $O.generate_stream(...)
+                    - pattern: $G.exec_chat_stream(...)
+                    - pattern: $M.stream_chat_request(...)
+                    - pattern: $C.converse_stream()
+                    - pattern: $S.start_completing_with(...)
+              - pattern-either:
+                  - pattern-inside: |
+                      while let Some($ITEM) = <... $STREAM ...> { ... }
+                  - pattern-inside: |
+                      while let Some(Ok($ITEM)) = <... $STREAM ...> { ... }
+                  - pattern-inside: |
+                      while let Ok(Some($ITEM)) = <... $STREAM ...> { ... }
+              - pattern: $ITEM
+    pattern-propagators:
+      # Output gathered into a string, a buffer or a list is sent on with it.
+      - pattern: $S.push_str($X)
+        from: $X
+        to: $S
+        by-side-effect: true
+      - pattern: $S.push($X)
+        from: $X
+        to: $S
+        by-side-effect: true
+      - pattern: $S.extend($X)
+        from: $X
+        to: $S
+        by-side-effect: true
+      - pattern: $S.extend_from_slice($X)
+        from: $X
+        to: $S
+        by-side-effect: true
+    pattern-sinks:
+      # serenity: a reply to the message, a message said in its channel.
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+(?:serenity|poise)\b).*'
+          - pattern-either:
+              - pattern: $M.reply($H, $X)
+              - pattern: $M.reply_ping($H, $X)
+              - pattern: $M.reply_mention($H, $X)
+              - pattern: $CH.say($H, $X)
+          - focus-metavariable: $X
+      # serenity 0.12 and poise: the text of a message, interaction-response, follow-up, edit or
+      # reply builder, and an embed's description or field, read from the builder's constructor.
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+(?:serenity|poise)\b).*'
+          - pattern-either:
+              - pattern: $B.content($X)
+              - pattern: $B.description($X)
+              - pattern: $B.field($N, $X, ...)
+          - metavariable-regex:
+              metavariable: $B
+              regex: '(?s)^(\w+::)*(CreateMessage|EditMessage|CreateInteractionResponseMessage|EditInteractionResponse|CreateInteractionResponseFollowup|CreateEmbed|CreateReply)::(new|default)\(\)'
+          - focus-metavariable: $X
+      # serenity 0.11: a builder closure's text, inside the call that sends it.
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+(?:serenity|poise)\b).*'
+          - pattern-inside: $R.$SEND(...)
+          - metavariable-regex:
+              metavariable: $SEND
+              regex: ^(send_message|edit|create_interaction_response|edit_original_interaction_response|create_followup_message|edit_followup_message)$
+          - pattern-either:
+              - pattern: $B.content($X)
+              - pattern: $B.description($X)
+              - pattern: $B.field($N, $X, ...)
+          - focus-metavariable: $X
+      # poise: the command context's say and reply.
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+poise\b).*'
+          - pattern-either:
+              - pattern: $CTX.say($X)
+              - pattern: $CTX.reply($X)
+          - focus-metavariable: $X
+      # twilight: a message created in a channel.
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+twilight_http\b).*'
+          - pattern: $HTTP.create_message($CH).content($X)
+          - focus-metavariable: $X
+      # teloxide: a message sent to a chat, and a sent message's text edited.
+      - patterns:
+          - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+teloxide\b).*'
+          - pattern-either:
+              - pattern: $BOT.send_message($CHAT, $X)
+              - pattern: $BOT.edit_message_text($CHAT, $MID, $X)
+          - focus-metavariable: $X
+    metadata:
+      activity: deploys_chatbot
+      mentioned: performs
+      definition: https://lexlint.io/activities/deploys-chatbot
+      provenance: ungovr-original
+      license: MIT

@@ -1,0 +1,104 @@
+# rs-bot-model-reply's reading (a bot is a chatbot when its reply is text a model wrote, ruled
+# 2026-11-21, #13301) inside an `async` block: a teloxide `repl` or dispatcher closure
+# (`move |bot, msg| async move { .. }`), or a reply sent from `tokio::spawn(async move { .. })`
+# so the gateway is not held up. On Opengrep 1.33.1 a Rust taint rule does not follow a value
+# through an `async` block's body (it does through an `async fn` and a plain closure), so this is a
+# search rule: the model's result is bound with `let` in the block, or one `let` later
+# (`let answer = res.message.content;`), and that name appears in the reply. A value carried
+# through two `let`s or more, gathered into a buffer from a stream, or named only inside a format
+# string (`format!("{answer}")`, where `format!("{}", answer)` is read) is not followed.
+#
+# The model calls are the shapes of rs-bot-model-reply's sources that no other crate uses (an
+# async-openai `chat().create`, `completions().create` or `responses().create`, ollama-rs's chat,
+# genai's `exec_chat`, mistral.rs's chat request, Bedrock's `converse()`, and an HTTP POST to a chat
+# model's address), read without each crate's `use` check, since the bot crate's own check already
+# keeps the rule to a bot's file. rig's `prompt` and `chat` are names apps give their own methods,
+# so a rig agent is read only by rs-bot-model-reply. The sinks are rs-bot-model-reply's.
+rules:
+  - id: lexcode.chatbot.rs-bot-model-reply-async
+    languages: [rust]
+    severity: INFO
+    message: Replies to people on Discord or Telegram (a serenity, poise, twilight or teloxide bot) with text a language model wrote, from an async block, which is deploying a chatbot (deploys_chatbot).
+    patterns:
+      - pattern-either:
+          - pattern-inside: async move { ... }
+          - pattern-inside: async { ... }
+      - pattern-either:
+          - pattern-inside: |
+              let $R = $SRC;
+              ...
+          - pattern-inside: |
+              let $R0 = $SRC;
+              ...
+              let $R = <... $R0 ...>;
+              ...
+      - metavariable-pattern:
+          metavariable: $SRC
+          pattern-either:
+            - pattern: $C.chat().create(...)
+            - pattern: $C.chat().create_byot(...)
+            - pattern: $C.completions().create(...)
+            - pattern: $C.responses().create(...)
+            - pattern: $O.send_chat_messages(...)
+            - pattern: $O.send_chat_messages_with_history(...)
+            - pattern: $G.exec_chat(...)
+            - pattern: $M.send_chat_request(...)
+            - pattern: $C.converse()
+            - patterns:
+                - pattern: $HTTP.post($URL)
+                - metavariable-regex:
+                    metavariable: $URL
+                    regex: '^&?"https://(?:api\.openai\.com/v1/(?:chat/completions|completions|responses)|api\.anthropic\.com/v1/messages|api\.mistral\.ai/v1/chat/completions|api\.groq\.com/openai/v1/chat/completions|api\.deepseek\.com/(?:v1/)?chat/completions)[?"]'
+      - pattern-either:
+          # serenity: a reply to the message, a message said in its channel.
+          - patterns:
+              - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+(?:serenity|poise)\b).*'
+              - pattern-either:
+                  - pattern: $MSG.reply($H, <... $R ...>)
+                  - pattern: $MSG.reply_ping($H, <... $R ...>)
+                  - pattern: $MSG.reply_mention($H, <... $R ...>)
+                  - pattern: $CH.say($H, <... $R ...>)
+          # serenity 0.12 and poise: the text of a message, response, follow-up, edit or reply
+          # builder, and an embed's description or field.
+          - patterns:
+              - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+(?:serenity|poise)\b).*'
+              - pattern-either:
+                  - pattern: $B.content(<... $R ...>)
+                  - pattern: $B.description(<... $R ...>)
+                  - pattern: $B.field($N, <... $R ...>, ...)
+              - metavariable-regex:
+                  metavariable: $B
+                  regex: '(?s)^(\w+::)*(CreateMessage|EditMessage|CreateInteractionResponseMessage|EditInteractionResponse|CreateInteractionResponseFollowup|CreateEmbed|CreateReply)::(new|default)\(\)'
+          # serenity 0.11: a builder closure's text, inside the call that sends it.
+          - patterns:
+              - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+(?:serenity|poise)\b).*'
+              - pattern-inside: $RCV.$SEND(...)
+              - metavariable-regex:
+                  metavariable: $SEND
+                  regex: ^(send_message|edit|create_interaction_response|edit_original_interaction_response|create_followup_message|edit_followup_message)$
+              - pattern-either:
+                  - pattern: $B.content(<... $R ...>)
+                  - pattern: $B.description(<... $R ...>)
+                  - pattern: $B.field($N, <... $R ...>, ...)
+          # poise: the command context's say and reply.
+          - patterns:
+              - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+poise\b).*'
+              - pattern-either:
+                  - pattern: $CTX.say(<... $R ...>)
+                  - pattern: $CTX.reply(<... $R ...>)
+          # twilight: a message created in a channel.
+          - patterns:
+              - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+twilight_http\b).*'
+              - pattern: $TW.create_message($CH).content(<... $R ...>)
+          # teloxide: a message sent to a chat, and a sent message's text edited.
+          - patterns:
+              - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+teloxide\b).*'
+              - pattern-either:
+                  - pattern: $BOT.send_message($CHAT, <... $R ...>)
+                  - pattern: $BOT.edit_message_text($CHAT, $MID, <... $R ...>)
+    metadata:
+      activity: deploys_chatbot
+      mentioned: performs
+      definition: https://lexlint.io/activities/deploys-chatbot
+      provenance: ungovr-original
+      license: MIT
