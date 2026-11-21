@@ -428,11 +428,13 @@ function markupElementEnd(text: string, lt: number, markup: MarkupScan, texts?: 
   if (tag === null) return -1;
   const lower = name.toLowerCase();
   if (tag.selfClosing || VOID_ELEMENTS.has(lower)) return tag.next;
-  const unclosed = lineEnd(text, tag.next - 1);
-  if (markup.budget.left <= 0) return unclosed;
+  // Where the element ends if it never closes: its start tag's line end, found only then, since finding it for
+  // every element costs each the rest of its line, which is quadratic over a long line of elements.
+  const unclosed = (): number => lineEnd(text, tag.next - 1);
+  if (markup.budget.left <= 0) return unclosed();
   const fail = (): number => {
     markup.budget.left -= text.length - lt;
-    return unclosed;
+    return unclosed();
   };
   const pastClosingTag = (at: number): number => {
     const gt = text.indexOf('>', at);

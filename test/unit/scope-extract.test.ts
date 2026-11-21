@@ -1988,8 +1988,13 @@ describe('a script inside template code or a template comment is not markup (#12
     });
   }
 
-  it('the Razor search grows near-linearly over markup that never closes inside code blocks', () => {
+  it('the Razor search grows near-linearly over markup inside code blocks, on long lines and where it never closes', () => {
     for (const [name, body] of [
+      // Where an element would end if it never closed (its line's end) is found only when it does not close: found
+      // for every element, it cost each one the rest of its line, so a long line was quadratic (#12882, #13208).
+      ['closed elements on one line', (n: number) => '@if (a) { <p>x</p> }'.repeat(n / 20) + '\n<script>a();</script>'],
+      ['20 long lines of closed elements', (n: number) => '@if (a) {\n' + ('<p>x</p>'.repeat(n / 160) + '\n').repeat(20) + '}\n<script>a();</script>'],
+      ['elements with Razor code on one line', (n: number) => '@{ ' + '<p>@Model.X</p>'.repeat(n / 15) + ' }\n<script>a();</script>'],
       ['unclosed elements', (n: number) => '@if (a) { <div> }\n'.repeat(n / 18) + '<script>a();</script>'],
       ['elements around unclosed code', (n: number) => '@if (a) { <p>@( </p> }\n'.repeat(n / 23) + '<script>a();</script>'],
       ['nested elements', (n: number) => '@{ ' + '<b>'.repeat(n / 7) + '</b>'.repeat(n / 7) + ' }\n<script>a();</script>'],
