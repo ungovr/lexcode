@@ -17,3 +17,14 @@ struct BotSetup {
         await DiscordCache(gatewayManager: bot, intents: [.guildMessages], requestAllMembers: .disabled)
     }
 }
+
+// An app's own settings type made with `.init` and a label of the same name, which does not open with
+// DiscordCache's `gatewayManager:`.
+struct SyncSettings {
+    var requestAllMembers: Mode
+    enum Mode { case enabled, disabled }
+}
+
+func defaults() -> SyncSettings {
+    .init(requestAllMembers: .enabled)
+}

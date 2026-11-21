@@ -10,8 +10,10 @@
 #
 # A bot that only answers commands or reads messages without asking for the member list is not
 # matched, though each message names its author. `DiscordCache` and `BotGatewayManager` are
-# DiscordBM's types; the cache carries the product's name and is matched with or without the import,
-# the gateway only in a file that imports DiscordBM or DiscordGateway.
+# DiscordBM's types. The cache is read as `DiscordCache(...)`, `DiscordCache.init(...)` and
+# `.init(gatewayManager: ...)` (the DDBKit starters' shape): the first two carry the product's name and
+# the third DiscordCache's own first label, so none needs the import. The gateway is read only in a
+# file that imports DiscordBM, DiscordGateway or DDBKit (which re-exports DiscordBM).
 rules:
   - id: lexcode.personal.swift-discord-members
     languages: [swift]
@@ -23,6 +25,8 @@ rules:
               - pattern: 'DiscordCache(..., requestAllMembers: $R, ...)'
               - pattern: 'DiscordBM.DiscordCache(..., requestAllMembers: $R, ...)'
               - pattern: 'DiscordGateway.DiscordCache(..., requestAllMembers: $R, ...)'
+              - pattern: 'DiscordCache.init(..., requestAllMembers: $R, ...)'
+              - pattern: '.init(gatewayManager: $G, ..., requestAllMembers: $R, ...)'
           - metavariable-regex:
               metavariable: $R
               regex: ^(?:(?:DiscordCache\.)?RequestMembers)?\.enabled
@@ -32,8 +36,10 @@ rules:
               - pattern: 'DiscordCache(..., intents: $I, ...)'
               - pattern: 'DiscordBM.DiscordCache(..., intents: $I, ...)'
               - pattern: 'DiscordGateway.DiscordCache(..., intents: $I, ...)'
+              - pattern: 'DiscordCache.init(..., intents: $I, ...)'
+              - pattern: '.init(gatewayManager: $G, intents: $I, ...)'
               - patterns:
-                  - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?(?:DiscordBM|DiscordGateway)\b).*'
+                  - pattern-regex: '(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?(?:DiscordBM|DiscordGateway|DDBKit)\b).*'
                   - pattern: 'BotGatewayManager(..., intents: $I, ...)'
           - metavariable-pattern:
               metavariable: $I

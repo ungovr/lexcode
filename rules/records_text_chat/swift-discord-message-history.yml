@@ -3,11 +3,21 @@
 # message to its moderators). DiscordBM's cache does this when its message policy is one of the three
 # that save: `saveDeleted`, `saveEditHistory` or `saveEditHistoryAndDeleted`, with or without the
 # guild and channel lists they take (DiscordBM, Sources/DiscordGateway/DiscordCache.swift,
-# `MessageCachingPolicy`, read 2026-11-21). The `normal` policy, the default, replaces an edited
-# message and drops a deleted one, so it keeps only what is on screen and is not matched.
+# `MessageCachingPolicy`, read 2026-11-21). The `normal` policy, the default, also caches messages in
+# memory, but replaces an edited message and drops a deleted one, so it keeps no history of what was
+# typed; the line the rule draws is that retention, and `normal` is not matched.
 #
-# `DiscordCache` carries the product's name, so it is matched with or without the file's import.
-# A cache made by another Discord library is not read (rules/README.md, "Known Swift gaps").
+# Evidence, not a signal: the definition names stored transcripts, and a cache that saves every edit
+# and deleted message is a transcript kept on purpose. The penny-bot truth-set key reads exactly this
+# setting as records_text_chat performed (a hard call there: the copy lives in memory and is re-posted
+# into Discord, not written to the bot's own store).
+#
+# The cache is made in three ways, all read: `DiscordCache(...)`, `DiscordCache.init(...)`, and
+# `.init(gatewayManager: ..., messageCachingPolicy: ...)` assigned to a property typed `DiscordCache`
+# (the DDBKit starters' shape, in a file that imports only DDBKit, which re-exports DiscordBM). The
+# first two carry the product's name and the third DiscordCache's own label set (`gatewayManager:`
+# first, then `messageCachingPolicy:`), so none needs the file's import. A cache made by another
+# Discord library is not read (rules/README.md, "Known Swift gaps").
 rules:
   - id: lexcode.chat.swift-discord-message-history
     languages: [swift]
@@ -18,6 +28,8 @@ rules:
           - pattern: 'DiscordCache(..., messageCachingPolicy: $P, ...)'
           - pattern: 'DiscordBM.DiscordCache(..., messageCachingPolicy: $P, ...)'
           - pattern: 'DiscordGateway.DiscordCache(..., messageCachingPolicy: $P, ...)'
+          - pattern: 'DiscordCache.init(..., messageCachingPolicy: $P, ...)'
+          - pattern: '.init(gatewayManager: $G, ..., messageCachingPolicy: $P, ...)'
       - metavariable-regex:
           metavariable: $P
           regex: ^(?:(?:DiscordCache\.)?MessageCachingPolicy)?\.save(?:Deleted|EditHistory|EditHistoryAndDeleted)\b
