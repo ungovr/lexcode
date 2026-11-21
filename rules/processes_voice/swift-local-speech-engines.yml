@@ -11,7 +11,8 @@
 #   `detectLangauge(audioArray:)`, which is WhisperKit's own spelling of the array form: keep it)
 #   and the `AudioStreamTranscriber` are names any app may use, so they count only in a file that
 #   imports WhisperKit or ArgmaxOSS, and never when called on `self` (an app's own method of that
-#   name). Model downloads and listings (`WhisperKit.download`, `fetchAvailableModels`, a pipeline
+#   name), except inside an `extension WhisperKit`, where `self` and a bare call are WhisperKit's
+#   (read with or without the import, as the initializer is). Model downloads and listings (`WhisperKit.download`, `fetchAvailableModels`, a pipeline
 #   made with `load: false`) transcribe nothing, and TTSKit reads typed text aloud: none is matched.
 #   A `load: false` config held in a variable before the initializer is not seen, and the
 #   pipeline then counts.
@@ -63,6 +64,30 @@ rules:
                       metavariable: $K
                       regex: ^(?!self$)
               - pattern: AudioStreamTranscriber(...)
+      # WhisperKit's own methods called on itself from an app's extension of it
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  extension WhisperKit { ... }
+              - pattern-inside: |
+                  extension WhisperKit.WhisperKit { ... }
+          - pattern-either:
+              - pattern: 'self.transcribe(audioPath: $A, ...)'
+              - pattern: 'self.transcribe(audioArray: $A, ...)'
+              - pattern: 'self.transcribe(audioPaths: $A, ...)'
+              - pattern: 'self.transcribe(audioArrays: $A, ...)'
+              - pattern: self.transcribeWithResults(...)
+              - pattern: self.transcribeWithOptions(...)
+              - pattern: 'self.detectLanguage(audioPath: $A)'
+              - pattern: 'self.detectLangauge(audioArray: $A)'
+              - pattern: 'transcribe(audioPath: $A, ...)'
+              - pattern: 'transcribe(audioArray: $A, ...)'
+              - pattern: 'transcribe(audioPaths: $A, ...)'
+              - pattern: 'transcribe(audioArrays: $A, ...)'
+              - pattern: transcribeWithResults(...)
+              - pattern: transcribeWithOptions(...)
+              - pattern: 'detectLanguage(audioPath: $A)'
+              - pattern: 'detectLangauge(audioArray: $A)'
       # SwiftWhisper
       - pattern: SwiftWhisper.Whisper(...)
       - patterns:

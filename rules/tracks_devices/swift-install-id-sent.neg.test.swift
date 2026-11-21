@@ -40,9 +40,36 @@ final class RequestDecorator {
         request.setValue(doc, forHTTPHeaderField: "X-TXN-UUID")
         request.setValue(doc, forHTTPHeaderField: "X-SID-UUID")
         request.setValue(doc, forHTTPHeaderField: "X-DOC-UUID")
-        request.setValue(doc, forHTTPHeaderField: "x-wmf-uuid")
-        request.setValue(doc, forHTTPHeaderField: "X-Wmf-Uuid")
         request.setValue(doc, forHTTPHeaderField: "X-WMF-APP-UUID")
+    }
+
+    // A vendor's namespace and the entity a request is about read the same in an X-<name>-UUID
+    // header, so only the two names the rule lists are read.
+    func namedUUIDs(_ request: inout URLRequest, id: String) {
+        request.setValue(id, forHTTPHeaderField: "X-API-UUID")
+        request.setValue(id, forHTTPHeaderField: "X-SKU-UUID")
+        request.setValue(id, forHTTPHeaderField: "X-PO-UUID")
+        request.setValue(id, forHTTPHeaderField: "X-CRM-UUID")
+        request.setValue(id, forHTTPHeaderField: "X-TEAM-UUID")
+        request.setValue(id, forHTTPHeaderField: "X-ORDER-UUID")
+        request.setValue(id, forHTTPHeaderField: "X-CART-UUID")
+        request.setValue(id, forHTTPHeaderField: "X-FILE-UUID")
+        request.setValue(id, forHTTPHeaderField: "X-ROOM-UUID")
+        request.setValue(id, forHTTPHeaderField: "X-CHAT-UUID")
+        request.setValue(id, forHTTPHeaderField: "X-CUST-UUID")
+        request.setValue(id, forHTTPHeaderField: "X-PID-UUID")
+        request.setValue(id, forHTTPHeaderField: "X-ACME-UUID")
+    }
+
+    // A device header that names another device (the one the request drives), not the phone.
+    func otherDevices(_ request: inout URLRequest, id: String) {
+        request.setValue(id, forHTTPHeaderField: "X-Lock-Device-Id")
+        request.setValue(id, forHTTPHeaderField: "X-Camera-Device-Id")
+        request.setValue(id, forHTTPHeaderField: "X-Target-Device-Id")
+        request.setValue(id, forHTTPHeaderField: "X-Peer-Device-Id")
+        request.setValue(id, forHTTPHeaderField: "X-Remote-Device-UUID")
+        request.setValue(id, forHTTPHeaderField: "X-Paired-Device-Id")
+        request.setValue(id, forHTTPHeaderField: "X-Hub-Device-Id")
     }
 
     func github(_ request: inout URLRequest, githubInstallationID: Int, installationID: String) {

@@ -1,4 +1,5 @@
-// lexcode-expect: 4
+// lexcode-expect: 5
+import Combine
 import Foundation
 
 final class Pixel {
@@ -37,5 +38,13 @@ final class Pixel {
         var components = URLComponents(string: "https://api.example.com/v1/ping")!
         components.queryItems = [URLQueryItem(name: "i", value: installUUID.uuidString)]
         return URLRequest(url: components.url!)
+    }
+
+    func published() -> AnyPublisher<Data, URLError> {
+        var components = URLComponents(string: "https://px.example.net/p")!
+        components.queryItems = [URLQueryItem(name: "install_id", value: installID)]
+        return URLSession.shared.dataTaskPublisher(for: components.url!)
+            .map(\.data)
+            .eraseToAnyPublisher()
     }
 }

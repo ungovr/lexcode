@@ -1573,16 +1573,21 @@ The engine sets most of these limits, and the rules' comments point here.
 - **Data and tracking.** No rule reads a Vapor server's client address or a
   device fingerprint. An install ID the app mints for itself (a random UUID kept
   in its own store and sent with every request) is read by its names only: a
-  header named for an install or device ID (or `X-<ACRONYM>-UUID` in capitals,
-  as Wikipedia's `X-WMF-UUID` is) or filled from a value named as one
-  (`swift-install-id-sent`), and a query item named for one or filled from such a
-  value, followed to the request its URL reaches (`swift-install-id-query-sent`).
-  The mint and the send sit in different files, which taint does not join, so an
-  install ID sent under other names (`X-Client-UUID`, `x-wishkit-uuid`), under
-  the name `installation_id` (which GitHub uses for an app's installation), in a
-  URL opened in a browser or a web view, or in a header dictionary
-  (`allHTTPHeaderFields = [...]`, Alamofire's `HTTPHeaders`), is missed. Taint
-  does not follow a class property initialized from a source into a method.
+  header named for an install or device ID (and two names that hold only a
+  vendor or the app and a UUID, Wikipedia's `X-WMF-UUID` and `X-App-UUID`) or
+  filled from a value named as one (`swift-install-id-sent`), and a query item
+  named for one or filled from such a value, followed to the request its URL
+  reaches (`swift-install-id-query-sent`). The mint and the send sit in
+  different files, which taint does not join, so an install ID sent under other
+  names (`X-Client-UUID`, `x-wishkit-uuid`, any other `X-<name>-UUID`, whose name
+  cannot tell a vendor from the thing the request is about), under the name
+  `installation_id` (which GitHub uses for an app's installation), in a URL
+  handed to the system browser (`UIApplication.shared.open`, as Wikipedia does
+  with its `appinstallid` query item), or in a header dictionary
+  (`allHTTPHeaderFields = [...]`, Alamofire's `HTTPHeaders`), is missed. A URL
+  loaded in a web view through a request (`webView.load(URLRequest(url: ...))`)
+  is read. A device header whose name says it is another device
+  (`X-Lock-Device-Id`) is left out.
 - **Shipping.** A tvOS-only or visionOS-only app whose delegate file carries no
   platform cue is matched as a mobile app, an SDK's non-open delegate forwarder
   is matched, a delegate that conforms in fourth place or later is missed, and a

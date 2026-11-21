@@ -6,23 +6,25 @@
 # whose name says it carries an install or device ID, or a header filled from a value named as an
 # install ID. A query item is swift-install-id-query-sent's, which follows it to the request.
 #
-# - Header names: `X-...-Install-Id`, `X-...-Device-Id` or `-Device-UUID`, and
+# - Header names: `X-...-Install-Id` (or `-UUID`), `X-...-Device-Id` (or `-UUID`), and
 #   `X-...-App-Instance-Id` (or `-UUID`), in any case. A name that also says request, trace,
 #   correlation, transaction, idempotency, message, session or nonce is left out, since those
 #   change with each request or visit.
-# - `X-<ACRONYM>-UUID`, the acronym in capitals, two to five letters and nothing else
-#   (Wikipedia's `X-WMF-UUID`, which it fills from `xWMFUUID` in one of its two sends, so the
-#   value's name cannot carry it): a name that holds only the vendor and a UUID names nothing the
-#   request is about, so the UUID is the client's. An acronym for an account, request or document
-#   (`X-ORG-UUID`, `X-USR-UUID`, `X-REQ-UUID`) is left out. A header named for any other UUID
-#   (`X-Workspace-UUID`, `X-Organization-UUID`, `X-Cmux-Workspace-UUID`) is not read: most name
-#   the account, project or document the request is about.
+# - Two names that hold only a vendor or the app and a UUID, in any case (one HTTP header):
+#   `X-WMF-UUID` (Wikipedia for iOS, which fills it from `xWMFUUID` in one of its two sends, so the
+#   value's name cannot carry it) and `X-App-UUID` (an app's own UUID kept in its defaults). Any
+#   other `X-<name>-UUID` is not read: the name cannot tell a vendor's namespace from the thing the
+#   request is about (`X-API-UUID`, `X-SKU-UUID`, `X-ORDER-UUID`, `X-CART-UUID`, `X-ROOM-UUID`,
+#   `X-Workspace-UUID`, `X-Organization-UUID`), and code search found no other vendor's.
 # - `Installation-Id` is not read: it is GitHub's (and other platforms') name for an app's
 #   installation in an organization (`X-GitHub-Installation-Id`), not a device.
 # - A header named `X-Device-Id` is read though a query item named `device_id` is not (in the query
 #   rule): a header describes the client that sends it, and in real Swift code it carries the
 #   phone's own ID, while a query item names the resource the request is about, which in an app
-#   that drives cameras, locks or other hardware is that device.
+#   that drives cameras, locks or other hardware is that device. For the same reason a device
+#   header whose name says it is another device (`X-Lock-Device-Id`, `X-Camera-Device-Id`,
+#   `X-Target-Device-Id`, `X-Peer-Device-Id`, and remote, paired, linked, child, parent, sensor,
+#   gateway, hub, printer and beacon) is left out.
 # - A value named as an install ID (`installID`, `appInstallId`, `installID.uuidString`) put into
 #   a header, whatever the header's name.
 #
@@ -47,7 +49,7 @@ rules:
               - pattern: 'addValue($V, forHTTPHeaderField: $H)'
           - metavariable-regex:
               metavariable: $H
-              regex: '^"(?:(?i:x-(?![\w-]*(?:request|trace|correlation|transaction|idempotency|message|session|nonce))(?:[a-z0-9]+-)*(?:install-?id|device-?(?:id|uuid)|app-?instance-?(?:id|uuid)))|X-(?!(?:ORG|USR|USER|ACCT|REQ|MSG|TXN|SID|DOC)-)[A-Z]{2,5}-UUID)"$'
+              regex: '^"(?i:x-(?![\w-]*(?:request|trace|correlation|transaction|idempotency|message|session|nonce))(?![\w-]*(?<![a-z])(?:target|peer|remote|paired|linked|child|parent|lock|camera|sensor|gateway|hub|printer|beacon)-)(?:[a-z0-9]+-)*(?:install|device|app-?instance)-?(?:id|uuid)|x-(?:wmf|app)-uuid)"$'
       # any header filled from a value named as an install ID
       - patterns:
           - pattern-either:

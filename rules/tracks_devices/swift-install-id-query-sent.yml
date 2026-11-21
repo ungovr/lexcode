@@ -59,6 +59,8 @@ rules:
               - pattern: '$S.data(from: $V, ...)'
               - pattern: '$S.dataTask(with: $V, ...)'
               - pattern: '$S.download(from: $V, ...)'
+              # Combine's publisher, given the URL (or a request) directly.
+              - pattern: '$S.dataTaskPublisher(for: $V)'
           - focus-metavariable: $V
     metadata:
       activity: tracks_devices

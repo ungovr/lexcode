@@ -449,11 +449,12 @@ SERVER_SINKS = """
                           func $F(..., $REQ: HBRequest, ...) -> $T {{
                             $X
                           }}
-                  # (the engine binds `-> ()` in an `async throws` handler as `async throws(()`, so the
-                  # empty tuple is read as a type that ends in `(` or `()`)
+                  # (the engine binds `$T` from the effects on, `async throws(MyError) -> Void` or
+                  # `async throws` and `-> ()` on the next line, so the type is read after the last
+                  # `->` when there is one, and a type that ends in `(` or `()` is the empty tuple)
                   - metavariable-regex:
                       metavariable: $T
-                      regex: ^(?!(?:Swift\\.)?Void$|.*\\(\\s*\\)?$)
+                      regex: ^(?!(?:[\\s\\S]*->\\s*)?\\(?\\s*(?:(?:Swift\\.)?Void)?\\s*\\)?$|[\\s\\S]*\\(\\s*\\)?$)
           - focus-metavariable: $X
       - patterns:
           - pattern-either:
