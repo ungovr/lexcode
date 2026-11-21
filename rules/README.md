@@ -1134,7 +1134,9 @@ exemption must be argued and ruled before it is added.
   not `automated_outreach`.
 - A store's sending mail account (nopCommerce's `EmailAccount`: the mailbox and
   SMTP login the app sends its own mail from) is not personal data for
-  `cs-schema-field`. A mail account's columns are set aside only where its file
+  `cs-schema-field` or `cs-entity-field`, which share one test for it
+  (`test/unit/cs-sending-mailbox-shared.test.ts`). A mail account's columns are
+  set aside only where its file
   maps sending settings (a host, port, SSL or SMTP column) and names no owner (a
   `UserId`, `CustomerId`, `OwnerId`, `MemberId` or `AccountHolder`); a mailbox a
   person connects in a mail client stays personal data.

@@ -116,6 +116,45 @@ rules:
                 $T $P { get; set; } = $X;
                 ...
               }
+      # Not a person's data: a store's sending mail account, the mailbox and SMTP login the app
+      # sends its own mail from, as in cs-schema-field (decided on #13215, rules/README.md "What the
+      # C# rules decide"). A member is set aside when its class is named for a mail account
+      # (EmailAccount, MailAccount, SmtpAccount) or mapped to a table so named, and its file maps a
+      # sending setting and names no owner. The file test is the one cs-schema-field holds, kept
+      # equal by test/unit/cs-sending-mailbox-shared.test.ts.
+      - pattern-not-inside:
+          patterns:
+            # The file maps a sending setting. One literal per whole-file look-ahead, joined by
+            # pattern-either: an alternation or a second look-ahead loses matches on a large file
+            # (test/release.test.ts).
+            - pattern-either:
+                - pattern-regex: '(?is)\A(?=.*(?<![a-z])host(?:_?name)?(?![a-z])).*'
+                - pattern-regex: '(?is)\A(?=.*(?<![a-z])port(?![a-z])).*'
+                - pattern-regex: '(?is)\A(?=.*smtp_?(?:host|port|server|user(?:_?name)?|password|login|settings?)).*'
+                - pattern-regex: '(?is)\A(?=.*enable_?ssl).*'
+                - pattern-regex: '(?is)\A(?=.*(?<![a-z])use_?(?:ssl|tls|default_?credentials)).*'
+            # The file names no owner.
+            - pattern-not-inside:
+                patterns:
+                  - pattern-either:
+                      - pattern-regex: '(?is)\A(?=.*(?<![a-z])user_?id(?![a-z])).*'
+                      - pattern-regex: '(?is)\A(?=.*(?<![a-z])customer_?id(?![a-z])).*'
+                      - pattern-regex: '(?is)\A(?=.*(?<![a-z])owner_?id(?![a-z])).*'
+                      - pattern-regex: '(?is)\A(?=.*(?<![a-z])member_?id(?![a-z])).*'
+                      - pattern-regex: '(?is)\A(?=.*(?<![a-z])person_?id(?![a-z])).*'
+                      - pattern-regex: '(?is)\A(?=.*(?<![a-z])profile_?id(?![a-z])).*'
+                      - pattern-regex: '(?is)\A(?=.*(?<![a-z])app(?:lication)?_?user_?id(?![a-z])).*'
+                      - pattern-regex: '(?is)\A(?=.*account_?holder).*'
+            - pattern-either:
+                - patterns:
+                    - pattern: |
+                        class $ACD { ... }
+                    - metavariable-regex:
+                        metavariable: $ACD
+                        regex: ^(?i:(e_?mail|mail|smtp)_?accounts?)$
+                - pattern: |
+                    [System.ComponentModel.DataAnnotations.Schema.Table("=~/(?i)^(e_?mail|mail|smtp)_?accounts?$/", ...)]
+                    class $ACD { ... }
       - metavariable-regex:
           metavariable: $P
           regex: (?i)^(e_?mail|email_?(address|addr)?|(user|contact|work|primary|customer|billing|normalized|unconfirmed)_?e_?mail(_?address)?|phone(_?(number|no|num))?|mobile(_?(number|phone|no))?|telephone|date_?of_?birth|dob|birth_?(date|day)|birthday|ssn|social_?security(_?(number|no))?|national_?(id|insurance)(_?number)?|passport(_?(number|no))?|tax_?(id|number)|drivers?_?licen[sc]e(_?(number|no))?|ip_?(address|addr)?|last_?(login_?)?ip(_?address)?|(client|customer|user)_?ip(_?address)?|remote_?(addr|ip|address))$
