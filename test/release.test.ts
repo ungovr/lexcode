@@ -228,26 +228,37 @@ describe('release: the rule set is complete and well formed', () => {
       swift: String.raw`(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?`,
       rust: String.raw`(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+`,
     };
-    // The keyword followed by white space as a regex writes it: an import or use line is what the regex reads.
-    // A content guard that only names a word (`importFile`, `user`) is not one. The keyword may follow a regex
-    // escape (`\bimport`, `\nuse`), and the white space may be any escape for it (`\s`, `\h`, `\t`, `\x20`,
-    // `\p{Zs}`), a class that holds one (`[\s]`, `[ \t]`, `[[:space:]]`), a literal space or tab, inside any
-    // number of opening groups (`import(?:\s+)`) (#13303).
-    const space = String.raw`(?:\\[shtv]|\\x(?:20|09|\{0*(?:20|9)\})|\\p\{Z\w*\}|\[\^?[^\]]*?(?:\\[sht]|\\x(?:20|09)|[ \t]|\[:(?:space|blank):\])[^\]]*\]|[ \t])`;
-    const kw = (word: string): RegExp =>
-      new RegExp(String.raw`(?:(?<![\w$\\])|(?<=(?<!\\)\\[A-Za-z]))${word}(?:\((?:\?:|\?<\w+>|\?P<\w+>)?)*${space}`);
-    const keyword = { swift: kw('import'), rust: kw('use') };
+    // An import or use line is what a regex reads when it names the keyword with anything after it but a letter,
+    // digit or `_` (or `\w`, `\d`, or a class of only those) that would make it another word (`importFile`,
+    // `user`): white space written any way (`\s`, `\h`, `\x20`, `\p{Zs}`, `[\s]`, `[^\S\n]`, `[[:space:]]`, a
+    // literal space), a boundary (`\b\s*`), a lookahead (`(?=\s)`), a dot, an alternation, the regex's end. This
+    // is fail-closed: a way of writing white space no one listed is refused too (#13303). What follows the keyword
+    // is read past any opening group (`import(?:\s+)`, `import(?<sp>\s+)`, `import(?i:\s+)`), not past a
+    // lookaround. The keyword may follow a regex escape (`\bimport`, `\nuse`), not an escaped backslash (`\\use`).
+    const keywordAt = (word: string, rx: string): number[] => {
+      const opening = /\((?:\?:|\?<\w+>|\?P<\w+>|\?[a-zA-Z-]+:)?(?!\?)/y;
+      const wordChar = /[A-Za-z0-9_]|\\[wd]|\[(?:[A-Za-z0-9_-]|\\[wd])+\]/y;
+      const at: number[] = [];
+      for (const m of rx.matchAll(new RegExp(String.raw`(?:(?<![\w$\\])|(?<=(?<!\\)\\[A-Za-z]))${word}`, 'g'))) {
+        let i = m.index + word.length;
+        for (opening.lastIndex = i; opening.exec(rx) !== null; opening.lastIndex = i) i = opening.lastIndex;
+        wordChar.lastIndex = i;
+        if (!wordChar.test(rx)) at.push(m.index);
+      }
+      return at;
+    };
+    const keyword = { swift: 'import', rust: 'use' };
     // By the rule's languages, so a Swift or Rust rule in a file of another name is held to the shape too, and by
     // the file name for a regex outside a rule (#13303).
     // Every import or use line the regex reads is one in the canonical form: the opening's own, or a further
     // lookahead written the same way.
     const offShape = (lang: 'swift' | 'rust', rx: string): boolean => {
-      const hits = [...rx.matchAll(new RegExp(keyword[lang].source, 'g'))];
+      const hits = keywordAt(keyword[lang], rx);
       if (hits.length === 0) return false;
       if (!rx.startsWith(opening[lang]) || !rx.endsWith(').*')) return true;
       const lookahead = opening[lang].slice(String.raw`(?ms)\A`.length);
-      const at = lookahead.search(keyword[lang]);
-      return hits.some((h) => rx.slice(h.index - at, h.index - at + lookahead.length) !== lookahead);
+      const at = keywordAt(keyword[lang], lookahead)[0] as number;
+      return hits.some((h) => rx.slice(h - at, h - at + lookahead.length) !== lookahead);
     };
     // A deliberately off-shape copy of each is refused: no BOM, no line anchor, a lazy tail, and a guard with no
     // whole-file lookahead at all (#13303: before, only a regex holding `\A(?=` was checked).
@@ -271,8 +282,30 @@ describe('release: the rule set is complete and well formed', () => {
       String.raw`import\x{20}Firebase`,
       String.raw`import\p{Zs}+Firebase`,
       'import +Firebase',
+      // And any other way a regex writes what follows the keyword, short of a letter, digit or `_` that makes it
+      // another word: a negated class, a lookahead, a boundary, an inline-flag group, a class that holds a property.
+      String.raw`import[^\S\n]+Firebase`,
+      String.raw`import(?=\s)Firebase`,
+      String.raw`import\b\s*Firebase`,
+      String.raw`import(?i:\s+)Firebase`,
+      String.raw`import[\p{Zs}]+Firebase`,
+      String.raw`import.Firebase`,
+      String.raw`import\W+Firebase`,
+      String.raw`(?:import|export)\s+Firebase`,
+      String.raw`\bimport$`,
     ]) expect(offShape('swift', rx), rx).toBe(true);
-    for (const rx of [String.raw`(?s)\A(?=.*\buse\s+rig\b).*`, String.raw`use[\s]+rig`, String.raw`use\h+rig`, String.raw`use(?:\s+)rig`, String.raw`(?m)^\s*use[ \t]+rig`]) {
+    for (const rx of [
+      String.raw`(?s)\A(?=.*\buse\s+rig\b).*`,
+      String.raw`use[\s]+rig`,
+      String.raw`use\h+rig`,
+      String.raw`use(?:\s+)rig`,
+      String.raw`(?m)^\s*use[ \t]+rig`,
+      String.raw`use[^\S\n]+rig`,
+      String.raw`use(?=\s)`,
+      String.raw`use\b\s*rig`,
+      String.raw`use(?i:\s+)rig`,
+      String.raw`use[\p{Zs}]+rig`,
+    ]) {
       expect(offShape('rust', rx), rx).toBe(true);
     }
     // A canonical guard with a second, off-shape lookahead beside it is refused too.
@@ -283,6 +316,9 @@ describe('release: the rule set is complete and well formed', () => {
     expect(offShape('rust', String.raw`\\use\s+`)).toBe(false); // an escaped backslash, then the word
     expect(offShape('swift', String.raw`\bimportDocument\(`)).toBe(false);
     expect(offShape('rust', String.raw`(?s)\A(?=.*\buser_agent\b).*`)).toBe(false);
+    expect(offShape('swift', String.raw`\bimport(?:ance|er)\b`)).toBe(false);
+    expect(offShape('swift', String.raw`\bimport[A-Z]\w*\(`)).toBe(false);
+    expect(offShape('rust', String.raw`\buse\d`)).toBe(false);
     const bad: string[] = [];
     const walk = (dir: string): void => {
       for (const e of readdirSync(dir)) {
