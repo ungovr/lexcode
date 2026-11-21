@@ -14,7 +14,9 @@ rules:
     # The hosts are the ones the other languages' text rules name (rs-chat-reply-to-response), and
     # an address is read to its end: the generation endpoint itself, with an optional trailing
     # slash or query. Listing models, embeddings, a response retrieved or cancelled by id and
-    # Anthropic's token counter are other addresses. A lookalike host (api.openai.com.example.net)
+    # Anthropic's token counter are other addresses, though a base that ends in a slash
+    # (`.../v1/responses/`, which an app may join with an id for a by-id read) counts as a held
+    # address, because of the optional slash. A lookalike host (api.openai.com.example.net)
     # does not match, since the path must follow the host's own name.
     # How the address is built (B1 of the #13205 review): written as a literal (plain, verbatim or
     # interpolated), joined with + from literals and values, or formatted with string.Format; a
@@ -28,8 +30,8 @@ rules:
     # the host and the method in one part; branches 1 to 3 read the source text instead.
     # Matched: a call that sends to the address (PostAsync, PostAsJsonAsync, a request message that
     # is not a GET, and a Uri built from it, which a client takes as its BaseAddress or a message as
-    # its RequestUri), and a member that holds it. A local that is never sent is not matched, as a
-    # log message held in a local is not. A comment, a log line or an exception message that quotes
+    # its RequestUri), and a member that holds it. A local in a method that is never sent is not
+    # matched, as a log message held in a local is not (a constructor's local is; see branch 3). A comment, a log line or an exception message that quotes
     # the address is never a match.
     # A GET request message drops: GET /v1/chat/completions lists stored completions. GET is
     # HttpMethod.Get or new HttpMethod("GET") (short or qualified), found by a regex over the whole
@@ -86,10 +88,12 @@ rules:
               metavariable: $ADDR
               regex: *address
       # 3. A member that holds the address, matched where it is declared: a const, a field or an
-      # auto-property's initializer (a local inside a method or an accessor is left to branch 2),
-      # an expression body (the engine reads one as an expression statement, which a bare string
-      # is nowhere else; a switch-expression arm and a lambda body are read the same way), and a
-      # return.
+      # auto-property's initializer, an expression body (the engine reads one as an expression
+      # statement, which a bare string is nowhere else; each arm of a switch expression is read the
+      # same way, and a lambda in a field initializer is not), and a return. A local in a method,
+      # an accessor, an indexer or an operator is left to branch 2; one in a constructor, a static
+      # constructor, a finalizer, an event accessor or top-level statements is matched here as a
+      # declaration, sent or not (usually a real hold).
       - patterns:
           - pattern-either:
               - patterns:
