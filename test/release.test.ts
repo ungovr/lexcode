@@ -228,22 +228,60 @@ describe('release: the rule set is complete and well formed', () => {
       swift: String.raw`(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:class|struct|enum|protocol|func|var|let|typealias)\s+)?`,
       rust: String.raw`(?ms)\A(?=.*^\x{FEFF}?[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\s+`,
     };
-    // An import or use line is what a regex reads when it names the keyword with anything after it but a letter,
-    // digit or `_` (or `\w`, `\d`, or a class of only those) that would make it another word (`importFile`,
-    // `user`): white space written any way (`\s`, `\h`, `\x20`, `\p{Zs}`, `[\s]`, `[^\S\n]`, `[[:space:]]`, a
-    // literal space), a boundary (`\b\s*`), a lookahead (`(?=\s)`), a dot, an alternation, the regex's end. This
-    // is fail-closed: a way of writing white space no one listed is refused too (#13303). What follows the keyword
-    // is read past any opening group (`import(?:\s+)`, `import(?<sp>\s+)`, `import(?i:\s+)`), not past a
-    // lookaround. The keyword may follow a regex escape (`\bimport`, `\nuse`), not an escaped backslash (`\\use`).
+    // An import or use line is what a regex reads when it names the keyword, in any case (`(?i)IMPORT\s+`), with
+    // anything after it that does not make it another word (`importFile`, `user`) on every path the regex can take.
+    // What follows must be a letter, digit or `_` (or `\w`, `\d`, or a class of only those) that is not optional
+    // (`import\w*\s+`, `import_?\s+` and `import\d{0,2}\s+` are import lines), or a group, not optional, every one
+    // of whose alternatives begins so (`import(?:ance|er)` is a word; `import(?:s|\s+)`, `import(?:ance|\s)` and
+    // `import(?:s)?\s+` are not). Anything else is an import or use line: white space written any way (`\s`, `\h`,
+    // `\x20`, `\p{Zs}`, `[\s]`, `[^\S\n]`, `[[:space:]]`, a literal space), a boundary (`\b\s*`), a lookaround
+    // (`(?=\s)`), a dot, an alternation, the regex's end. This is fail-closed: a way of writing white space no one
+    // listed is refused too (#13303). Groups are read through (`import(?:\s+)`, `import(?<sp>\s+)`,
+    // `import(?i:\s+)`), lookarounds are not. The keyword may follow a regex escape (`\bimport`, `\nuse`), not an
+    // escaped backslash (`\\use`).
+    const groupOpen = /\((?:\?:|\?<\w+>|\?P<\w+>|\?[a-zA-Z-]+:)?(?!\?)/y;
+    const wordAtom = /[A-Za-z0-9_]|\\[wd]|\[(?:[A-Za-z0-9_-]|\\[wd])+\]/y;
+    const optionalAt = (rx: string, j: number): boolean => rx[j] === '*' || rx[j] === '?' || /^\{(?:0*[,}]|,)/.test(rx.slice(j, j + 3));
+    /** Offset of the `]` that closes the class whose `[` is at `open`, a leading `]` or `^]` being a member. */
+    const classEnd = (rx: string, open: number): number => {
+      let j = open + (rx[open + 1] === '^' ? 2 : 1);
+      if (rx[j] === ']') j++;
+      while (j < rx.length && rx[j] !== ']') j += rx[j] === '\\' ? 2 : 1;
+      return j;
+    };
+    /**
+     * The offset of the `)` that closes the group whose `(` is at `open` (-1 when none does), and where each of its
+     * alternatives starts, past escapes and classes.
+     */
+    const groupParts = (rx: string, open: number, first: number): { close: number; starts: number[] } => {
+      const starts = [first];
+      let depth = 0;
+      for (let j = open + 1; j < rx.length; j++) {
+        const ch = rx[j];
+        if (ch === '\\') j++;
+        else if (ch === '[') j = classEnd(rx, j);
+        else if (ch === '(') depth++;
+        else if (ch === ')' && depth-- === 0) return { close: j, starts };
+        else if (ch === '|' && depth === 0) starts.push(j + 1);
+      }
+      return { close: -1, starts };
+    };
+    /** Whether every path the regex can take from `i` must first match a word character. */
+    const mustWord = (rx: string, i: number): boolean => {
+      groupOpen.lastIndex = i;
+      const g = groupOpen.exec(rx);
+      if (g !== null) {
+        const { close, starts } = groupParts(rx, i, i + g[0].length);
+        if (close === -1 || optionalAt(rx, close + 1)) return false;
+        return starts.every((a) => mustWord(rx, a));
+      }
+      wordAtom.lastIndex = i;
+      return wordAtom.test(rx) && !optionalAt(rx, wordAtom.lastIndex);
+    };
     const keywordAt = (word: string, rx: string): number[] => {
-      const opening = /\((?:\?:|\?<\w+>|\?P<\w+>|\?[a-zA-Z-]+:)?(?!\?)/y;
-      const wordChar = /[A-Za-z0-9_]|\\[wd]|\[(?:[A-Za-z0-9_-]|\\[wd])+\]/y;
       const at: number[] = [];
-      for (const m of rx.matchAll(new RegExp(String.raw`(?:(?<![\w$\\])|(?<=(?<!\\)\\[A-Za-z]))${word}`, 'g'))) {
-        let i = m.index + word.length;
-        for (opening.lastIndex = i; opening.exec(rx) !== null; opening.lastIndex = i) i = opening.lastIndex;
-        wordChar.lastIndex = i;
-        if (!wordChar.test(rx)) at.push(m.index);
+      for (const m of rx.matchAll(new RegExp(String.raw`(?:(?<![\w$\\])|(?<=(?<!\\)\\[A-Za-z]))${word}`, 'gi'))) {
+        if (!mustWord(rx, m.index + word.length)) at.push(m.index);
       }
       return at;
     };
@@ -293,6 +331,21 @@ describe('release: the rule set is complete and well formed', () => {
       String.raw`import\W+Firebase`,
       String.raw`(?:import|export)\s+Firebase`,
       String.raw`\bimport$`,
+      // An optional word character, or a group one of whose alternatives does not begin with one, leaves a path
+      // that reads an import line; so does the keyword in another case under `(?i)` (#13303, re-review 2).
+      String.raw`import\w*\s+Firebase`,
+      String.raw`import\w?\s+Firebase`,
+      String.raw`import[A-Za-z]*\s+Firebase`,
+      String.raw`import\d*\s+Firebase`,
+      String.raw`import_?\s+Firebase`,
+      String.raw`import\d{0,2}\s+Firebase`,
+      String.raw`import(?:s)?\s+Firebase`,
+      String.raw`import(?:s|\s+)Firebase`,
+      String.raw`import(x|\s+)Firebase`,
+      String.raw`import(?:ance|\s)Firebase`,
+      String.raw`import(?:s|(?:\s+))Firebase`,
+      String.raw`(?i)IMPORT\s+Firebase`,
+      String.raw`(?i)\bImport\s+Firebase`,
     ]) expect(offShape('swift', rx), rx).toBe(true);
     for (const rx of [
       String.raw`(?s)\A(?=.*\buse\s+rig\b).*`,
@@ -305,6 +358,9 @@ describe('release: the rule set is complete and well formed', () => {
       String.raw`use\b\s*rig`,
       String.raw`use(?i:\s+)rig`,
       String.raw`use[\p{Zs}]+rig`,
+      String.raw`use\w*\s+rig`,
+      String.raw`use(?:s|\s+)rig`,
+      String.raw`(?i)USE\s+rig`,
     ]) {
       expect(offShape('rust', rx), rx).toBe(true);
     }
@@ -319,6 +375,10 @@ describe('release: the rule set is complete and well formed', () => {
     expect(offShape('swift', String.raw`\bimport(?:ance|er)\b`)).toBe(false);
     expect(offShape('swift', String.raw`\bimport[A-Z]\w*\(`)).toBe(false);
     expect(offShape('rust', String.raw`\buse\d`)).toBe(false);
+    expect(offShape('swift', String.raw`\bimport(?:ance|(?:er|ed))\b`)).toBe(false);
+    expect(offShape('swift', String.raw`\bimport\w+\(`)).toBe(false);
+    expect(offShape('swift', String.raw`\bImportant\b`)).toBe(false);
+    expect(offShape('rust', String.raw`(?i)\buser[_-]?agent\b`)).toBe(false);
     const bad: string[] = [];
     const walk = (dir: string): void => {
       for (const e of readdirSync(dir)) {
