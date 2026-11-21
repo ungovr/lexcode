@@ -384,7 +384,27 @@ export function blankRazorTags(body: string): string {
 }
 
 /** A `<script` or `</script` tag opener, in either case. */
-const SCRIPT_TAG = /<\/?script/i;
+const SCRIPT_TAG = /<\/?script/gi;
+
+/**
+ * Whether a `[start, end)` span of `text` holds a `<script` or `</script`, asked in O(log n): `tags` is where each
+ * such opener stands and ends, in order, found once for the text. A span is never read again, which matters
+ * because spans nest: each of a run of nested interpolated strings (`$"{$"{ ... }"}"`) holds all the ones inside
+ * it, so their lengths add up to the square of the nesting (#13208).
+ */
+function scriptTagWithin(tags: [number, number][]): (start: number, end: number) => boolean {
+  return (start, end) => {
+    let lo = 0;
+    let hi = tags.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if ((tags[mid] as [number, number])[0] < start) lo = mid + 1;
+      else hi = mid;
+    }
+    // The first opener at or after `start` ends first of all those that do: the span holds one if it holds that.
+    return lo < tags.length && (tags[lo] as [number, number])[1] <= end;
+  };
+}
 
 /**
  * `text` with each place a `<script` stands that is Razor or C# text, not markup, blanked, so a search for script
@@ -398,6 +418,7 @@ const SCRIPT_TAG = /<\/?script/i;
  */
 export function blankRazorScriptHiders(text: string): string {
   const hidden: [number, number][] = [];
+  const holdsScriptTag = scriptTagWithin([...text.matchAll(SCRIPT_TAG)].map((m) => [m.index, m.index + m[0].length]));
   const opener = new RegExp(RAZOR_OPENER.source, RAZOR_OPENER.flags);
   for (let m = opener.exec(text); m !== null; m = opener.exec(text)) {
     const open = m.index;
@@ -423,7 +444,7 @@ export function blankRazorScriptHiders(text: string): string {
         end = razorImplicitEnd(text, open + 1, texts);
       }
     }
-    for (const [s, e] of texts) if (SCRIPT_TAG.test(text.slice(s, e))) hidden.push([s, e]);
+    for (const [s, e] of texts) if (holdsScriptTag(s, e)) hidden.push([s, e]);
     if (end === -1 || end >= text.length) break;
     opener.lastIndex = end;
   }

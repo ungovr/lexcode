@@ -1986,6 +1986,20 @@ describe('a script inside template code or a template comment is not markup (#12
     }
   });
 
+  it('the Razor search grows near-linearly over nested interpolated strings, and over strings that hold a script tag', () => {
+    // Each nested `$"{` is a string literal that holds every one inside it, so the literals' spans add up to the
+    // square of the nesting; asking each span whether it holds a `<script` must not read it again (#13208).
+    for (const [name, body] of [
+      ['nested interpolated strings', (n: number) => '@{ ' + '$"{'.repeat(n / 5) + 'x' + '}"'.repeat(n / 5) + ' }\n<script>a();</script>'],
+      ['nested interpolated strings around a script tag', (n: number) => '@{ ' + '$"{'.repeat(n / 5) + '"<script>"' + '}"'.repeat(n / 5) + ' }\n<script>a();</script>'],
+    ] as const) {
+      const m = measureScaling({ small: 20_000, large: 200_000, setup: body, run: (t) => blankOutsideScripts(t, { razor: true }) });
+      expect(m.result, name).not.toBeNull();
+      expect(m.result!.text, name).toContain('a();');
+      expectNearLinear(m, `the Razor script search over ${name}`);
+    }
+  });
+
   it('an .html file keeps reading a script that sits inside template-like text', () => {
     for (const body of ['{# <script>gtag();</script> #}', '<%-- <script>gtag();</script> --%>', '@* <script>gtag();</script> *@', '{{-- <script>gtag();</script> --}}']) {
       expect(extract('a.html', body), body).toHaveLength(1);
