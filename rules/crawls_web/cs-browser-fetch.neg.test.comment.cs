@@ -27,3 +27,12 @@ public class CheckoutFlow(IPage page, IWebDriver driver)
         driver.Url = nextStepUrl;
     }
 }
+
+/* An old driver, with a quote, an apostrophe, a verbatim string and a line comment inside:
+using OpenQA.Selenium; var dir = @"C:\shots\"; it's "quoted" // kept for reference
+   driver = new OpenQA.Selenium.Chrome.ChromeDriver();
+*/
+public class OldDriver(IWebDriver driver)
+{
+    public void Open(string nextStepUrl) => driver.Navigate().GoToUrl(nextStepUrl);
+}

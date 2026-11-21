@@ -24,3 +24,11 @@ public class OwnRenderer(IBrowsingContext context)
         var opened = await context.OpenAsync(pageUrl);
     }
 }
+
+/* The old reader, with a quote, an apostrophe, a raw string and a line comment inside:
+using AngleSharp; var accept = """text/html"""; it's "quoted" // kept for reference
+*/
+public class OldReader(IBrowsingContext context)
+{
+    public Task OpenAsync(string pageUrl) => context.OpenAsync(pageUrl);
+}

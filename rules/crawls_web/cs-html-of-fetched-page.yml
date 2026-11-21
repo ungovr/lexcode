@@ -25,13 +25,14 @@ rules:
           # must name AngleSharp's namespace (a `using` line at the start of a line, aliased or not,
           # or a type written out in full on a line that does not open with a comment, before any
           # `//` or `/*` on that line; neither counts inside a block comment, told by the next
-          # comment mark after it being a `*/`, as in cs-browser-fetch). A lambda
+          # comment mark after it being a `*/`, read past string and char literals and `//`
+          # comments, as in cs-browser-fetch). A lambda
           # builds a page from HTML the app holds (see below), a cancellation token is a database
           # connection's OpenAsync, and a plain literal that is not an http or https address
           # (`about:blank`, a relative path) is not a page on another site. An interpolated address
           # is printed without its braces, so it cannot be judged and stays matched.
           - patterns:
-              - pattern-regex: '(?s)(?m:^\x{FEFF}?[ \t]*(?:global[ \t]+)?using[ \t]+(?:static[ \t]+)?(?:\w+[ \t]*=[ \t]*)?(?:global::)?AngleSharp\b|^(?!\x{FEFF}?[ \t]*(?://|/?\*))(?:"(?:[^"\\\n]|\\.)*+"|(?!//|/\*)[^\n"])*?(?<![\w.])AngleSharp\.\w)(?!(?:[^*/]++|\*(?!/)|/(?!\*))*+\*/).*'
+              - pattern-regex: '(?s)(?m:^\x{FEFF}?[ \t]*(?:global[ \t]+)?using[ \t]+(?:static[ \t]+)?(?:\w+[ \t]*=[ \t]*)?(?:global::)?AngleSharp\b|^(?!\x{FEFF}?[ \t]*(?://|/?\*))(?:(?>\$*+("{3,}+)(?:[^"\n]++|(?!\g{-1})")*+\g{-1}|(?:\$++@|@\$*+)"(?:[^"\n]++|"")*+"|\$*+"(?:[^"\\\n]++|\\[^\n])*+"|''(?:[^''\\\n]|\\[^\n][^''\n]{0,8})''|(?!//|/\*)[^\n"]))*?(?<![\w.])AngleSharp\.\w)(?!(?:[^*/"\''@$]++|\$*+("{3,}+)(?:[^"]++|(?!\g{-1})")*+\g{-1}|(?:\$++@|@\$*+)"(?:[^"]++|"")*+"|\$*+"(?:[^"\\\n]++|\\[^\n])*+"|''(?:[^''\\\n]|\\[^\n][^''\n]{0,8})''|//[^\n]*+|[@$"\'']|\*(?!/)|/(?!\*))*+\*/).*'
               - pattern: $C.OpenAsync($URL, ...)
               - metavariable-regex:
                   metavariable: $URL
@@ -46,7 +47,7 @@ rules:
                   - pattern: (AngleSharp.Html.Parser.IHtmlParser $P).ParseDocument($SRC)
                   - pattern: (AngleSharp.Html.Parser.IHtmlParser $P).ParseDocumentAsync($SRC, ...)
                   - patterns:
-                      - pattern-regex: '(?s)(?m:^\x{FEFF}?[ \t]*(?:global[ \t]+)?using[ \t]+(?:static[ \t]+)?(?:\w+[ \t]*=[ \t]*)?(?:global::)?AngleSharp\b|^(?!\x{FEFF}?[ \t]*(?://|/?\*))(?:"(?:[^"\\\n]|\\.)*+"|(?!//|/\*)[^\n"])*?(?<![\w.])AngleSharp\.\w)(?!(?:[^*/]++|\*(?!/)|/(?!\*))*+\*/).*'
+                      - pattern-regex: '(?s)(?m:^\x{FEFF}?[ \t]*(?:global[ \t]+)?using[ \t]+(?:static[ \t]+)?(?:\w+[ \t]*=[ \t]*)?(?:global::)?AngleSharp\b|^(?!\x{FEFF}?[ \t]*(?://|/?\*))(?:(?>\$*+("{3,}+)(?:[^"\n]++|(?!\g{-1})")*+\g{-1}|(?:\$++@|@\$*+)"(?:[^"\n]++|"")*+"|\$*+"(?:[^"\\\n]++|\\[^\n])*+"|''(?:[^''\\\n]|\\[^\n][^''\n]{0,8})''|(?!//|/\*)[^\n"]))*?(?<![\w.])AngleSharp\.\w)(?!(?:[^*/"\''@$]++|\$*+("{3,}+)(?:[^"]++|(?!\g{-1})")*+\g{-1}|(?:\$++@|@\$*+)"(?:[^"]++|"")*+"|\$*+"(?:[^"\\\n]++|\\[^\n])*+"|''(?:[^''\\\n]|\\[^\n][^''\n]{0,8})''|//[^\n]*+|[@$"\'']|\*(?!/)|/(?!\*))*+\*/).*'
                       - pattern: $C.OpenAsync($R => $R.Content($SRC, ...))
               # The download's address, read with its quotes and braces here: a plain literal, or an
               # interpolated one that starts with text, that is not an http or https address (a path
@@ -110,7 +111,7 @@ rules:
                   - pattern-inside: (AngleSharp.Html.Parser.IHtmlParser $P).ParseDocument(...)
                   - pattern-inside: (AngleSharp.Html.Parser.IHtmlParser $P).ParseDocumentAsync(...)
                   - patterns:
-                      - pattern-regex: '(?s)(?m:^\x{FEFF}?[ \t]*(?:global[ \t]+)?using[ \t]+(?:static[ \t]+)?(?:\w+[ \t]*=[ \t]*)?(?:global::)?AngleSharp\b|^(?!\x{FEFF}?[ \t]*(?://|/?\*))(?:"(?:[^"\\\n]|\\.)*+"|(?!//|/\*)[^\n"])*?(?<![\w.])AngleSharp\.\w)(?!(?:[^*/]++|\*(?!/)|/(?!\*))*+\*/).*'
+                      - pattern-regex: '(?s)(?m:^\x{FEFF}?[ \t]*(?:global[ \t]+)?using[ \t]+(?:static[ \t]+)?(?:\w+[ \t]*=[ \t]*)?(?:global::)?AngleSharp\b|^(?!\x{FEFF}?[ \t]*(?://|/?\*))(?:(?>\$*+("{3,}+)(?:[^"\n]++|(?!\g{-1})")*+\g{-1}|(?:\$++@|@\$*+)"(?:[^"\n]++|"")*+"|\$*+"(?:[^"\\\n]++|\\[^\n])*+"|''(?:[^''\\\n]|\\[^\n][^''\n]{0,8})''|(?!//|/\*)[^\n"]))*?(?<![\w.])AngleSharp\.\w)(?!(?:[^*/"\''@$]++|\$*+("{3,}+)(?:[^"]++|(?!\g{-1})")*+\g{-1}|(?:\$++@|@\$*+)"(?:[^"]++|"")*+"|\$*+"(?:[^"\\\n]++|\\[^\n])*+"|''(?:[^''\\\n]|\\[^\n][^''\n]{0,8})''|//[^\n]*+|[@$"\'']|\*(?!/)|/(?!\*))*+\*/).*'
                       - pattern-inside: $C.OpenAsync($R => $R.Content(...))
               - pattern-either:
                   - pattern: new System.Net.WebClient().$GET($URL, ...)
