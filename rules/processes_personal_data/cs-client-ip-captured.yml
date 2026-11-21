@@ -41,8 +41,10 @@ rules:
     pattern-sinks:
       # A log line or logging scope: the Microsoft.Extensions.Logging extension methods (on any
       # ILogger, whose type an injected logger rarely carries in a form the engine resolves), and
-      # Serilog's static logger and an instance of its ILogger (a field or a parameter, injected or
-      # made by ForContext), fully qualified (an app's own Log class or ILogger is not Serilog's).
+      # Serilog's static logger and an instance of its ILogger (a field, a parameter or a local
+      # declared with the type, injected or set from ForContext), fully qualified (an app's own Log
+      # class or ILogger is not Serilog's). A `var` set from ForContext has no type the engine knows
+      # and is not read (rules/README.md, "Known C# gaps").
       - patterns:
           - pattern: $L.$M(...)
           - metavariable-regex:

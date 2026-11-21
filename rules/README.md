@@ -1132,6 +1132,12 @@ exemption must be argued and ruled before it is added.
 - A bare Twilio `VoiceResponse.Record` verb (voicemail) is `processes_voice`, not
   `records_calls`, and an in-app SignalR notification is a user interface push,
   not `automated_outreach`.
+- A store's sending mail account (nopCommerce's `EmailAccount`: the mailbox and
+  SMTP login the app sends its own mail from) is not personal data for
+  `cs-schema-field`. A mail account's columns are set aside only where its file
+  maps sending settings (a host, port, SSL or SMTP column) and names no owner (a
+  `UserId`, `CustomerId`, `OwnerId`, `MemberId` or `AccountHolder`); a mailbox a
+  person connects in a mail client stays personal data.
 
 ### Known C# gaps
 
@@ -1155,10 +1161,20 @@ The engine sets most of these limits, and the rules' comments point here.
 - Voice and calls: no rule reads Android call audio, LiveKit egress,
   BigBlueButton, WebRTC audio taps or AWS Transcribe streaming.
 - Crawling: the `HtmlWeb` and AngleSharp arms do not judge an interpolated
-  address, so `OpenAsync($"pages/{n}")` matches.
+  address, so `OpenAsync($"pages/{n}")` matches. `System.Net.WebClient` is read
+  by its full type, so a file that reaches `System.Net` only through a
+  `global using` elsewhere is missed. An `HttpClient` subclass is read only when
+  its name ends in `HttpClient` (the engine does not know a base class). The
+  browser and AngleSharp namespace gates read past strings and `//` comments to
+  tell a block comment, but a `//` on a line inside a block comment hides a `*/`
+  later on that line.
 - Personal data and tracking: a FluentMigrator migration on a custom base class,
   an EF Core configuration through a `var` or an owned-type chain, and a Dapper
-  `Execute` that stores an IP are missed.
+  `Execute` that stores an IP are missed. A Serilog logger in a `var` set from
+  `ForContext` is not read as a log sink. The sending mail account's settings
+  and owner are read across its whole file, so a migration that creates every
+  table at once (an EF Core `InitialCreate`) usually names an owner somewhere
+  and keeps the mail account's columns.
 - Identity and signatures: a signature pad declared in XAML and Adobe Acrobat
   Sign are not read, and the selfie rule reads a class's members as text, so a
   field set in an initializer is missed, a method's use of an ID-document word
