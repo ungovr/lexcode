@@ -17,12 +17,13 @@ rules:
           - pattern: UIKit.UIDevice.current.identifierForVendor
           - pattern: UIDevice.current.identifierForVendor
       # A stored property set from the identifier, read by name in the members after it: taint does
-      # not follow a property's initializer into a method (#13294). A local of the same name in a
-      # function shadows it and is not read.
+      # not follow a property's initializer into a method (#13294). A name that shadows it in a
+      # function (a local, a parameter, an optional binding, a loop variable or a closure parameter)
+      # is not read. A property declared after the method that reads it is not followed.
       - patterns:
           # each declaration names the identifier itself, so only a declaration that holds it is
           # a candidate (a `$E` checked after pairing made every `let` in the file one: 74 s on
-          # rule-cost's 900 KB file)
+          # rule-cost's 900 KB file); a typed declaration (`let id: String = ...`) matches these too
           - pattern-either:
               - pattern-inside: |
                   let $P = <... UIDevice.current.identifierForVendor ...>
@@ -31,26 +32,15 @@ rules:
                   let $P = <... UIKit.UIDevice.current.identifierForVendor ...>
                   ...
               - pattern-inside: |
-                  let $P: $T = <... UIDevice.current.identifierForVendor ...>
-                  ...
-              - pattern-inside: |
-                  let $P: $T = <... UIKit.UIDevice.current.identifierForVendor ...>
-                  ...
-              - pattern-inside: |
                   var $P = <... UIDevice.current.identifierForVendor ...>
                   ...
               - pattern-inside: |
                   var $P = <... UIKit.UIDevice.current.identifierForVendor ...>
                   ...
-              - pattern-inside: |
-                  var $P: $T = <... UIDevice.current.identifierForVendor ...>
-                  ...
-              - pattern-inside: |
-                  var $P: $T = <... UIKit.UIDevice.current.identifierForVendor ...>
-                  ...
           - pattern-either:
               - pattern: $P
               - pattern: self.$P
+          # a local declared in a function
           - pattern-not-inside: |
               func $F(...) {
                 ...
@@ -61,6 +51,39 @@ rules:
               func $F(...) {
                 ...
                 var $P = $X
+                ...
+              }
+          # a parameter, with or without an argument label, of a function or an init
+          - pattern-not-inside: |
+              func $F(..., $P: $T, ...) { ... }
+          # an optional binding
+          - pattern-not-inside: |
+              if let $P = $X {
+                ...
+              }
+          - pattern-not-inside: |
+              if var $P = $X {
+                ...
+              }
+          - pattern-not-inside: |
+              guard let $P = $X else { ... }
+              ...
+          # a loop variable
+          - pattern-not-inside: |
+              for $P in $X {
+                ...
+              }
+          # a closure parameter, alone or among two
+          - pattern-not-inside: |
+              { $P in
+                ...
+              }
+          - pattern-not-inside: |
+              { $P, $Q in
+                ...
+              }
+          - pattern-not-inside: |
+              { $Q, $P in
                 ...
               }
     # A query item puts the identifier into the components' URL (`components.queryItems = [...]`
