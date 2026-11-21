@@ -2175,3 +2175,44 @@ describe('a script inside template code or a template comment is not markup (#12
     }
   });
 });
+
+// Every template blanker, on one long line and on constructs that never close, in the file search for script blocks
+// and in a script body (and, for Razor, in the C# copy): the cost grows near-linearly with the file, and is about a
+// plain view's of the same size. A blanker change that reads the rest of a line, or a bounded stretch, once per
+// opener fails here (#12882, #13208: a Razor element read its whole line each, a Blade `(` 10,000 characters each).
+describe('every template blanker stays linear on long lines and unclosed constructs', () => {
+  const modes = [
+    ['Razor', { razor: true }, '@if (a) { <p>x</p> }\n', ['@if (a) { <p>x</p> }', '@{ <p>@Model.X</p> }', '@{ <a', '@{ <p><a "', '@* x', '@(', '@{', '@x(', '@if (a) { <div> }', '@: x', '$"{', '@{ <!--']],
+    ['Blade', { blade: true }, '@if($a) {{ $x }} @endif\n', ['{{ x }}', '{{ x', '{!! x', '{{-- x', '@x(', '@x("', '@php', '<?php x']],
+    ['PHP', { php: true }, '<p><?= $x ?></p>\n', ['<?php x ?>', '<?php x', '<? "', '<? /*', '<? <<<A\n']],
+    ['Twig, Jinja, Nunjucks and Tera', { twig: true }, '<p>{{ x }}</p>\n', ['{{ x }}', '{{ x', '{% x', '{# x', '{{ [', '{{ "']],
+    ['ERB', { erb: true }, '<p><%= x %></p>\n', ['<%= x %>', '<% x', '<%# x']],
+    ['JSP', { jsp: true }, '<c:out value="${x}"/>\n', ['<%= x %>', '<% x', '<%-- x', '${x', '${"', '<a:b x="', '<a:b ']],
+    ['HTML', {}, '<p>x</p>\n', ['<!--', '<p>', '<a "']],
+  ] as const;
+  const fill = (unit: string, n: number, sep = ''): string => (unit + sep).repeat(Math.max(1, Math.floor(n / (unit.length + sep.length))));
+  const shapes = [
+    ['on one line', (u: string, n: number) => '<script>a();</script>\n' + fill(u, n) + '\n<p>(a)</p>\n'],
+    ['a line each', (u: string, n: number) => '<script>a();</script>\n' + fill(u, n, '\n') + '<p>(a)</p>\n'],
+    ['on 20 long lines', (u: string, n: number) => '<script>a();</script>\n' + Array.from({ length: 20 }, () => fill(u, n / 20)).join('\n') + '\n<p>(a)</p>\n'],
+    ['in a script body on one line', (u: string, n: number) => '<script>\n' + fill(u, n) + '\na();</script>\n'],
+  ] as const;
+  for (const [mode, opts, plainUnit, units] of modes) {
+    it(`${mode}`, () => {
+      const run = (t: string): unknown => {
+        const r = blankOutsideScripts(t, opts);
+        if (mode === 'Razor') razorCSharp('@code {\n' + t + '\n}');
+        return r;
+      };
+      // A plain view holds a script too, so it is searched the same way and does not stop at the first look.
+      const plain = '<script>a();</script>\n' + fill(plainUnit, 200_000) + '<script>\n' + fill(plainUnit, 20_000) + 'a();</script>\n';
+      for (const unit of units) {
+        for (const [shape, make] of shapes) {
+          const what = `${mode}: ${JSON.stringify(unit)} ${shape}`;
+          expectNearLinear(measureScaling({ small: 2_000, large: 20_000, setup: (n) => make(unit, n), run }), what);
+          expectCostLike(plain, make(unit, 200_000), run, what);
+        }
+      }
+    });
+  }
+});
