@@ -1,9 +1,10 @@
 <?php
-// lexcode-expect: 8
+// lexcode-expect: 10
 // OpenAI's Videos API addresses written the ways apps write them, each sent back to the person:
 // an id read from a request or a row (a quoted key inside the joined address), the clip with its
-// variant held in a variable or followed by more of the query, and the creation address with a
-// trailing slash or a query.
+// variant held in a variable or followed by more of the query, the clip's address with a
+// trailing slash (alone and before a variant query), and the creation address with a trailing
+// slash or a query.
 
 namespace App\Http\Controllers;
 
@@ -64,5 +65,19 @@ class SoraAddressController extends Controller
     public function createQuery(array $body, string $team)
     {
         return response()->json(Http::post("https://api.openai.com/v1/videos?project={$team}", $body)->json());
+    }
+
+    // The clip, the address with a trailing slash.
+    public function clipSlash(string $id)
+    {
+        $clip = Http::get("https://api.openai.com/v1/videos/{$id}/content/");
+        return response($clip->body(), 200, ['Content-Type' => 'video/mp4']);
+    }
+
+    // The clip, a trailing slash before the variant.
+    public function clipSlashVariant(string $id)
+    {
+        $clip = Http::get('https://api.openai.com/v1/videos/' . $id . '/content/?variant=video');
+        return response($clip->body(), 200, ['Content-Type' => 'video/mp4']);
     }
 }

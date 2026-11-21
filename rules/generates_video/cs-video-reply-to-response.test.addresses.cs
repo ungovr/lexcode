@@ -1,8 +1,9 @@
-// lexcode-expect: 8
+// lexcode-expect: 11
 // OpenAI's Videos API addresses written the ways apps write them, each sent back as the
 // response: an id read from an indexer (a quoted key inside the joined or interpolated address),
-// the clip with its variant held in a variable or followed by more of the query, and the
-// creation address with a trailing slash or a query.
+// the clip with its variant held in a variable or followed by more of the query, the clip's
+// address with a trailing slash (alone, before a variant query, and in a GET request message),
+// and the creation address with a trailing slash or a query.
 using System.Collections.Generic;
 using Microsoft.AspNetCore.Mvc;
 
@@ -64,5 +65,27 @@ public class SoraAddressController : ControllerBase
     {
         var r = await http.PostAsJsonAsync($"https://api.openai.com/v1/videos?project={team}", body);
         return Ok(r);
+    }
+
+    // The clip, the address with a trailing slash.
+    public async Task<IActionResult> ClipSlash(HttpClient http, string id)
+    {
+        var r = await http.GetByteArrayAsync($"https://api.openai.com/v1/videos/{id}/content/");
+        return File(r, "video/mp4");
+    }
+
+    // The clip, a trailing slash before the variant.
+    public async Task<IActionResult> ClipSlashVariant(HttpClient http, string id)
+    {
+        var r = await http.GetStreamAsync("https://api.openai.com/v1/videos/" + id + "/content/?variant=video");
+        return File(r, "video/mp4");
+    }
+
+    // The clip, a trailing slash in a GET request message.
+    public async Task<IActionResult> ClipSlashMessage(HttpClient http, string id)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, $"https://api.openai.com/v1/videos/{id}/content/");
+        var r = await http.SendAsync(request);
+        return File(await r.Content.ReadAsStreamAsync(), "video/mp4");
     }
 }
