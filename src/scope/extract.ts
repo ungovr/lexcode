@@ -268,6 +268,20 @@ class Unclosed {
   }
 
   /**
+   * For a scan with a fixed bound (`bound` characters from `from`) that gives -1 when it finds no end, a Blade
+   * argument list or a JSP namespaced tag, in a body or a file alike: -1 at once when the text holds no `closer` at
+   * or after `from`, or once the budget is spent; else what the scan gives, its failure charged to the budget. A
+   * file of such openers then costs about what it holds, not the bound for each (Blade's 10,000 characters were
+   * 7.7 s per MB).
+   */
+  capped(closer: string, from: number, bound: number, scan: () => number): number {
+    if (this.budget <= 0 || this.closer(closer, from) === -1) return -1;
+    const end = scan();
+    if (end === -1) this.budget -= Math.min(bound, this.text.length - from);
+    return end;
+  }
+
+  /**
    * Where the tag at `open` ends when `scan(limit)` finds its end past quotes and brackets (-1 when it does not
    * before `limit`): inside a body, there or at the end of the body; in a file search, there, or within the budget's
    * reach, or else at its first `closer`, or at the end of its line.
@@ -413,7 +427,7 @@ export function blankJspTags(body: string, inFile = false): string {
       output = false;
       inCdata = false;
     } else {
-      end = tagEnd(body, open + m[0].length);
+      end = unclosed.capped('>', open, MAX_TAG_CHARS, () => tagEnd(body, open + m[0].length));
       if (end === -1) continue; // no closing `>`: a less-than sign, not a tag
       output = true;
     }
@@ -623,7 +637,7 @@ export function blankBladeTags(body: string, inFile = false): string {
       end = open + tok.length;
       let paren = end;
       while (body[paren] === ' ' || body[paren] === '\t') paren++;
-      const close = body[paren] === '(' ? argumentsEnd(body, paren) : -1;
+      const close = body[paren] === '(' ? unclosed.capped(')', paren, MAX_ARGUMENT_CHARS, () => argumentsEnd(body, paren)) : -1;
       if (close !== -1) {
         end = close;
         output = name === 'json' || name === 'js';

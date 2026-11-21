@@ -1211,6 +1211,34 @@ describe('PHP, Blade and Twig views', () => {
       expectNearLinear(m, 'blankBladeTags');
     });
 
+    it('Blade argument lists and JSP tags that never close cost what a plain view does, in a body and in a file', () => {
+      // A directive's `(` is read for up to 10,000 characters and a namespaced tag for up to 4,000 before each is let
+      // go. Unbudgeted, a file of them cost that much each (Blade 7.7 s per MB, JSP 1.6 s): the cost grew with the
+      // square of the file up to that bound, and past it stayed far above a plain view's.
+      for (const [name, opts, plainUnit, unit] of [
+        ['Blade directives whose "(" never closes', { blade: true }, '@if($a) {{ $x }} @endif\n', '@x(\n'],
+        ['Blade directives with an open quote', { blade: true }, '@if($a) {{ $x }} @endif\n', '@x("\n'],
+        ['Blade @json whose "(" never closes', { blade: true }, '@if($a) {{ $x }} @endif\n', '@json(\n'],
+        ['Blade directives on one line', { blade: true }, '@if($a) {{ $x }} @endif ', '@x( '],
+        ['JSP tags with an open attribute value', { jsp: true }, '<c:out value="${x}"/>\n', '<a:b x="\n'],
+        ['JSP tags with no ">"', { jsp: true }, '<c:out value="${x}"/>\n', '<a:b \n'],
+      ] as const) {
+        for (const [where, wrap] of [
+          // A `)` and a `>` after the openers, so each is read to its bound, not let go because none is left.
+          ['a file', (t: string) => '<script>a();</script>\n' + t + '<p>(a)</p>\n'],
+          ['a script body', (t: string) => '<script>\n' + t + 'a();</script>'],
+        ] as const) {
+          const body = (n: number): string => wrap(unit.repeat(n / unit.length));
+          const run = (t: string): unknown => blankOutsideScripts(t, opts);
+          const what = `${name} in ${where}`;
+          const m = measureScaling({ small: 1_000, large: 10_000, setup: body, run });
+          expect(m.result, what).not.toBeNull();
+          expectNearLinear(m, what);
+          expectCostLike(wrap(plainUnit.repeat(200_000 / plainUnit.length)), body(200_000), run, what);
+        }
+      }
+    });
+
     it('blankBladeTags grows near-linearly over unterminated echoes and @php', () => {
       const m = measureScaling({
         small: 20_000,
