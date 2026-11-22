@@ -102,6 +102,29 @@ rules:
                                     metavariable: $C
                                     regex: '^(?:self\.)?(?![\w.]*(?:(?<![a-z])[dD]b|DB|[dD]atabase|[sS]ql|SQL|[pP]ool|[rR]edis|[cC]ache|[qQ]ueue|[sS]tore|[sS]torage|[kK]eychain))[\w.]*(?:[hH]ttp|HTTP|[cC]lient)[\w.]*$'
                             - pattern: '$R.client.get($URL, ...)'
+          # Top-level code (a main.swift script, or a closure in one): a feed parser over bytes after a
+          # statement that downloads them (#13294). Only
+          # URLSession and the Foundation readers are read here.
+          - patterns:
+              - pattern-either: *feed_parsers
+              # no function check: inside a function the same sequence is a case of the form above,
+              # which reads the whole body, so it adds no match there
+              - pattern-either:
+                  - pattern-inside: |
+                      <... $S.data(from: $URL, ...) ...>
+                      ...
+                  - pattern-inside: |
+                      <... $S.bytes(from: $URL, ...) ...>
+                      ...
+                  - patterns:
+                      - pattern-either:
+                          - pattern-inside: |
+                              <... String(contentsOf: $URL, ...) ...>
+                              ...
+                          - pattern-inside: |
+                              <... Data(contentsOf: $URL, ...) ...>
+                              ...
+                      - metavariable-regex: *device_name
           # AsyncHTTPClient's request and Alamofire's `AF`, each in its own branch under its import.
           # Inside a sub-pattern the engine no longer sees the file's imports, so the body names them
           # by their short names and the branch carries the import. Each vendor branch reads the

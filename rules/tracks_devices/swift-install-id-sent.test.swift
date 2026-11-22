@@ -1,4 +1,4 @@
-// lexcode-expect: 11
+// lexcode-expect: 17
 import Foundation
 
 final class APIClient {
@@ -33,7 +33,11 @@ final class APIClient {
         request.setValue(installUUID.uuidString, forHTTPHeaderField: "X-Foo")
         request.setValue(token, forHTTPHeaderField: "X-App-Instance-Id")
         request.setValue(token, forHTTPHeaderField: "X-User-Device-Id")
-        request.setValue(token, forHTTPHeaderField: "X-ACME-UUID")
+        request.setValue(token, forHTTPHeaderField: "X-App-UUID")
+        request.setValue(token, forHTTPHeaderField: "X-Install-UUID")
+        // An other-device word read from its start only, so these are the phone's.
+        request.setValue(token, forHTTPHeaderField: "X-Block-Device-Id")
+        request.setValue(token, forHTTPHeaderField: "X-Unlock-Device-Id")
         return request
     }
 }
@@ -44,5 +48,12 @@ private extension URLRequest {
             setValue(appInstallID, forHTTPHeaderField: "X-Analytics-Id")
         }
         addValue(UUID().uuidString, forHTTPHeaderField: "X-Install-Id")
+        // Wikipedia's other send, from a value whose name says nothing of an install, and the same
+        // HTTP header in another case.
+        setValue(xWMFUUID, forHTTPHeaderField: "X-WMF-UUID")
+        setValue(xWMFUUID, forHTTPHeaderField: "x-wmf-uuid")
+        setValue(xWMFUUID, forHTTPHeaderField: "X-Wmf-Uuid")
     }
+
+    var xWMFUUID: String { "" }
 }

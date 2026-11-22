@@ -63,4 +63,22 @@ struct StatusController: RouteCollection {
     func hb(_ request: HBRequest) async throws -> Swift.Void {
         _ = try await openAI.chats(query: ChatQuery(messages: [], model: .gpt4_o))
     }
+
+    // Typed throws, a parenthesized Void and a return type on the next line.
+    func typed(req: Request) async throws(Abort) -> Void {
+        _ = try? await openAI.chats(query: ChatQuery(messages: [], model: .gpt4_o))
+    }
+
+    func typedUnit(req: Request) async throws(Abort) -> () {
+        _ = try? await openAI.chats(query: ChatQuery(messages: [], model: .gpt4_o))
+    }
+
+    func paren(req: Request) async throws -> (Void) {
+        _ = try await openAI.chats(query: ChatQuery(messages: [], model: .gpt4_o))
+    }
+
+    func wrapped(req: Request) async throws
+        -> () {
+        _ = try await openAI.chats(query: ChatQuery(messages: [], model: .gpt4_o))
+    }
 }

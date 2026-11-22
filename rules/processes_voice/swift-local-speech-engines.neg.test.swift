@@ -27,3 +27,21 @@ final class AppTranscriber {
         _ = await self.detectLanguage(audioPath: "/tmp/a.wav")
     }
 }
+
+// The app's own transcriber extended, and an extension of a type whose name only ends in WhisperKit.
+extension AppTranscriber {
+    func again() async {
+        _ = await self.transcribe(audioPath: "/tmp/b.wav")
+        _ = await transcribe(audioArray: [])
+    }
+}
+
+final class MyWhisperKit {
+    func transcribe(audioPath: String) async -> String { audioPath }
+}
+
+extension MyWhisperKit {
+    func again() async {
+        _ = await self.transcribe(audioPath: "/tmp/c.wav")
+    }
+}

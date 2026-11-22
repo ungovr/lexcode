@@ -1568,30 +1568,58 @@ The engine sets most of these limits, and the rules' comments point here.
   file brings a module to a whole target, and the engine does not follow it, so
   an import-guarded or module-qualified pattern misses a file that gets the
   vendor only that way, except where the short name carries the vendor's own
-  name. Three files in the Vapor app use it (for an OpenAPI client, a Discord
-  model type and LeafKit), none for a vendor a rule reads. The same holds for an
+  name. lexcode cannot read the import per target instead: the engine reads one
+  file at a time, a rule's import guard reads only that file's text, and the only
+  way to carry an import to the rest of a target would be to change the files
+  lexcode hands the engine, which it does not do. Three files in the Vapor app
+  use it (`OpenAPIAsyncHTTPClient`, the `UserSnowflake` type alias from
+  `DiscordModels`, and `LeafKit`), and no rule guards on any of those modules,
+  so no row changes there (measured 2026-11-21). The same holds for an
   umbrella: a file that imports only `AVKit` (which brings AVFoundation), or only
   `MapKit`, `SpriteKit`, `WebKit`, `StoreKit` or `PhotosUI` (which bring UIKit),
   is not read by a rule that guards on AVFoundation or UIKit. A file that builds
   an `HTTPClientRequest` through Vapor without `import AsyncHTTPClient` is not
   read by the rule that guards on that import.
-- **Taint and functions.** Taint does not cross a function: a model result
-  returned from a function that calls a helper (`return try await helper.ask(p)`),
-  a result held at file scope and returned from a function that names no call, a
-  page downloaded in one function and parsed in another, and a send called
-  through the app's own function from a loop in another function are not joined.
-  Top-level code (a `main.swift` script) is not seen by the HTML and feed rules,
-  a script held in a variable is not read by the web view rule, and a source
-  inside a `map` closure does not reach its result. Taint passes an optional
-  binding only in part: `guard let a = r.x, let b = f(a)` binds only the first
-  name, and a value derived two steps before the binding is lost.
+- **Taint and functions.** The engine's taint does not cross a call, so a model
+  result returned from a function that calls a helper (`return try await
+  helper.ask(p)`, the helper's own return is read in its own function), a result
+  held at file scope and returned from a function that names no call, a page
+  downloaded in one function and parsed in another, and a send called through
+  the app's own function from a loop in another function are not joined; no
+  rule shape can join them. The result-returned rules read a return from a
+  nested function, a closure or a `Task` body under any function or init that
+  names the call; a closure's return is read only when the value follows
+  `return` and a space on the same line, since the engine also reads a
+  closure's last statement as its return, so `return(x)` and a returned chain
+  that goes on to the next line are not read. Top-level code (a `main.swift` script) is read by the HTML and
+  feed rules when a statement before the parser downloads with URLSession or a
+  Foundation reader (not AsyncHTTPClient, Alamofire or Vapor's client), a script
+  held in a variable is not read by the web view rule, and a source inside a
+  `map` closure does not reach its result. The engine's taint does not pass an
+  optional binding, so the generation rules read the bound name as a source of
+  its own when it is bound from the call or from a value that holds it. A later
+  name in the same list (`guard let a = r.x, let b = f(a)`) and a binding from a
+  value derived in turn (`let choices = r.choices`, then `guard let t =
+  choices.first`) are not read: each source shape that reads them was written and
+  matched, and each one alone cost the rule the engine's pre-filter, so the rule
+  read every Swift file whatever it imports (a 900 KB file that names no vendor:
+  14 s against 3 s, measured 2026-11-21). A local `var`
+  that collects the output inside a closure (in top-level code or a stored
+  closure) is not a screen; a closure whose head has three parameters, or a
+  capture list of two, is not read as one.
 - **Not read at all.** Objective-C and C and C++ files (125 and 155 in Wikipedia
   for iOS, named in the scan's notice), Core Data entities that Xcode generates
   from a `.xcdatamodeld`, a Sparkle updater created in a nib or storyboard, a
   SwiftUI `App` with no UIKit delegate (the Xcode project rule finds the app
   instead), a Mac app with no Sparkle (no Swift evidence of distribution), and
   Leaf templates (above).
-- **Generation and chat.** Discord posts through DiscordBM, Anthropic's Swift
+- **Generation and chat.** DiscordBM is read for a cache that keeps edited and
+  deleted messages (`swift-discord-message-history`) and for a bot that asks for
+  a server's members (`swift-discord-members`), made as `DiscordCache(...)`,
+  `DiscordCache.init(...)` or `.init(gatewayManager: ...)` (the DDBKit
+  starters' shape); a cache or member list kept by another Discord library,
+  DiscordBM's `ShardingGatewayManager`, and Discord posts through DiscordBM are
+  not. Anthropic's Swift
   clients, Slack bot messages, Firebase Cloud Messaging from a Swift server,
   Hummingbird jobs, `BGTaskScheduler` tasks and a Lambda event handler as a job
   shape, Soto's `SNS.PublishInput` type and a model reached through the app's own
@@ -1622,18 +1650,32 @@ The engine sets most of these limits, and the rules' comments point here.
   what it encrypts, so one that holds only a sign-in token still counts and is
   for a person to confirm.
 - **Data and tracking.** No rule reads a Vapor server's client address or a
-  device fingerprint. An install ID the app mints for itself (a random UUID kept
+  device fingerprint. A DynamoDB record is read only when Soto writes it through
+  a codable input and the value's name says it is a person or an account
+  (`swift-dynamodb-user-record`); the AWS SDK for Swift's attribute dictionaries
+  (`PutItemInput(item: [...])`) and a value with any other name are not. An install ID the app mints for itself (a random UUID kept
   in its own store and sent with every request) is read by its names only: a
-  header named for an install or device ID (or `X-<ACRONYM>-UUID` in capitals,
-  as Wikipedia's `X-WMF-UUID` is) or filled from a value named as one
-  (`swift-install-id-sent`), and a query item named for one or filled from such a
-  value, followed to the request its URL reaches (`swift-install-id-query-sent`).
-  The mint and the send sit in different files, which taint does not join, so an
-  install ID sent under other names (`X-Client-UUID`, `x-wishkit-uuid`), under
-  the name `installation_id` (which GitHub uses for an app's installation), in a
-  URL opened in a browser or a web view, or in a header dictionary
-  (`allHTTPHeaderFields = [...]`, Alamofire's `HTTPHeaders`), is missed. Taint
-  does not follow a class property initialized from a source into a method.
+  header named for an install or device ID (and two names that hold only a
+  vendor or the app and a UUID, Wikipedia's `X-WMF-UUID` and `X-App-UUID`) or
+  filled from a value named as one (`swift-install-id-sent`), and a query item
+  named for one or filled from such a value, followed to the request its URL
+  reaches (`swift-install-id-query-sent`). The mint and the send sit in
+  different files, which taint does not join, so an install ID sent under other
+  names (`X-Client-UUID`, `x-wishkit-uuid`, any other `X-<name>-UUID`, whose name
+  cannot tell a vendor from the thing the request is about), under the name
+  `installation_id` (which GitHub uses for an app's installation), in a URL
+  handed to the system browser (`UIApplication.shared.open`, as Wikipedia does
+  with its `appinstallid` query item), or in a header dictionary
+  (`allHTTPHeaderFields = [...]`, Alamofire's `HTTPHeaders`), is missed. A URL
+  loaded in a web view through a request (`webView.load(URLRequest(url: ...))`)
+  is read. A device header whose name says it is another device
+  (`X-Lock-Device-Id`) is left out. The vendor identifier kept in a stored
+  property is followed into the members declared after it
+  (`swift-device-id-sent`), not into one declared before it; a name that
+  shadows it there with something else (a local, a parameter, an optional
+  binding, a loop variable or a closure parameter) is not read as it, while an
+  unwrap of the property to its own name (`if let id = id`, `guard let id`,
+  `if let id = self.id`) and `self.id` beside a same-named parameter are.
 - **Shipping.** A tvOS-only or visionOS-only app whose delegate file carries no
   platform cue is matched as a mobile app, an SDK's non-open delegate forwarder
   is matched, a delegate that conforms in fourth place or later is missed, and a

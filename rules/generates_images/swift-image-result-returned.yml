@@ -209,11 +209,32 @@ rules:
                 - metavariable-regex:
                     metavariable: $...BODY
                     regex: (?s).*\b(?:images|imageEdits|imageVariations|createImages|legacyCreateImages|legacyEditImage|legacyCreateImageVariations|generateImages|invokeModel)\b
-          - pattern: |
-              func $F(...) -> $T {
-                ...
-                return $X
-              }
+          - pattern-either:
+              - pattern: |
+                  func $F(...) -> $T {
+                    ...
+                    return $X
+                  }
+              # a closure's or a Task's own return, under a function with no return type or an init
+              # (#13294). The engine also reads a closure's last statement as `return $X` when it has no
+              # `return` (`print(output)` at the end of a Task), so the value must follow the keyword and
+              # a space on its line: `return(x)` and a returned chain that goes on to the next line are
+              # not read.
+              - patterns:
+                  - patterns:
+                      - pattern-either:
+                          - pattern: |
+                              {
+                                ...
+                                return $X
+                              }
+                          - pattern: |
+                              { $CP in
+                                ...
+                                return $X
+                              }
+                      - focus-metavariable: $X
+                  - pattern-regex: '(?<=\breturn )[^\n]+'
           - focus-metavariable: $X
           - pattern-not-inside:
               patterns:
@@ -229,6 +250,17 @@ rules:
                         func $G(..., $REQ: HBRequest, ...) -> $U {
                           ...
                         }
+                    # a route closure, which the evidence rule reads as the response (the closure sink
+                    # above takes no closure of two parameters, so a Hummingbird `{ req, ctx in` route
+                    # needs no form here)
+                    - patterns:
+                        - pattern: |
+                            $APP.$M(...) { $REQ in
+                              ...
+                            }
+                        - metavariable-regex:
+                            metavariable: $M
+                            regex: ^(get|post|put|patch|delete|on)$
     metadata:
       activity: generates_images
       mentioned: performs

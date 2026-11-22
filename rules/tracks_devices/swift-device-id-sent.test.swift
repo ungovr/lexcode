@@ -1,4 +1,5 @@
-// lexcode-expect: 8
+// lexcode-expect: 9
+import Combine
 import UIKit
 
 final class DeviceReporter {
@@ -55,5 +56,13 @@ final class DeviceReporter {
         var components = URLComponents(string: "https://api.example.com/v1/hello")!
         components.queryItems?.append(URLQueryItem(name: "d", value: id))
         URLSession.shared.dataTask(with: components.url!) { _, _, _ in }.resume()
+    }
+
+    func published() -> AnyPublisher<Data, URLError> {
+        let id = UIDevice.current.identifierForVendor?.uuidString ?? ""
+        let url = URL(string: "https://px.example.net/p.gif?d=\(id)")!
+        return URLSession.shared.dataTaskPublisher(for: url)
+            .map(\.data)
+            .eraseToAnyPublisher()
     }
 }

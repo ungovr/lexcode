@@ -16,6 +16,124 @@ rules:
       - pattern-either:
           - pattern: UIKit.UIDevice.current.identifierForVendor
           - pattern: UIDevice.current.identifierForVendor
+      # A stored property set from the identifier, read by name in the members after it: taint does
+      # not follow a property's initializer into a method (#13294). A name that shadows it in a
+      # function with something else (a local, a parameter, an optional binding, a loop variable or
+      # a closure parameter) is not read; an unwrap of the property to its own name and `self.<name>`
+      # are the property and are read. A property declared after the method that reads it is not
+      # followed.
+      - patterns:
+          # each declaration names the identifier itself, so only a declaration that holds it is
+          # a candidate (a `$E` checked after pairing made every `let` in the file one: 74 s on
+          # rule-cost's 900 KB file); a typed declaration (`let id: String = ...`) matches these too
+          - pattern-either:
+              - pattern-inside: |
+                  let $P = <... UIDevice.current.identifierForVendor ...>
+                  ...
+              - pattern-inside: |
+                  let $P = <... UIKit.UIDevice.current.identifierForVendor ...>
+                  ...
+              - pattern-inside: |
+                  var $P = <... UIDevice.current.identifierForVendor ...>
+                  ...
+              - pattern-inside: |
+                  var $P = <... UIKit.UIDevice.current.identifierForVendor ...>
+                  ...
+          # `self.<name>` is always the property, whatever shadows the name
+          - pattern: self.$P
+      # The same property read by its bare name, unless something else shadows it there (kept as a
+      # source of its own: a `$P` nested beside `self.$P` was matched against every name in the
+      # file before the declaration bound it, 1.8x growth on rule-cost's file against 1.1x)
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  let $P = <... UIDevice.current.identifierForVendor ...>
+                  ...
+              - pattern-inside: |
+                  let $P = <... UIKit.UIDevice.current.identifierForVendor ...>
+                  ...
+              - pattern-inside: |
+                  var $P = <... UIDevice.current.identifierForVendor ...>
+                  ...
+              - pattern-inside: |
+                  var $P = <... UIKit.UIDevice.current.identifierForVendor ...>
+                  ...
+          - pattern: $P
+          # a local declared in a function
+          - pattern-not-inside: |
+              func $F(...) {
+                ...
+                let $P = $X
+                ...
+              }
+          - pattern-not-inside: |
+              func $F(...) {
+                ...
+                var $P = $X
+                ...
+              }
+          # a parameter, with or without an argument label, of a function or an init
+          - pattern-not-inside: |
+              func $F(..., $P: $T, ...) { ... }
+          # an optional binding of something else; an unwrap of the property to its own name
+          # (`if let id = id`, `if let id = self.id`, the shorthand `if let id`, and the same
+          # for `if var` and `guard let`) is the property and stays read
+          - pattern-not-inside:
+              patterns:
+                - pattern-either:
+                    - pattern: |
+                        if let $P = $X {
+                          ...
+                        }
+                    - pattern: |
+                        if var $P = $X {
+                          ...
+                        }
+                - pattern-not: |
+                    if let $P = $P {
+                      ...
+                    }
+                - pattern-not: |
+                    if let $P = self.$P {
+                      ...
+                    }
+                - pattern-not: |
+                    if var $P = $P {
+                      ...
+                    }
+                - pattern-not: |
+                    if var $P = self.$P {
+                      ...
+                    }
+          - pattern-not-inside:
+              patterns:
+                - pattern: |
+                    guard let $P = $X else { ... }
+                    ...
+                - pattern-not: |
+                    guard let $P = $P else { ... }
+                    ...
+                - pattern-not: |
+                    guard let $P = self.$P else { ... }
+                    ...
+          # a loop variable
+          - pattern-not-inside: |
+              for $P in $X {
+                ...
+              }
+          # a closure parameter, alone or among two
+          - pattern-not-inside: |
+              { $P in
+                ...
+              }
+          - pattern-not-inside: |
+              { $P, $Q in
+                ...
+              }
+          - pattern-not-inside: |
+              { $Q, $P in
+                ...
+              }
     # A query item puts the identifier into the components' URL (`components.queryItems = [...]`
     # or an append), so the components carry it to the request built from their `url`.
     pattern-propagators:
@@ -43,6 +161,8 @@ rules:
               - pattern: '$S.data(from: $V, ...)'
               - pattern: '$S.dataTask(with: $V, ...)'
               - pattern: '$S.download(from: $V, ...)'
+              # Combine's publisher, given the URL (or a request) directly.
+              - pattern: '$S.dataTaskPublisher(for: $V)'
               - pattern: '$S.upload(for: $R, from: $V, ...)'
           - focus-metavariable: $V
     metadata:
