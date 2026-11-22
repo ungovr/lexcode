@@ -16,9 +16,12 @@ rules:
       - pattern: Abot2.Crawler.PoliteWebCrawler $V = new(...) { ... };
       - pattern: new Abot.Crawler.PoliteWebCrawler(...)
       - pattern: Abot.Crawler.PoliteWebCrawler $V = new(...);
+      - pattern: new Abot.Crawler.PoliteWebCrawler(...) { ... }
+      - pattern: Abot.Crawler.PoliteWebCrawler $V = new(...) { ... };
       - pattern: (Abot2.Crawler.IWebCrawler $C).CrawlAsync(...)
       - pattern: (Abot.Crawler.IWebCrawler $C).Crawl(...)
-      # InfinityCrawler: making the crawler.
+      # InfinityCrawler: making the crawler. Its Crawler has no settable member, so it has no
+      # initializer form.
       - pattern: new InfinityCrawler.Crawler(...)
       - pattern: InfinityCrawler.Crawler $V = new(...);
       # DotnetSpider: a spider class.

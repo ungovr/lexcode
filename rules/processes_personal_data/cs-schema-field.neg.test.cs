@@ -2,7 +2,8 @@
 // Schema code that stores nothing about a person: columns that are not personal, personal columns
 // being dropped or left unmapped, an anonymous object built from an imported sheet's row, a blank
 // import template's header row (WithColumn outside FluentMigrator), and the app's own
-// MigrationBuilder (a build-step script, not EF Core), which shares the library's short name.
+// MigrationBuilder (a build-step script, not EF Core), which shares the library's short name. A
+// store's sending mail account is in cs-schema-field.neg.test.sending.cs.
 
 namespace Demo.Build;
 

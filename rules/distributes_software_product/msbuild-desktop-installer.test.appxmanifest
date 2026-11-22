@@ -1,0 +1,38 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!-- lexcode-expect: 2 -->
+<!-- The MSIX package manifest a MAUI or WinUI app's Windows head is packaged from (a MAUI
+     template's Platforms/Windows/Package.appxmanifest, saved with a byte order mark), whose
+     <Identity> names the package, with the Name the build fills in or written out; and a second
+     manifest's Identity spread over several lines. -->
+<Package
+        xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+        xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+        xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+        IgnorableNamespaces="uap rescap">
+
+    <Identity Publisher="CN=User Name"/>
+
+    <Properties>
+        <PublisherDisplayName>Feedlint</PublisherDisplayName>
+    </Properties>
+
+    <Dependencies>
+        <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17763.0" MaxVersionTested="10.0.19041.0"/>
+    </Dependencies>
+
+    <Applications>
+        <Application Id="App" Executable="$targetnametoken$.exe" EntryPoint="$targetentrypoint$">
+            <uap:VisualElements/>
+        </Application>
+    </Applications>
+
+    <Capabilities>
+        <rescap:Capability Name="runFullTrust"/>
+    </Capabilities>
+
+    <Identity
+        Name="Feedlint.Desktop"
+        Publisher="CN=Feedlint Ltd"
+        Version="1.4.0.0" />
+
+</Package>

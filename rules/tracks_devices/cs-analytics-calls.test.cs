@@ -1,8 +1,9 @@
-// lexcode-expect: 22
+// lexcode-expect: 25
 // Visits and events sent to third-party analytics services that follow the visitor or device
 // with their own id: Application Insights given a user or device id (on the telemetry an
 // initializer or processor sees, a request telemetry reached with `as`, an event telemetry, and a
-// client's own context), Segment (Analytics.NET, and Analytics-CSharp through an alias), Mixpanel
+// client's own context; an initializer or processor listed after a base class or another
+// interface, second or third), Segment (Analytics.NET, and Analytics-CSharp through an alias), Mixpanel
 // and PostHog (injected, constructed and target-typed), Firebase Analytics on .NET MAUI, and the
 // Google Analytics Measurement Protocol.
 using Microsoft.ApplicationInsights;
@@ -34,6 +35,39 @@ public class RequestUserInitializer(IHttpContextAccessor accessor) : ITelemetryI
         if (requestTelemetry == null) return;
         requestTelemetry.Context.User.AuthenticatedUserId = accessor.HttpContext?.User.Identity?.Name;
     }
+}
+
+public class DeviceInitializer(IHttpContextAccessor accessor) : InitializerBase(accessor), ITelemetryInitializer
+{
+    public void Initialize(ITelemetry telemetry)
+    {
+        var request = telemetry as RequestTelemetry;
+        if (request == null) return;
+        request.Context.Device.Id = accessor.HttpContext?.Request.Headers["X-Device-Id"];
+    }
+}
+
+public sealed class VisitorProcessor(ITelemetryProcessor next) : IDisposable, ITelemetryProcessor
+{
+    public void Process(ITelemetry item)
+    {
+        var pageView = item as PageViewTelemetry;
+        if (pageView != null) pageView.Context.User.AccountId = "visitor";
+        next.Process(item);
+    }
+
+    public void Dispose() { }
+}
+
+public class AccountInitializer : InitializerBase, IDisposable, ITelemetryInitializer
+{
+    public void Initialize(ITelemetry telemetry)
+    {
+        var request = telemetry as RequestTelemetry;
+        if (request != null) request.Context.User.Id = "account";
+    }
+
+    public void Dispose() { }
 }
 
 public class PageViewUserProcessor(ITelemetryProcessor next, IHttpContextAccessor accessor) : ITelemetryProcessor

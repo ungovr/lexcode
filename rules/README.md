@@ -1151,11 +1151,10 @@ Known Razor gaps:
 ### The C# gate
 
 The release test requires every evidence-class activity to have a rule whose
-`languages` include `csharp`. One exemption stands:
-`distributes_software_product`, whose evidence lives in project files, is met by
-an `msbuild-` rule, as Java's is met by a build-file rule. Those rules read
-project and `.nuspec` text as `generic` files. Any other exemption must be
-argued and ruled before it is added.
+`languages` include `csharp`, and no exemption stands: `distributes_software_product`
+is met by `cs-desktop-updater`, beside the `msbuild-` rules that read project,
+`.nuspec`, publish-profile and package-manifest text as `generic` files. Any
+exemption must be argued and ruled before it is added.
 
 ### What the C# rules decide
 
@@ -1178,6 +1177,14 @@ argued and ruled before it is added.
 - A bare Twilio `VoiceResponse.Record` verb (voicemail) is `processes_voice`, not
   `records_calls`, and an in-app SignalR notification is a user interface push,
   not `automated_outreach`.
+- A store's sending mail account (nopCommerce's `EmailAccount`: the mailbox and
+  SMTP login the app sends its own mail from) is not personal data for
+  `cs-schema-field` or `cs-entity-field`, which share one test for it
+  (`test/unit/cs-sending-mailbox-shared.test.ts`). A mail account's columns are
+  set aside only where its file
+  maps sending settings (a host, port, SSL or SMTP column) and names no owner (a
+  `UserId`, `CustomerId`, `OwnerId`, `MemberId` or `AccountHolder`); a mailbox a
+  person connects in a mail client stays personal data.
 
 ### Known C# gaps
 
@@ -1201,10 +1208,20 @@ The engine sets most of these limits, and the rules' comments point here.
 - Voice and calls: no rule reads Android call audio, LiveKit egress,
   BigBlueButton, WebRTC audio taps or AWS Transcribe streaming.
 - Crawling: the `HtmlWeb` and AngleSharp arms do not judge an interpolated
-  address, so `OpenAsync($"pages/{n}")` matches.
+  address, so `OpenAsync($"pages/{n}")` matches. `System.Net.WebClient` is read
+  by its full type, so a file that reaches `System.Net` only through a
+  `global using` elsewhere is missed. An `HttpClient` subclass is read only when
+  its name ends in `HttpClient` (the engine does not know a base class). The
+  browser and AngleSharp namespace gates read past strings and `//` comments to
+  tell a block comment, but a `//` on a line inside a block comment hides a `*/`
+  later on that line.
 - Personal data and tracking: a FluentMigrator migration on a custom base class,
   an EF Core configuration through a `var` or an owned-type chain, and a Dapper
-  `Execute` that stores an IP are missed.
+  `Execute` that stores an IP are missed. A Serilog logger in a `var` set from
+  `ForContext` is not read as a log sink. The sending mail account's settings
+  and owner are read across its whole file, so a migration that creates every
+  table at once (an EF Core `InitialCreate`) usually names an owner somewhere
+  and keeps the mail account's columns.
 - Identity and signatures: a signature pad declared in XAML and Adobe Acrobat
   Sign are not read, and the selfie rule reads a class's members as text, so a
   field set in an initializer is missed, a method's use of an ID-document word
@@ -1216,7 +1233,9 @@ The engine sets most of these limits, and the rules' comments point here.
   list are missed. A project that sets `PackageLicenseUrl`,
   `PackageLicenseExpression` or `PackageLicenseFile` for its license metadata
   only, or an app's own attribute named `Activity` with a `MainLauncher`
-  property, matches.
+  property, matches. A `Package.appxmanifest` is read on its own, so a Windows head
+  that keeps the template's manifest while its project sets
+  `WindowsPackageType` to `None` (an unpackaged app) matches.
 - Encryption: a symmetric algorithm's encryptor (`CreateEncryptor`,
   `EncryptCbc` and the rest) is read where `System.Security.Cryptography`
   itself is imported (a deeper namespace such as `X509Certificates` alone does
@@ -1452,7 +1471,7 @@ configuration rules are additional evidence, not Swift, and do not count toward
 the Swift gate. One Rust exemption stands: `distributes_software_product`, whose
 package evidence lives in `Cargo.toml` (`[package]` listing keys, `publish`, a
 release packaging section), is met by a `cargo-` rule, as Java's is met by a
-build-file rule and C#'s by an `msbuild-` rule. No Swift exemption was needed.
+build-file rule. No Swift exemption was needed.
 Any other exemption must be argued and ruled before it is added.
 
 ### What the Swift and Rust rules decide

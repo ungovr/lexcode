@@ -1,4 +1,4 @@
-// lexcode-expect: 8
+// lexcode-expect: 9
 // Persistent classes whose stored members hold an email address, a phone number, a date of
 // birth, a government identifier or an IP address: classes mapped with Table, an EF Core Index
 // or Owned, and members mapped one at a time with Column or a MongoDB BsonElement.
@@ -24,6 +24,7 @@ public class LoginEvent
 {
     public long Id { get; set; }
     public string IpAddress;
+    public string? CustomerIp { get; set; }
 }
 
 [Index(nameof(EmailAddress), IsUnique = true)]

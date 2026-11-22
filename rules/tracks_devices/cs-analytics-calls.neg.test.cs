@@ -1,11 +1,14 @@
 // lexcode-expect: 0
 // Telemetry that follows no visitor or device: Application Insights given only the service's own
 // name, a per-visit session id and a correlation id, an event with no user id, server metrics and
-// traces kept as anonymous totals, the same Context.User.Id chain on the app's own queue message,
-// and the app's own Analytics class (a report builder), which shares Segment's short name.
+// traces kept as anonymous totals, the same Context.User.Id chain on the app's own queue message
+// (also in a class whose second and third bases are the app's own initializer interfaces), an
+// initializer listed after a base class that sets only a session id, and the app's own Analytics
+// class (a report builder), which shares Segment's short name.
 using System.Diagnostics.Metrics;
 using Microsoft.ApplicationInsights;
 using Microsoft.ApplicationInsights.Channel;
+using Microsoft.ApplicationInsights.DataContracts;
 using Microsoft.ApplicationInsights.Extensibility;
 
 namespace Demo.Reports;
@@ -61,6 +64,51 @@ public class OrderPublisher
         message.Context.User.Id = customerId;
         return message;
     }
+}
+
+// An initializer listed after a base class, keeping only the per-visit session id.
+public class SessionInitializer(Settings settings) : InitializerBase(settings), IDisposable, ITelemetryInitializer
+{
+    public void Initialize(ITelemetry telemetry)
+    {
+        var request = telemetry as RequestTelemetry;
+        if (request != null) request.Context.Session.Id = Guid.NewGuid().ToString();
+    }
+
+    public void Dispose() { }
+}
+
+// The app's own initializer interfaces, listed second and third: the message still carries the
+// customer to the fulfilment worker, not to an analytics service.
+public class OrderEnvelopeInitializer : EnvelopeBase, IOrderInitializer, IMessageInitializer
+{
+    public void Initialize(object envelope)
+    {
+        var message = envelope as OrderMessage;
+        if (message != null) message.Context.User.Id = "customer";
+    }
+}
+
+// The app's own initializer and processor interfaces after a base reached through a primary
+// constructor, listed second and third: the message carries the customer to a worker.
+public class OrderStampInitializer(Settings settings) : EnvelopeBase(settings), IOrderInitializer
+{
+    public void Initialize(object envelope)
+    {
+        var message = envelope as OrderMessage;
+        if (message != null) message.Context.User.Id = "customer";
+    }
+}
+
+public class OrderStampProcessor(Settings settings) : EnvelopeBase(settings), IDisposable, IOrderProcessor
+{
+    public void Process(object envelope)
+    {
+        var message = envelope as OrderMessage;
+        if (message != null) message.Context.User.Id = "customer";
+    }
+
+    public void Dispose() { }
 }
 
 // The app's own class of the same short name: builds the monthly sales report.

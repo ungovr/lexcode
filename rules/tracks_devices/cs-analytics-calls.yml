@@ -8,7 +8,10 @@ rules:
       # such id is not following one visitor. The context's owner carries no type in a member
       # chain, so it is reached one of two ways: anywhere in a telemetry initializer or processor
       # (whatever the item is cast to there: `telemetry as RequestTelemetry`, `item is
-      # PageViewTelemetry pv`), or on a typed telemetry item or client elsewhere.
+      # PageViewTelemetry pv`), or on a typed telemetry item or client elsewhere. A class's base
+      # list matches as a prefix (`class $C : I` finds I listed first only), and a base reached
+      # through a primary constructor (`Base(x)`) matches only `$B(...)`, so the interface is
+      # written first, second and third, after a plain base or a constructor call.
       - patterns:
           - pattern-either:
               - patterns:
@@ -16,7 +19,23 @@ rules:
                       - pattern-inside: |
                           class $C : Microsoft.ApplicationInsights.Extensibility.ITelemetryInitializer { ... }
                       - pattern-inside: |
+                          class $C : $B1, Microsoft.ApplicationInsights.Extensibility.ITelemetryInitializer { ... }
+                      - pattern-inside: |
+                          class $C : $B1(...), Microsoft.ApplicationInsights.Extensibility.ITelemetryInitializer { ... }
+                      - pattern-inside: |
+                          class $C : $B1, $B2, Microsoft.ApplicationInsights.Extensibility.ITelemetryInitializer { ... }
+                      - pattern-inside: |
+                          class $C : $B1(...), $B2, Microsoft.ApplicationInsights.Extensibility.ITelemetryInitializer { ... }
+                      - pattern-inside: |
                           class $C : Microsoft.ApplicationInsights.Extensibility.ITelemetryProcessor { ... }
+                      - pattern-inside: |
+                          class $C : $B1, Microsoft.ApplicationInsights.Extensibility.ITelemetryProcessor { ... }
+                      - pattern-inside: |
+                          class $C : $B1(...), Microsoft.ApplicationInsights.Extensibility.ITelemetryProcessor { ... }
+                      - pattern-inside: |
+                          class $C : $B1, $B2, Microsoft.ApplicationInsights.Extensibility.ITelemetryProcessor { ... }
+                      - pattern-inside: |
+                          class $C : $B1(...), $B2, Microsoft.ApplicationInsights.Extensibility.ITelemetryProcessor { ... }
                   - pattern: $X.Context.$K.$P = $V
               - pattern: (Microsoft.ApplicationInsights.Channel.ITelemetry $X).Context.$K.$P = $V
               - pattern: (Microsoft.ApplicationInsights.TelemetryClient $X).Context.$K.$P = $V

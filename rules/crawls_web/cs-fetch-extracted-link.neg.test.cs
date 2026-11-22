@@ -31,6 +31,7 @@ public class LinkReport(HttpClient http)
     public async Task<string> OwnNextAsync(IElement nextLink)
     {
         await http.GetStringAsync("http://localhost:5000" + nextLink.GetAttribute("href"));
+        await http.GetStringAsync("""http://localhost:5000""" + nextLink.GetAttribute("href"));
         var next = nextLink.GetAttribute("data-page");
         return await http.GetStringAsync($"/api/orders?page={next}");
     }

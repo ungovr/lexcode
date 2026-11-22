@@ -7,14 +7,33 @@ using Microsoft.Extensions.Caching.Distributed;
 namespace Shop.Blog;
 
 // The app publishes its own blog as RSS, reads back its own feed file and cached copies, and reads a
-// feed from its own dev server. It also imports a supplier's product feed, reads its feedback
-// service, and reads a partner API's JSON, none of which is a publisher's content. Nothing here reads
-// another publisher's feed.
-public class BlogFeed(IDistributedCache cache, HttpClient http, IProductFeed productFeed, IFeedbackService feedbackService)
+// feed from its own dev server. It also imports a supplier's product, catalog, vendor, price and
+// offer feeds (read in the call and from a local), reads its feedback service, and reads a partner
+// API's JSON, none of which is a publisher's content. Nothing here reads another publisher's feed.
+public class BlogFeed(IDistributedCache cache, HttpClient http, IProductFeed productFeed, IFeedbackService feedbackService,
+    IProductFeedParser productFeedParser, IShoppingFeedReader shoppingFeedReader, ISupplierFeedParser supplierFeedParser)
 {
     public async Task ImportAsync(string supplierUrl)
     {
         var products = productFeed.Parse(await http.GetStringAsync(supplierUrl));
+        var parsed = productFeedParser.Parse(await http.GetStringAsync(supplierUrl));
+        var offers = await shoppingFeedReader.ReadAsync(await http.GetStreamAsync(supplierUrl));
+        var priceList = await http.GetStringAsync(supplierUrl);
+        var catalog = supplierFeedParser.Parse(priceList);
+        var merchant = MerchantFeedParser.Parse(await http.GetStringAsync(supplierUrl));
+        var inventory = InventoryFeedReader.Read(await http.GetStringAsync(supplierUrl));
+        var range = CatalogFeedParser.Parse(await http.GetStringAsync(supplierUrl));
+        var vendors = VendorFeedReader.Read(await http.GetStringAsync(supplierUrl));
+        var prices = PriceFeedParser.Parse(await http.GetStringAsync(supplierUrl));
+        var deals = OfferFeedReader.Read(await http.GetStringAsync(supplierUrl));
+        var catalogXml = await http.GetStringAsync(supplierUrl);
+        var rangeAgain = CatalogFeedParser.Parse(catalogXml);
+        var vendorXml = await http.GetStringAsync(supplierUrl);
+        var vendorsAgain = VendorFeedReader.Read(vendorXml);
+        var priceXml = await http.GetStringAsync(supplierUrl);
+        var pricesAgain = PriceFeedParser.Parse(priceXml);
+        var offerXml = await http.GetStringAsync(supplierUrl);
+        var dealsAgain = OfferFeedReader.Read(offerXml);
         var feedback = feedbackService.Read(await http.GetStringAsync(supplierUrl));
         var json = await http.GetStringAsync("https://api.partner.example.com/v1/products");
         var stock = JsonSerializer.Deserialize<Dictionary<string, int>>(json);

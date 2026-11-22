@@ -1,8 +1,9 @@
-// lexcode-expect: 14
+// lexcode-expect: 24
 // Stored columns for an email, phone number, date of birth, government identifier or IP address,
 // declared in schema code: EF Core migrations, EF Core model configuration (a configuration class,
 // an owned type, and a DbContext's model builder), and FluentMigrator (a migration and an
-// entity builder given its table builder).
+// entity builder given its table builder). A class or table holding "Account" that is not a
+// sending mail account (UserAccount, CustomerAccount, UserEmailAccounts) stays in (#13215).
 using FluentMigrator.Builders.Create.Table;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -35,6 +36,7 @@ public partial class AddLoginIp : Mig.Migration
     protected override void Up(Mig.MigrationBuilder migrationBuilder)
     {
         migrationBuilder.AddColumn<string>(name: "LastLoginIp", table: "Logins");
+        migrationBuilder.AddColumn<string>(name: "UserIpAddress", table: "Logins");
     }
 }
 
@@ -67,6 +69,7 @@ public class CreateSubscribers : FluentMigrator.Migration
             .WithColumn("EmailAddress").AsString(255).NotNullable()
             .WithColumn(nameof(Customer.IpAddress)).AsString(100).Nullable();
         Alter.Table("Customer").AddColumn(nameof(Customer.MobileNumber)).AsString(50).Nullable();
+        Alter.Table("Order").AddColumn(nameof(Order.CustomerIp)).AsString(100).Nullable();
     }
 
     public override void Down()
@@ -85,6 +88,73 @@ public class CustomerBuilder
     }
 }
 
+public class AddAccounts : FluentMigrator.Migration
+{
+    public override void Up()
+    {
+        Create.Table("UserAccount")
+            .WithColumn("Id").AsInt32().PrimaryKey()
+            .WithColumn("Email").AsString(255).NotNullable();
+        Alter.Table(nameof(CustomerAccount)).AddColumn(nameof(CustomerAccount.Email)).AsString(255).Nullable();
+    }
+
+    public override void Down()
+    {
+    }
+}
+
+public class UserBuilder
+{
+    public void MapEntity(CreateTableExpressionBuilder table)
+    {
+        table.WithColumn(nameof(User.Email)).AsString(255).NotNullable();
+    }
+}
+
+public partial class AddUserAccounts : Migration
+{
+    protected override void Up(MigrationBuilder migrationBuilder)
+    {
+        migrationBuilder.CreateTable(
+            name: "UserEmailAccounts",
+            columns: table => new { Email = table.Column<string>(type: "text", nullable: false) });
+        migrationBuilder.AddColumn<string>(name: "Email", table: "UserAccounts", nullable: true);
+    }
+}
+
+public class UserAccountConfiguration : IEntityTypeConfiguration<UserAccount>
+{
+    public void Configure(EntityTypeBuilder<UserAccount> builder)
+    {
+        builder.Property(a => a.Email).HasMaxLength(256);
+    }
+}
+
+public class AccountsDb : DbContext
+{
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<CustomerAccount>().Property(a => a.Email).HasMaxLength(256);
+        modelBuilder.Entity<User>(entity => entity.HasIndex(u => u.Email).IsUnique());
+    }
+}
+
+public class User
+{
+    public int Id { get; set; }
+    public string Email { get; set; } = "";
+}
+
+public class UserAccount
+{
+    public string Email { get; set; } = "";
+}
+
+public class CustomerAccount
+{
+    public string Email { get; set; } = "";
+}
+
 public class Customer
 {
     public int Id { get; set; }
@@ -101,4 +171,10 @@ public class Customer
 public class ContactDetails
 {
     public string? PhoneNumber { get; set; }
+}
+
+public class Order
+{
+    public int Id { get; set; }
+    public string? CustomerIp { get; set; }
 }

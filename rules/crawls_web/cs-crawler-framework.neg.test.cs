@@ -16,6 +16,7 @@ public class CatalogIndexer(IWebCrawler indexer)
         PoliteWebCrawler second = new();
         var tuned = new PoliteWebCrawler(storeRoot) { MaxDepth = 2 };
         PoliteWebCrawler shallow = new(storeRoot) { MaxDepth = 1 };
+        var bagged = new PoliteWebCrawler() { CrawlBag = new System.Dynamic.ExpandoObject() };
         var walker = new Crawler();
         await walker.Crawl(storeRoot, new CrawlSettings());
         await indexer.CrawlAsync(storeRoot);

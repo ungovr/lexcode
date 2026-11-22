@@ -2,11 +2,12 @@ rules:
   - id: lexcode.distribute.msbuild-desktop-installer
     languages: [generic]
     severity: INFO
-    message: Packages a Windows desktop app for others to install (an MSIX package, ClickOnce manifests or publishing, a WiX installer or a Windows Application Packaging Project), which is distributing a software product (distributes_software_product).
+    message: Packages a Windows desktop app for others to install (an MSIX package or its package manifest, ClickOnce manifests or publishing, a WiX installer or a Windows Application Packaging Project), which is distributing a software product (distributes_software_product).
     # Each setting is matched only with the value that turns packaging on, with or without attributes
-    # (a Condition): an unpackaged app (WindowsPackageType None, MSIX tooling off) and a web app's
-    # publish profile (Web Deploy, a folder copy) are not matched, and neither is a setting inside an
-    # XML comment, on one line or across lines.
+    # (a Condition): a setting that turns packaging off (WindowsPackageType None, MSIX tooling off)
+    # and a web app's publish profile (Web Deploy, a folder copy) are not matched, and neither is a
+    # setting inside an XML comment, on one line or across lines. A package manifest is read on its
+    # own (below), so an unpackaged app that keeps the template's Package.appxmanifest still matches.
     patterns:
       - pattern-either:
           # MSIX in a single project (WinUI, WPF, WinForms, MAUI's Windows head).
@@ -19,6 +20,12 @@ rules:
           # A WiX Toolset installer project, and a Windows Application Packaging Project (.wapproj).
           - pattern-regex: '(?i)<Project[ \t]+Sdk="WixToolset\.Sdk\b'
           - pattern-regex: '(?i)<Import[ \t]+Project="[^"\n]*\bMicrosoft\.DesktopBridge\.targets"'
+          # The package manifest an MSIX package is built from (Package.appxmanifest, in a MAUI or
+          # WinUI app's Windows head or a UWP project): its <Identity> element names the package. The
+          # manifest is read on its own, so a project that keeps the template's manifest while it
+          # sets WindowsPackageType None still matches (rules/README.md, "Known C# gaps").
+          # <mp:PhoneIdentity> is a Windows Phone product id, not the package identity.
+          - pattern-regex: '<Identity\b[^>]*>'
       - pattern-not-regex: '(?s)<!--.*?-->'
     paths:
       include:
@@ -29,6 +36,7 @@ rules:
         - "*.pubxml"
         - "*.wixproj"
         - "*.wapproj"
+        - "*.appxmanifest"
         - "msbuild-desktop-installer.*"
       # A legacy packages.config restore folder (packages/<Id>.<version>/) holds installed packages'
       # build files, not the app's own; a project under packages/<name>/ is still read.

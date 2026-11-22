@@ -1,4 +1,4 @@
-# lexcode-expect: 3
+# lexcode-expect: 5
 name: release
 on:
   push:
@@ -28,3 +28,16 @@ jobs:
       - run: |
           gem build feedlint.gemspec
           gem push feedlint-*.gem
+  nupkg:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: dotnet nuget push "**/*.nupkg" --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json
+  nupkg-classic:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: nuget/setup-nuget@v2
+      - run: |
+          nuget pack Feedlint.nuspec
+          nuget push *.nupkg -ApiKey ${{ secrets.NUGET_API_KEY }} -Source https://api.nuget.org/v3/index.json

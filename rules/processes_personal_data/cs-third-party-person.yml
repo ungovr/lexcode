@@ -1,0 +1,58 @@
+rules:
+  - id: lexcode.personal.cs-third-party-person
+    languages: [csharp]
+    severity: INFO
+    message: Sends a person's email address, or a hash of it, to a third-party service (a Stripe customer or Checkout session, a user set on Sentry's scope or Sentry told to send request IPs and user data, a Mailchimp list member, or a Gravatar address), which is processing personal data (processes_personal_data).
+    pattern-either:
+      # A person's address handed to a vendor's request or model type. Each type is written fully
+      # qualified: the engine resolves `using` and aliases, so the app's own CustomerCreateOptions,
+      # SentryUser or Member in a file without the vendor's `using` is not read as the vendor's.
+      # `new T(...) { ... }` matches with and without an initializer; `T $V = new(...) { ... };`
+      # is the target-typed form, and a typed receiver follows a local built with `new`. A string
+      # literal (a test address) is not a person's address.
+      - patterns:
+          - pattern-either:
+              # Stripe.net: a customer created or updated, and a Checkout session for a known
+              # address.
+              - pattern: 'new Stripe.CustomerCreateOptions(...) { ..., Email = $E, ... }'
+              - pattern: 'Stripe.CustomerCreateOptions $V = new(...) { ..., Email = $E, ... };'
+              - pattern: '(Stripe.CustomerCreateOptions $O).Email = $E'
+              - pattern: 'new Stripe.CustomerUpdateOptions(...) { ..., Email = $E, ... }'
+              - pattern: 'Stripe.CustomerUpdateOptions $V = new(...) { ..., Email = $E, ... };'
+              - pattern: '(Stripe.CustomerUpdateOptions $O).Email = $E'
+              - pattern: 'new Stripe.Checkout.SessionCreateOptions(...) { ..., CustomerEmail = $E, ... }'
+              - pattern: 'Stripe.Checkout.SessionCreateOptions $V = new(...) { ..., CustomerEmail = $E, ... };'
+              - pattern: '(Stripe.Checkout.SessionCreateOptions $O).CustomerEmail = $E'
+              # Sentry (Sentry 4 and later): a user attached to the scope, so every event names
+              # the person. The scope reached through ConfigureScope's lambda carries no type, so
+              # its user is read inside that call.
+              - pattern: 'new Sentry.SentryUser(...) { ..., Email = $E, ... }'
+              - patterns:
+                  - pattern-inside: Sentry.SentrySdk.ConfigureScope(...)
+                  - pattern: $S.User.Email = $E
+              # Mailchimp (MailChimp.Net.V3): a list member is keyed by the address.
+              - pattern: 'new MailChimp.Net.Models.Member(...) { ..., EmailAddress = $E, ... }'
+          # Not an address of anyone: the whole value a single plain, verbatim or raw literal (a
+          # test address), null, or an empty string. An interpolated literal, or one joined to the
+          # address (`"buyer+" + user.Email`), still carries the person's address.
+          - metavariable-regex:
+              metavariable: $E
+              regex: (?s)^(?!(?:@?"(?:[^"\\]|\\.|"")*+"|("{3,}+)(?:(?!\g{-1}).)*+\g{-1}|null|[sS]tring\.Empty)$)
+          - focus-metavariable: $E
+      # Sentry: SendDefaultPii, which attaches the request's IP address and user data to each
+      # event. The option's name is Sentry's own. Set to false, it sends neither.
+      - pattern: $O.SendDefaultPii = true
+      - pattern: 'new $T(...) { ..., SendDefaultPii = true, ... }'
+      # Gravatar: an avatar address is built from the hash of the person's address. Matched on
+      # the text of a string (plain, interpolated or raw) that opens with the address, never a
+      # comment's. The engine's interpolated string starts after its quote, so the quote is a
+      # look-behind.
+      - patterns:
+          - pattern-regex: '(?<=")(?:https?:)?(?://)?(?:secure\.|www\.|[0-9]\.)?gravatar\.com/avatar'
+          - pattern-inside: '"..."'
+    metadata:
+      activity: processes_personal_data
+      mentioned: performs
+      definition: https://lexlint.io/activities/processes-personal-data
+      provenance: ungovr-original
+      license: MIT

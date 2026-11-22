@@ -16,11 +16,23 @@ rules:
           - metavariable-regex:
               metavariable: $M
               regex: ^(?:Create|Get)(?:Async)?$
-      # Stripe Identity through a StripeClient's services
+      # Stripe Identity through a StripeClient's services, called in place or held in a local first
+      # (`var sessions = client.V1.Identity.VerificationSessions;`), which carries no type the engine
+      # knows, so the local is followed from its declaration.
       - patterns:
           - pattern-either:
               - pattern: $C.V1.Identity.VerificationSessions.$M(...)
               - pattern: $C.V1.Identity.VerificationReports.$M(...)
+              - patterns:
+                  - pattern-inside: |
+                      var $S = $C.V1.Identity.VerificationSessions;
+                      ...
+                  - pattern: $S.$M(...)
+              - patterns:
+                  - pattern-inside: |
+                      var $S = $C.V1.Identity.VerificationReports;
+                      ...
+                  - pattern: $S.$M(...)
           - metavariable-regex:
               metavariable: $M
               regex: ^(?:Create|Get)(?:Async)?$
