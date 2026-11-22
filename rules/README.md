@@ -1167,6 +1167,10 @@ exemption must be argued and ruled before it is added.
 - Generation evidence is a direct generating call whose result reaches a sink (a
   response, a view, a component field). A client or request object handed around
   (`GetService<IChatClient>()`, `GetChatClient(...)`, a new request) is a signal.
+  The nine generation taint rules (five evidence, four signal) share one set of
+  response sinks and propagators, and a unit test holds the copies to it; the
+  signal rules add one regex to the Blazor sink so that keeping the client
+  itself in a component field is not counted.
 - .NET's own cryptography used to keep data confidential (`AesGcm`, an `Aes`
   encryptor, RSA encryption, `ECDiffieHellman`, `ProtectedData`) is
   `ships_encryption` evidence, as a bundled library that encrypts (Bouncy
@@ -1199,12 +1203,37 @@ The engine sets most of these limits, and the rules' comments point here.
   or `var x = call()`, so a call on `var a = client.GetAudioClient(...)` is found
   at the factory call where a rule reads it there, and missed otherwise.
 - Generation: a reply stored by member access in a Blazor component
-  (`_answer = r.Text`), an anonymous-object response (`Ok(new { reply })`) and a
-  hosted model's address in a plain `HttpClient` helper are not read, nor are
-  Bedrock `ModelId` as a statement or non-literal, Vertex `PredictAsync` and
-  `PredictLongRunning`, or a Vertex client from `builder.Build()`.
+  (`_answer = r.Text`) and an anonymous-object response (`Ok(new { reply })`)
+  are not read, nor are Bedrock `ModelId` as a statement or non-literal, Vertex
+  `PredictAsync` and `PredictLongRunning`, or a Vertex client from
+  `builder.Build()`.
+- Generation over plain HTTP (`cs-chat-model-address`, `cs-genai-model-address`
+  and the HTTP sources of the two evidence rules, #13205): a hosted model's
+  address is read when it is written at the call, held in a local before the
+  send, or held in a member (the signal rules at its declaration, the evidence
+  rules in the same class). Not read: an address assigned to a field in a
+  constructor or another method and sent from a third (`_url = "https://..."`,
+  then `PostAsync(_url, ...)`), an object-initializer or tuple member
+  (`EndpointUrl = "..."`, `("gpt-4o-mini", "https://...")`), a default
+  parameter, a fallback (`config ?? "https://..."`), a client whose
+  `BaseAddress` is the bare host with a relative `PostAsync("chat/completions")`,
+  `HttpWebRequest` and `UnityWebRequest`, an upper-case host or an explicit
+  `:443` port, and a property joined from consts (the signal rules read it, the
+  evidence rules do not follow it into a send). An address held in another
+  class or file is matched only at its declaration, as a signal.
+- Generation evidence through a model's HTTP response: the reply body is the
+  source wherever it goes, so an error path that hands the vendor's error text
+  back (`return StatusCode((int)r.StatusCode, error)`, `BadRequest(errorText)`,
+  `ViewBag.Recipe = "Error: " + r.StatusCode`) counts as generation, now at
+  evidence strength since the HTTP sources of #13205. The response's status
+  (`StatusCode`, `IsSuccessStatusCode`, `ReasonPhrase`) does not count, and an
+  action whose body is one `try`, `using`, `if` or loop statement is no longer
+  its own value (only a `return` inside it is).
 - Text chat: a history held in memory and sent to a model vendor is not
-  `records_text_chat`, because the rules read a store.
+  `records_text_chat`, because the rules read a store. A receiver named for a
+  store, collection, container or table that is given a chat record with a
+  synchronous `Add` or `AddRange` is read as an in-memory list, so a database
+  wrapper of the app's own with that name and that method is missed.
 - Voice and calls: no rule reads Android call audio, LiveKit egress,
   BigBlueButton, WebRTC audio taps or AWS Transcribe streaming.
 - Crawling: the `HtmlWeb` and AngleSharp arms do not judge an interpolated

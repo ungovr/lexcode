@@ -1,0 +1,140 @@
+rules:
+  - id: lexcode.text.cs-chat-model-address
+    languages: [csharp]
+    severity: INFO
+    message: Holds or sends to the address of a hosted text model's generation API (OpenAI's chat completions, completions or Responses API, Anthropic's Messages API, or Mistral's, Groq's or DeepSeek's chat endpoint), which may be generating text with AI that reaches users (generates_text).
+    # An app that calls a hosted model with HttpClient and no SDK keeps the model's address in a
+    # string: written at the call, or held in a const, a field, a static or instance property or a
+    # local and sent from there (#13205). Often the address sits in a defaults class and the call in
+    # a helper in another file (nopCommerce's ArtificialIntelligenceDefaults and
+    # ArtificialIntelligenceHttpClient), and the engine follows a value only within a file, so the
+    # declaration is matched on its own. That is why this is a signal: an address held or sent says
+    # a model writes text, not that the text reaches a person. cs-chat-reply-to-response is the
+    # evidence rule, for a send whose reply the same file hands back.
+    # The hosts are the ones the other languages' text rules name (rs-chat-reply-to-response), and
+    # an address is read to its end: the generation endpoint itself, with an optional trailing
+    # slash or query. Listing models, embeddings, a response retrieved or cancelled by id and
+    # Anthropic's token counter are other addresses, though a base that ends in a slash
+    # (`.../v1/responses/`, which an app may join with an id for a by-id read) counts as a held
+    # address, because of the optional slash. A lookalike host (api.openai.com.example.net)
+    # does not match, since the path must follow the host's own name.
+    # How the address is built (B1 of the #13205 review): written as a literal (plain, verbatim or
+    # interpolated), joined with + from literals and values, or formatted with string.Format; a
+    # value may stand for a query value (an interpolation hole, a joined value or a format
+    # hole), and only there, so the host and the method are always written out. Where it is held:
+    # written at the call (branch 1), in a local declared or assigned before the send in the same
+    # block (branch 2), in a member, matched where it is declared (branch 3), or carried by the
+    # engine (branch 4): a member joined from consts, and a plain or const-joined value sent from a
+    # const, a readonly field or a local. The engine tests a carried value against each literal
+    # part of an interpolated string, so branch 4's regex has no optional trailing slash and needs
+    # the host and the method in one part; branches 1 to 3 read the source text instead.
+    # Matched: a call that sends to the address (PostAsync, PostAsJsonAsync, a request message that
+    # is not a GET, and a Uri built from it, which a client takes as its BaseAddress or a message as
+    # its RequestUri), and a member that holds it. A local in a method that is never sent is not
+    # matched, as a log message held in a local is not (a constructor's local is; see branch 3). A
+    # comment, a log line or an exception message that quotes the address is never a match.
+    # A GET request message drops: GET /v1/chat/completions lists stored completions. GET is
+    # HttpMethod.Get or new HttpMethod("GET") (short or qualified), found by a regex over the whole
+    # message expression, as in cs-video-reply-to-response, and each form is a negative.
+    # Any other method counts, HEAD and OPTIONS included, so a health or preflight probe of the
+    # address matches. A member that holds a generation address but is only read by a GET, or a
+    # Uri built for a GET message, still counts (a known gap).
+    # No whole-file anchor: the member and call shapes give no literal to the engine's pre-filter,
+    # and a C# lookahead would put C# in the large-file notice; the cost is measured instead.
+    pattern-either:
+      # 1. The address written where it is sent.
+      - patterns:
+          - pattern-either: &sends
+              - pattern: $HTTP.PostAsync($URL, ...)
+              - pattern: $HTTP.PostAsJsonAsync($URL, ...)
+              - pattern: $HTTP.PostAsJsonAsync<$T>($URL, ...)
+              - pattern: '$HTTP.PostAsync(..., requestUri: $URL, ...)'
+              - pattern: '$HTTP.PostAsJsonAsync(..., requestUri: $URL, ...)'
+              - pattern: '$HTTP.PostAsJsonAsync<$T>(..., requestUri: $URL, ...)'
+              # A request message, with or without an initializer, positional or named, or a
+              # declaration with target-typed new(). System.Net.Http is imported implicitly, so
+              # the short form is read as well.
+              - patterns:
+                  - pattern-either:
+                      - pattern: new System.Net.Http.HttpRequestMessage($VERB, $URL) { ... }
+                      - pattern: new HttpRequestMessage($VERB, $URL) { ... }
+                      - pattern: 'new System.Net.Http.HttpRequestMessage(..., requestUri: $URL, ...) { ... }'
+                      - pattern: 'new HttpRequestMessage(..., requestUri: $URL, ...) { ... }'
+                      - pattern: System.Net.Http.HttpRequestMessage $V = new($VERB, $URL) { ... };
+                      - pattern: HttpRequestMessage $V = new($VERB, $URL) { ... };
+                      - pattern: 'System.Net.Http.HttpRequestMessage $V = new(..., requestUri: $URL, ...) { ... };'
+                      - pattern: 'HttpRequestMessage $V = new(..., requestUri: $URL, ...) { ... };'
+                  - pattern-not-regex: HttpMethod\.Get\b|new\s+(?:System\.Net\.Http\.)?HttpMethod\s*\(\s*"GET"\s*\)
+              # System is imported implicitly, so the short form is read as well.
+              - pattern: new System.Uri($URL, ...)
+              - pattern: new Uri($URL, ...)
+          - metavariable-regex:
+              metavariable: $URL
+              regex: &address '^(?:(?:System\.)?[Ss]tring\.Format\(\s*)?(?:\$@?|@\$?)?"https://(?:api\.openai\.com/v1/(?:chat/completions|completions|responses)|api\.anthropic\.com/v1/messages|api\.mistral\.ai/v1/chat/completions|api\.groq\.com/openai/v1/chat/completions|api\.deepseek\.com/(?:v1/)?chat/completions)/?(?:\?(?:[^"{]|\{(?:[^{}"]|"[^"]*")*\}|"\s*\+\s*(?:[^"]|"[^"]*")*?\s*\+\s*\$?@?")*(?:"\s*\+(?:[^"]|"[^"]*")*|\{(?:[^{}"]|"[^"]*")*)?)?(?:"\s*(?:,.*\))?)?$'
+      # 2. The address held in a local, declared or assigned, and sent after it in the same block.
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  var $URL = $ADDR;
+                  ...
+              - pattern-inside: |
+                  $TYPE $URL = $ADDR;
+                  ...
+              - pattern-inside: |
+                  $URL = $ADDR;
+                  ...
+          - pattern-either: *sends
+          - metavariable-regex:
+              metavariable: $ADDR
+              regex: *address
+      # 3. A member that holds the address, matched where it is declared: a const, a field or an
+      # auto-property's initializer, an expression body (the engine reads one as an expression
+      # statement, which a bare string is nowhere else; each arm of a switch expression is read the
+      # same way, and a lambda in a field initializer is not), and a return. A local in a method,
+      # an accessor, an indexer or an operator is left to branch 2; one in a constructor, a static
+      # constructor, a finalizer, an event accessor or top-level statements is matched here as a
+      # declaration, sent or not (usually a real hold).
+      - patterns:
+          - pattern-either:
+              - patterns:
+                  - pattern: $TYPE $NAME = $URL;
+                  - pattern-not-inside: $R $F(...) { ... }
+              - pattern: $URL;
+              - pattern: return $URL;
+          - metavariable-regex:
+              metavariable: $URL
+              regex: *address
+      # 4. A value the engine carries (#13205): a member joined from consts, matched where it is
+      # declared, and a const, a readonly field or a local sent from the same file. The value is
+      # written once per shape: the engine's string-value pattern cannot take a metavariable.
+      - patterns:
+          - pattern: $TYPE $NAME = "=~/^https:\/\/(?:api\.openai\.com\/v1\/(?:chat\/completions|completions|responses)|api\.anthropic\.com\/v1\/messages|api\.mistral\.ai\/v1\/chat\/completions|api\.groq\.com\/openai\/v1\/chat\/completions|api\.deepseek\.com\/(?:v1\/)?chat\/completions)(?:\?.*)?$/";
+          - pattern-not-inside: $R $F(...) { ... }
+      - patterns:
+          # An expression body joined from consts: only names, dots, literals and plus signs.
+          - pattern: $X;
+          - metavariable-regex:
+              metavariable: $X
+              regex: '^[\w.]+(?:\s*\+\s*(?:[\w.]+|@?"[^"]*"))+$'
+          - metavariable-pattern:
+              metavariable: $X
+              pattern: '"=~/^https:\/\/(?:api\.openai\.com\/v1\/(?:chat\/completions|completions|responses)|api\.anthropic\.com\/v1\/messages|api\.mistral\.ai\/v1\/chat\/completions|api\.groq\.com\/openai\/v1\/chat\/completions|api\.deepseek\.com\/(?:v1\/)?chat\/completions)(?:\?.*)?$/"'
+      - patterns:
+          - pattern-either:
+              - pattern: $HTTP.PostAsync("=~/^https:\/\/(?:api\.openai\.com\/v1\/(?:chat\/completions|completions|responses)|api\.anthropic\.com\/v1\/messages|api\.mistral\.ai\/v1\/chat\/completions|api\.groq\.com\/openai\/v1\/chat\/completions|api\.deepseek\.com\/(?:v1\/)?chat\/completions)(?:\?.*)?$/", ...)
+              - pattern: $HTTP.PostAsJsonAsync("=~/^https:\/\/(?:api\.openai\.com\/v1\/(?:chat\/completions|completions|responses)|api\.anthropic\.com\/v1\/messages|api\.mistral\.ai\/v1\/chat\/completions|api\.groq\.com\/openai\/v1\/chat\/completions|api\.deepseek\.com\/(?:v1\/)?chat\/completions)(?:\?.*)?$/", ...)
+              - pattern: $HTTP.PostAsJsonAsync<$T>("=~/^https:\/\/(?:api\.openai\.com\/v1\/(?:chat\/completions|completions|responses)|api\.anthropic\.com\/v1\/messages|api\.mistral\.ai\/v1\/chat\/completions|api\.groq\.com\/openai\/v1\/chat\/completions|api\.deepseek\.com\/(?:v1\/)?chat\/completions)(?:\?.*)?$/", ...)
+              - patterns:
+                  - pattern-either:
+                      - pattern: new System.Net.Http.HttpRequestMessage($VERB, "=~/^https:\/\/(?:api\.openai\.com\/v1\/(?:chat\/completions|completions|responses)|api\.anthropic\.com\/v1\/messages|api\.mistral\.ai\/v1\/chat\/completions|api\.groq\.com\/openai\/v1\/chat\/completions|api\.deepseek\.com\/(?:v1\/)?chat\/completions)(?:\?.*)?$/") { ... }
+                      - pattern: new HttpRequestMessage($VERB, "=~/^https:\/\/(?:api\.openai\.com\/v1\/(?:chat\/completions|completions|responses)|api\.anthropic\.com\/v1\/messages|api\.mistral\.ai\/v1\/chat\/completions|api\.groq\.com\/openai\/v1\/chat\/completions|api\.deepseek\.com\/(?:v1\/)?chat\/completions)(?:\?.*)?$/") { ... }
+                      - pattern: HttpRequestMessage $V = new($VERB, "=~/^https:\/\/(?:api\.openai\.com\/v1\/(?:chat\/completions|completions|responses)|api\.anthropic\.com\/v1\/messages|api\.mistral\.ai\/v1\/chat\/completions|api\.groq\.com\/openai\/v1\/chat\/completions|api\.deepseek\.com\/(?:v1\/)?chat\/completions)(?:\?.*)?$/") { ... };
+                  - pattern-not-regex: HttpMethod\.Get\b|new\s+(?:System\.Net\.Http\.)?HttpMethod\s*\(\s*"GET"\s*\)
+              - pattern: new Uri("=~/^https:\/\/(?:api\.openai\.com\/v1\/(?:chat\/completions|completions|responses)|api\.anthropic\.com\/v1\/messages|api\.mistral\.ai\/v1\/chat\/completions|api\.groq\.com\/openai\/v1\/chat\/completions|api\.deepseek\.com\/(?:v1\/)?chat\/completions)(?:\?.*)?$/", ...)
+    metadata:
+      activity: generates_text
+      mentioned: performs
+      definition: https://lexlint.io/activities/generates-text
+      provenance: ungovr-original
+      license: MIT
+      strength: signal

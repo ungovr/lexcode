@@ -8,9 +8,10 @@ rules:
     # alias too), so the pattern also matches the short form under using, and never an app's own
     # class of the same short name. A type reached only through a global using in another file
     # is missed (rules/README.md).
-    # Only a call that generates is a source here: a typed client calling its generating method.
-    # A client object is not output, and a client obtained from a factory or the service container
-    # into a local is the companion signal rule's (the engine cannot type it).
+    # Only a call that generates is a source here: a typed client calling its generating method,
+    # an HTTP call to a Gemini model's address, or the call that sends a request message built for
+    # one. A client or request object is not output, and a client obtained from a factory or the
+    # service container into a local is the companion signal rule's (the engine cannot type it).
     pattern-sources:
       # The Google Gen AI SDK (Google.GenAI): Models.GenerateContentAsync on a Client. Client is
       # not a vendor-named short name, so it is read qualified only.
@@ -23,6 +24,105 @@ rules:
       # Mscc.GenerativeAI: a GenerativeModel.
       - pattern: (Mscc.GenerativeAI.GenerativeModel $C).GenerateContent(...)
       - pattern: (Mscc.GenerativeAI.GenerativeModel $C).GenerateContentStream(...)
+      # The Gemini models called over HTTP with no SDK (#13205), keyed on the hosts
+      # cs-genai-model-address names: generateContent and streamGenerateContent on the Gemini API
+      # or on Vertex AI (a regional aiplatform host). The call is the source, not the address: a
+      # page that only shows the endpoint generates nothing. The address is read to its end, so the
+      # model list, a model's metadata, countTokens and embedContent are not sources. It is read as
+      # cs-genai-model-address reads it: written as a literal, joined with + or formatted with
+      # string.Format, a value standing for the model, the region, the project or a query value
+      # such as the key; written at the call, held in a local before the send or in a member of the
+      # same class, or carried by the engine from a const, a readonly field or a local. An address
+      # held in another class or file is not followed; the signal rule reads the declaration there.
+      # The reply reaches a sink wrapped in a typed object, an interpolated string, a deserialized
+      # type or a JSON read, on a page model's property and in a hub message (fixtures
+      # *.test.wrapped.cs); in an anonymous object (`Ok(new { text })`) the engine drops it, for
+      # these sources as for the SDK ones (rules/README.md, Known C# gaps).
+      - patterns:
+          - pattern-either: &gemini-posts
+              - pattern: $HTTP.PostAsync($URL, ...)
+              - pattern: $HTTP.PostAsJsonAsync($URL, ...)
+              - pattern: $HTTP.PostAsJsonAsync<$T>($URL, ...)
+              - pattern: '$HTTP.PostAsync(..., requestUri: $URL, ...)'
+              - pattern: '$HTTP.PostAsJsonAsync(..., requestUri: $URL, ...)'
+              - pattern: '$HTTP.PostAsJsonAsync<$T>(..., requestUri: $URL, ...)'
+          - metavariable-regex:
+              metavariable: $URL
+              regex: &gemini-address '^(?:(?:System\.)?[Ss]tring\.Format\(\s*)?(?:\$@?|@\$?)?"https://(?:generativelanguage\.googleapis\.com|(?:[a-z0-9-]+-|\{(?:[^{}"]|"[^"]*")*\}-|"\s*\+\s*(?:[^"]|"[^"]*")*?\s*\+\s*\$?@?"-)?aiplatform\.googleapis\.com)/(?:[^"?{]|\{(?:[^{}"]|"[^"]*")*\}|"\s*\+\s*(?:[^"]|"[^"]*")*?\s*\+\s*\$?@?")*:(?:stream)?[gG]enerateContent(?:\?(?:[^"{]|\{(?:[^{}"]|"[^"]*")*\}|"\s*\+\s*(?:[^"]|"[^"]*")*?\s*\+\s*\$?@?")*(?:"\s*\+(?:[^"]|"[^"]*")*|\{(?:[^{}"]|"[^"]*")*)?)?(?:"\s*(?:,.*\))?)?$'
+      # The address held in a local (declared or assigned before the send in the same block) or
+      # in a member of the same class (a field, a const, an expression-bodied property or an
+      # auto-property), and sent by that name.
+      - patterns:
+          - pattern-either: &gemini-holders
+              - pattern-inside: |
+                  var $URL = $ADDR;
+                  ...
+              - pattern-inside: |
+                  $TYPE $URL = $ADDR;
+                  ...
+              - pattern-inside: |
+                  $URL = $ADDR;
+                  ...
+              - pattern-inside: |
+                  class $CLASS { ... $TYPE $URL = $ADDR; ... }
+              - pattern-inside: |
+                  class $CLASS { ... $TYPE $URL => $ADDR; ... }
+              - pattern-inside: |
+                  class $CLASS { ... $TYPE $URL { get; } = $ADDR; ... }
+              - pattern-inside: |
+                  class $CLASS { ... $TYPE $URL { get; set; } = $ADDR; ... }
+          - pattern-either: *gemini-posts
+          - metavariable-regex:
+              metavariable: $ADDR
+              regex: *gemini-address
+      # A value the engine carries from a const (joined from consts too), a readonly field or a
+      # local in the same file.
+      - pattern: $HTTP.PostAsync("=~/^https:\/\/(?:generativelanguage\.googleapis\.com|(?:[a-z0-9-]+-)?aiplatform\.googleapis\.com)\/\S*:(?:stream)?[gG]enerateContent(?:\?.*)?$/", ...)
+      - pattern: $HTTP.PostAsJsonAsync("=~/^https:\/\/(?:generativelanguage\.googleapis\.com|(?:[a-z0-9-]+-)?aiplatform\.googleapis\.com)\/\S*:(?:stream)?[gG]enerateContent(?:\?.*)?$/", ...)
+      - pattern: $HTTP.PostAsJsonAsync<$T>("=~/^https:\/\/(?:generativelanguage\.googleapis\.com|(?:[a-z0-9-]+-)?aiplatform\.googleapis\.com)\/\S*:(?:stream)?[gG]enerateContent(?:\?.*)?$/", ...)
+      # A request message for the same addresses, with or without an initializer, positional or
+      # named, or declared with target-typed new(), is a request object: it carries REQUEST, and
+      # the result of the Send it goes through is the source. System.Net.Http is imported
+      # implicitly, so the short form is read as well. A GET message drops: GET is HttpMethod.Get or new
+      # HttpMethod("GET"), short or qualified, found by a regex over the whole message expression,
+      # as in cs-video-reply-to-response, each pinned by a negative. Any other method counts, HEAD
+      # and OPTIONS included.
+      - label: REQUEST
+        patterns:
+          - pattern-either: &gemini-messages
+              - pattern: new System.Net.Http.HttpRequestMessage($VERB, $URL) { ... }
+              - pattern: new HttpRequestMessage($VERB, $URL) { ... }
+              - pattern: 'new System.Net.Http.HttpRequestMessage(..., requestUri: $URL, ...) { ... }'
+              - pattern: 'new HttpRequestMessage(..., requestUri: $URL, ...) { ... }'
+              - pattern: System.Net.Http.HttpRequestMessage $V = new($VERB, $URL) { ... };
+              - pattern: HttpRequestMessage $V = new($VERB, $URL) { ... };
+              - pattern: 'System.Net.Http.HttpRequestMessage $V = new(..., requestUri: $URL, ...) { ... };'
+              - pattern: 'HttpRequestMessage $V = new(..., requestUri: $URL, ...) { ... };'
+          - metavariable-regex:
+              metavariable: $URL
+              regex: *gemini-address
+          - pattern-not-regex: HttpMethod\.Get\b|new\s+(?:System\.Net\.Http\.)?HttpMethod\s*\(\s*"GET"\s*\)
+      - label: REQUEST
+        patterns:
+          - pattern-either: *gemini-holders
+          - pattern-either: *gemini-messages
+          - metavariable-regex:
+              metavariable: $ADDR
+              regex: *gemini-address
+          - pattern-not-regex: HttpMethod\.Get\b|new\s+(?:System\.Net\.Http\.)?HttpMethod\s*\(\s*"GET"\s*\)
+      - label: REQUEST
+        patterns:
+          - pattern-either:
+              - pattern: new System.Net.Http.HttpRequestMessage($VERB, "=~/^https:\/\/(?:generativelanguage\.googleapis\.com|(?:[a-z0-9-]+-)?aiplatform\.googleapis\.com)\/\S*:(?:stream)?[gG]enerateContent(?:\?.*)?$/") { ... }
+              - pattern: new HttpRequestMessage($VERB, "=~/^https:\/\/(?:generativelanguage\.googleapis\.com|(?:[a-z0-9-]+-)?aiplatform\.googleapis\.com)\/\S*:(?:stream)?[gG]enerateContent(?:\?.*)?$/") { ... }
+              - pattern: HttpRequestMessage $V = new($VERB, "=~/^https:\/\/(?:generativelanguage\.googleapis\.com|(?:[a-z0-9-]+-)?aiplatform\.googleapis\.com)\/\S*:(?:stream)?[gG]enerateContent(?:\?.*)?$/") { ... };
+          - pattern-not-regex: HttpMethod\.Get\b|new\s+(?:System\.Net\.Http\.)?HttpMethod\s*\(\s*"GET"\s*\)
+      - requires: REQUEST
+        patterns:
+          - pattern: $CLIENT.$SEND(...)
+          - metavariable-regex:
+              metavariable: $SEND
+              regex: ^Send(Async)?$
     pattern-propagators:
       # Output written to a file carries on in the path, which a file result then hands to the
       # person. System.IO is imported implicitly, so the short form is read as well.
@@ -76,7 +176,15 @@ rules:
         from: $V
         to: $L
         by-side-effect: true
+    pattern-sanitizers:
+      # The status of a model's HTTP response is no text it wrote (#13205 A5).
+      - pattern: $R.StatusCode
+      - pattern: $R.IsSuccessStatusCode
+      - pattern: $R.ReasonPhrase
     pattern-sinks:
+      # Copied into every C# generation rule; test/unit/cs-reply-sinks.test.ts holds the nine copies
+      # to one set (the four signal rules add one wiring regex to the Blazor sink), so an edit here
+      # goes into all nine (#13207).
       # ASP.NET Core MVC and Web API: a public action of a controller or a view component is the
       # response, whether it returns, streams with yield return, or is written as an expression
       # body. A controller is a class named like one (the framework's own convention, any base),
@@ -114,9 +222,12 @@ rules:
               - patterns:
                   - pattern: public $R $ACTION(...) => $X;
                   # The expression-body pattern also binds a block body; only an expression counts.
+                  # A block of one compound statement binds as that statement (a whole try, using,
+                  # if or loop), which is no value, so a statement keyword drops too (#13205 A5); a
+                  # return inside it is read by the return branch above.
                   - metavariable-regex:
                       metavariable: $X
-                      regex: ^[^{]
+                      regex: ^(?![{]|(?:try|if|using|foreach|for|while|do|switch|lock|checked|unchecked|unsafe|fixed)\b|await\s+(?:foreach|using)\b)
                   # It binds a one-statement block too ({ Log(x); } as => Log(x)), so the action
                   # must return a value.
                   - metavariable-regex:

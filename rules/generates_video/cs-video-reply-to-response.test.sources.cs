@@ -52,7 +52,7 @@ public class SourcesController : ControllerBase
     // $HTTP.GetAsync
     public async Task<IActionResult> Case6(HttpClient http, string id)
     {
-        var r = await http.GetAsync($"https://api.openai.com/v1/videos/{id}");
+        var r = await http.GetAsync($"https://api.openai.com/v1/videos/{id}/content");
         return Ok(r);
     }
 
@@ -87,7 +87,7 @@ public class SourcesController : ControllerBase
     // $HTTP.GetAsync, named
     public async Task<IActionResult> Case11(HttpClient http, string id)
     {
-        var r = await http.GetAsync(requestUri: $"https://api.openai.com/v1/videos/{id}");
+        var r = await http.GetAsync(requestUri: $"https://api.openai.com/v1/videos/{id}/content");
         return Ok(r);
     }
 

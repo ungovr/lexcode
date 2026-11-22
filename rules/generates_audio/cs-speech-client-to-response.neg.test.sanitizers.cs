@@ -74,4 +74,11 @@ public class MetadataController : Controller
         var google = await TextToSpeechClient.CreateAsync();
         return Ok((await google.ListVoicesAsync(new ListVoicesRequest())).Voices.Count);
     }
+
+    // $C.GetType(...)
+    public async Task<IActionResult> Case10(OpenAIClient openAi, IFormFile upload)
+    {
+        var audio = openAi.GetAudioClient("tts-1");
+        return Ok(audio.GetType().Name);
+    }
 }
